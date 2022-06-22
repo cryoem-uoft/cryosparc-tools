@@ -50,7 +50,7 @@ class CustomJob(Job):
         name: str,
         type: Datatype,
         title: Optional[str] = None,
-        fields=Iterable[Union[str, Datafield]],
+        fields: Iterable[Union[str, Datafield]] = [],
         min: int = 0,
         max: Union[int, Literal["inf"]] = "inf",
     ):
