@@ -22,5 +22,5 @@ class Datafield(NamedTuple):
     alignments_class_1"""
 
     required: bool
-    """whether this field must necessarily exist in acorresponding
+    """whether this field must necessarily exist in a corresponding
     input/output"""
