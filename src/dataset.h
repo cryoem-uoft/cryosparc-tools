@@ -6,7 +6,7 @@
 #include <inttypes.h>  // printf specifiers for fixed width integer types
 #include <stdbool.h>   
 
-#define repr(a,b,val) val 
+#define repr(x,a,b,val) val 
 
 #define TYPELIST(X) \
 	X(T_F32,  f,   float,           "f4",   "%g", repr ) \
@@ -21,7 +21,7 @@
 	X(T_U16,  u16, uint16_t,        "u2",   "%" PRIu16, repr ) \
 	X(T_U32,  u32, uint32_t,        "u4",   "%" PRIu32, repr ) \
 	X(T_U64,  u64, uint64_t,        "u8",   "%" PRIu64, repr ) \
-	X(T_STR,  s,   uint64_t,        "O",    "%" PRIu64, repr ) 
+	X(T_STR,  s,   uint64_t,        "O",    "%s", repr_str ) 
 
 
 enum dset_type {
@@ -55,6 +55,7 @@ DSET_API  uint64_t  dset_new (void);
 DSET_API  void      dset_del (uint64_t dset);
 DSET_API  uint64_t  dset_copy (uint64_t dset);
 
+DSET_API  uint64_t    dset_totalsz(uint64_t dset);
 DSET_API  uint32_t    dset_ncol   (uint64_t dset);
 DSET_API  uint64_t    dset_nrow   (uint64_t dset);
 DSET_API  void *      dset_get    (uint64_t dset, const char * colkey);
@@ -166,7 +167,6 @@ fatal(char *fmt, ...)
 	DSPRINTERR(buf3);
 	exit(EXIT_FAILURE);
 }
-
 
 #ifdef NDEBUG
 #define xassert(cond) do{(void)(cond)}while(0);
@@ -464,17 +464,12 @@ column_lookup(const ds * d, const char * colkey)
 	ds_column *c = d->columns;
 	long i = 0;
 	for (;  i < d->ncol;  i++,c++) {
-
 		const char * key = getkey(d, c);
-		if (!strcmp(key, colkey)) break;
+		if (!strcmp(key, colkey)) return c;
 	}
 
-	if(i == d->ncol) {
-		nonfatal("key error: %s", colkey);
-		return 0;
-	}
-
-	return c;
+	nonfatal("key error: %s", colkey);
+	return 0;
 }
 
 
@@ -625,7 +620,7 @@ static uint64_t
 stralloc(ds **d, uint64_t idx, const char * str)
 {
 	const size_t sz = 1 + strlen(str);
-	char * base = (char*)d;
+	char * base = (char*)*d;
 
 	// do we already have this string?
 	{
@@ -647,6 +642,8 @@ stralloc(ds **d, uint64_t idx, const char * str)
 
 	uint64_t newstr   = (*d)->strheap_sz;
 	(*d)->strheap_sz += sz;
+
+	memcpy(base + (*d)->strheap_start + newstr, str, sz);
 	return newstr; 
 }
 
@@ -674,6 +671,7 @@ shift_all_string_handles(ds *d, int64_t shift, uint64_t shift_greater_than)
 static void
 strfree (uint64_t oldstr, ds *d)
 {
+	if(!oldstr) return;
 	char * strheap = ((char *)d) + d->strheap_start;
 	char * s = strheap + oldstr;
 	int64_t sz = 1 + strlen(s);
@@ -777,6 +775,14 @@ dset_del(uint64_t dset)
 		ds_module.slots[idx].memory = 0;
 	}
 	unlock();
+}
+
+DSET_API uint64_t 
+dset_totalsz(uint64_t dset)
+{
+	ds *d = handle_lookup(dset, "dset_ncol", 0, 0);
+	if(d) return d->total_sz;
+	else  return 0;
 }
 
 DSET_API uint32_t 
@@ -991,7 +997,7 @@ dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 		return 0;
 	} else {
 		uint64_t *handles = ptr + d->arrheap_start + c->offset;
-		return ptr + d->strheap_start + c->offset + handles[index];
+		return ptr + d->strheap_start + handles[index];
 	}
 }
 
@@ -1029,16 +1035,25 @@ dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * va
 
 
 static char* 
-repr_cfloat (int sz, char * buf, float complex fc)
+repr_cfloat (uint64_t ds, int sz, char * buf, float complex fc)
 {
 	snprintf(buf,sz,"(%f,%f)", crealf(fc), cimagf(fc));
 	return buf;
 }
 
 static char*
-repr_cdouble (int sz, char * buf, double complex dc)
+repr_cdouble (uint64_t ds, int sz, char * buf, double complex dc)
 {
 	snprintf(buf,sz,"(%f,%f)", creal(dc), cimag(dc));
+	return buf;
+}
+
+static char*
+repr_str (uint64_t dset, int sz, char * buf, uint64_t handle)
+{
+	ds     *d = handle_lookup(dset, "repr_str", 0, 0);
+	char *ptr = (char *) d;
+	snprintf(buf,sz,"%s",ptr + d->strheap_start + handle );
 	return buf;
 }
 
@@ -1051,12 +1066,21 @@ dset_dumptxt (uint64_t dset) {
 
 
 	printf ("dataset %"PRIx64"\n"
+		"\ttotal size:            %"PRIu64"\n"
+		"\trows (actual)          %"PRIu64"\n"
+		"\trows (capacity)        %"PRIu64"\n"
+		"\tcols (actual)          %"PRIu32"\n"
+		"\tcols (capacity)        %"PRIu32"\n\n"
 		"\tnrealloc:              %"PRIu32"\n" 
 		"\tnreassign_arroffsets:  %"PRIu32"\n" 
 		"\tnshift_strhandles:     %"PRIu32"\n" 
 		"\tnmore_arrheap:         %"PRIu32"\n" 
 		"\tnmore_strheap:         %"PRIu32"\n" 
 		"\tnmore_colspace:        %"PRIu32"\n" ,
+		d,
+		d->total_sz,
+		d->nrow, d->crow,
+		d->ncol, d->ccol,
 		d->stats.nrealloc,
 		d->stats.nreassign_arroffsets,
 		d->stats.nshift_strhandles,
@@ -1079,13 +1103,13 @@ dset_dumptxt (uint64_t dset) {
 		for (unsigned i = 0; i < d->ncol; i++,c++) {
 			/* TODO/bug: doesn't print non-scalar columns correctly yet */
 
-			char buf[10] = {};
+			char buf[1000] = {};
 
 			char * data = d;
 			data += d->arrheap_start + c->offset;
 
 			#define REPR(sym,_a,type,_c,spec,reprfn) \
-				case sym: printf("%s" spec, sep, reprfn(sizeof(buf), buf, ((type*)data)[j])); break;
+				case sym: printf("%s" spec, sep, reprfn(dset, sizeof(buf), buf, ((type*)data)[j])); break;
 				
 			switch (abs_i8(c->type)) {
 				TYPELIST(REPR);
