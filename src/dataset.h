@@ -58,6 +58,7 @@ DSET_API  uint64_t  dset_copy (uint64_t dset);
 DSET_API  uint64_t    dset_totalsz(uint64_t dset);
 DSET_API  uint32_t    dset_ncol   (uint64_t dset);
 DSET_API  uint64_t    dset_nrow   (uint64_t dset);
+DSET_API  int8_t      dset_type   (uint64_t dset, const char * colkey);
 DSET_API  void *      dset_get    (uint64_t dset, const char * colkey);
 DSET_API  bool        dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
 DSET_API  const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
@@ -65,6 +66,7 @@ DSET_API  const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t 
 DSET_API  bool        dset_addrows       (uint64_t dset, uint32_t num);
 DSET_API  bool        dset_addcol_scalar (uint64_t dset, const char * key, int type);
 DSET_API  bool        dset_addcol_array  (uint64_t dset, const char * key, int type, const uint8_t shape[3]);
+
 
 DSET_API  bool        dset_defrag (uint64_t dset, int realloc_smaller);
 
@@ -801,6 +803,15 @@ dset_nrow(uint64_t dset)
 	else  return 0;
 }
 
+DSET_API  int8_t
+dset_type (uint64_t dset, const char * colkey)
+{
+	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
+	const ds_column *c  = column_lookup(d, colkey);
+
+	if(!(d && c)) return 0;
+	return abs_i8(c->type);
+}
 
 DSET_API void *    
 dset_get (uint64_t dset, const char * colkey)
