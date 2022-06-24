@@ -9,8 +9,8 @@
 #define repr(a,b,val) val 
 
 #define TYPELIST(X) \
-	X(T_F32,  f,   float,           "f4",   "%a", repr ) \
-	X(T_F64,  d,   double,          "f8",   "%a", repr ) \
+	X(T_F32,  f,   float,           "f4",   "%g", repr ) \
+	X(T_F64,  d,   double,          "f8",   "%g", repr ) \
 	X(T_C32,  cf,  float complex,   "c8",   "%s", repr_cfloat ) \
 	X(T_C64,  cd,  double complex,  "c16",  "%s", repr_cdouble) \
 	X(T_I8,   i8,  int8_t,          "i1",   "%" PRIi8,  repr ) \
@@ -174,10 +174,20 @@ typedef struct {
 	uint32_t   ncol;  // actual number of columns
 	uint64_t   crow;  // reserved capacity for rows
 	uint64_t   nrow;  // actual number of rows
-	uint64_t   total_sz;
+	uint64_t   total_sz; 
 	uint64_t   arrheap_start;
 	uint64_t   strheap_start;
 	uint64_t   strheap_sz;
+	struct {
+		// lets track the number of times the more expensive operations occurr
+		// in the future we can improve the implementation based on what actually happens a lot
+		uint32_t nrealloc;   
+		uint32_t nreassign_arroffsets;
+		uint32_t nshift_strhandles;
+		uint32_t nmore_arrheap;
+		uint32_t nmore_strheap;
+		uint32_t nmore_colspace;
+	} stats;
 	ds_column  columns[];
 
 } ds;
@@ -276,7 +286,7 @@ moreslots (void) {
 static inline uint64_t
 roundup(uint64_t value, uint64_t to)
 {
-	return (value+to-1)/to;
+	return value+to-(value%to);
 }
 
 static uint64_t 
@@ -334,7 +344,7 @@ handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t *
 	*idx = MASK_IDX & h;
 	*gen = h >> SHIFT_GEN;
 
-	if (ds_module.nslots >= *idx) {
+	if (ds_module.nslots <= *idx) {
 		nonfatal("%s: invalid handle %" PRIx64 ", no such slot", msg_fragment, h);
 		return 0;
 	}
@@ -413,7 +423,7 @@ stride (const ds_column *c)
 static const char *
 getkey(const ds *d, const ds_column *c) 
 {
-	unsigned char * ptr = (unsigned char *)d;
+	char * ptr = (char *)d;
 	char * key = c->shortkey;
 	if (c->type < 0) key = ptr + d->strheap_start + c->longkey;
 	return key;
@@ -424,7 +434,7 @@ column_lookup(const ds * d, const char * colkey)
 {
 	if(!d) return 0;
 
-	unsigned char * ptr = (unsigned char *)d;
+	char * ptr = (char *)d;
 	ds_column *c = d->columns;
 	long i = 0;
 	for (;  i < d->ncol;  i++,c++) {
@@ -465,6 +475,7 @@ more_memory (uint64_t idx, uint64_t nbytes_more) {
 	const uint64_t more = roundup(nbytes_more, 1<<25); // 32 MB at a time (too little? too much?)
 
 	ds *d = ds_module.slots[idx].memory;
+	d->stats.nrealloc++;
 
 	ds * newptr = DSREALLOC(d, d->total_sz + more);
 	if (!newptr) {
@@ -474,7 +485,7 @@ more_memory (uint64_t idx, uint64_t nbytes_more) {
 
 	ds_module.slots[idx].memory = d = newptr;
 
-	unsigned char * ptr = (unsigned char *) newptr;
+	char * ptr = (char *) newptr;
 	memset(ptr + d->total_sz, 0, more);
 
 	d->total_sz += more;
@@ -486,6 +497,7 @@ static ds*
 more_strheap (uint64_t idx, uint64_t nbytes_more) {
 
 	ds *d = ds_module.slots[idx].memory;
+	d->stats.nmore_strheap++;
 
 	uint64_t arrheap_reqdsize = 0;
 	if (d->ncol > 0) {
@@ -498,9 +510,9 @@ more_strheap (uint64_t idx, uint64_t nbytes_more) {
 	// if we can find the space just by shrinking the array heap, do that.
 	if (arrheap_actualsize - arrheap_reqdsize >= nbytes_more) {
 
-		unsigned char * ptr = (unsigned char *) d;
-		unsigned char * move_src = ptr + d->strheap_start;
-		unsigned char * move_dst = move_dst - nbytes_more;
+		char * ptr = (char *) d;
+		char * move_src = ptr + d->strheap_start;
+		char * move_dst = move_dst - nbytes_more;
 
 		memmove (move_dst, move_src, nbytes_more);
 		memset  (move_dst + d->strheap_sz, 0, nbytes_more);
@@ -517,14 +529,15 @@ static ds*
 more_arrheap (uint64_t idx, uint64_t nbytes_more) {
 
 	ds *d = ds_module.slots[idx].memory;
+	d->stats.nmore_arrheap++;
 
 	do {
 		// if we can find the space just by shrinking the string heap, do that.
 		if (d->total_sz - d->strheap_start - d->strheap_sz   >   nbytes_more) {
 
-			unsigned char * ptr = (unsigned char *) d;
-			unsigned char * move_src = ptr + d->strheap_start;
-			unsigned char * move_dst = move_src + nbytes_more;
+			char * ptr = (char *) d;
+			char * move_src = ptr + d->strheap_start;
+			char * move_dst = move_src + nbytes_more;
 
 			memmove (move_dst, move_src, nbytes_more);
 			memset  (move_src, 0,        nbytes_more);
@@ -545,14 +558,15 @@ more_columndescr_space (uint64_t idx, uint64_t ncolumns_more) {
 	uint64_t nbytes_more = ncolumns_more * sizeof(ds_column);
 
 	ds *d = ds_module.slots[idx].memory;
+	d->stats.nmore_colspace++;
 
 	// for simplicity, let's not steal from the array heap, just from the string heap
 	do {
 		// if we can find the space just by shrinking the string heap, do that.
 		if (d->total_sz - d->strheap_start - d->strheap_sz   >   nbytes_more) {
 
-			unsigned char * move_src =(unsigned char *)  &d->columns[d->ccol];
-			unsigned char * move_dst = move_src + nbytes_more;
+			char * move_src =(char *)  &d->columns[d->ccol];
+			char * move_dst = move_src + nbytes_more;
 
 			memmove (move_dst, move_src, nbytes_more);
 			memset  (move_src, 0,        nbytes_more);
@@ -613,7 +627,7 @@ stralloc(ds **d, uint64_t idx, const char * str)
 static void 
 shift_all_string_handles(ds *d, int64_t shift, uint64_t shift_greater_than)
 {
-	unsigned char * ptr = (unsigned char *) d;
+	char * ptr = (char *) d;
 	for (uint32_t i = 0; i < d->ncol; i++) {
 		if (d->columns[i].type < 0   &&   d->columns[i].longkey > shift_greater_than) {
 			d->columns[i].longkey += shift;
@@ -628,13 +642,13 @@ shift_all_string_handles(ds *d, int64_t shift, uint64_t shift_greater_than)
 			}
 		}
 	}
-
+	d->stats.nshift_strhandles++;
 }
 
 static void
 strfree (uint64_t oldstr, ds *d)
 {
-	unsigned char * strheap = ((unsigned char *)d) + d->strheap_start;
+	char * strheap = ((char *)d) + d->strheap_start;
 	char * s = strheap + oldstr;
 	int64_t sz = 1 + strlen(s);
 	shift_all_string_handles(d, -sz, oldstr);
@@ -647,8 +661,8 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 {
 	uint64_t cur_arrheap_used_sz = actual_arrheap_sz(d);
 
-	unsigned char * arrheap = ((unsigned char *)d) + d->arrheap_start;
-	unsigned char * arrheap_end = arrheap + cur_arrheap_used_sz;
+	char * arrheap = ((char *)d) + d->arrheap_start;
+	char * arrheap_end = arrheap + cur_arrheap_used_sz;
 
 	for(uint32_t i = 1; i < d->ncol; i++) {
 
@@ -658,18 +672,21 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 		const size_t lastcol_newsz = compute_col_reserved_space(new_crow, lastcol);
 
 		const ptrdiff_t shift   = lastcol_newsz - lastcol_oldsz;
-		unsigned char * mov_src = arrheap + lastcol_oldsz + lastcol->offset;
-		unsigned char * mov_dst = mov_src + shift;
+		char * mov_src = arrheap + lastcol_oldsz + lastcol->offset;
+		char * mov_dst = mov_src + shift;
 
 		// since we're forwards-iterating, if we forward shift, we need to move the entire array heap
 		const ptrdiff_t nbytes  = (shift > 0)  ?  (arrheap_end - mov_src)  :  lastcol_oldsz;
 
 		memmove (mov_dst, mov_src, nbytes);
+		arrheap_end += shift;
 
 		if (shift > 0) memset (mov_src, 0, mov_dst-mov_src);
 
 		d->columns[i].offset = mov_dst-arrheap;
 	}
+
+	d->stats.nreassign_arroffsets++;
 }
 
 
@@ -758,7 +775,7 @@ dset_get (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
 	const ds_column *c  = column_lookup(d, colkey);
-	unsigned char * ptr = (unsigned char *) d;
+	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
 
@@ -845,7 +862,7 @@ dset_addrows (uint64_t dset, uint32_t num) {
 	ds *d = handle_lookup(dset, "dset_addrows", 0, &idx);
 	if (!d) return false;
 
-	if (d->nrow + num > d->crow) {
+	if (d->nrow + num < d->crow) {
 		// we already have enough space reserved, so no big deal.
 		d->nrow += num;
 		return true;
@@ -899,13 +916,13 @@ dset_defrag (uint64_t dset, int realloc_smaller)
 {
 	ds *d = handle_lookup(dset, "dset_compress", 0, 0);
 	if(!d) return false;
-	unsigned char * pd = (unsigned char *) d;
+	char * pd = (char *) d;
 
 	if (d->ccol > d->ncol) {
 
-		unsigned char * end = pd + d->strheap_start + d->strheap_sz;
+		char * end = pd + d->strheap_start + d->strheap_sz;
 
-		unsigned char * arrheap = pd + d->arrheap_start;
+		char * arrheap = pd + d->arrheap_start;
 		memmove(d->columns + d->ncol,  arrheap,  end-arrheap);
 		d->arrheap_start -= (end-arrheap);
 		d->ccol = d->ncol;
@@ -924,6 +941,7 @@ dset_defrag (uint64_t dset, int realloc_smaller)
 	}
 
 	if (realloc_smaller) {
+		d->stats.nrealloc++;
 		d = DSREALLOC(d, d->strheap_start + d->strheap_sz);
 		if (!d) return false;
 	}
@@ -938,7 +956,7 @@ dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 {
 	ds        *d = handle_lookup(dset, colkey, 0, 0);
 	ds_column *c = column_lookup(d, colkey);
-	unsigned char * ptr = (unsigned char *) d;
+	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
 
@@ -959,7 +977,7 @@ dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * va
 
 	ds        *d = handle_lookup(dset, colkey, 0, &idx);
 	ds_column *c = column_lookup(d, colkey);
-	unsigned char * ptr = (unsigned char *) d;
+	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
 
@@ -1005,6 +1023,22 @@ dset_dumptxt (uint64_t dset) {
 	ds *d = handle_lookup(dset, "dset_dumptxt", 0, 0);
 	xassert(d);
 
+
+	printf ("dataset %"PRIx64"\n"
+		"\tnrealloc:              %"PRIu32"\n" 
+		"\tnreassign_arroffsets:  %"PRIu32"\n" 
+		"\tnshift_strhandles:     %"PRIu32"\n" 
+		"\tnmore_arrheap:         %"PRIu32"\n" 
+		"\tnmore_strheap:         %"PRIu32"\n" 
+		"\tnmore_colspace:        %"PRIu32"\n" ,
+		d->stats.nrealloc,
+		d->stats.nreassign_arroffsets,
+		d->stats.nshift_strhandles,
+		d->stats.nmore_arrheap,
+		d->stats.nmore_strheap,
+		d->stats.nmore_colspace
+		);
+
 	char *sep = "";
 	ds_column *c = d->columns;
 	for (unsigned i = 0; i < d->ncol; i++,c++) {
@@ -1012,25 +1046,28 @@ dset_dumptxt (uint64_t dset) {
 		printf("%s%s", sep, getkey(d,c));
 		sep = "\t";
 	}
+	fputc('\n',stdout);
 
-	c = d->columns;
-	for (unsigned j = 0; j < d->nrow; j++)  
-	for (unsigned i = 0; i < d->ncol; i++,c++) {
+	for (unsigned j = 0; j < d->nrow; j++) {
+		c = d->columns;
+		for (unsigned i = 0; i < d->ncol; i++,c++) {
 
-		char buf[10] = {};
+			char buf[10] = {};
 
-		unsigned char * data = d;
-		data += d->arrheap_start + c->offset;
+			char * data = d;
+			data += d->arrheap_start + c->offset;
 
-		#define REPR(sym,a,type,c,spec,reprfn) \
-			case sym: printf("%s" spec, sep, reprfn(sizeof(buf), buf, ((type*)c)[j])); break;
-			
-		switch (abs_i8(c->type)) {
-			TYPELIST(REPR);
-			default:
-				fatal("invalid data type");
+			#define REPR(sym,a,type,c,spec,reprfn) \
+				case sym: printf("%s" spec, sep, reprfn(sizeof(buf), buf, ((type*)c)[j])); break;
+				
+			switch (abs_i8(c->type)) {
+				TYPELIST(REPR);
+				default:
+					fatal("invalid data type");
+			}
+			sep = "  ";
 		}
-		sep = "  ";
+		fputc('\n',stdout);
 	}
 
 }
