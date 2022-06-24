@@ -106,6 +106,19 @@ DSET_API  void        dset_dumptxt (uint64_t dset);
   #define DSFREE    free
 #endif
 
+
+
+
+/*
+	Allow the user to supply custom error print callbacks if they wish
+*/
+
+#ifndef DSPRINTERR
+#define DSPRINTERR(str) do{fputs(str, stderr);fflush(stderr);}while(0);
+#endif 
+
+
+
 /*
 	Default error message logging actions
 */
@@ -115,32 +128,45 @@ __attribute__ ((format (printf, 1, 2)))
 #endif
 nonfatal(char *fmt, ...)
 {
+	char buf[1024]  = {};
+	char buf2[128]  = {};
+	char buf3[1024] = {};
+
 	int e = errno;
+	if (e != 0) snprintf(buf2,sizeof(buf2)," (errno %d: %s)", e, strerror(e));
+
 	va_list args;
 	va_start(args, fmt);
-	vfprintf(stderr, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
-	if (e!= 0) fprintf(stderr, " (errno %d: %s)", e, strerror(e));
-	fputc('\n', stderr);
-	fflush(stderr);
+
+	snprintf(buf3, sizeof(buf3), "%s%s\n", buf, buf2);
+	DSPRINTERR(buf3);
 }
 
-static void 
+static _Noreturn void 
 #if defined(__clang__) || defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif
 fatal(char *fmt, ...)
 {
+	char buf[1024]  = {};
+	char buf2[128]  = {};
+	char buf3[1024] = {};
+
 	int e = errno;
+	if (e != 0) snprintf(buf2,sizeof(buf2)," (errno %d: %s)", e, strerror(e));
+
 	va_list args;
 	va_start(args, fmt);
-	vfprintf(stderr, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
-	if (e!= 0) fprintf(stderr, " (errno %d: %s)", e, strerror(e));
-	fputc('\n', stderr);
-	fflush(stderr);
+
+	snprintf(buf3, sizeof(buf3), "%s%s\n", buf, buf2);
+	DSPRINTERR(buf3);
 	exit(EXIT_FAILURE);
 }
+
 
 #ifdef NDEBUG
 #define xassert(cond) do{(void)(cond)}while(0);
@@ -349,6 +375,11 @@ handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t *
 		return 0;
 	}
 
+	if (!ds_module.slots[*idx].memory) { 
+		nonfatal("%s: invalid handle %" PRIx64 ", no heap at index %" PRIu64, msg_fragment, h, *idx);
+		return 0;
+	}
+
 	if (ds_module.slots[*idx].generation != *gen) {
 		nonfatal("%s: invalid handle %" PRIx64 ", wrong generation counter"
 				" (given %" PRIu16 ", expected %" PRIu16")", 
@@ -356,10 +387,6 @@ handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t *
 		return 0;
 	}
 
-	if (!ds_module.slots[*idx].memory) { 
-		nonfatal("%s: invalid handle %" PRIx64 ", no heap at index %" PRIu64, msg_fragment, h, *idx);
-		return 0;
-	}
 
 	return ds_module.slots[*idx].memory;
 }
@@ -406,7 +433,6 @@ tcheck(int8_t type)
 
 	return false;
 }
-
 
 
 static inline size_t
@@ -1051,6 +1077,7 @@ dset_dumptxt (uint64_t dset) {
 	for (unsigned j = 0; j < d->nrow; j++) {
 		c = d->columns;
 		for (unsigned i = 0; i < d->ncol; i++,c++) {
+			/* TODO/bug: doesn't print non-scalar columns correctly yet */
 
 			char buf[10] = {};
 

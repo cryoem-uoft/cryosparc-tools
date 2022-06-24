@@ -11,10 +11,10 @@ int main (int argc, char ** argv)
 	printf("ncol %u \n", dset_ncol(d));
 	printf("nrow %u \n", dset_nrow(d));
 
+	xassert(dset_addrows(d, 10));
 	xassert(dset_addcol_scalar(d, "col1", T_F32));
 	xassert(dset_addcol_scalar(d, "col2", T_F32));
 	xassert(dset_addcol_scalar(d, "col3", T_F32));
-	xassert(dset_addrows(d, 10));
 
 	float * col1 = dset_get(d, "col1");
 	float * col2 = dset_get(d, "col2");
