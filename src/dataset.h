@@ -1057,8 +1057,8 @@ dset_dumptxt (uint64_t dset) {
 			char * data = d;
 			data += d->arrheap_start + c->offset;
 
-			#define REPR(sym,a,type,c,spec,reprfn) \
-				case sym: printf("%s" spec, sep, reprfn(sizeof(buf), buf, ((type*)c)[j])); break;
+			#define REPR(sym,_a,type,_c,spec,reprfn) \
+				case sym: printf("%s" spec, sep, reprfn(sizeof(buf), buf, ((type*)data)[j])); break;
 				
 			switch (abs_i8(c->type)) {
 				TYPELIST(REPR);
