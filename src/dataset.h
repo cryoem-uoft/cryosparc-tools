@@ -93,7 +93,6 @@ DSET_API  void        dset_dumptxt (uint64_t dset);
 #include <errno.h>
 #include <assert.h>
 #include <stdalign.h>
-
 #include <stdarg.h>    // functions with variable number of arguments (e.g. error message callback)
 
 /*
@@ -452,13 +451,12 @@ static const char *
 getkey(const ds *d, const ds_column *c) 
 {
 	char * ptr = (char *)d;
-	char * key = c->shortkey;
-	if (c->type < 0) key = ptr + d->strheap_start + c->longkey;
+	const char * key = (c->type < 0) ? ptr + d->strheap_start + c->longkey : c->shortkey;
 	return key;
 }
 
 static ds_column * 
-column_lookup(const ds * d, const char * colkey)
+column_lookup(ds * d, const char * colkey)
 {
 	if(!d) return 0;
 
@@ -673,10 +671,11 @@ shift_all_string_handles(ds *d, int64_t shift, uint64_t shift_greater_than)
 static void
 strfree (uint64_t oldstr, ds *d)
 {
-	if(!oldstr) return;
+	if (!oldstr) return;
 	char * strheap = ((char *)d) + d->strheap_start;
 	char * s = strheap + oldstr;
 	int64_t sz = 1 + strlen(s);
+	memmove(s, s+sz, (strheap+d->strheap_sz) - (s+sz));
 	shift_all_string_handles(d, -sz, oldstr);
 	d->strheap_sz -= sz;
 }
