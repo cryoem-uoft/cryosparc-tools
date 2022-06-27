@@ -1,4 +1,6 @@
+from inspect import getmembers
 from pathlib import Path
+import sys
 from typing import (
     Any,
     BinaryIO,
@@ -27,99 +29,105 @@ Int = Union[int, n.int8, n.int16, n.int32, n.int64]
 Float = Union[float, n.float32, n.float64]
 Complex = Union[complex, n.complex64, n.complex128]
 
-
-class Data:
-    def __init__(self, size: int = 0, fields: Union[List[Field], n.dtype] = []):
-        """
-        Allocated dataset memory in C based on given fields
-        """
-        # self.handle = allocate_dataset()  # FIXME
-        pass
-
-    def __del__(self):
-        """
-        Deallocate C-based memory when data is garbage collected
-        """
-        # deallocate_dataset(self.handle)  # FIXME
-        pass
+BYTEORDER = "<" if sys.byteorder == "little" else ">"
+VOID = b""
 
 
-class Column(Sequence):
+class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
     """
-    Dataset column entry
+    Dataset Column entry. May be used anywhere in place of Numpy arrays
     """
 
-    def __init__(self, data, field: str, start: int = 0, stop: int = -1):
+    def __init__(self, data, field: str, subset: slice = slice(0, None, 1)):
         # dlen = len(data[field])  # FIXME: Get the data from the given field somehow
-        dlen = data
-        assert -dlen <= start and start < dlen, f"Invalid start index {start}"
-        assert -dlen <= stop and stop <= dlen, f"Invalid stop index {stop}"
-        self.data = data
-        self.field = field
-        self.start = start + dlen if start < 0 else start
-        self.stop = stop + dlen + 1 if stop < 0 else stop
-        assert self.start <= self.stop, "Cannot initialize a column in reverse order"
+        dtype = n.dtype([(field, "<u8")])
+        datalen = len(data) // dtype.itemsize
+        start, stop, step = subset.indices(datalen)
+        self.shape = (len(range(start, stop, step)),)
+        self.dtype = dtype
+        self._field = field
+        self._data = data
+        self._subset = subset
+
+        # Copy over available numpy functions
+        existing_attrs = set(dir(self))
+        a = n.array(self, copy=False)
+        for (attr, _) in getmembers(a, callable):
+            if attr not in existing_attrs:
+                setattr(self, attr, self.__get_callable__(attr))
+
+    @property
+    def __array_interface__(self):
+        """
+        Allows Column instances to be used as numpy arrays
+        """
+        print("CALLED ARRAY IFACE")
+        datalen = len(self._data) // self.dtype.itemsize
+        start, _, step = self._subset.indices(datalen)
+        return {
+            "data": self._data,
+            "shape": self.shape,
+            "typestr": self.dtype[0].str,
+            "descr": self.dtype.descr,
+            "strides": (self.dtype.itemsize * step,),
+            "offset": start * self.dtype.itemsize,
+            "version": 3,
+        }
+
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
+        out = kwargs.get("out", ())
+        inputs = tuple(n.array(x, copy=False) if isinstance(x, Column) else x for x in args)
+
+        if out:
+            kwargs["out"] = tuple(n.array(x, copy=False) if isinstance(x, Column) else x for x in out)
+
+        return getattr(ufunc, method)(*inputs, **kwargs)
+
+    def __get_callable__(self, key):
+        # Retrieves numpy methods
+        def f(*args, **kwargs):
+            return getattr(n.array(self, copy=False), key)(*args, **kwargs)
+
+        return f
 
     def __len__(self) -> int:
-        return self.stop - self.start
+        return len(n.array(self, copy=False))
 
     def __iter__(self):
-        for i in range(self.start, self.stop):
-            yield i
+        return n.array(self, copy=False).__iter__()
 
     @overload
-    def __getitem__(self, key: int) -> Any:
+    def __getitem__(self, key: slice) -> "Column":
         ...
 
     @overload
-    def __getitem__(self, key: Union[slice, Sequence[int], Sequence[bool]]) -> nt.NDArray:
+    def __getitem__(self, key: n.integer) -> Any:
         ...
 
-    def __getitem__(self, key: Union[int, slice, Sequence[int], Sequence[bool]]) -> Union[nt.NDArray, Any]:
+    @overload
+    def __getitem__(self, key: Any) -> nt.NDArray:  # Returns a copy
+        ...
+
+    def __getitem__(self, key: Union[slice, int, n.integer, Any]) -> Union["Column", nt.NDArray, Any]:
         """
         FIXME: Should return ndarray instead (just have to be careful about
         mutating string columns in compute code)
         """
-        clen = len(self)
-        if isinstance(key, slice):
-            """ """
-            assert key.step is None, "Column does not support slices with step"
-            start = key.start or 0
-            stop = key.stop or clen
-            assert -clen <= start and start < clen, f"Invalid start index {start}"
-            assert -clen <= stop and stop <= clen, f"Invalid stop index {stop}"
-            start = start + clen if start < 0 else start
-            stop = stop + clen + 1 if stop < 0 else stop
-            return self.__class__(self.data, self.field, start=self.start + start, stop=self.start + stop)
-        elif isinstance(key, Sequence):
-            pass
-            if len(key) == 0:
-                return n.array([])  # FIXME: Include dtype
-            elif isinstance(key[0], bool):
-                assert len(key) == clen, f"Invalid mask length ({len(key)}) does not match "
+        if isinstance(key, (int, n.integer)):
+            return n.array(self, copy=False)[key]
+        elif isinstance(key, slice):
+            # Combine the slices to create a new subset (keeps underlying data)
+            datalen = len(self._data) // self.dtype.itemsize
+            r = range(datalen)[self._subset][key]
+            return type(self)(self._data, self._field, subset=slice(r.start, r.stop, r.step))
         else:
-            assert -clen <= key and key < clen, f"Invalid col index {key} for column with length {clen}"
-            return self.start + key % clen
+            return n.copy(n.array(self, copy=False)[key])
 
-    def __setitem__(self, key: Union[int, slice, Sequence[bool]], value: Any):
-        print(key, value)
-        # assert isinstance(key, int) and key >= 0 and key < len(self), f"Invalid column index {key}, must be in range [0, {len(self)}))"
+    def __setitem__(self, key: Any, value: Any):
+        n.array(self, copy=False)[key] = value
 
-    def slice(self, start: int = 0, stop: int = -1) -> Column:
-        """
-        Get a view into this column with the given start/spot indeces
-        """
-        pass
-
-    def to_numpy(self, copy=False):
-        """
-        Return the underlying data as a numpy ndarray. Generally faster than
-        converting via iteration because it uses the underlying bytes directly
-        (except for cases where column items are strings)
-
-        Underlying data is read-only by default, unless copy is set to `True`.
-        """
-        pass
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}{repr(n.array(self, copy=False))[5:]}"
 
 
 class Row(Mapping):
@@ -196,7 +204,7 @@ class Dataset(MutableMapping, Generic[R]):
         """
         pass
 
-    def __getitem__(self, key: str) -> nt.NDArray:
+    def __getitem__(self, key: str) -> Column:
         """
         Get either a specific field in the dataset, a single row or a set of
         rows. Note that Datasets are internally organized by columns so
@@ -204,7 +212,7 @@ class Dataset(MutableMapping, Generic[R]):
         """
         pass
 
-    def __setitem__(self, key: str, val: Union[Any, list, n.ndarray]):
+    def __setitem__(self, key: str, val: Union[Any, list, nt.NDArray, Column]):
         """
         Set or add a field to the dataset. If the field already exists, enforces
         that the data type is the same.
@@ -261,9 +269,7 @@ class Dataset(MutableMapping, Generic[R]):
         ...
 
     def add_fields(
-        self,
-        fields: Union[List[str], List[Field]],
-        dtypes: Optional[Union[str, List[Dtype]]] = None
+        self, fields: Union[List[str], List[Field]], dtypes: Optional[Union[str, List[Dtype]]] = None
     ) -> "Dataset":
         """
         Ensures the dataset has the given fields.
@@ -305,7 +311,7 @@ class Dataset(MutableMapping, Generic[R]):
 
         Example query:
 
-            dset.subset_query({
+            dset.query({
                 'uid': [123456789, 987654321]
                 'micrograph_blob/path': '/path/to/exposure.mrc',
             })
