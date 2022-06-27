@@ -4,11 +4,10 @@
 #include <complex.h>   // complex number support
 #include <stdint.h>    // fixed width integer types
 #include <inttypes.h>  // printf specifiers for fixed width integer types
-#include <stdbool.h>   
 
 #define repr(x,a,b,val) val 
 
-#define TYPELIST(X) \
+#define DSET_TYPELIST(X) \
 	X(T_F32,  f,   float,           "f4",   "%g", repr ) \
 	X(T_F64,  d,   double,          "f8",   "%g", repr ) \
 	X(T_C32,  cf,  float complex,   "c8",   "%s", repr_cfloat ) \
@@ -60,15 +59,15 @@ DSET_API  uint32_t    dset_ncol   (uint64_t dset);
 DSET_API  uint64_t    dset_nrow   (uint64_t dset);
 DSET_API  int8_t      dset_type   (uint64_t dset, const char * colkey);
 DSET_API  void *      dset_get    (uint64_t dset, const char * colkey);
-DSET_API  bool        dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
+DSET_API  int        dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
 DSET_API  const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
 
-DSET_API  bool        dset_addrows       (uint64_t dset, uint32_t num);
-DSET_API  bool        dset_addcol_scalar (uint64_t dset, const char * key, int type);
-DSET_API  bool        dset_addcol_array  (uint64_t dset, const char * key, int type, const uint8_t shape[3]);
+DSET_API  int        dset_addrows       (uint64_t dset, uint32_t num);
+DSET_API  int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
+DSET_API  int        dset_addcol_array  (uint64_t dset, const char * key, int type, const uint8_t shape[3]);
 
 
-DSET_API  bool        dset_defrag (uint64_t dset, int realloc_smaller);
+DSET_API  int        dset_defrag (uint64_t dset, int realloc_smaller);
 
 DSET_API  void        dset_dumptxt (uint64_t dset);
 
@@ -403,36 +402,36 @@ handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t *
 
 #define EMIT_TYPEENUM_ONLY(typeenum,a,b,c,d,e) typeenum,
 static const 
-int valid_types[] = { TYPELIST(EMIT_TYPEENUM_ONLY) };
+int valid_types[] = { DSET_TYPELIST(EMIT_TYPEENUM_ONLY) };
 
 static const 
 size_t Ntypes = sizeof(valid_types)/sizeof(valid_types[0]);
 
 #define EMIT_SZ_ARRAY_ENTRY(typeenum,a,ctype,b,c,d) [typeenum]=sizeof(ctype),
 static const 
-size_t type_size[] = { TYPELIST(EMIT_SZ_ARRAY_ENTRY) };
+size_t type_size[] = { DSET_TYPELIST(EMIT_SZ_ARRAY_ENTRY) };
 
 #define EMIT_ALIGNCHECK(a,name,ctype,b,c,d) static_assert(alignof(ctype) <= 16, "platform incompatible");
-TYPELIST(EMIT_ALIGNCHECK) ;
+DSET_TYPELIST(EMIT_ALIGNCHECK) ;
 
 
 static int8_t abs_i8 (int8_t x) {return x < 0 ? -x : x;}
 #define EMIT_TYPECHECK_FUNCTION(typeenum, fnsuffix, a,b,c,d) \
-	static bool CONCAT(tcheck_, fnsuffix) (int8_t type) {     \
+	static int CONCAT(tcheck_, fnsuffix) (int8_t type) {     \
 		return abs_i8(type) == typeenum;    \
 	}
-TYPELIST(EMIT_TYPECHECK_FUNCTION)
+DSET_TYPELIST(EMIT_TYPECHECK_FUNCTION)
 
-static bool
+static int
 tcheck(int8_t type)
 {
 	const int t  = abs_i8(type);
 	
 	for (int i = 0; i < Ntypes; i++) 
 		if (t == valid_types[i]) 
-			return true;
+			return 1;
 
-	return false;
+	return 0;
 }
 
 
@@ -830,24 +829,24 @@ dset_get (uint64_t dset, const char * colkey)
 }
 
 
-DSET_API bool 
+DSET_API int 
 dset_addcol_scalar (uint64_t dset, const char * key, int type) {
 	const uint8_t shape[3] = {};
 	return dset_addcol_array(dset, key, type, shape);
 }
 
 
-DSET_API bool 
+DSET_API int 
 dset_addcol_array (uint64_t dset, const char * key, int type, const uint8_t shape[3]) {
 
 	if(!tcheck(type)) {
 		nonfatal("invalid column data type: %i", type);
-		return false;
+		return 0;
 	}
 
 	uint64_t idx; 
 	ds *d = handle_lookup(dset, "add column", 0, &idx);
-	if(!d) return false;
+	if(!d) return 0;
 
 	const size_t ksz = 1 + strlen(key);
 	const int8_t t   = abs_i8(type);
@@ -861,7 +860,7 @@ dset_addcol_array (uint64_t dset, const char * key, int type, const uint8_t shap
 
 		// need more space for column descriptors
 		d = more_columndescr_space(idx, 30);
-		if (!d) return false;
+		if (!d) return 0;
 	}
 
 	// compute the offset for the new column
@@ -877,14 +876,14 @@ dset_addcol_array (uint64_t dset, const char * key, int type, const uint8_t shap
 		// need more space on the array heap
 		const size_t howmuch_need = col.offset + reqd_arrheap_space - arrheap_sz;
 		d = more_arrheap(idx, howmuch_need);
-		if (!d) return false;
+		if (!d) return 0;
 	}
 
 	if (col.type < 0) {
 		// key is long, so allocate a string for it	
 
 		uint64_t newstr = stralloc(&d, idx, key);
-		if (!d) return false;
+		if (!d) return 0;
 		col.longkey    = newstr;
 
 	} else {
@@ -893,21 +892,21 @@ dset_addcol_array (uint64_t dset, const char * key, int type, const uint8_t shap
 
 	// commit the new column
 	d->columns[d->ncol++] = col;
-	return true;
+	return 1;
 }
 
 
-DSET_API bool 
+DSET_API int 
 dset_addrows (uint64_t dset, uint32_t num) {
 	uint64_t idx; 
 
 	ds *d = handle_lookup(dset, "dset_addrows", 0, &idx);
-	if (!d) return false;
+	if (!d) return 0;
 
 	if (d->nrow + num < d->crow) {
 		// we already have enough space reserved, so no big deal.
 		d->nrow += num;
-		return true;
+		return 1;
 	}
 
 	// compute the minimum required array heap size for the new row count
@@ -939,7 +938,7 @@ dset_addrows (uint64_t dset, uint32_t num) {
 		}
 
 		d = more_arrheap(idx, req_arrheap_sz-cur_arrheap_sz);
-		if(!d) return false;
+		if(!d) return 0;
 	}
 
 
@@ -948,16 +947,16 @@ dset_addrows (uint64_t dset, uint32_t num) {
 
 	d->crow  = new_crow;
 	d->nrow += num;
-	return true;
+	return 1;
 }
 
 
 
-DSET_API bool 
+DSET_API int 
 dset_defrag (uint64_t dset, int realloc_smaller)
 {
 	ds *d = handle_lookup(dset, "dset_compress", 0, 0);
-	if(!d) return false;
+	if(!d) return 0;
 	char * pd = (char *) d;
 
 	if (d->ccol > d->ncol) {
@@ -985,10 +984,10 @@ dset_defrag (uint64_t dset, int realloc_smaller)
 	if (realloc_smaller) {
 		d->stats.nrealloc++;
 		d = DSREALLOC(d, d->strheap_start + d->strheap_sz);
-		if (!d) return false;
+		if (!d) return 0;
 	}
 
-	return true;
+	return 1;
 }
 
 
@@ -1012,7 +1011,7 @@ dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 }
 
 
-DSET_API bool
+DSET_API int
 dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value)
 {
 	uint64_t idx;
@@ -1040,7 +1039,7 @@ dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * va
 	if(!d) return 0;
 
 	handles[index] = newstr;
-	return true;
+	return 1;
 }
 
 
@@ -1122,7 +1121,7 @@ dset_dumptxt (uint64_t dset) {
 				case sym: printf("%s" spec, sep, reprfn(dset, sizeof(buf), buf, ((type*)data)[j])); break;
 				
 			switch (abs_i8(c->type)) {
-				TYPELIST(REPR);
+				DSET_TYPELIST(REPR);
 				default:
 					fatal("invalid data type");
 			}
