@@ -40,7 +40,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
 
     def __init__(self, data, field: str, subset: slice = slice(0, None, 1)):
         # dlen = len(data[field])  # FIXME: Get the data from the given field somehow
-        dtype = n.dtype([(field, "<u8")])
+        dtype = n.dtype("<u8")
         datalen = len(data) // dtype.itemsize
         start, stop, step = subset.indices(datalen)
         self.shape = (len(range(start, stop, step)),)
@@ -57,9 +57,15 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
                 setattr(self, attr, self.__get_callable__(attr))
 
     @property
+    def field(self) -> str:
+        return self._field
+
+    @property
     def __array_interface__(self):
         """
-        Allows Column instances to be used as numpy arrays
+        Allows Column instances to be used as numpy arrays. The abstract integer
+        pointer value of the 'data' key may be dynamic because the underlying
+        dataset gets re-computed
         """
         print("CALLED ARRAY IFACE")
         datalen = len(self._data) // self.dtype.itemsize
@@ -67,7 +73,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         return {
             "data": self._data,
             "shape": self.shape,
-            "typestr": self.dtype[0].str,
+            "typestr": self.dtype.str,
             "descr": self.dtype.descr,
             "strides": (self.dtype.itemsize * step,),
             "offset": start * self.dtype.itemsize,
@@ -75,6 +81,12 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         }
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs):
+        """
+        Interface for calling numpy universal function operations. Details here:
+        https://numpy.org/doc/stable/user/basics.interoperability.html?highlight=__array_ufunc__#the-array-ufunc-protocol
+
+        Calling ufuncs always creates instances of ndarray
+        """
         out = kwargs.get("out", ())
         inputs = tuple(n.array(x, copy=False) if isinstance(x, Column) else x for x in args)
 
@@ -84,7 +96,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         return getattr(ufunc, method)(*inputs, **kwargs)
 
     def __get_callable__(self, key):
-        # Retrieves numpy methods
+        # Retrieve numpy ndarray method on this class with the given name
         def f(*args, **kwargs):
             return getattr(n.array(self, copy=False), key)(*args, **kwargs)
 
@@ -116,11 +128,13 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         if isinstance(key, (int, n.integer)):
             return n.array(self, copy=False)[key]
         elif isinstance(key, slice):
-            # Combine the slices to create a new subset (keeps underlying data)
-            datalen = len(self._data) // self.dtype.itemsize
+            # Combine the given slices and current self._subset slice to create
+            # a new subset (keeps underlying data)
+            datalen = len(self._data) // self.dtype.itemsize  # FIXME: Get byte length some other way
             r = range(datalen)[self._subset][key]
             return type(self)(self._data, self._field, subset=slice(r.start, r.stop, r.step))
         else:
+            # Indeces or mask, get a deep copy of underlying data subset
             return n.copy(n.array(self, copy=False)[key])
 
     def __setitem__(self, key: Any, value: Any):
@@ -128,6 +142,11 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}{repr(n.array(self, copy=False))[5:]}"
+
+
+class StringColumn(Column):
+    def __getitem__(self, key):
+        pass
 
 
 class Row(Mapping):
@@ -189,6 +208,7 @@ class Dataset(MutableMapping, Generic[R]):
         # Always initialize with at least a UID field
         super().__init__()
         self._data = None
+        self._cols = {}
         self._rows = None  # Uninitialized row-by-row iterator
         self._row_class = row_class
 
@@ -215,7 +235,7 @@ class Dataset(MutableMapping, Generic[R]):
     def __setitem__(self, key: str, val: Union[Any, list, nt.NDArray, Column]):
         """
         Set or add a field to the dataset. If the field already exists, enforces
-        that the data type is the same.
+        that the data type and length are the same.
         """
         pass
 
@@ -230,6 +250,10 @@ class Dataset(MutableMapping, Generic[R]):
         Check that two datasets share the same fields and that those fields have
         the same values.
         """
+        pass
+
+    @property
+    def dtype(self) -> n.dtype:
         pass
 
     @property

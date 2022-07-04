@@ -13,7 +13,7 @@ Dtype = Union[str, Tuple[str, Shape]]
     example, the following dtypes are equivalent.
 
     - '3u4'
-    - 'u4', (3,))
+    - '<u4', (3,))
 """
 
 Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
