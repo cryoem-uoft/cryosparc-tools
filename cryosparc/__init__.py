@@ -29,7 +29,7 @@ class CryoSPARC:
     micrographs = job.load_output('exposures')
 
     # Remove corrupt exposures
-    filtered_micrographs = micrographs.subset_query(is_mic_corrupt)
+    filtered_micrographs = micrographs.query(is_mic_corrupt)
     job.save_output('micrographs', filtered_micrographs)
     ```
 

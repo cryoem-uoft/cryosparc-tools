@@ -15,12 +15,12 @@ class CommandClient:
         cls: Optional[Type[json.JSONEncoder]] = None,
     ):
         """Attempts connection immediately"""
-        self.url = "http://%s:%s%s" % (host, str(port), url)
+        self.url = f"http://{host}:{port}{url}"
         self.timeout = timeout
         self.cls = cls
-        self._reload()
+        self.__reload__()
 
-    def _get_callable(self, key):
+    def __get_callable__(self, key):
         def func(*args, **kwargs):
             params = kwargs if len(kwargs) else args
             data = {
@@ -72,11 +72,11 @@ class CommandClient:
 
         return func
 
-    def _reload(self):
-        system = self._get_callable("system.describe")()
+    def __reload__(self):
+        system = self.__get_callable__("system.describe")()
         self.endpoints = [p["name"] for p in system["procs"]]
         for key in self.endpoints:
-            setattr(self, key, self._get_callable(key))
+            setattr(self, key, self.__get_callable__(key))
 
     def __call__(self):
-        self._reload()
+        self.__reload__()
