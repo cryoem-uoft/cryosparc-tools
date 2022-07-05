@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import PurePath
 from typing import Iterable, Optional, Union
 from typing_extensions import Literal
 
@@ -19,7 +19,7 @@ class Job:
         self.puid = project_uid
         self.juid = uid
 
-    def dir(self) -> Path:
+    def dir(self) -> PurePath:
         """
         Get the path to the job directory
         """

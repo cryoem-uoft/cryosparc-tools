@@ -263,6 +263,13 @@ class Dataset(MutableMapping, Generic[R]):
         """
         pass
 
+    @property
+    def descr(self, exclude_uid=False) -> List[Field]:
+        """
+        Retrive the numpy-compatible description for dataset fields
+        """
+        pass
+
     def to_list(self, exclude_uid: bool = False) -> List[dict]:
         return [row.to_list(exclude_uid) for row in self.rows]
 
@@ -275,12 +282,6 @@ class Dataset(MutableMapping, Generic[R]):
     def fields(self, exclude_uid=False) -> List[str]:
         """
         Retrieve a list of field names available in this dataset
-        """
-        pass
-
-    def descr(self, exclude_uid=False) -> List[Field]:
-        """
-        Retrive the numpy-compatible description for dataset fields
         """
         pass
 
