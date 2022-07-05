@@ -22,14 +22,10 @@ Toolkit for interfacing with cryoSPARC
    python -m venv .venv
    source .venv/bin/activate
    ```
-3. Upgrade pip, install package dependencies
+3. Install dev dependencies and build native modules
    ```sh
    pip install -U pip
    pip install -e ".[dev]"
-   ```
-4. Install
-   ```
-   python -m setup install
    ```
 
 ### Re-compile native module
@@ -37,7 +33,7 @@ Toolkit for interfacing with cryoSPARC
 Recompile native modules after making changes to C code:
 
 ```sh
-python setup.py develop
+python -m setup develop
 ```
 
 ### Build Packages for Publishing
