@@ -20,7 +20,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["cryosparc", "src"]  # FIXME: Rename src -> cryosparc_dataset or similar
+packages = ["cryosparc"]
 
 [build-system]
 requires = ["setuptools", "numpy"]
