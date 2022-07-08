@@ -1,5 +1,6 @@
 from inspect import getmembers
 from pathlib import Path
+from pickle import HIGHEST_PROTOCOL
 import sys
 from typing import (
     Any,
@@ -13,6 +14,7 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
+    OrderedDict,
     Sequence,
     Tuple,
     Type,
@@ -20,14 +22,17 @@ from typing import (
     Union,
     overload,
 )
+from attr import field
 import numpy as n
 import numpy.typing as nt
 
-from .dtype import Dtype, Field
+from .core import Data, generate_uids
+from .dtype import Field, dtype_field, dtypestr, field_dtype
 
-Int = Union[int, n.int8, n.int16, n.int32, n.int64]
-Float = Union[float, n.float32, n.float64]
-Complex = Union[complex, n.complex64, n.complex128]
+# Save format options
+NUMPY_PROTOCOL = 0
+CSDAT_PROTOCOL = 1
+HIGHEST_PROTOCOL = CSDAT_PROTOCOL
 
 BYTEORDER = "<" if sys.byteorder == "little" else ">"
 VOID = b""
@@ -38,13 +43,14 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
     Dataset Column entry. May be used anywhere in place of Numpy arrays
     """
 
-    def __init__(self, data, field: str, subset: slice = slice(0, None, 1)):
+    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None, 1)):
         # dlen = len(data[field])  # FIXME: Get the data from the given field somehow
-        dtype = n.dtype("<u8")
-        datalen = len(data) // dtype.itemsize
-        start, stop, step = subset.indices(datalen)
+        start, stop, step = subset.indices(data.nrow())
+        self.dtype = n.dtype(field_dtype(field))
         self.shape = (len(range(start, stop, step)),)
-        self.dtype = dtype
+        if self.dtype.shape:
+            self.shape += self.dtype.shape
+
         self._field = field
         self._data = data
         self._subset = subset
@@ -57,7 +63,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
                 setattr(self, attr, self.__get_callable__(attr))
 
     @property
-    def field(self) -> str:
+    def field(self):
         return self._field
 
     @property
@@ -68,15 +74,13 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         dataset gets re-computed
         """
         print("CALLED ARRAY IFACE")
-        datalen = len(self._data) // self.dtype.itemsize
-        start, _, step = self._subset.indices(datalen)
+        step = self._subset.indices(self._data.nrow())[-1]
         return {
-            "data": self._data,
+            "data": self._data.getptr(self.field[0]),
             "shape": self.shape,
             "typestr": self.dtype.str,
-            "descr": self.dtype.descr,
-            "strides": (self.dtype.itemsize * step,),
-            "offset": start * self.dtype.itemsize,
+            "descr": [self.field],
+            "strides": (self.dtype.itemsize * step),
             "version": 3,
         }
 
@@ -130,7 +134,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         elif isinstance(key, slice):
             # Combine the given slices and current self._subset slice to create
             # a new subset (keeps underlying data)
-            datalen = len(self._data) // self.dtype.itemsize  # FIXME: Get byte length some other way
+            datalen = self._data.nrow() // self.dtype.itemsize
             r = range(datalen)[self._subset][key]
             return type(self)(self._data, self._field, subset=slice(r.start, r.stop, r.step))
         else:
@@ -153,8 +157,47 @@ class Row(Mapping):
     """
     Provides row-by-row access to the datasert
     """
+    def __init__(self, dataset: 'Dataset', idx: int):
+        self.idx = idx
+        self.dataset = dataset
+        # note - don't keep around a ref to dataset.data because then when dataset.data changes (add field)
+        # the already existing items will be referring to the old dataset.data!
 
-    pass
+    def __getitem__(self, key: str):
+        return self.dataset[key][self.idx]
+
+    def __setitem__(self, key: str, value):
+        self.dataset[key][self.idx] = value
+
+    def __contains__(self, key: str):
+        return key in self.dataset.fields()
+
+    def __iter__(self):
+        return iter(self.dataset.fields())
+
+    def get(self, key, default=None):
+        if key in self:
+            return self[key]
+        return default
+
+    def get_item(self, key, default=None):
+        return self.dataset[key][self.idx] if key in self else default
+
+    def to_list(self, exclude_uid=False):
+        """Convert into a list of native python types, ordered the same way as the fields"""
+        return [self.get_item(key) for key in self.dataset.fields() if not exclude_uid or key != 'uid']
+
+    def to_dict(self):
+        return {key: self[key] for key in self.dataset.fields()}
+
+    def to_item_dict(self):
+        """Like to_dict, but all values are native python types"""
+        return {key: self.get_item(key) for key in self.dataset.fields()}
+
+    def from_dict(self, d):
+        for k in self.dataset.fields():
+            self[k] = d[k]
+
 
 
 R = TypeVar("R", bound=Row)
@@ -169,19 +212,25 @@ class Spool(List[R], Generic[R]):
     pass
 
 
-class Dataset(MutableMapping, Generic[R]):
+class Dataset(MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with cryoSPARC .cs files.
 
     Example usage
 
-    ```
-    dset = Dataset.load('/path/to/particles.cs')
+    ``` dset = Dataset.load('/path/to/particles.cs')
 
     for particle in dset.rows:
-        print(f"Particle located in file {particle['blob/path']} at index {particle['blob/idx']}")
+        print(f"Particle located in file {particle['blob/path']} at index
+        {particle['blob/idx']}")
     ```
 
+    A dataset may be initialized with `Dataset(allocate)` where `allocate` is
+    one of the following:
+
+    * A size of items to allocate (e.g., `42`)
+    * A mapping from column names to their contents (dict or tuple list)
+    * A numpy record array
     """
 
     @classmethod
@@ -189,40 +238,87 @@ class Dataset(MutableMapping, Generic[R]):
         """
         Read a dataset from disk from a path or file handle
         """
-        pass
+        return NotImplemented
 
     @classmethod
-    def save(cls, file: Union[str, Path, BinaryIO]):
+    def save(cls, file: Union[str, Path, BinaryIO], protocol: int = NUMPY_PROTOCOL):
         """
         Save a dataset to the given path or file handle
         """
-        pass
+        return NotImplemented
+
+    @classmethod
+    def allocate(cls, size: int = 0, fields: List[Field] = []):
+        dset = cls(size)
+        dset.add_fields(fields)
+        return dset
 
     def __init__(
         self,
-        *args: Union[Iterable[Tuple[str, Collection]], Dict[str, Collection]],
-        size: int = 0,
-        fields: Union[List[Field], n.dtype] = [],
+        allocate: Union[
+            Data,
+            int,
+            n.ndarray,
+            Mapping[str, nt.ArrayLike],
+            List[Tuple[str, nt.ArrayLike]],
+        ] = 0,
         row_class: Type[R] = Row,
     ) -> None:
         # Always initialize with at least a UID field
         super().__init__()
-        self._data = None
-        self._cols = {}
-        self._rows = None  # Uninitialized row-by-row iterator
         self._row_class = row_class
+        self._cols = None
+        self._rows = None
+
+        if isinstance(allocate, Data):
+            self._data = allocate
+            return
+
+        self._data = Data()
+        populate: List[Tuple[Field, n.ndarray]] = []
+        if isinstance(allocate, int):
+            populate = [(("uid", "<u8"), generate_uids(allocate))]
+        elif isinstance(allocate, n.ndarray):
+            for field in allocate.dtype.descr:
+                assert field[0], f"Cannot initialize with record array of dtype {allocate.dtype}"
+                populate.append((field, allocate[field[0]]))
+        elif isinstance(allocate, Mapping):
+            for f, v in allocate.items():
+                a = n.array(v, copy=False)
+                populate.append((dtype_field(f, a.dtype), a))
+        else:
+            for f, v in allocate:
+                a = n.array(v, copy=False)
+                populate.append((dtype_field(f, a.dtype), a))
+
+        # Check that all entries are the same length
+        nrows = 0
+        if populate:
+            nrows = len(populate[0][1])
+            assert all(
+                len(entry[1]) == nrows for entry in populate
+            ), "Target populate data does not all have the same length"
+
+        # Add UID field at the beginning, if required
+        if not any(entry[0][0] == "uid" for entry in populate):
+            populate.insert(0, (("uid", "<u8"), generate_uids(nrows)))
+
+        self.add_fields([entry[0] for entry in populate])
+        self._data.addrows(nrows)
+        for field, data in populate:
+            self[field[0]] = data
 
     def __len__(self):
         """
         Returns the number of rows in this dataset
         """
-        return 0
+        return self._data.nrow()
 
     def __iter__(self):
         """
         Iterate over the fields in this dataset
         """
-        pass
+        return self.cols.__iter__()
 
     def __getitem__(self, key: str) -> Column:
         """
@@ -230,82 +326,114 @@ class Dataset(MutableMapping, Generic[R]):
         rows. Note that Datasets are internally organized by columns so
         row-based operations are always slower.
         """
-        pass
+        return self.cols[key]
 
-    def __setitem__(self, key: str, val: Union[Any, list, nt.NDArray, Column]):
+    def __setitem__(self, key: str, val: nt.ArrayLike):
         """
-        Set or add a field to the dataset. If the field already exists, enforces
-        that the data type and length are the same.
+        Set or add a field to the dataset.
         """
-        pass
+        if key not in self._data:
+            val = n.array(val, copy=False)
+            assert len(self) == len(val), f"Cannot set '{key}' in {self} to {val} - expected length {len(self)}, actual {len(val)}"
+            self.add_fields([key], [val.dtype])
+        self.cols[key][:] = val
 
     def __delitem__(self, key: str):
         """
         Removes field from the dataset
         """
-        pass
+        self.drop_fields([key])
 
     def __eq__(self, other):
         """
         Check that two datasets share the same fields and that those fields have
         the same values.
         """
-        pass
+        return self.cols == other.cols
 
     @property
-    def dtype(self) -> n.dtype:
-        pass
+    def cols(self) -> OrderedDict[str, Column]:
+        if self._cols is None:
+            self._cols = OrderedDict((f, Column(self._data, dtype_field(f, dt))) for f, dt in self._data.items())
+        return self._cols
 
     @property
     def rows(self) -> Spool[R]:
         """
         A row-by-row accessor list for items in this dataset
         """
-        pass
+        if self._rows is None:
+            self._rows = Spool(self._row_class(self, idx) for idx in range(len(self)))
+        return self._rows
 
     @property
     def descr(self, exclude_uid=False) -> List[Field]:
         """
         Retrive the numpy-compatible description for dataset fields
         """
-        pass
+        return [dtype_field(f, dt) for f, dt in self._data.items()]
 
-    def to_list(self, exclude_uid: bool = False) -> List[dict]:
+    def to_list(self, exclude_uid: bool = False) -> List[list]:
         return [row.to_list(exclude_uid) for row in self.rows]
 
-    def copy(self, keep_fields: Optional[Iterable[str]] = None) -> "Dataset":
+    def copy(self):
         """
         Create a copy; optionally specifying which fields to keep (UIDs are always kept)
         """
-        pass
+        return type(self)(allocate=self._data.copy())
 
     def fields(self, exclude_uid=False) -> List[str]:
         """
         Retrieve a list of field names available in this dataset
         """
-        pass
+        return list(self._data.keys())
 
     @overload
     def add_fields(self, fields: List[Field]) -> "Dataset":
         ...
 
     @overload
-    def add_fields(self, fields: List[str], dtypes: Union[str, List[Dtype]]) -> "Dataset":
+    def add_fields(self, fields: List[str], dtypes: Union[str, List[nt.DTypeLike]]) -> "Dataset":
         ...
 
     def add_fields(
-        self, fields: Union[List[str], List[Field]], dtypes: Optional[Union[str, List[Dtype]]] = None
+        self,
+        fields: Union[List[str], List[Field]],
+        dtypes: Optional[Union[str, List[nt.DTypeLike]]] = None,
     ) -> "Dataset":
         """
         Ensures the dataset has the given fields.
         """
-        pass
+        if len(fields) == 0:
+            return self  # noop
 
-    def drop_fields(self, names: Iterable[str]):
+        desc: List[Field] = []
+        if dtypes:
+            dt = dtypes.split(",") if isinstance(dtypes, str) else dtypes
+            assert len(fields) == len(dt), "Incorrect dtype spec"
+            desc = [dtype_field(str(f), dt) for f, dt in zip(fields, dt)]
+        else:
+            desc = fields  # type: ignore
+
+        for field in desc:
+            if field[0] not in self._data:
+                self._data.addcol(field)
+
+        self._cols = None
+        return self
+
+    def drop_fields(self, names: Collection[str]):
         """
         Remove the given field names from the dataset.
         """
-        pass
+        new_fields = [dtype_field(f, d) for f, d in self._data.items() if f == 'uid' or f not in names]
+        newdata = Dataset.allocate(len(self), new_fields)
+        for field in self.fields():
+            if field not in names:
+                newdata[field] = self[field]
+        self._data = newdata._data
+        self._cols = None
+        return self
 
     def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]]):
         """
@@ -324,8 +452,7 @@ class Dataset(MutableMapping, Generic[R]):
         of the given field should be kept.
         """
         test = lambda n: n in name_test if isinstance(name_test, list) else name_test
-        return self.drop_fields(f for f in self.fields() if f != "uid" and not test(f))
-        # Return a new dataset with the desired fields
+        return self.drop_fields([f for f in self.fields() if f != "uid" and not test(f)])
 
     def query(self, query: Union[dict, Callable[[Any], bool]]) -> "Dataset":
         """
@@ -342,25 +469,23 @@ class Dataset(MutableMapping, Generic[R]):
             })
 
         """
-        pass
+        return NotImplemented
 
     def subset(self, indexes: Union[Iterable[int], Iterable[Row]]) -> "Dataset":
         """
         Get a subset of dataset that only includes the given indexes or list of rows
         """
-        pass
+        return NotImplemented
 
     def mask(self, mask: Collection[bool]) -> "Dataset":
         """
         Get a subset of the dataset that matches the given mask of rows
         """
-        assert len(mask) == len(
-            self
-        ), f"Mask with length {len(mask)} does not match expected dataset length {len(self)}"
+        assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
         return self  # FIXME
 
     def range(self, start: int = 0, stop: int = -1) -> "Dataset":
         """
         Get at subset of the dataset with rows in the given range
         """
-        pass
+        return NotImplemented

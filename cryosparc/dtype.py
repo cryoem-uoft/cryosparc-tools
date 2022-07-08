@@ -1,9 +1,11 @@
 from typing import Tuple, Union
+import numpy as n
+import numpy.typing as nt
 
 Shape = Tuple[int, ...]
 """A numpy shape tuple from ndarray.shape"""
 
-Dtype = Union[str, Tuple[str, Shape]]
+DType = Union[str, Tuple[str, Shape]]
 """
 
     Can just be a single string such as `f4`, `3u4` or `O`.
@@ -27,10 +29,22 @@ Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
 """
 
 
-def field_dtype(field: Field) -> Dtype:
+def field_dtype(field: Field) -> DType:
     _, dt, *rest = field
     return (dt, rest[0]) if rest else dt
 
 
-def dtype_field(name: str, dtype: Dtype) -> Field:
-    return (name, dtype) if isinstance(dtype, str) else (name, *dtype)
+def dtypestr(dtype: nt.DTypeLike) -> str:
+    dt = n.dtype(dtype)
+    if dt.shape:
+        shape = ",".join(map(str, dt.shape))
+        return f"{dt.base.str[0]}{shape}{dt.base.str[1:]}"
+    else:
+        return dt.str
+
+
+def dtype_field(name: str, dtype: nt.DTypeLike) -> Field:
+    if isinstance(dtype, str):
+        return (name, dtype)
+    dt = n.dtype(dtype)
+    return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)
