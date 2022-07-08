@@ -9,10 +9,10 @@ setup(
     headers=["src/dataset.h"],
     ext_modules=[
         Extension(
-            name="cryosparc_dataset",
+            name="cryosparc.core",
             libraries=['pthread', 'm'],
             include_dirs=[numpy.get_include()],
-            define_macros=[('MODULENAME', 'cryosparc_dataset')],
+            define_macros=[('MODULENAME', 'core')],
             sources=["src/pywrapper_module.c", "src/pywrapper_dataset.c"],
             depends=["src/dataset.h", "src/pywrapper_wrapperfunctions.c"],
         )
