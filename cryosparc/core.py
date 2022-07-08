@@ -1,10 +1,17 @@
 from enum import Enum
-from typing import Dict, List, Mapping, Optional, Tuple, Type, Union, overload
+from typing import Dict, Mapping, Optional, Type, Union, overload
 import numpy as n
 import numpy.typing as nt
 
 from .dtype import DType, Field, Shape
 from .. import cryosparc_dataset
+
+
+Int = Union[int, n.int8, n.int16, n.int32, n.int64]
+Uint = Union[n.uint8, n.uint16, n.uint32, n.uint64]
+Float = Union[float, n.float32, n.float64]
+Complex = Union[complex, n.complex64, n.complex128]
+Scalar = Union[Int, Uint, Float, Complex, n.object0]
 
 
 class DsetType(int, Enum):
@@ -26,8 +33,6 @@ class DsetType(int, Enum):
     T_U64 = 12
     T_STR = 13
 
-
-MAX_UINT64 = 0xFFFF_FFFF_FFFF_FFFF
 
 DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
     DsetType.T_F32: n.float32,
@@ -55,32 +60,6 @@ TYPE_TO_DSET_MAP = {
         object: DsetType.T_STR,
     },
 }
-
-
-Int = Union[int, n.int8, n.int16, n.int32, n.int64]
-Uint = Union[n.uint8, n.uint16, n.uint32, n.uint64]
-Float = Union[float, n.float32, n.float64]
-Complex = Union[complex, n.complex64, n.complex128]
-Scalar = Union[Int, Uint, Float, Complex, n.object0]
-
-
-def dtype_to_int(
-    dt: nt.DTypeLike,
-) -> Union[DsetType, Tuple[DsetType, nt.NDArray[n.uint8]]]:
-    dt = n.dtype(dt)
-    if dt.shape:
-        assert dt.base in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
-        return TYPE_TO_DSET_MAP[dt.base], n.array(dt.shape, dtype=n.uint8)
-    else:
-        assert dt in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
-        return TYPE_TO_DSET_MAP[dt]
-
-
-def generate_uids(num: int = 0):
-    """
-    Generate the given number of random 64-bit unsigned uids
-    """
-    return n.random.randint(0, MAX_UINT64, size=(num,), dtype=n.uint64)
 
 
 class Data(Mapping[str, DType]):
@@ -152,19 +131,22 @@ class Data(Mapping[str, DType]):
     def type(self, field: str) -> int:
         return cryosparc_dataset.dset_type(field)
 
-    def getptr(self, field: str) -> int:
-        return cryosparc_dataset.dset_getptr(self.handle, field)
+    def get(self, field: str) -> int:
+        return cryosparc_dataset.dset_get(self.handle, field)
 
     def getshape(self, field: str) -> Shape:
-        val: int = cryosparc_dataset.dset_getshp(self.handle)
+        val: int = cryosparc_dataset.dset_getshp(self.handle, field)
         shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
         return tuple(s for s in shape if s != 0)
 
-    def getstr(self, field: str, index: int) -> str:
+    def getstr(self, field: str, index: Union[int, n.integer]) -> str:
         # TODO: See how bad the memory usage is due to having to create a new
         # string instance each time. Might be good to maintain a string cache
         # for each string column
-        return cryosparc_dataset.dset_getstr(self.handle, field, index)
+        return cryosparc_dataset.dset_getstr(self.handle, field, int(index))
+
+    def setstr(self, field: str, index: Union[int, n.integer], value: str):
+        cryosparc_dataset.dset_setstr(field, int(index), value)
 
     def addrows(self, num) -> bool:
         return cryosparc_dataset.dset_addrows(self.handle, num) != 0

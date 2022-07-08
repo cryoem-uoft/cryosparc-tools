@@ -22,12 +22,11 @@ from typing import (
     Union,
     overload,
 )
-from attr import field
 import numpy as n
 import numpy.typing as nt
 
-from .core import Data, generate_uids
-from .dtype import Field, dtype_field, dtypestr, field_dtype
+from .core import Data
+from .dtype import Field, dtype_field, field_dtype
 
 # Save format options
 NUMPY_PROTOCOL = 0
@@ -36,6 +35,13 @@ HIGHEST_PROTOCOL = CSDAT_PROTOCOL
 
 BYTEORDER = "<" if sys.byteorder == "little" else ">"
 VOID = b""
+
+
+def generate_uids(num: int = 0):
+    """
+    Generate the given number of random 64-bit unsigned integer uids
+    """
+    return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)
 
 
 class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
@@ -76,7 +82,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         print("CALLED ARRAY IFACE")
         step = self._subset.indices(self._data.nrow())[-1]
         return {
-            "data": self._data.getptr(self.field[0]),
+            "data": self._data.get(self.field[0]),
             "shape": self.shape,
             "typestr": self.dtype.str,
             "descr": [self.field],
@@ -149,8 +155,42 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
 
 
 class StringColumn(Column):
-    def __getitem__(self, key):
-        pass
+    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None, 1)):
+        super().__init__(data, field, subset)
+        # Available string indexes in this dataset
+        self._idxs = n.array(list(range(*self._subset.indices(self._data.nrow()))))
+        delattr(self, '__array_interface__')  # not applicable to this class
+
+    @property
+    def __array__(self):
+        f = self.field[0]
+        return n.array([self._data.getstr(f, i) for i in range(self._data.nrow())], dtype=n.object0)
+
+    def __getitem__(self, key: Union[slice, int, n.integer, Any]) -> Union["Column", nt.NDArray, Any]:
+        if isinstance(key, slice):
+            return super().__getitem__(key)  # Return string column subset
+        elif isinstance(key, (int, n.integer)):
+            return self._data.getstr(self.field[0], self._idxs[key])
+        elif isinstance(key, Collection):  # mask or index list
+            idxs = self._idxs[n.array(key, copy=False)]
+            return n.array([self._data.getstr(self.field[0], i) for i in idxs])
+
+        raise TypeError(f"Invalid index into StringColumn: {key}")
+
+    def __setitem__(self, key: Any, value: Union[str, Collection[str]]):
+        if isinstance(key, (int, n.integer)):
+            idxs = [self._idxs[key]]
+        else:
+            idxs = self._idxs[n.array(key, copy=False)]
+
+        f = self.field[0]
+        if isinstance(value, str):
+            for i in idxs:
+                self._data.setstr(f, i, value)
+        else:
+            assert len(value) == len(idxs), f"Cannot assign [{key}] for {type(self).__name__} to {value}"
+            for i, v in zip(idxs, value):
+                self._data.setstr(f, i, v)
 
 
 class Row(Mapping):
@@ -442,7 +482,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if isinstance(field_map, dict):
             field_map = lambda x: field_map.get(x, x)
-        # FIXME: allocate
+        newdset = Dataset([(field_map(f), col) for f, col in self.cols.items()])
+        self._data = newdset._data
         return self
 
     def filter_fields(self, name_test: Union[List[str], Callable[[str], bool]]):
