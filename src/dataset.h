@@ -815,7 +815,7 @@ dset_key(uint64_t dset, uint64_t index)
 {
 	const ds *d  = handle_lookup(dset, "dset_colkey", 0, 0);
 	if (!d) return "";
-	if (d->ncol >= index) {
+	if (index >= d->ncol) {
 		nonfatal("dset_key: column index %d out of range (%d ncol)", index, d->ncol);
 		return "";
 	}
