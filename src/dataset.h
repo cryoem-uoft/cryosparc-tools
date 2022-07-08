@@ -58,11 +58,10 @@ DSET_API  uint64_t    dset_totalsz(uint64_t dset);
 DSET_API  uint32_t    dset_ncol   (uint64_t dset);
 DSET_API  uint64_t    dset_nrow   (uint64_t dset);
 DSET_API  const char* dset_key    (uint64_t dset, uint64_t index);
-DSET_API  int8_t      dset_type   (uint64_t dset, const char * colkey);
+DSET_API  uint8_t     dset_type   (uint64_t dset, const char * colkey);
 DSET_API  void *      dset_get    (uint64_t dset, const char * colkey);
 DSET_API  int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
 DSET_API  const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
-DSET_API  uint64_t    dset_getptr (uint64_t dset, const char * colkey);
 DSET_API  uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 
 DSET_API  int        dset_addrows       (uint64_t dset, uint32_t num);
@@ -76,7 +75,8 @@ DSET_API  void        dset_dumptxt (uint64_t dset);
 
 /*
 	WRAPGEN (dset_new, dset_del, dset_copy)
-	WRAPGEN (dset_totalsz, dset_ncol, dset_nrow, dset_type, dset_get, dset_setstr, dset_getstr)
+	WRAPGEN (dset_totalsz, dset_ncol, dset_nrow, dset_key, dset_type)
+	WRAPGEN (dset_get, dset_setstr, dset_getstr, dset_getshp)
 	WRAPGEN (dset_addrows, dset_addcol_scalar, dset_addcol_array, dset_defrag, dset_dumptxt)
 */
 
@@ -824,7 +824,7 @@ dset_key(uint64_t dset, uint64_t index)
 }
 
 
-DSET_API  int8_t
+DSET_API  uint8_t
 dset_type (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
@@ -849,12 +849,6 @@ dset_get (uint64_t dset, const char * colkey)
 	}
 
 	return ptr + d->arrheap_start + c->offset;
-}
-
-DSET_API uint64_t
-dset_getptr (uint64_t dset, const char *colkey)
-{
-	return (uint64_t) dset_get(dset, colkey);
 }
 
 DSET_API uint32_t
