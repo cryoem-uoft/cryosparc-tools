@@ -25,7 +25,7 @@ from typing import (
 import numpy as n
 import numpy.typing as nt
 
-from .core import Data
+from .data import Data
 from .dtype import Field, dtype_field, field_dtype
 
 # Save format options
@@ -63,7 +63,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
 
         # Copy over available numpy functions
         existing_attrs = set(dir(self))
-        a = n.array(self, copy=False)
+        a = n.ndarray(0, dtype=self.dtype)
         for (attr, _) in getmembers(a, callable):
             if attr not in existing_attrs:
                 setattr(self, attr, self.__get_callable__(attr))
@@ -82,11 +82,11 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         print("CALLED ARRAY IFACE")
         step = self._subset.indices(self._data.nrow())[-1]
         return {
-            "data": self._data.get(self.field[0]),
+            "data": (self._data.get(self.field[0]), False),
             "shape": self.shape,
             "typestr": self.dtype.str,
             "descr": [self.field],
-            "strides": (self.dtype.itemsize * step),
+            "strides": (self.dtype.itemsize * step,),
             "version": 3,
         }
 
@@ -159,7 +159,10 @@ class StringColumn(Column):
         super().__init__(data, field, subset)
         # Available string indexes in this dataset
         self._idxs = n.array(list(range(*self._subset.indices(self._data.nrow()))))
-        delattr(self, '__array_interface__')  # not applicable to this class
+
+    @property
+    def __array_interface__(self):
+        return None
 
     @property
     def __array__(self):

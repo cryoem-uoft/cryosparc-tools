@@ -4,7 +4,7 @@ import numpy as n
 import numpy.typing as nt
 
 from .dtype import DType, Field, Shape
-from .. import cryosparc_dataset
+from . import core
 
 
 Int = Union[int, n.int8, n.int16, n.int32, n.int64]
@@ -75,16 +75,16 @@ class Data(Mapping[str, DType]):
         Allocate new memory for a dataset
         """
         if copy_handle > 0:
-            self.handle = cryosparc_dataset.dset_copy(copy_handle)
+            self.handle = core.dset_copy(copy_handle)
         else:
-            self.handle = cryosparc_dataset.dset_new()
+            self.handle = core.dset_new()
 
     def __del__(self):
         """
         When garbage-collected, removes memory for the given dataset
         """
         print(f"DATASET GARBAGE COLLECT FOR HANDLE {self.handle}")
-        cryosparc_dataset.dset_del(self.handle)
+        core.dset_del(self.handle)
         self.handle = 0
 
     def __len__(self) -> int:
@@ -114,28 +114,28 @@ class Data(Mapping[str, DType]):
         return self.__copy__()
 
     def totalsz(self) -> int:
-        return cryosparc_dataset.dset_totalsz(self.handle)
+        return core.dset_totalsz(self.handle)
 
     def copy(self) -> "Data":
         return self.__copy__()
 
     def ncol(self) -> int:
-        return cryosparc_dataset.dset_ncol(self.handle)
+        return core.dset_ncol(self.handle)
 
     def nrow(self) -> int:
-        return cryosparc_dataset.dset_nrow(self.handle)
+        return core.dset_nrow(self.handle)
 
     def key(self, index: int) -> str:
-        return cryosparc_dataset.dset_key(self.handle, index)
+        return core.dset_key(self.handle, index)
 
     def type(self, field: str) -> int:
-        return cryosparc_dataset.dset_type(field)
+        return core.dset_type(self.handle, field)
 
     def get(self, field: str) -> int:
-        return cryosparc_dataset.dset_get(self.handle, field)
+        return core.dset_get(self.handle, field)
 
     def getshape(self, field: str) -> Shape:
-        val: int = cryosparc_dataset.dset_getshp(self.handle, field)
+        val: int = core.dset_getshp(self.handle, field)
         shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
         return tuple(s for s in shape if s != 0)
 
@@ -143,13 +143,13 @@ class Data(Mapping[str, DType]):
         # TODO: See how bad the memory usage is due to having to create a new
         # string instance each time. Might be good to maintain a string cache
         # for each string column
-        return cryosparc_dataset.dset_getstr(self.handle, field, int(index))
+        return core.dset_getstr(self.handle, field, int(index))
 
     def setstr(self, field: str, index: Union[int, n.integer], value: str):
-        cryosparc_dataset.dset_setstr(field, int(index), value)
+        core.dset_setstr(self.handle, field, int(index), value)
 
     def addrows(self, num) -> bool:
-        return cryosparc_dataset.dset_addrows(self.handle, num) != 0
+        return core.dset_addrows(self.handle, num) != 0
 
     @overload
     def addcol(self, field: Field) -> bool:
@@ -169,18 +169,18 @@ class Data(Mapping[str, DType]):
         existing_type = self.type(field)
         assert existing_type == 0, f"Field {field} already defined in dataset"
         if dt.shape:
-            assert dt.base in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
-            return self.addcol_array(field, TYPE_TO_DSET_MAP[dt.base], dt.shape)
+            assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
+            return self.addcol_array(field, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
         else:
-            assert dt in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
-            return self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt])
+            assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
+            return self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt.type])
 
     def addcol_scalar(self, field: str, dtype: DsetType) -> bool:
-        return cryosparc_dataset.dset_addcol_scalar(self.handle, field, dtype) != 0
+        return core.dset_addcol_scalar(self.handle, field, dtype) != 0
 
     def addcol_array(self, field: str, dtype: DsetType, shape: Shape) -> bool:
         s = n.array(shape, dtype=n.uint8)
-        return cryosparc_dataset.dset_addcol_array(self.handle, field, dtype, s) != 0
+        return core.dset_addcol_array(self.handle, field, dtype, s) != 0
 
     def defrag(self) -> bool:
-        return cryosparc_dataset.dset_defrag(self.handle) != 0
+        return core.dset_defrag(self.handle) != 0
