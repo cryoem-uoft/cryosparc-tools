@@ -108,16 +108,16 @@ class Data(Mapping[str, DType]):
             yield self.key(i)
 
     def __copy__(self):
-        return Data(copy_handle=self.handle)
+        return self.copy()
 
     def __deepcopy__(self):
-        return self.__copy__()
+        return self.copy()
 
     def totalsz(self) -> int:
         return core.dset_totalsz(self.handle)
 
     def copy(self) -> "Data":
-        return self.__copy__()
+        return Data(copy_handle=self.handle)
 
     def ncol(self) -> int:
         return core.dset_ncol(self.handle)

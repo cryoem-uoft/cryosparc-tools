@@ -1,6 +1,6 @@
+from abc import ABC
 from inspect import getmembers
 from pathlib import Path
-from pickle import HIGHEST_PROTOCOL
 import sys
 from typing import (
     Any,
@@ -26,7 +26,7 @@ import numpy as n
 import numpy.typing as nt
 
 from .data import Data
-from .dtype import Field, dtype_field, field_dtype
+from .dtype import Field, dtype_field, field_shape, field_strides
 
 # Save format options
 NUMPY_PROTOCOL = 0
@@ -44,18 +44,17 @@ def generate_uids(num: int = 0):
     return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)
 
 
-class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
+class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
     """
     Dataset Column entry. May be used anywhere in place of Numpy arrays
     """
 
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None, 1)):
+    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
         # dlen = len(data[field])  # FIXME: Get the data from the given field somehow
         start, stop, step = subset.indices(data.nrow())
-        self.dtype = n.dtype(field_dtype(field))
-        self.shape = (len(range(start, stop, step)),)
-        if self.dtype.shape:
-            self.shape += self.dtype.shape
+        dtype = n.dtype(field[1])
+        self.dtype = dtype.base if dtype.shape else dtype
+        self.shape = (len(range(start, stop, step)), *field_shape(field))
 
         self._field = field
         self._data = data
@@ -71,24 +70,6 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
     @property
     def field(self):
         return self._field
-
-    @property
-    def __array_interface__(self):
-        """
-        Allows Column instances to be used as numpy arrays. The abstract integer
-        pointer value of the 'data' key may be dynamic because the underlying
-        dataset gets re-computed
-        """
-        print("CALLED ARRAY IFACE")
-        step = self._subset.indices(self._data.nrow())[-1]
-        return {
-            "data": (self._data.get(self.field[0]), False),
-            "shape": self.shape,
-            "typestr": self.dtype.str,
-            "descr": [self.field],
-            "strides": (self.dtype.itemsize * step,),
-            "version": 3,
-        }
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs):
         """
@@ -140,8 +121,9 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         elif isinstance(key, slice):
             # Combine the given slices and current self._subset slice to create
             # a new subset (keeps underlying data)
-            datalen = self._data.nrow() // self.dtype.itemsize
+            datalen = self._data.nrow()
             r = range(datalen)[self._subset][key]
+            print(f"SLICE {key} RANGE {r} SUBSET {self._subset}")
             return type(self)(self._data, self._field, subset=slice(r.start, r.stop, r.step))
         else:
             # Indeces or mask, get a deep copy of underlying data subset
@@ -154,20 +136,41 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin):
         return f"{type(self).__name__}{repr(n.array(self, copy=False))[5:]}"
 
 
+class NumericColumn(Column):
+    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
+        super().__init__(data, field, subset)
+        self._strides = field_strides(field, self._subset.step or 1)
+
+    @property
+    def __array_interface__(self):
+        """
+        Allows Column instances to be used as numpy arrays. The abstract integer
+        pointer value of the 'data' key may be dynamic because the underlying
+        dataset gets re-computed
+        """
+        return {
+            "data": (self._data.get(self.field[0]), False),
+            "shape": self.shape,
+            "typestr": self.dtype.str,
+            "strides": self._strides,
+            "version": 3,
+        }
+
+
 class StringColumn(Column):
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None, 1)):
+    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
+        assert len(field) == 2 and n.dtype(field[1]) == n.dtype(
+            n.object0
+        ), f"Cannot create a String column with dtype {field[1]}"
         super().__init__(data, field, subset)
         # Available string indexes in this dataset
         self._idxs = n.array(list(range(*self._subset.indices(self._data.nrow()))))
 
-    @property
-    def __array_interface__(self):
-        return None
-
-    @property
     def __array__(self):
-        f = self.field[0]
-        return n.array([self._data.getstr(f, i) for i in range(self._data.nrow())], dtype=n.object0)
+        return n.array(
+            [self._data.getstr(self.field[0], i) for i in range(*self._subset.indices(self._data.nrow()))],
+            dtype=n.object0,
+        )
 
     def __getitem__(self, key: Union[slice, int, n.integer, Any]) -> Union["Column", nt.NDArray, Any]:
         if isinstance(key, slice):
@@ -176,7 +179,7 @@ class StringColumn(Column):
             return self._data.getstr(self.field[0], self._idxs[key])
         elif isinstance(key, Collection):  # mask or index list
             idxs = self._idxs[n.array(key, copy=False)]
-            return n.array([self._data.getstr(self.field[0], i) for i in idxs])
+            return n.array([self._data.getstr(self.field[0], i) for i in idxs], dtype=n.object0)
 
         raise TypeError(f"Invalid index into StringColumn: {key}")
 
@@ -200,7 +203,8 @@ class Row(Mapping):
     """
     Provides row-by-row access to the datasert
     """
-    def __init__(self, dataset: 'Dataset', idx: int):
+
+    def __init__(self, dataset: "Dataset", idx: int):
         self.idx = idx
         self.dataset = dataset
         # note - don't keep around a ref to dataset.data because then when dataset.data changes (add field)
@@ -228,7 +232,7 @@ class Row(Mapping):
 
     def to_list(self, exclude_uid=False):
         """Convert into a list of native python types, ordered the same way as the fields"""
-        return [self.get_item(key) for key in self.dataset.fields() if not exclude_uid or key != 'uid']
+        return [self.get_item(key) for key in self.dataset.fields() if not exclude_uid or key != "uid"]
 
     def to_dict(self):
         return {key: self[key] for key in self.dataset.fields()}
@@ -240,7 +244,6 @@ class Row(Mapping):
     def from_dict(self, d):
         for k in self.dataset.fields():
             self[k] = d[k]
-
 
 
 R = TypeVar("R", bound=Row)
@@ -377,7 +380,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if key not in self._data:
             val = n.array(val, copy=False)
-            assert len(self) == len(val), f"Cannot set '{key}' in {self} to {val} - expected length {len(self)}, actual {len(val)}"
+            assert len(self) == len(val), (
+                f"Cannot set '{key}' in {self} to {val}. " f"Expected length {len(self)}, actual {len(val)}"
+            )
             self.add_fields([key], [val.dtype])
         self.cols[key][:] = val
 
@@ -397,7 +402,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     @property
     def cols(self) -> OrderedDict[str, Column]:
         if self._cols is None:
-            self._cols = OrderedDict((f, Column(self._data, dtype_field(f, dt))) for f, dt in self._data.items())
+            self._cols = OrderedDict()
+            for f, dt in self._data.items():
+                Col = StringColumn if n.dtype(dt) == n.dtype(n.object0) else NumericColumn
+                self._cols[f] = Col(self._data, dtype_field(f, dt))
         return self._cols
 
     @property
@@ -429,7 +437,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Retrieve a list of field names available in this dataset
         """
-        return list(self._data.keys())
+        return [k for k in self._data.keys() if not exclude_uid or k != "uid"]
 
     @overload
     def add_fields(self, fields: List[Field]) -> "Dataset":
@@ -469,7 +477,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Remove the given field names from the dataset.
         """
-        new_fields = [dtype_field(f, d) for f, d in self._data.items() if f == 'uid' or f not in names]
+        new_fields = [dtype_field(f, d) for f, d in self._data.items() if f == "uid" or f not in names]
         newdata = Dataset.allocate(len(self), new_fields)
         for field in self.fields():
             if field not in names:
