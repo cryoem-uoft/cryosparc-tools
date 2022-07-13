@@ -23,7 +23,7 @@
 static PyMethodDef module_functions[] = {
 	{  "dset_new",            (PyCFunction)  wrap_dset_new,            METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_del",            (PyCFunction)  wrap_dset_del,            METH_VARARGS  |  METH_KEYWORDS,  ""  },
-	{  "dset_copy",           (PyCFunction)  wrap_dset_del,            METH_VARARGS  |  METH_KEYWORDS,  ""  },
+	{  "dset_copy",           (PyCFunction)  wrap_dset_copy,           METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_totalsz",        (PyCFunction)  wrap_dset_totalsz,        METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_ncol",           (PyCFunction)  wrap_dset_ncol,           METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_nrow",           (PyCFunction)  wrap_dset_nrow,           METH_VARARGS  |  METH_KEYWORDS,  ""  },

@@ -1,7 +1,4 @@
-from abc import ABC
-from inspect import getmembers
-from pathlib import Path
-import sys
+from pathlib import Path, PurePath
 from typing import (
     Any,
     BinaryIO,
@@ -15,7 +12,6 @@ from typing import (
     MutableMapping,
     Optional,
     OrderedDict,
-    Sequence,
     Tuple,
     Type,
     TypeVar,
@@ -24,14 +20,24 @@ from typing import (
 )
 import numpy as n
 import numpy.typing as nt
+import numpy.core.records
+
+from cryosparc.column import Column, NumericColumn, StringColumn
+from cryosparc.util import ioopen
 
 from .data import Data
-from .dtype import Field, dtype_field, field_shape, field_strides
+from .dtype import Field, dtype_field
 
 # Save format options
-NUMPY_PROTOCOL = 0
-CSDAT_PROTOCOL = 1
-HIGHEST_PROTOCOL = CSDAT_PROTOCOL
+NUMPY_FORMAT = 1
+CSDAT_FORMAT = 2
+DEFAULT_FORMAT = NUMPY_FORMAT
+NEWEST_FORMAT = CSDAT_FORMAT
+FORMAT_MAGIC_PREFIXES = {
+    NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
+    CSDAT_FORMAT: b"\x94CSDAT",  # .csl binary format
+}
+MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
 
 def generate_uids(num: int = 0):
@@ -39,161 +45,6 @@ def generate_uids(num: int = 0):
     Generate the given number of random 64-bit unsigned integer uids
     """
     return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)
-
-
-class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
-    """
-    Dataset Column entry. May be used anywhere in place of Numpy arrays
-    """
-
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
-        # dlen = len(data[field])  # FIXME: Get the data from the given field somehow
-        start, stop, step = subset.indices(data.nrow())
-        dtype = n.dtype(field[1])
-        self.dtype = dtype.base if dtype.shape else dtype
-        self.shape = (len(range(start, stop, step)), *field_shape(field))
-
-        self._field = field
-        self._data = data
-        self._subset = subset
-
-        # Copy over available numpy functions
-        existing_attrs = set(dir(self))
-        a = n.ndarray(0, dtype=self.dtype)
-        for (attr, _) in getmembers(a, callable):
-            if attr not in existing_attrs:
-                setattr(self, attr, self.__get_callable__(attr))
-
-    @property
-    def field(self):
-        return self._field
-
-    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
-        """
-        Interface for calling numpy universal function operations. Details here:
-        https://numpy.org/doc/stable/user/basics.interoperability.html?highlight=__array_ufunc__#the-array-ufunc-protocol
-
-        Calling ufuncs always creates instances of ndarray
-        """
-        out = kwargs.get("out", ())
-        inputs = tuple(n.array(x, copy=False) if isinstance(x, Column) else x for x in args)
-
-        if out:
-            kwargs["out"] = tuple(n.array(x, copy=False) if isinstance(x, Column) else x for x in out)
-
-        return getattr(ufunc, method)(*inputs, **kwargs)
-
-    def __get_callable__(self, key):
-        # Retrieve numpy ndarray method on this class with the given name
-        def f(*args, **kwargs):
-            return getattr(n.array(self, copy=False), key)(*args, **kwargs)
-
-        return f
-
-    def __len__(self) -> int:
-        return len(n.array(self, copy=False))
-
-    def __iter__(self):
-        return n.array(self, copy=False).__iter__()
-
-    @overload
-    def __getitem__(self, key: slice) -> "Column":
-        ...
-
-    @overload
-    def __getitem__(self, key: n.integer) -> Any:
-        ...
-
-    @overload
-    def __getitem__(self, key: Any) -> nt.NDArray:  # Returns a copy
-        ...
-
-    def __getitem__(self, key: Union[slice, int, n.integer, Any]) -> Union["Column", nt.NDArray, Any]:
-        """
-        FIXME: Should return ndarray instead (just have to be careful about
-        mutating string columns in compute code)
-        """
-        if isinstance(key, (int, n.integer)):
-            return n.array(self, copy=False)[key]
-        elif isinstance(key, slice):
-            # Combine the given slices and current self._subset slice to create
-            # a new subset (keeps underlying data)
-            datalen = self._data.nrow()
-            r = range(datalen)[self._subset][key]
-            print(f"SLICE {key} RANGE {r} SUBSET {self._subset}")
-            return type(self)(self._data, self._field, subset=slice(r.start, r.stop, r.step))
-        else:
-            # Indeces or mask, get a deep copy of underlying data subset
-            return n.copy(n.array(self, copy=False)[key])
-
-    def __setitem__(self, key: Any, value: Any):
-        n.array(self, copy=False)[key] = value
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}{repr(n.array(self, copy=False))[5:]}"
-
-
-class NumericColumn(Column):
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
-        super().__init__(data, field, subset)
-        self._strides = field_strides(field, self._subset.step or 1)
-
-    @property
-    def __array_interface__(self):
-        """
-        Allows Column instances to be used as numpy arrays. The abstract integer
-        pointer value of the 'data' key may be dynamic because the underlying
-        dataset gets re-computed
-        """
-        return {
-            "data": (self._data.get(self.field[0]), False),
-            "shape": self.shape,
-            "typestr": self.dtype.str,
-            "strides": self._strides,
-            "version": 3,
-        }
-
-
-class StringColumn(Column):
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
-        assert len(field) == 2 and n.dtype(field[1]) == n.dtype(
-            n.object0
-        ), f"Cannot create a String column with dtype {field[1]}"
-        super().__init__(data, field, subset)
-        # Available string indexes in this dataset
-        self._idxs = n.array(list(range(*self._subset.indices(self._data.nrow()))))
-
-    def __array__(self):
-        return n.array(
-            [self._data.getstr(self.field[0], i) for i in range(*self._subset.indices(self._data.nrow()))],
-            dtype=n.object0,
-        )
-
-    def __getitem__(self, key: Union[slice, int, n.integer, Any]) -> Union["Column", nt.NDArray, Any]:
-        if isinstance(key, slice):
-            return super().__getitem__(key)  # Return string column subset
-        elif isinstance(key, (int, n.integer)):
-            return self._data.getstr(self.field[0], self._idxs[key])
-        elif isinstance(key, Collection):  # mask or index list
-            idxs = self._idxs[n.array(key, copy=False)]
-            return n.array([self._data.getstr(self.field[0], i) for i in idxs], dtype=n.object0)
-
-        raise TypeError(f"Invalid index into StringColumn: {key}")
-
-    def __setitem__(self, key: Any, value: Union[str, Collection[str]]):
-        if isinstance(key, (int, n.integer)):
-            idxs = [self._idxs[key]]
-        else:
-            idxs = self._idxs[n.array(key, copy=False)]
-
-        f = self.field[0]
-        if isinstance(value, str):
-            for i in idxs:
-                self._data.setstr(f, i, value)
-        else:
-            assert len(value) == len(idxs), f"Cannot assign [{key}] for {type(self).__name__} to {value}"
-            for i, v in zip(idxs, value):
-                self._data.setstr(f, i, v)
 
 
 class Row(Mapping):
@@ -206,6 +57,9 @@ class Row(Mapping):
         self.dataset = dataset
         # note - don't keep around a ref to dataset.data because then when dataset.data changes (add field)
         # the already existing items will be referring to the old dataset.data!
+
+    def __len__(self):
+        return len(self.dataset.fields())
 
     def __getitem__(self, key: str):
         return self.dataset[key][self.idx]
@@ -277,24 +131,37 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     """
 
     @classmethod
-    def load(cls, file: Union[str, Path, BinaryIO]) -> "Dataset":
-        """
-        Read a dataset from disk from a path or file handle
-        """
-        return NotImplemented
-
-    @classmethod
-    def save(cls, file: Union[str, Path, BinaryIO], protocol: int = NUMPY_PROTOCOL):
-        """
-        Save a dataset to the given path or file handle
-        """
-        return NotImplemented
-
-    @classmethod
     def allocate(cls, size: int = 0, fields: List[Field] = []):
         dset = cls(size)
         dset.add_fields(fields)
         return dset
+
+    @classmethod
+    def load(cls, file: Union[str, PurePath, BinaryIO]) -> "Dataset":
+        """
+        Read a dataset from disk from a path or file handle
+        """
+        with ioopen(file, "rb") as f:
+            prefix = f.read(6)
+            f.seek(0)
+            if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                indata = n.load(f, allow_pickle=False)
+                return Dataset(indata)
+            else:
+                return NotImplemented
+
+    def save(self, file: Union[str, Path, BinaryIO], format: int = DEFAULT_FORMAT):
+        """
+        Save a dataset to the given path or file handle
+        """
+        if format == NUMPY_FORMAT:
+            arrays = [col.to_numpy(copy=False, fixed=True) for col in self.cols.values()]
+            dtype = [(f, a.dtype) for f, a in zip(self.cols, arrays)]
+            outdata = numpy.core.records.fromarrays(arrays, dtype=dtype)
+            with ioopen(file, "wb") as f:
+                n.save(f, outdata, allow_pickle=False)
+        else:
+            return NotImplemented
 
     def __init__(
         self,
@@ -371,16 +238,16 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         return self.cols[key]
 
-    def __setitem__(self, key: str, val: nt.ArrayLike):
+    def __setitem__(self, key: str, val: Any):
         """
         Set or add a field to the dataset.
         """
         if key not in self._data:
-            val = n.array(val, copy=False)
-            assert len(self) == len(val), (
-                f"Cannot set '{key}' in {self} to {val}. " f"Expected length {len(self)}, actual {len(val)}"
-            )
-            self.add_fields([key], [val.dtype])
+            aval = n.array(val, copy=False)
+            assert not aval.shape or aval.shape[0] == len(
+                self
+            ), f"Cannot broadcast '{key}' in {self} to {val} due to invalid shape"
+            self.add_fields([key], [aval.dtype])
         self.cols[key][:] = val
 
     def __delitem__(self, key: str):
@@ -420,9 +287,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Retrive the numpy-compatible description for dataset fields
         """
         return [dtype_field(f, dt) for f, dt in self._data.items()]
-
-    def to_list(self, exclude_uid: bool = False) -> List[list]:
-        return [row.to_list(exclude_uid) for row in self.rows]
 
     def copy(self):
         """
@@ -502,6 +366,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         test = lambda n: n in name_test if isinstance(name_test, list) else name_test
         return self.drop_fields([f for f in self.fields() if f != "uid" and not test(f)])
+
+    def to_list(self, exclude_uid: bool = False) -> List[list]:
+        return [row.to_list(exclude_uid) for row in self.rows]
 
     def query(self, query: Union[dict, Callable[[Any], bool]]) -> "Dataset":
         """

@@ -2,7 +2,7 @@ from io import BytesIO
 from base64 import b64decode
 import pytest
 import numpy as n
-from cryosparc.dataset import Dataset
+from cryosparc.dataset import Dataset, NumericColumn, StringColumn
 
 
 @pytest.fixture
@@ -79,27 +79,27 @@ def test_uneven_data_fields():
 
 def test_invalid_key_assignment():
     storage = Dataset.allocate(size=3)
-    with pytest.raises(KeyError):
-        storage["gain_ref_blob/path"] = "Hello World!"
+    with pytest.raises(AssertionError):
+        storage["gain_ref_blob/path"] = ["Hello", "World!"]
 
 
 def test_non_existent_key_assignment():
     storage = Dataset.allocate(size=3)
-    with pytest.raises(AssertionError):
-        storage["gain_ref_blob"] = n.zeros(3)
+    storage["gain_ref_blob"] = n.zeros(3)
+    assert all(storage["gain_ref_blob"] == n.zeros(3))
 
 
 def test_valid_key_assignment():
     storage = Dataset.allocate(size=3, fields=[("gain_ref_blob/path", "O")])
     storage["gain_ref_blob/path"] = "Hello World!"
-    assert isinstance(storage["gain_ref_blob/path"], n.ndarray)
+    assert isinstance(storage["gain_ref_blob/path"], StringColumn)
     assert len(storage["gain_ref_blob/path"]) == 3
 
 
 def test_valid_multi_dimensional_key_assignment():
     storage = Dataset.allocate(size=3, fields=[("location/micrograph_shape", "<u4", (2,))])
     storage["location/micrograph_shape"] = n.array([42, 24])
-    assert isinstance(storage["location/micrograph_shape"], n.ndarray)
+    assert isinstance(storage["location/micrograph_shape"], NumericColumn)
     assert len(storage["location/micrograph_shape"]) == 3
     assert all(storage["location/micrograph_shape"][2] == n.array([42, 24]))
 
@@ -134,23 +134,17 @@ def test_to_list_exclude_uid():
     assert l == [[0, 0.0, "Hello"]]
 
 
-def test_to_file(io_data):
-    dtype = [("field1", "u4"), ("field2", "f4"), ("field3", "O"), ("field4", "f8"), ("field5", "i8")]
-    storage = Dataset.allocate(size=2, fields=dtype)
-
-    storage["field1"] = 42
-    storage["field2"] = n.array([3.14, 2.73], dtype="f8")
-    storage["field3"][:] = n.array(["Hello", "World"])
-    storage["field4"][1] = 1.0
-    storage["field5"][0:] = 43
-
-    result = n.load(io_data, allow_pickle=False)
-    expected = n.ndarray(2, dtype=[("uid", "u8")] + dtype)
-    expected[0] = (storage["uid"][0], 42, 3.14, "Hello", 0.0, 43)
-    expected[1] = (storage["uid"][1], 42, 2.73, "World", 1.0, 43)
-
-    assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype])
-    assert expected.dtype.descr == result.dtype_descr
+def test_to_file():
+    dtype = [("uid", "u8"), ("field1", "u4"), ("field2", "f4"), ("field3", "S6"), ("field4", "f8")]
+    expected = n.array([(1, 42, 3.14, "Hello", 1.0), (2, 42, 2.73, "World", 0.0)], dtype=dtype)
+    dset = Dataset(expected)
+    new_iodata = BytesIO()
+    dset.save(new_iodata)
+    new_iodata.seek(0)
+    actual = n.load(new_iodata)
+    assert expected.dtype.descr == actual.dtype.descr
+    assert all(all(n.equal(expected[d[0]], actual[d[0]])) for d in dtype if d[0] != "field3")
+    assert all(e.decode() == a.decode() for e, a in zip(expected["field3"], actual["field3"]))
 
 
 def test_from_file(io_data):

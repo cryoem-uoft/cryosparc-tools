@@ -83,7 +83,6 @@ class Data(Mapping[str, DType]):
         """
         When garbage-collected, removes memory for the given dataset
         """
-        print(f"DATASET GARBAGE COLLECT FOR HANDLE {self.handle}")
         core.dset_del(self.handle)
         self.handle = 0
 
@@ -145,7 +144,9 @@ class Data(Mapping[str, DType]):
         # for each string column
         return core.dset_getstr(self.handle, field, int(index))
 
-    def setstr(self, field: str, index: Union[int, n.integer], value: str):
+    def setstr(self, field: str, index: Union[int, n.integer], value: Union[str, bytes]):
+        if isinstance(value, bytes):
+            value = value.decode()
         core.dset_setstr(self.handle, field, int(index), value)
 
     def addrows(self, num) -> bool:
@@ -171,6 +172,8 @@ class Data(Mapping[str, DType]):
         if dt.shape:
             assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
             return self.addcol_array(field, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
+        elif dt.char in {'S', 'U'}:
+            return self.addcol_scalar(field, DsetType.T_STR)
         else:
             assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
             return self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt.type])
