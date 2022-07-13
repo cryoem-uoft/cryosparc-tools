@@ -7,40 +7,40 @@ from cryosparc.dataset import Dataset
 
 @pytest.fixture
 def io_data():
-    data = b64decode((
-        b'k05VTVBZAQCmAHsnZGVzY3InOiBbKCd1aWQnLCAnPHU4JyksICgnZmllbGQxJywgJzx1NCcpLC'
-        b'AoJ2ZpZWxkMicsICc8ZjQnKSwgKCdmaWVsZDMnLCAnfFM2JyksICgnZmllbGQ0JywgJzxmOCcp'
-        b'LCAoJ2ZpZWxkNScsICc8aTgnKV0sICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6IC'
-        b'gyLCksIH0gIAp7AAAAAAAAACoAAADD9UhASGVsbG8AAAAAAAAAAAArAAAAAAAAAMgBAAAAAAAA'
-        b'KgAAAFK4LkBXb3JsZAAAAAAAAADwPysAAAAAAAAA'))
+    data = b64decode(
+        (
+            b"k05VTVBZAQCmAHsnZGVzY3InOiBbKCd1aWQnLCAnPHU4JyksICgnZmllbGQxJywgJzx1NCcpLC"
+            b"AoJ2ZpZWxkMicsICc8ZjQnKSwgKCdmaWVsZDMnLCAnfFM2JyksICgnZmllbGQ0JywgJzxmOCcp"
+            b"LCAoJ2ZpZWxkNScsICc8aTgnKV0sICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6IC"
+            b"gyLCksIH0gIAp7AAAAAAAAACoAAADD9UhASGVsbG8AAAAAAAAAAAArAAAAAAAAAMgBAAAAAAAA"
+            b"KgAAAFK4LkBXb3JsZAAAAAAAAADwPysAAAAAAAAA"
+        )
+    )
     return BytesIO(data)
 
 
 def test_allocate():
-    storage = Dataset(size=2000000, fields=[
-        ('field1', 'u8'),
-        ('field2', 'f4'),
-        ('field3', 'O')])
+    storage = Dataset.allocate(size=2000000, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     assert storage is not None
 
 
 def test_populate_new_0():
-    storage = Dataset(size=0)
+    storage = Dataset.allocate(size=0)
     assert len(storage) == 0
 
 
 def test_populate_new_1():
-    storage = Dataset(size=1)
+    storage = Dataset.allocate(size=1)
     assert len(storage) == 1
 
 
 def test_populate_new_many():
-    storage = Dataset(size=3)
+    storage = Dataset.allocate(size=3)
     assert len(storage) == 3
 
 
 def test_storage_from_other():
-    storage1 = Dataset(size=3)
+    storage1 = Dataset(3)
     storage2 = storage1.copy()
     assert len(storage2) == 3
 
@@ -48,154 +48,130 @@ def test_storage_from_other():
 def test_basic_data_constructor():
     data = Dataset()
     assert len(data) == 0
-    assert len(data.descr()) == 1
+    assert len(data.descr) == 1
 
 
 def test_empty_data_constructor():
-    data = Dataset(size=0)
+    data = Dataset(0)
     assert len(data) == 0
-    assert len(data.descr()) == 1
+    assert len(data.descr) == 1
 
 
 def test_invalid_data_fields():
     # This is ok actually
-    assert Dataset([
-        ('uid', n.array([1, 2, 3])),
-        ('dat', ['Hello', 'World', '!']),
-    ])
+    assert Dataset(
+        [
+            ("uid", n.array([1, 2, 3])),
+            ("dat", ["Hello", "World", "!"]),
+        ]
+    )
 
 
 def test_uneven_data_fields():
     with pytest.raises(AssertionError):
-        Dataset([
-            ('uid', n.array([1, 2, 3])),
-            ('dat', n.array(['Hello', 'World'])),
-        ])
+        Dataset(
+            [
+                ("uid", n.array([1, 2, 3])),
+                ("dat", n.array(["Hello", "World"])),
+            ]
+        )
 
 
 def test_invalid_key_assignment():
-    storage = Dataset(size=3)
+    storage = Dataset.allocate(size=3)
     with pytest.raises(KeyError):
-        storage['gain_ref_blob/path'] = 'Hello World!'
+        storage["gain_ref_blob/path"] = "Hello World!"
 
 
 def test_non_existent_key_assignment():
-    storage = Dataset(size=3)
+    storage = Dataset.allocate(size=3)
     with pytest.raises(AssertionError):
-        storage['gain_ref_blob'] = n.zeros(3)
+        storage["gain_ref_blob"] = n.zeros(3)
 
 
 def test_valid_key_assignment():
-    storage = Dataset(size=3, fields=[('gain_ref_blob/path', 'O')])
-    storage['gain_ref_blob/path'] = 'Hello World!'
-    assert isinstance(storage['gain_ref_blob/path'], n.ndarray)
-    assert len(storage['gain_ref_blob/path']) == 3
+    storage = Dataset.allocate(size=3, fields=[("gain_ref_blob/path", "O")])
+    storage["gain_ref_blob/path"] = "Hello World!"
+    assert isinstance(storage["gain_ref_blob/path"], n.ndarray)
+    assert len(storage["gain_ref_blob/path"]) == 3
 
 
 def test_valid_multi_dimensional_key_assignment():
-    storage = Dataset(size=3, fields=[('location/micrograph_shape', '<u4', (2,))])
-    storage['location/micrograph_shape'] = n.array([42, 24])
-    assert isinstance(storage['location/micrograph_shape'], n.ndarray)
-    assert len(storage['location/micrograph_shape']) == 3
-    assert all(storage['location/micrograph_shape'][2] == n.array([42, 24]))
+    storage = Dataset.allocate(size=3, fields=[("location/micrograph_shape", "<u4", (2,))])
+    storage["location/micrograph_shape"] = n.array([42, 24])
+    assert isinstance(storage["location/micrograph_shape"], n.ndarray)
+    assert len(storage["location/micrograph_shape"]) == 3
+    assert all(storage["location/micrograph_shape"][2] == n.array([42, 24]))
 
 
 def test_add_fields():
-    storage = Dataset(size=2000000, fields=[
-        ('field1', 'u8'),
-        ('field2', 'f4'),
-        ('field3', 'O')
-    ]).add_fields([
-        ('mscope_params/accel_kv', 'f4'),
-        ('mscope_params/cs_mm', 'f4'),
-        ('mscope_params/total_dose_e_per_A2', 'f4'),
-        ('mscope_params/phase_plate', 'u4'),
-        ('mscope_params/neg_stain', 'u4'),
-        ('mscope_params/exp_group_id', 'u4')
-    ])
+    storage = Dataset.allocate(size=2000000, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")]).add_fields(
+        [
+            ("mscope_params/accel_kv", "f4"),
+            ("mscope_params/cs_mm", "f4"),
+            ("mscope_params/total_dose_e_per_A2", "f4"),
+            ("mscope_params/phase_plate", "u4"),
+            ("mscope_params/neg_stain", "u4"),
+            ("mscope_params/exp_group_id", "u4"),
+        ]
+    )
     assert len(storage.fields()), 10
 
 
 def test_to_list():
-    storage = Dataset(size=1, fields=[
-        ('field1', 'u8'),
-        ('field2', 'f4'),
-        ('field3', 'O')
-    ])
+    storage = Dataset.allocate(size=1, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     l = storage.to_list()
     assert len(l) == 1
     assert len(l[0]) == 4
 
 
 def test_to_list_exclude_uid():
-    storage = Dataset(size=1, fields=[
-        ('field1', 'u8'),
-        ('field2', 'f4'),
-        ('field3', 'O')
-    ])
-    storage['field3'][0] = 'Hello'
+    storage = Dataset.allocate(size=1, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
+    storage["field3"][0] = "Hello"
     l = storage.to_list(exclude_uid=True)
     assert len(l) == 1
     assert len(l[0]) == 3
-    assert l == [[0, 0.0, 'Hello']]
+    assert l == [[0, 0.0, "Hello"]]
 
 
 def test_to_file(io_data):
-    dtype = [
-        ('field1', 'u4'),
-        ('field2', 'f4'),
-        ('field3', 'O'),
-        ('field4', 'f8'),
-        ('field5', 'i8')
-    ]
-    storage = Dataset(size=2, fields=dtype)
+    dtype = [("field1", "u4"), ("field2", "f4"), ("field3", "O"), ("field4", "f8"), ("field5", "i8")]
+    storage = Dataset.allocate(size=2, fields=dtype)
 
-    storage['field1'] = 42
-    storage['field2'] = n.array([3.14, 2.73], dtype='f8')
-    storage['field3'][:] = n.array(['Hello', 'World'])
-    storage['field4'][1] = 1.0
-    storage['field5'][0:] = 43
+    storage["field1"] = 42
+    storage["field2"] = n.array([3.14, 2.73], dtype="f8")
+    storage["field3"][:] = n.array(["Hello", "World"])
+    storage["field4"][1] = 1.0
+    storage["field5"][0:] = 43
 
     result = n.load(io_data, allow_pickle=False)
-    expected = n.ndarray(2, dtype=[('uid', 'u8')] + dtype)
-    expected[0] = (storage['uid'][0], 42, 3.14, 'Hello', 0.0, 43)
-    expected[1] = (storage['uid'][1], 42, 2.73, 'World', 1.0, 43)
+    expected = n.ndarray(2, dtype=[("uid", "u8")] + dtype)
+    expected[0] = (storage["uid"][0], 42, 3.14, "Hello", 0.0, 43)
+    expected[1] = (storage["uid"][1], 42, 2.73, "World", 1.0, 43)
 
     assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype])
-    assert expected.dtype.descr == result.dtype_descr()
+    assert expected.dtype.descr == result.dtype_descr
 
 
 def test_from_file(io_data):
-    dtype = [
-        ('field1', 'u4'),
-        ('field2', 'f4'),
-        ('field3', 'O'),
-        ('field4', 'f8'),
-        ('field5', 'i8')
-    ]
+    dtype = [("field1", "u4"), ("field2", "f4"), ("field3", "O"), ("field4", "f8"), ("field5", "i8")]
 
     result = Dataset.load(io_data)
-    expected = Dataset(size=2, fields=dtype)
+    expected = Dataset.allocate(size=2, fields=dtype)
 
-    expected['field1'] = 42
-    expected['field2'] = n.array([3.14, 2.73], dtype='f8')
-    expected['field3'][:] = n.array(['Hello', 'World'])
-    expected['field4'][1] = 1.0
-    expected['field5'][0:] = 43
+    expected["field1"] = 42
+    expected["field2"] = n.array([3.14, 2.73], dtype="f8")
+    expected["field3"][:] = n.array(["Hello", "World"])
+    expected["field4"][1] = 1.0
+    expected["field5"][0:] = 43
 
     assert expected.fields() == result.fields()
-    assert expected.descr() == result.descr()
-    assert all([
-        n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != 'uid'
-    ])
+    assert expected.descr == result.descr
+    assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
 
 
 def test_subset_range_out_of_bounds():
-    data = Dataset(size=3, fields=[
-        ('field1', 'u8'),
-        ('field2', 'f4'),
-        ('field3', 'O')
-    ])
+    data = Dataset.allocate(size=3, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     subset = data.range(2, 100)
     assert len(subset) == 1
 
@@ -208,7 +184,7 @@ def test_from_data_none():
 # FIXME: Is this required?
 """
 def test_streaming_bytes():
-    dset = Dataset(size=4, fields=[
+    dset = Dataset(4, fields=[
         ('field1', 'u8'),
         ('field2', 'f4'),
         ('field3', 'O'),
