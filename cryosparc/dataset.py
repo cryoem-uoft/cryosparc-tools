@@ -33,9 +33,6 @@ NUMPY_PROTOCOL = 0
 CSDAT_PROTOCOL = 1
 HIGHEST_PROTOCOL = CSDAT_PROTOCOL
 
-BYTEORDER = "<" if sys.byteorder == "little" else ">"
-VOID = b""
-
 
 def generate_uids(num: int = 0):
     """
