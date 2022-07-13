@@ -543,8 +543,8 @@ more_strheap (uint64_t idx, uint64_t nbytes_more) {
 		char * move_src = ptr + d->strheap_start;
 		char * move_dst = move_dst - nbytes_more;
 
-		memmove (move_dst, move_src, nbytes_more);
-		memset  (move_dst + d->strheap_sz, 0, nbytes_more);
+		memmove (move_dst, move_src, d->strheap_sz);
+		memset  (move_dst + d->strheap_sz, 0, d->strheap_sz);
 
 		d->strheap_start -= nbytes_more;
 		return d;
@@ -568,8 +568,8 @@ more_arrheap (uint64_t idx, uint64_t nbytes_more) {
 			char * move_src = ptr + d->strheap_start;
 			char * move_dst = move_src + nbytes_more;
 
-			memmove (move_dst, move_src, nbytes_more);
-			memset  (move_src, 0,        nbytes_more);
+			memmove (move_dst, move_src, d->strheap_sz);
+			memset  (move_src, 0,        d->strheap_sz);
 
 			d->strheap_start += nbytes_more;
 			return d;
