@@ -64,7 +64,5 @@ def dtypestr(dtype: nt.DTypeLike) -> str:
 
 
 def dtype_field(name: str, dtype: nt.DTypeLike) -> Field:
-    if isinstance(dtype, str):
-        return (name, dtype)
     dt = n.dtype(dtype)
     return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)

@@ -63,7 +63,7 @@ def test_fields_no_uid(big_dset: Dataset):
 
 
 def test_dtypes(big_dset: Dataset):
-    assert len(big_dset.dtypes()) == 28
+    assert len(big_dset.descr) == 28
 
 
 def test_contains(big_dset: Dataset):
@@ -136,7 +136,7 @@ def test_filter_prefixes(benchmark, dset: Dataset):
 def test_copy_fields(benchmark, dset: Dataset):
     @benchmark
     def _():
-        dset.copy_fields(['ctf/type'], ['bar'], ['O'])
+        dset.copy_fields(['ctf/type'], ['bar'])
         items = dset.rows
         ctf_types = [item['ctf/type'] for item in items]
         bars = [item['bar'] for item in items]
@@ -146,17 +146,16 @@ def test_copy_fields(benchmark, dset: Dataset):
 def test_append(benchmark, big_dset: Dataset):
     @benchmark
     def _():
-        new_dset = big_dset.copy()
-        new_dset.reassign_uids()
+        new_dset = big_dset.copy().reassign_uids()
         new_dset.append(big_dset)
         assert len(new_dset) == len(big_dset) * 2
 
 
-def test_append_union(benchmark, big_dset: Dataset):
-    @benchmark
-    def _():
+def test_append_union(big_dset: Dataset):
+    # @benchmark
+    # def _():
         other = big_dset.copy()
-        other.append(big_dset, take_union=True)
+        other = other.union(big_dset)
         assert len(other) == len(big_dset)
 
 
@@ -164,12 +163,9 @@ def test_append_many(benchmark, big_dset, dset: Dataset):
     @benchmark
     def _():
         empty = Dataset()
-        other = big_dset.copy()
-        other.reassign_uids()
-        others = [dset, empty, other]
+        other = big_dset.copy().reassign_uids()
 
-        new_dset = Dataset()
-        new_dset.append_many(others)
+        new_dset = Dataset.append_many(dset, empty, other)
         assert len(new_dset) == len(big_dset) * 2
 
 
@@ -177,12 +173,9 @@ def test_append_many_union(benchmark, big_dset, dset: Dataset):
     @benchmark
     def _():
         empty = Dataset()
-        other = dset.copy()
-        other.reassign_uids()
-        others = [dset, dset, empty, other]
+        other = dset.copy().reassign_uids()
 
-        new_dset = Dataset()
-        new_dset.append_many(others, take_union=True)
+        new_dset = Dataset.union_many(dset, dset, empty, other)
         assert len(new_dset) == len(big_dset) * 2
 
 
@@ -190,25 +183,18 @@ def test_append_many_union_repeat_allowed(benchmark, big_dset, dset: Dataset):
     @benchmark
     def _():
         empty = Dataset()
-        other = dset.copy()
-        other.reassign_uids()
-        others = [dset, dset, empty, other]
-
-        new_dset = Dataset()
-        new_dset.append_many(others, take_union=True, repeat_allowed=True)
+        other = dset.copy().reassign_uids()
+        new_dset = Dataset.append_many(dset, dset, empty, other, repeat_allowed=True)
         assert len(new_dset) == len(big_dset) * 3
 
 
 def test_append_many_simple(benchmark, big_dset, dset: Dataset):
     @benchmark
     def _():
-        empty = Dataset()
-        other = dset.copy()
-        other.reassign_uids()
-        others = [dset, empty, other]
+        empty = Dataset.allocate(0, dset.descr)
+        other = dset.copy().reassign_uids()
 
-        new_dset = Dataset()
-        new_dset.append_many_simple(others)
+        new_dset = Dataset.append_many(dset, empty, other, assert_same_fields=True)
         assert len(new_dset) == len(big_dset) * 2
 
 
@@ -229,7 +215,7 @@ def test_append_replace(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other = Dataset(size=10000, fields=dset.dtype_descr())
+        other = Dataset.allocate(size=10000, fields=dset.descr)
         new_dset = dset.append_replace(other)
         assert len(new_dset) == len(big_dset) + len(other)
         assert new_dset['uid'][-1] == other['uid'][-1]
@@ -239,7 +225,7 @@ def test_append_replace_unique(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other = Dataset(size=10000, fields=dset.dtype_descr())
+        other = Dataset.allocate(size=10000, fields=dset.descr)
         new_dset = dset.append_replace(other, assume_unique=True)
         assert len(new_dset) == len(big_dset) + len(other)
         assert new_dset['uid'][-1] == other['uid'][-1]
@@ -248,7 +234,7 @@ def test_append_replace_unique(benchmark, big_dset: Dataset):
 def test_append_replace_empty(benchmark, big_dset, dset: Dataset):
     @benchmark
     def _():
-        other = Dataset(fields=dset.dtype_descr())
+        other = Dataset(fields=dset.descr)
         new_dset = dset.append_replace(other)
         assert len(new_dset) == len(big_dset)
         assert new_dset == big_dset
@@ -258,7 +244,7 @@ def test_append_replace_empty_query(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other = Dataset(fields=dset.dtype_descr())
+        other = Dataset(fields=dset.descr)
         dset.append_replace(other, {'location/micrograph_uid': 6655121610611186569})
         assert len(dset) == len(big_dset) - 1191
 
@@ -267,7 +253,7 @@ def test_append_replace_query(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other = Dataset(size=10000, fields=dset.dtype_descr())
+        other = Dataset.allocate(size=10000, fields=dset.descr)
         dset.append_replace(other, {'location/micrograph_uid': 6655121610611186569})
         assert len(dset) == len(big_dset) + len(other) - 1191
 
@@ -276,7 +262,7 @@ def test_append_replace_query_unique(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other = Dataset(size=10000, fields=dset.dtype_descr())
+        other = Dataset.allocate(size=10000, fields=dset.descr)
         dset.append_replace(other, {'location/micrograph_uid': 6655121610611186569}, assume_unique=True)
         assert len(dset) == len(big_dset) + len(other) - 1191
 
@@ -285,8 +271,8 @@ def test_append_replace_many(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other1 = Dataset(size=5000, fields=dset.dtype_descr())
-        other2 = Dataset(size=5000, fields=dset.dtype_descr())
+        other1 = Dataset.allocate(size=5000, fields=dset.descr)
+        other2 = Dataset.allocate(size=5000, fields=dset.descr)
         new_dset = dset.append_replace_many([other1, other2])
         assert len(new_dset) == len(big_dset) + len(other1) + len(other2)
         assert new_dset['uid'][-1] == other2['uid'][-1]
@@ -296,8 +282,8 @@ def test_append_replace_many_unique(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other1 = Dataset(size=5000, fields=dset.dtype_descr())
-        other2 = Dataset(size=5000, fields=dset.dtype_descr())
+        other1 = Dataset.allocate(size=5000, fields=dset.descr)
+        other2 = Dataset.allocate(size=5000, fields=dset.descr)
         new_dset = dset.append_replace_many([other1, other2], assume_unique=True)
         assert len(new_dset) == len(big_dset) + len(other1) + len(other2)
         assert new_dset['uid'][-1] == other2['uid'][-1]
@@ -307,8 +293,8 @@ def test_append_replace_many_query(benchmark, big_dset: Dataset):
     @benchmark
     def _():
         dset = big_dset.copy()
-        other1 = Dataset(size=5000, fields=dset.dtype_descr())
-        other2 = Dataset(size=5000, fields=dset.dtype_descr())
+        other1 = Dataset.allocate(size=5000, fields=dset.descr)
+        other2 = Dataset.allocate(size=5000, fields=dset.descr)
         dset.append_replace_many([other1, other2],
             query={'location/micrograph_uid': [2539634023577218663, 6655121610611186569]},
             assume_unique=True)
@@ -466,7 +452,7 @@ def test_streaming_bytes(benchmark, dset: Dataset):
         assert total_bytes > 0
         assert stream.read(6) == dataset.VERSION_MAGIC_PREFIXES[dataset.HIGHEST_VERSION]
         assert int(n.frombuffer(stream.read(4), dtype=n.uint32)[0]) == \
-            len(json.dumps(dset.dtype_descr(), separators=(',', ':')).encode()) + 1  # not sure why + 1??
+            len(json.dumps(dset.descr, separators=(',', ':')).encode()) + 1  # not sure why + 1??
 
 
 def test_from_streaming_bytes(benchmark, big_dset, big_dset_stream: BytesIO):

@@ -12,6 +12,7 @@ from typing import (
     MutableMapping,
     Optional,
     OrderedDict,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -122,7 +123,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         {particle['blob/idx']}")
     ```
 
-    A dataset may be initialized with `Dataset(allocate)` where `allocate` is
+    A dataset may be initialized with `Dataset(data)` where `data` is
     one of the following:
 
     * A size of items to allocate (e.g., `42`)
@@ -135,6 +136,93 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dset = cls(size)
         dset.add_fields(fields)
         return dset
+
+    @classmethod
+    def common_fields(cls, *datasets: "Dataset", assert_same_fields: bool = False) -> List[Field]:
+        if not datasets:
+            return []
+        common_fields: Set[Field] = set.intersection(*(set(dset.descr) for dset in datasets))
+        if assert_same_fields:
+            for dset in datasets:
+                assert len(dset.descr) == len(common_fields), (
+                    "One or more datasets in this operation do not have the same fields. "
+                    f"Common fields: {common_fields}. "
+                    f"Excess fields: {set.difference(set(dset.descr), common_fields)}"
+                )
+        return [field for field in datasets[0].descr if field in common_fields]
+
+    @classmethod
+    def append_many(
+        cls,
+        *datasets: "Dataset",
+        assert_same_fields: bool = False,
+        assume_unique: bool = False,
+        repeat_allowed: bool = False,
+    ) -> "Dataset":
+        if not datasets:
+            return Dataset()  # empty
+
+        first, *rest = datasets
+        if not repeat_allowed:
+            all_uids = first["uid"]
+            for dset in rest:
+                all_uids = n.concatenate((all_uids, dset["uid"]))
+
+            assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
+
+        size = sum(len(d) for d in datasets)
+        keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
+        result = Dataset.allocate(size, keep_fields)
+        startidx = 0
+        for dset in datasets:
+            num = len(dset)
+            if num == 0:
+                continue
+            for key, *_ in keep_fields:
+                result[key][startidx : startidx + num] = dset[key]
+            startidx += num
+
+        return result
+
+    @classmethod
+    def union_many(
+        cls,
+        *datasets: "Dataset",
+        assert_same_fields: bool = False,
+        assume_unique: bool = False,
+    ) -> "Dataset":
+        if not datasets:
+            return Dataset()
+
+        keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
+        first, *rest = datasets
+        if assume_unique:
+            keep_uids = first["uid"]
+            keep_masks = [n.ones(len(first), dtype=bool)]
+        else:
+            keep_uids, first_idxs = n.unique(first["uid"], return_index=True)
+            keep_masks = [n.zeros(len(first), dtype=bool)]
+            keep_masks[0][first_idxs] = True
+
+        for dset in rest:
+            mask = n.in1d(dset["uid"], keep_uids, assume_unique=assume_unique, invert=True)
+            keep_masks.append(mask)
+            keep_uids = n.concatenate((keep_uids, dset["uid"][mask]))
+
+        size = sum(mask.sum() for mask in keep_masks)
+        result = Dataset.allocate(size, keep_fields)
+        startidx = 0
+        for mask, dset in zip(keep_masks, datasets):
+            num = mask.sum()
+            for field in keep_fields:
+                key = field[0]
+                result[key][startidx : startidx + num] = dset[key][mask]
+            startidx += num
+        return result
+
+    @classmethod
+    def interlace(cls, *datasets: "Dataset") -> "Dataset":
+        return NotImplemented
 
     @classmethod
     def load(cls, file: Union[str, PurePath, BinaryIO]) -> "Dataset":
@@ -166,6 +254,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def __init__(
         self,
         allocate: Union[
+            "Dataset",
             Data,
             int,
             n.ndarray,
@@ -180,13 +269,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._cols = None
         self._rows = None
 
+        if isinstance(allocate, Dataset):
+            # Create copy of underlying data
+            self._data = allocate._data.copy()
+            return
+
         if isinstance(allocate, Data):
+            # Create from existing data (no copy)
             self._data = allocate
             return
 
         self._data = Data()
         populate: List[Tuple[Field, n.ndarray]] = []
-        if isinstance(allocate, int):
+        if isinstance(allocate, (int, n.integer)):
             populate = [(("uid", "<u8"), generate_uids(allocate))]
         elif isinstance(allocate, n.ndarray):
             for field in allocate.dtype.descr:
@@ -226,7 +321,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def __iter__(self):
         """
-        Iterate over the fields in this dataset
+        Iterate over the fields in this dataset hello world
         """
         return self.cols.__iter__()
 
@@ -289,10 +384,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return [dtype_field(f, dt) for f, dt in self._data.items()]
 
     def copy(self):
-        """
-        Create a copy; optionally specifying which fields to keep (UIDs are always kept)
-        """
-        return type(self)(allocate=self._data.copy())
+        return type(self)(allocate=self)
 
     def fields(self, exclude_uid=False) -> List[str]:
         """
@@ -367,20 +459,53 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         test = lambda n: n in name_test if isinstance(name_test, list) else name_test
         return self.drop_fields([f for f in self.fields() if f != "uid" and not test(f)])
 
+    def copy_fields(self, old_fields: List[str], new_fields: List[str]):
+        assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
+        for old, new in zip(old_fields, new_fields):
+            self._data.addcol(new, self._data[old])
+
+        self._cols = None
+        for old, new in zip(old_fields, new_fields):
+            self[new] = self[old]
+
+        return None
+
+    def reassign_uids(self):
+        self["uid"] = generate_uids(len(self))
+        return self
+
     def to_list(self, exclude_uid: bool = False) -> List[list]:
         return [row.to_list(exclude_uid) for row in self.rows]
+
+    def append(self, *others: "Dataset", repeat_allowed: bool = False):
+        """Append the given dataset or datasets. Mutates the contents of this
+        dataset"""
+        if len(others) == 0:
+            return self
+        dset = type(self).append_many(self, *others, repeat_allowed=repeat_allowed)
+        self._data = dset._data
+        self._cols = None
+        return self
+
+    def union(self, *others: "Dataset"):
+        """
+        Unite this dataset with the given others (uses the `uid` field to
+        determine uniqueness). Returns a new dataset.
+        """
+        return type(self).union_many(self, *others)
 
     def query(self, query: Union[dict, Callable[[Any], bool]]) -> "Dataset":
         """
         Get a subset of data based on whether the fields match the values in the
-        given query. Values can be either a single value or a set of possible
-        values. If any field is not in the dataset, it is ignored and all data
-        is returned.
+        given query. They query is either a test function that gets called on
+        each row or a key/value map of allowed field values. Values can be
+        either a single value or a set of possible values. If any field is not
+        in the dataset, it is ignored and all data is returned.
 
         Example query:
 
             dset.query({
-                'uid': [123456789, 987654321]
+                'uid': [123456789, 987654321],
                 'micrograph_blob/path': '/path/to/exposure.mrc',
             })
 
@@ -405,3 +530,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Get at subset of the dataset with rows in the given range
         """
         return NotImplemented
+
+    def replace(self, query: dict, *others: "Dataset", assume_unique: bool = False):
+        """
+        Replaces values matching the given query with others. The query is a
+        key/value map of allowed field values. The values can be either a single
+        scalar value or a set of possible values. If nothing matches the query
+        (e.g., {} specified), works the same way as append.
+        """
+        pass

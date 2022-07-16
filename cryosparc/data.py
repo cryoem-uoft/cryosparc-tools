@@ -146,7 +146,7 @@ class Data(Mapping[str, DType]):
 
     def setstr(self, field: str, index: Union[int, n.integer], value: Union[str, bytes]):
         if isinstance(value, bytes):
-            value = value.decode()
+            value = value.decode('ascii', errors='ignore')
         core.dset_setstr(self.handle, field, int(index), value)
 
     def addrows(self, num) -> bool:
@@ -187,3 +187,6 @@ class Data(Mapping[str, DType]):
 
     def defrag(self) -> bool:
         return core.dset_defrag(self.handle) != 0
+
+    def dumptxt(self):
+        core.dset_dumptxt(self.handle)
