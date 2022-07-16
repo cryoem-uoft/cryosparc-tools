@@ -20,7 +20,6 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
     """
 
     def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
-        # dlen = len(data[field])  # FIXME: Get the data from the given field somehow
         start, stop, step = subset.indices(data.nrow())
         dtype = n.dtype(field[1])
         self.dtype = dtype.base if dtype.shape else dtype
@@ -74,30 +73,23 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
         ...
 
     @overload
-    def __getitem__(self, key: n.integer) -> Any:
+    def __getitem__(self, key: int) -> Any:
         ...
 
     @overload
     def __getitem__(self, key: Any) -> nt.NDArray:  # Returns a copy
         ...
 
-    def __getitem__(self, key: Union[slice, int, n.integer, Any]) -> Union["Column", nt.NDArray, Any]:
-        """
-        FIXME: Should return ndarray instead (just have to be careful about
-        mutating string columns in compute code)
-        """
-        if isinstance(key, (int, n.integer)):
-            return n.array(self, copy=False)[key]
-        elif isinstance(key, slice):
+    def __getitem__(self, key: Union[slice, int, Any]) -> Union["Column", nt.NDArray, Any]:
+        if isinstance(key, slice):
             # Combine the given slices and current self._subset slice to create
             # a new subset (keeps underlying data)
             datalen = self._data.nrow()
             r = range(datalen)[self._subset][key]
-            print(f"SLICE {key} RANGE {r} SUBSET {self._subset}")
             return type(self)(self._data, self._field, subset=slice(r.start, r.stop, r.step))
         else:
-            # Indeces or mask, get a deep copy of underlying data subset
-            return n.copy(n.array(self, copy=False)[key])
+            # Indeces or mask
+            return n.array(self, copy=False)[key]
 
     def __setitem__(self, key: Any, value: Any):
         n.array(self, copy=False)[key] = value
@@ -153,7 +145,19 @@ class StringColumn(Column):
         for i in range(*self._subset.indices(self._data.nrow())):
             yield self._data.getstr(self.field[0], i)
 
-    def __getitem__(self, key: Union[slice, int, n.integer, Any]) -> Union["Column", nt.NDArray, Any]:
+    @overload
+    def __getitem__(self, key: slice) -> "Column":
+        ...
+
+    @overload
+    def __getitem__(self, key: int) -> str:
+        ...
+
+    @overload
+    def __getitem__(self, key: Any) -> nt.NDArray:  # Returns a copy
+        ...
+
+    def __getitem__(self, key: Union[slice, int, Any]) -> Union["Column", nt.NDArray, str]:
         if isinstance(key, slice):
             return super().__getitem__(key)  # Return string column subset
         elif isinstance(key, (int, n.integer)):
@@ -185,3 +189,12 @@ class StringColumn(Column):
         maxstrlen = n.vectorize(len)(self).max() + 1
         dtype = "S{}".format(maxstrlen)
         return self.__array__(dtype)
+
+    def __repr__(self) -> str:
+        infix = '", "'
+        if len(self > 6):
+            contents = f'{infix.join(self[:3])}", ... , "{infix.join(self[-3:])}'
+        else:
+            contents = infix.join(self)
+
+        return f'{type(self).__name__}(["{contents}"])'

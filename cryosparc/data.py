@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, Mapping, Optional, Type, Union, overload
+from typing import Dict, List, Mapping, Optional, Type, Union, overload
 import numpy as n
 import numpy.typing as nt
 
@@ -69,6 +69,14 @@ class Data(Mapping[str, DType]):
     """
 
     handle: int
+
+    @classmethod
+    def allocate(cls, size: int = 0, fields: List[Field] = []):
+        data = cls()
+        data.addrows(size)
+        for field in fields:
+            data.addcol(field)
+        return data
 
     def __init__(self, copy_handle: int = 0) -> None:
         """
@@ -146,7 +154,7 @@ class Data(Mapping[str, DType]):
 
     def setstr(self, field: str, index: Union[int, n.integer], value: Union[str, bytes]):
         if isinstance(value, bytes):
-            value = value.decode('ascii', errors='ignore')
+            value = value.decode("ascii", errors="ignore")
         core.dset_setstr(self.handle, field, int(index), value)
 
     def addrows(self, num) -> bool:
@@ -172,7 +180,7 @@ class Data(Mapping[str, DType]):
         if dt.shape:
             assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
             return self.addcol_array(field, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
-        elif dt.char in {'S', 'U'}:
+        elif dt.char in {"S", "U"}:
             return self.addcol_scalar(field, DsetType.T_STR)
         else:
             assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"

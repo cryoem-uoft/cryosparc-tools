@@ -27,7 +27,7 @@ from cryosparc.column import Column, NumericColumn, StringColumn
 from cryosparc.util import ioopen
 
 from .data import Data
-from .dtype import Field, dtype_field
+from .dtype import Field, dtype_field, ndarray_dtype
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -69,7 +69,7 @@ class Row(Mapping):
         self.dataset[key][self.idx] = value
 
     def __contains__(self, key: str):
-        return key in self.dataset.fields()
+        return key in self.dataset
 
     def __iter__(self):
         return iter(self.dataset.fields())
@@ -107,7 +107,129 @@ class Spool(List[R], Generic[R]):
     randomizing based on row fields
     """
 
-    pass
+    def __init__(self, items: Iterable[R], rng: n.random.Generator = n.random.default_rng()):
+        self.indexes = None
+        self.random = rng
+        self.extend(items)
+
+    def set_random(self, rng: n.random.Generator):
+        self.random = rng
+
+    # -------------------------------------------------- Spooling and Splitting
+    def split(self, num: int, random=True, prefix=None):
+        """Return two SpoolingLists with the split portions"""
+        if random:
+            idxs = self.random.permutation(len(self))
+        else:
+            idxs = n.arange(len(self))
+        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=self.random)
+        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=self.random)
+        if prefix is not None:
+            field = prefix + "/split"
+            for img in d1:
+                img[field] = 0
+            for img in d2:
+                img[field] = 1
+        return d1, d2
+
+    def split_half_in_order(self, prefix: str, random=True):
+        if random:
+            splitvals = n.random.randint(2, size=len(self))
+        else:
+            splitvals = n.arange(len(self)) % 2
+        for idx, p in enumerate(self):
+            p[prefix + "/split"] = splitvals[idx]
+        d1 = Spool(items=(p for p in self if p[prefix + "/split"] == 0), rng=self.random)
+        d2 = Spool(items=(p for p in self if p[prefix + "/split"] == 1), rng=self.random)
+        return d1, d2
+
+    def split_into_quarter(self, num: int, seed: int):
+        """Return two Spools with the split portions"""
+        idxs = n.random.default_rng(seed=seed).permutation(len(self))
+        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=n.random.default_rng(seed=seed))
+        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=n.random.default_rng(seed=seed))
+        return d1, d2
+
+    def split_with_split(self, num: int, random=True, prefix=None, split=0):
+        """Return two Spools with the split portions"""
+        if random:
+            idxs = self.random.permutation(len(self))
+        else:
+            idxs = n.arange(len(self))
+        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=self.random)
+        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=self.random)
+        if prefix is not None:
+            field = prefix + "/split"
+            for img in d1:
+                img[field] = split
+            for img in d2:
+                img[field] = split
+        return d1, d2
+
+    def split_by_splits(self, prefix="alignments"):
+        """Return two Spools with the split portions"""
+        idxs = n.arange(len(self))
+        field = "split"
+        if prefix is not None:
+            field = prefix + "/split"
+        d1 = Spool(items=(self[i] for i in idxs if self[i][field] == 0), rng=self.random)
+        d2 = Spool(items=(self[i] for i in idxs if self[i][field] == 1), rng=self.random)
+        return d1, d2
+
+    def split_from_field(self, field: str, vals: Tuple[Any, Any] = (0, 1)):
+        """split into two from pre recorded split in field, between given vals"""
+        d1 = Spool((img for img in self if img[field] == vals[0]), rng=self.random)
+        d2 = Spool((img for img in self if img[field] == vals[1]), rng=self.random)
+        return d1, d2
+
+    def split_by(self, field: str) -> Dict[Any, List[R]]:
+        items = {}
+        for item in self:
+            val = item[field]
+            curr = items.get(val, [])
+            curr.append(item)
+            items[val] = curr
+        return items
+
+    def get_random_subset(self, num: int):
+        "Just a randomly selected subset, without replacement. Returns a list."
+        assert num <= len(self), "Not Enough Images!"
+        idxs = self.random.choice(len(self), size=num, replace=False)
+        return [self[i] for i in idxs]
+
+    def setup_spooling(self, random=True):
+        """Setup indices and minibatches for spooling"""
+        if random:
+            self.indexes = self.random.permutation(len(self))
+        else:
+            self.indexes = n.arange(len(self))
+        self.spool_index = 0
+
+    def spool(self, num: int, peek: bool = False):
+        """Return a list consisting of num randomly selected elements.
+        Advance the spool.
+        Return self.minibatch_size elements if num is None.
+        if peek is true, don't advance the spool, just return the first num elements.
+        """
+        if self.indexes is None:
+            self.setup_spooling()
+        assert self.indexes is not None
+        if num >= len(self):  # asking for too many
+            return [self[i] for i in range(len(self))]  # just return self, no random order.
+        current_indices = n.arange(self.spool_index, self.spool_index + num) % len(self.indexes)
+        if not peek:
+            self.spool_index = (self.spool_index + num) % len(self.indexes)
+        return [self[self.indexes[i]] for i in current_indices]
+
+    def make_batches(self, num: int = 200):
+        """
+        Return a list of lists, each one being a consecutive set of num images.
+        """
+        return [self[idx : idx + num] for idx in n.arange(0, len(self), num)]
+
+    def __str__(self):
+        s = f"{type(self).__name__} object with {len(self)} items."
+        return s
 
 
 class Dataset(MutableMapping[str, Column], Generic[R]):
@@ -133,51 +255,60 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     def allocate(cls, size: int = 0, fields: List[Field] = []):
+        """
+        Allocate a dataset with the given number of rows and specified fields.
+        """
         dset = cls(size)
         dset.add_fields(fields)
         return dset
 
     @classmethod
     def common_fields(cls, *datasets: "Dataset", assert_same_fields: bool = False) -> List[Field]:
+        """
+        Get a list of fields common to all given datasets. Specify
+        `assert_same_fields=True` to enforce that all datasets have the same
+        fields.
+        """
         if not datasets:
             return []
-        common_fields: Set[Field] = set.intersection(*(set(dset.descr) for dset in datasets))
+        fields: Set[Field] = set.intersection(*(set(dset.descr) for dset in datasets))
         if assert_same_fields:
             for dset in datasets:
-                assert len(dset.descr) == len(common_fields), (
+                assert len(dset.descr) == len(fields), (
                     "One or more datasets in this operation do not have the same fields. "
-                    f"Common fields: {common_fields}. "
-                    f"Excess fields: {set.difference(set(dset.descr), common_fields)}"
+                    f"Common fields: {fields}. "
+                    f"Excess fields: {set.difference(set(dset.descr), fields)}"
                 )
-        return [field for field in datasets[0].descr if field in common_fields]
+        return [f for f in datasets[0].descr if f in fields]
 
     @classmethod
     def append_many(
         cls,
         *datasets: "Dataset",
         assert_same_fields: bool = False,
-        assume_unique: bool = False,
         repeat_allowed: bool = False,
     ) -> "Dataset":
-        if not datasets:
-            return Dataset()  # empty
+        """
+        Concatenate many datasets together into one new one.
 
-        first, *rest = datasets
+        Set `assert_same_fields=True` to enforce that datasets have identical
+        fields. Otherwise, only takes fields common to all datasets.
+
+        Set `repeat_allowed=True` to skip duplicate uid checks.
+        """
         if not repeat_allowed:
-            all_uids = first["uid"]
-            for dset in rest:
-                all_uids = n.concatenate((all_uids, dset["uid"]))
-
+            all_uids = n.concatenate([dset["uid"] for dset in datasets])
             assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
+
+        if len(datasets) == 1:
+            return datasets[0].copy()
 
         size = sum(len(d) for d in datasets)
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
-        result = Dataset.allocate(size, keep_fields)
+        result = cls.allocate(size, keep_fields)
         startidx = 0
         for dset in datasets:
             num = len(dset)
-            if num == 0:
-                continue
             for key, *_ in keep_fields:
                 result[key][startidx : startidx + num] = dset[key]
             startidx += num
@@ -191,38 +322,63 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assert_same_fields: bool = False,
         assume_unique: bool = False,
     ) -> "Dataset":
-        if not datasets:
-            return Dataset()
+        """
+        Take the row union of all the given datasets, based on their uid fields.
 
+        Set `assert_same_fields=True` to enforce that datasets have identical
+        fields. Otherwise, only takes fields common to all datasets.
+
+        Set `assume_unique=True` to assume that each dataset's UIDs are unique
+        (though they may be shared between datasets)
+        """
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
-        first, *rest = datasets
-        if assume_unique:
-            keep_uids = first["uid"]
-            keep_masks = [n.ones(len(first), dtype=bool)]
-        else:
-            keep_uids, first_idxs = n.unique(first["uid"], return_index=True)
-            keep_masks = [n.zeros(len(first), dtype=bool)]
-            keep_masks[0][first_idxs] = True
+        keep_masks = []
+        keep_uids = n.array([], dtype=n.uint64)
+        for dset in datasets:
+            mask = n.isin(dset["uid"], keep_uids, assume_unique=assume_unique, invert=True)
+            if assume_unique:
+                unique_uids = dset["uid"][mask]
+            else:
+                unique_uids, first_idxs = n.unique(dset["uid"], return_index=True)
+                unique_mask = n.zeros(len(dset), dtype=bool)
+                unique_mask[first_idxs] = True
+                mask &= unique_mask
 
-        for dset in rest:
-            mask = n.in1d(dset["uid"], keep_uids, assume_unique=assume_unique, invert=True)
             keep_masks.append(mask)
-            keep_uids = n.concatenate((keep_uids, dset["uid"][mask]))
+            keep_uids = n.concatenate((keep_uids, unique_uids))
 
         size = sum(mask.sum() for mask in keep_masks)
-        result = Dataset.allocate(size, keep_fields)
+        result = cls.allocate(size, keep_fields)
         startidx = 0
         for mask, dset in zip(keep_masks, datasets):
             num = mask.sum()
-            for field in keep_fields:
-                key = field[0]
+            for key, *_ in keep_fields:
                 result[key][startidx : startidx + num] = dset[key][mask]
             startidx += num
         return result
 
     @classmethod
-    def interlace(cls, *datasets: "Dataset") -> "Dataset":
-        return NotImplemented
+    def interlace(cls, *datasets: "Dataset", assert_same_fields: bool = False) -> "Dataset":
+        if not datasets:
+            return cls()
+
+        assert all(
+            len(dset) == len(datasets[0]) for dset in datasets
+        ), "All datasets must be the same length to interlace."
+        keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
+        all_uids = n.concatenate([dset["uid"] for dset in datasets])
+        assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
+
+        step = len(datasets)
+        stride = len(datasets[0])
+        startidx = 0
+        result = cls.allocate(len(all_uids), keep_fields)
+        for dset in datasets:
+            for key, *_ in keep_fields:
+                result[key][startidx : startidx + (stride * step) : step] = dset[key]
+            startidx += 1
+
+        return result
 
     @classmethod
     def load(cls, file: Union[str, PurePath, BinaryIO]) -> "Dataset":
@@ -283,7 +439,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         populate: List[Tuple[Field, n.ndarray]] = []
         if isinstance(allocate, (int, n.integer)):
             populate = [(("uid", "<u8"), generate_uids(allocate))]
-        elif isinstance(allocate, n.ndarray):
+        elif isinstance(allocate, n.ndarray):  # record array
             for field in allocate.dtype.descr:
                 assert field[0], f"Cannot initialize with record array of dtype {allocate.dtype}"
                 populate.append((field, allocate[field[0]]))
@@ -294,7 +450,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         else:
             for f, v in allocate:
                 a = n.array(v, copy=False)
-                populate.append((dtype_field(f, a.dtype), a))
+                populate.append((dtype_field(f, ndarray_dtype(a)), a))
 
         # Check that all entries are the same length
         nrows = 0
@@ -351,20 +507,25 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         self.drop_fields([key])
 
-    def __eq__(self, other):
+    def __eq__(self, other: "Dataset"):
         """
-        Check that two datasets share the same fields and that those fields have
-        the same values.
+        Check that two datasets share the same fields in the same order and that
+        those fields have the same values.
         """
-        return self.cols == other.cols
+        return (
+            type(self) == type(other)
+            and len(self) == len(other)
+            and self.descr == other.descr
+            and all(n.array_equal(c1, c2) for c1, c2 in zip(self.values(), other.values()))
+        )
 
     @property
     def cols(self) -> OrderedDict[str, Column]:
         if self._cols is None:
             self._cols = OrderedDict()
-            for f, dt in self._data.items():
-                Col = StringColumn if n.dtype(dt) == n.dtype(n.object0) else NumericColumn
-                self._cols[f] = Col(self._data, dtype_field(f, dt))
+            for field in self.descr:
+                Col = StringColumn if n.dtype(field[1]) == n.dtype(n.object0) else NumericColumn
+                self._cols[field[0]] = Col(self._data, field)
         return self._cols
 
     @property
@@ -426,17 +587,21 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._cols = None
         return self
 
-    def drop_fields(self, names: Collection[str]):
+    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
         """
-        Remove the given field names from the dataset.
+        Remove the given fields from the dataset. Provide a list of fields or
+        function that returns `True` if a given field name should be removed.
         """
-        new_fields = [dtype_field(f, d) for f, d in self._data.items() if f == "uid" or f not in names]
-        newdata = Dataset.allocate(len(self), new_fields)
-        for field in self.fields():
-            if field not in names:
-                newdata[field] = self[field]
-        self._data = newdata._data
-        self._cols = None
+        test = lambda n: n in names if isinstance(names, Collection) else names
+        new_fields = [f for f in self.descr if f[0] == "uid" or not test(f[0])]
+        if len(new_fields) == len(self.fields()):
+            return self
+
+        result = self.allocate(len(self), new_fields)
+        for key, *_ in new_fields:
+            result[key] = self[key]
+        self._data = result._data
+        self._cols = result._cols
         return self
 
     def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]]):
@@ -446,18 +611,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if isinstance(field_map, dict):
             field_map = lambda x: field_map.get(x, x)
-        newdset = Dataset([(field_map(f), col) for f, col in self.cols.items()])
-        self._data = newdset._data
+        result = Dataset([(f if f == "uid" else field_map(f), col) for f, col in self.cols.items()])
+        self._data = result._data
+        self._cols = None
         return self
-
-    def filter_fields(self, name_test: Union[List[str], Callable[[str], bool]]):
-        """
-        Create a new dataset with all fields except for the desired ones.
-        Specify either a list of fields to keep or a function that returns True
-        of the given field should be kept.
-        """
-        test = lambda n: n in name_test if isinstance(name_test, list) else name_test
-        return self.drop_fields([f for f in self.fields() if f != "uid" and not test(f)])
 
     def copy_fields(self, old_fields: List[str], new_fields: List[str]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
@@ -482,6 +639,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dataset"""
         if len(others) == 0:
             return self
+        indent = "\n    "
+        assert self.descr == self.common_fields(*others), (
+            f"Cannot append datasets with mismatched types.\n"
+            f"Self:\n{indent}{self.descr}"
+            f"Others:\n{indent}{indent.join(str(d.descr) for d in others)}"
+        )
         dset = type(self).append_many(self, *others, repeat_allowed=repeat_allowed)
         self._data = dset._data
         self._cols = None
@@ -494,48 +657,94 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         return type(self).union_many(self, *others)
 
-    def query(self, query: Union[dict, Callable[[Any], bool]]) -> "Dataset":
+    def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]) -> "Dataset":
         """
         Get a subset of data based on whether the fields match the values in the
         given query. They query is either a test function that gets called on
-        each row or a key/value map of allowed field values. Values can be
-        either a single value or a set of possible values. If any field is not
-        in the dataset, it is ignored and all data is returned.
+        each row or a key/value map of allowed field values.
+
+        If any field is not in the dataset, it is ignored and all data is kept.
 
         Example query:
 
             dset.query({
                 'uid': [123456789, 987654321],
-                'micrograph_blob/path': '/path/to/exposure.mrc',
+                'micrograph_blob/path': '/path/to/exposure.mrc'
             })
 
         """
-        return NotImplemented
+        if isinstance(query, dict):
+            return self.mask(self.query_mask(query))
+        else:
+            indexes = [row.idx for row in self.rows if query(row)]
+            return self.indexes(indexes)
 
-    def subset(self, indexes: Union[Iterable[int], Iterable[Row]]) -> "Dataset":
+    def query_mask(self, query: Dict[str, nt.ArrayLike], invert: bool = False) -> nt.NDArray[n.bool_]:
+        query_fields = set(self.fields()).intersection(query.keys())
+        mask = n.ones(len(self), dtype=bool)
+        for field in query_fields:
+            mask &= n.isin(self[field], query[field])
+
+        return n.invert(mask, out=mask) if invert else mask
+
+    def subset(self, rows: Collection[Row]) -> "Dataset":
         """
-        Get a subset of dataset that only includes the given indexes or list of rows
+        Get a subset of dataset that only includes the given list of rows (from
+        this dataset)
         """
-        return NotImplemented
+        return self.indexes([row.idx for row in rows])
+
+    def indexes(self, indexes: Collection[int]):
+        return Dataset([(f, col[indexes]) for f, col in self.cols.items()])
 
     def mask(self, mask: Collection[bool]) -> "Dataset":
         """
         Get a subset of the dataset that matches the given mask of rows
         """
         assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
-        return self  # FIXME
+        return Dataset([(f, col[mask]) for f, col in self.cols.items()])
 
-    def range(self, start: int = 0, stop: int = -1) -> "Dataset":
+    def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1) -> "Dataset":
         """
         Get at subset of the dataset with rows in the given range
         """
-        return NotImplemented
+        return Dataset([(f, col[slice(start, stop, step)]) for f, col in self.cols.items()])
 
-    def replace(self, query: dict, *others: "Dataset", assume_unique: bool = False):
+    def split_by(self, field: str) -> Dict[Any, "Dataset"]:
+        idxs = {}
+        for idx, val in enumerate(self[field]):
+            curr = idxs.get(val, [])
+            curr.append(idx)
+            idxs[val] = curr
+        return {k: self.indexes(v) for k, v in idxs.items()}
+
+    def replace(self, query: Dict[str, nt.ArrayLike], *others: "Dataset", assume_unique=False):
         """
         Replaces values matching the given query with others. The query is a
         key/value map of allowed field values. The values can be either a single
         scalar value or a set of possible values. If nothing matches the query
         (e.g., {} specified), works the same way as append.
         """
-        pass
+        keep_fields = self.common_fields(self, *others, assert_same_fields=True)
+        others_len = sum(len(o) for o in others)
+        keep_mask = n.ones(len(self), dtype=bool)
+        for other in others:
+            keep_mask &= n.isin(self["uid"], other["uid"], assume_unique=assume_unique, invert=True)
+        if query:
+            keep_mask &= self.query_mask(query, invert=True)
+
+        offset = keep_mask.sum()
+        result = Dataset.allocate(offset + others_len, keep_fields)
+        for key, col in self.items():
+            result[key][:offset] = col[keep_mask]
+
+        for other in others:
+            other_len = len(other)
+            for field, value in result.items():
+                value[offset : offset + other_len] = other[field]
+            offset += other_len
+
+        self._data = result._data
+        self._cols = result._cols
+
+        return self
