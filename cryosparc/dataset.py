@@ -1,4 +1,5 @@
 from pathlib import Path, PurePath
+from textwrap import wrap
 from typing import (
     Any,
     BinaryIO,
@@ -263,25 +264,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return dset
 
     @classmethod
-    def common_fields(cls, *datasets: "Dataset", assert_same_fields: bool = False) -> List[Field]:
-        """
-        Get a list of fields common to all given datasets. Specify
-        `assert_same_fields=True` to enforce that all datasets have the same
-        fields.
-        """
-        if not datasets:
-            return []
-        fields: Set[Field] = set.intersection(*(set(dset.descr) for dset in datasets))
-        if assert_same_fields:
-            for dset in datasets:
-                assert len(dset.descr) == len(fields), (
-                    "One or more datasets in this operation do not have the same fields. "
-                    f"Common fields: {fields}. "
-                    f"Excess fields: {set.difference(set(dset.descr), fields)}"
-                )
-        return [f for f in datasets[0].descr if f in fields]
-
-    @classmethod
     def append_many(
         cls,
         *datasets: "Dataset",
@@ -379,6 +361,25 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             startidx += 1
 
         return result
+
+    @classmethod
+    def common_fields(cls, *datasets: "Dataset", assert_same_fields: bool = False) -> List[Field]:
+        """
+        Get a list of fields common to all given datasets. Specify
+        `assert_same_fields=True` to enforce that all datasets have the same
+        fields.
+        """
+        if not datasets:
+            return []
+        fields: Set[Field] = set.intersection(*(set(dset.descr) for dset in datasets))
+        if assert_same_fields:
+            for dset in datasets:
+                assert len(dset.descr) == len(fields), (
+                    "One or more datasets in this operation do not have the same fields. "
+                    f"Common fields: {fields}. "
+                    f"Excess fields: {set.difference(set(dset.descr), fields)}"
+                )
+        return [f for f in datasets[0].descr if f in fields]
 
     @classmethod
     def load(cls, file: Union[str, PurePath, BinaryIO]) -> "Dataset":
@@ -748,3 +749,24 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._cols = result._cols
 
         return self
+
+    def __repr__(self) -> str:
+        s = f"{type(self).__name__}(["
+        size = len(self)
+        infix = ", "
+
+        for k, v in self.items():
+            if size > 6:
+                contents = f"{infix.join(map(repr, v[:3]))}, ... , {infix.join(map(repr, v[-3:]))}"
+            else:
+                contents = infix.join(map(repr, v))
+            s += "\n" + "\n".join(
+                wrap(
+                    f"('{k}', array([" + contents + f"], dtype={v.dtype})),",
+                    width=100,
+                    initial_indent="    ",
+                    subsequent_indent=" " * 8,
+                )
+            )
+        s += "\n])"
+        return s

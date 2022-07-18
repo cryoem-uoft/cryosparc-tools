@@ -192,7 +192,7 @@ class StringColumn(Column):
 
     def __repr__(self) -> str:
         infix = '", "'
-        if len(self > 6):
+        if len(self) > 6:
             contents = f'{infix.join(self[:3])}", ... , "{infix.join(self[-3:])}'
         else:
             contents = infix.join(self)

@@ -10,7 +10,7 @@ def isndarraylike(val):
 
 
 @contextmanager
-def ioopen(file: Union[str, PurePath, BinaryIO], mode: str = "r"):
+def ioopen(file: Union[str, PurePath, BinaryIO], mode = "r"):
     if isinstance(file, (str, PurePath)):
         with open(file, mode) as f:
             yield f
