@@ -312,18 +312,16 @@ def test_innerjoin(benchmark, big_dset: Dataset):
     def _():
         dset = big_dset.copy()
         other = dset.slice(500000, 1500000)
-        joined = dset.innerjoin(other)
+        joined = dset.innerjoin(other, assume_unique=True)
         assert len(joined) == 1000000
 
 
 def test_innerjoin_many(benchmark, dset: Dataset):
-    @benchmark
-    def _():
-        other1 = dset.slice(500000, 1250000)
-        other2 = dset.slice(750000, 1500000)
-        new_dset = Dataset()
-        new_dset = new_dset.innerjoin_many([dset, other1, other2])
-        assert len(new_dset) == 500000
+    other1 = dset.slice(500_000, 1_250_000)
+    other2 = dset.slice(750_000, 1_500_000)
+    expected = dset.slice(750_000, 1_250_000)
+    new_dset = benchmark(Dataset.innerjoin_many, dset, other1, other2, assume_unique=True)
+    assert new_dset == expected
 
 
 def test_filter(benchmark, big_dset: Dataset):

@@ -1,3 +1,4 @@
+from functools import reduce
 from pathlib import Path, PurePath
 from textwrap import wrap
 from typing import (
@@ -239,11 +240,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     Example usage
 
-    ``` dset = Dataset.load('/path/to/particles.cs')
+    ```
+    dset = Dataset.load('/path/to/particles.cs')
 
     for particle in dset.rows:
-        print(f"Particle located in file {particle['blob/path']} at index
-        {particle['blob/idx']}")
+        print(
+            f"Particle located in file {particle['blob/path']} "
+            f"at index {particle['blob/idx']}")
     ```
 
     A dataset may be initialized with `Dataset(data)` where `data` is
@@ -359,6 +362,42 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             for key, *_ in keep_fields:
                 result[key][startidx : startidx + (stride * step) : step] = dset[key]
             startidx += 1
+
+        return result
+
+    @classmethod
+    def innerjoin_many(cls, *datasets: "Dataset", assume_unique=False) -> "Dataset":
+        if not datasets:
+            return Dataset()
+
+        if len(datasets) == 1:
+            return datasets[0].copy()  # Only one to join, noop
+
+        # Gather common fields
+        all_fields: List[Field] = []
+        fields_by_dataset: List[List[Field]] = []
+        for dset in datasets:
+            group: List[Field] = []
+            for field in dset.descr:
+                if field not in all_fields:
+                    all_fields.append(field)
+                    group.append(field)
+            fields_by_dataset.append(group)
+        assert len({f[0] for f in all_fields}) == len(
+            all_fields
+        ), "Cannot innerjoin datasets with fields of the same name but different types"
+
+        # Get common UIDs
+        uids = map(lambda d: d["uid"], datasets)
+        intersect = lambda a1, a2: n.intersect1d(a1, a2, assume_unique=assume_unique)
+        common_uids = reduce(intersect, uids)
+
+        # Create a new dataset with just the UIDs from both datasets
+        result = cls.allocate(len(common_uids), fields=all_fields)
+        for dset, group in zip(datasets, fields_by_dataset):
+            mask = n.isin(dset["uid"], common_uids, assume_unique=assume_unique)
+            for key, *_ in group:
+                result[key] = dset[key][mask]
 
         return result
 
@@ -636,8 +675,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return [row.to_list(exclude_uid) for row in self.rows]
 
     def append(self, *others: "Dataset", repeat_allowed: bool = False):
-        """Append the given dataset or datasets. Mutates the contents of this
-        dataset"""
+        """Append the given dataset or datasets. Return a new dataset"""
         if len(others) == 0:
             return self
         indent = "\n    "
@@ -646,10 +684,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             f"Self:\n{indent}{self.descr}"
             f"Others:\n{indent}{indent.join(str(d.descr) for d in others)}"
         )
-        dset = type(self).append_many(self, *others, repeat_allowed=repeat_allowed)
-        self._data = dset._data
-        self._cols = None
-        return self
+        return type(self).append_many(self, *others, repeat_allowed=repeat_allowed)
 
     def union(self, *others: "Dataset"):
         """
@@ -657,6 +692,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         determine uniqueness). Returns a new dataset.
         """
         return type(self).union_many(self, *others)
+
+    def innerjoin(self, *others: "Dataset", assert_no_drop=False, assume_unique=False):
+        result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
+        if assert_no_drop:
+            assert len(result) == len(self), "innerjoined datasets that do not have all elements in common."
+        return result
 
     def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]) -> "Dataset":
         """
@@ -681,6 +722,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             return self.indexes(indexes)
 
     def query_mask(self, query: Dict[str, nt.ArrayLike], invert: bool = False) -> nt.NDArray[n.bool_]:
+        """
+        Get a boolean array representing the items to keep in the dataset that
+        match the given query filter. See `query` method for example query
+        format.
+        """
         query_fields = set(self.fields()).intersection(query.keys())
         mask = n.ones(len(self), dtype=bool)
         for field in query_fields:
@@ -712,6 +758,23 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return Dataset([(f, col[slice(start, stop, step)]) for f, col in self.cols.items()])
 
     def split_by(self, field: str) -> Dict[Any, "Dataset"]:
+        """
+        Create a mapping from possible values of the given field and to a
+        datasets filtered by rows of that value.
+
+        Example:
+
+        ```
+        dset = Dataset([
+            ('uid', [1, 2, 3, 4]),
+            ('foo', ['hello', 'world', 'hello', 'world'])
+        ])
+        assert dset.split_by('foo') == {
+            'hello': Dataset([('uid', [1, 3]), ('foo', ['hello', 'hello'])]),
+            'world': Dataset([('uid', [2, 4]), ('foo', ['world', 'world'])])
+        }
+        ```
+        """
         idxs = {}
         for idx, val in enumerate(self[field]):
             curr = idxs.get(val, [])
@@ -745,10 +808,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 value[offset : offset + other_len] = other[field]
             offset += other_len
 
-        self._data = result._data
-        self._cols = result._cols
-
-        return self
+        return result
 
     def __repr__(self) -> str:
         s = f"{type(self).__name__}(["

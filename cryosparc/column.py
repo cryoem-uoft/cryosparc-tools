@@ -11,7 +11,7 @@ import numpy as n
 import numpy.typing as nt
 
 from .data import Data
-from .dtype import Field, field_shape, field_strides
+from .dtype import Field, field_itemsize, field_shape, field_strides
 
 
 class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
@@ -109,6 +109,7 @@ class NumericColumn(Column):
     def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
         super().__init__(data, field, subset)
         self._strides = field_strides(field, self._subset.step or 1)
+        self._offset = (self._subset.start or 0) * field_itemsize(field)
 
     @property
     def __array_interface__(self):
@@ -118,7 +119,7 @@ class NumericColumn(Column):
         dataset gets re-computed
         """
         return {
-            "data": (self._data.get(self.field[0]), False),
+            "data": (self._data.get(self.field[0]) + self._offset, False),
             "shape": self.shape,
             "typestr": self.dtype.str,
             "strides": self._strides,
