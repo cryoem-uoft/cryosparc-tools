@@ -84,8 +84,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def append_many(
         cls,
         *datasets: "Dataset",
-        assert_same_fields: bool = False,
-        repeat_allowed: bool = False,
+        assert_same_fields=False,
+        repeat_allowed=False,
     ) -> "Dataset":
         """
         Concatenate many datasets together into one new one.
@@ -118,8 +118,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def union_many(
         cls,
         *datasets: "Dataset",
-        assert_same_fields: bool = False,
-        assume_unique: bool = False,
+        assert_same_fields=False,
+        assume_unique=False,
     ) -> "Dataset":
         """
         Take the row union of all the given datasets, based on their uid fields.
@@ -157,7 +157,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return result
 
     @classmethod
-    def interlace(cls, *datasets: "Dataset", assert_same_fields: bool = False) -> "Dataset":
+    def interlace(cls, *datasets: "Dataset", assert_same_fields=False) -> "Dataset":
         if not datasets:
             return cls()
 
@@ -216,7 +216,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return result
 
     @classmethod
-    def common_fields(cls, *datasets: "Dataset", assert_same_fields: bool = False) -> List[Field]:
+    def common_fields(cls, *datasets: "Dataset", assert_same_fields=False) -> List[Field]:
         """
         Get a list of fields common to all given datasets. Specify
         `assert_same_fields=True` to enforce that all datasets have the same
@@ -440,14 +440,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._cols = None
         return self
 
-    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
+    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
         """
         Remove the given fields from the dataset. Provide a list of fields or
         function that returns `True` if a given field name should be removed.
         """
-        test = lambda n: n in names if isinstance(names, Collection) else names
-        new_fields = [f for f in self.descr if f[0] == "uid" or not test(f[0])]
-        if len(new_fields) == len(self.fields()):
+        test = (lambda n: n in names) if isinstance(names, Collection) else names
+        new_fields = [f for f in self.descr if f[0] == "uid" or test(f[0])]
+        if len(new_fields) == len(self.descr):
             return self
 
         result = self.allocate(len(self), new_fields)
@@ -456,6 +456,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._data = result._data
         self._cols = result._cols
         return self
+
+    def filter_prefixes(self, prefixes: Collection[str]):
+        return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes))
+
+    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
+        test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))
+        return self.filter_fields(test)
 
     def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]]):
         """
@@ -472,10 +479,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def copy_fields(self, old_fields: List[str], new_fields: List[str]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         for old, new in zip(old_fields, new_fields):
-            self._data.addcol(new, self._data[old])
-
-        self._cols = None
-        for old, new in zip(old_fields, new_fields):
             self[new] = self[old]
 
         return None
@@ -484,10 +487,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self["uid"] = generate_uids(len(self))
         return self
 
-    def to_list(self, exclude_uid: bool = False) -> List[list]:
+    def to_list(self, exclude_uid=False) -> List[list]:
         return [row.to_list(exclude_uid) for row in self.rows]
 
-    def append(self, *others: "Dataset", repeat_allowed: bool = False):
+    def append(self, *others: "Dataset", repeat_allowed=False):
         """Append the given dataset or datasets. Return a new dataset"""
         if len(others) == 0:
             return self
@@ -534,7 +537,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             indexes = [row.idx for row in self.rows if query(row)]
             return self.indexes(indexes)
 
-    def query_mask(self, query: Dict[str, nt.ArrayLike], invert: bool = False) -> nt.NDArray[n.bool_]:
+    def query_mask(self, query: Dict[str, nt.ArrayLike], invert=False) -> nt.NDArray[n.bool_]:
         """
         Get a boolean array representing the items to keep in the dataset that
         match the given query filter. See `query` method for example query
