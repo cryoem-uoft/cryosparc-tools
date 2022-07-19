@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 import shutil
-import tempfile
 from time import time
 import urllib.request
 import pytest
@@ -49,7 +48,7 @@ def big_dset():
             def download_report_hook(chunk, chunk_size, total_size):
                 total_chunks = total_size / chunk_size
                 progress = chunk / total_chunks * 100
-                print(f"Downloading big dataset sample data ({total_size} bytes, {progress:.0f}%)", end='\r')
+                print(f"Downloading big dataset sample data ({total_size} bytes, {progress:.0f}%)", end="\r")
 
             urllib.request.urlretrieve(download_url, compressed_path, reporthook=download_report_hook)
             with gzip.open(compressed_path, "rb") as compressed_file:
@@ -57,7 +56,7 @@ def big_dset():
                     shutil.copyfileobj(compressed_file, cs_file)
 
             print("")
-            print("Downloaded big dataset sample data; loading...", end='\r')
+            print("Downloaded big dataset sample data; loading...", end="\r")
             tic = time()
             dset = Dataset.load(cs_path)
             print(f"Downloaded big dataset sample data; loaded in {time() - tic:.3f} seconds")

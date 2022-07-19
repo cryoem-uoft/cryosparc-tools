@@ -166,7 +166,7 @@ def test_from_file(io_data):
 
 def test_subset_range_out_of_bounds():
     data = Dataset.allocate(size=3, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
-    subset = data.range(2, 100)
+    subset = data.slice(2, 100)
     assert len(subset) == 1
 
 

@@ -17,7 +17,7 @@ def dset(big_dset: Dataset):
 def fields():
     return [
         ("uid", "<u8"),
-        ("ctf/type", "O"),
+        ("ctf/type", "|O"),
         ("ctf/exp_group_id", "<u4"),
         ("ctf/accel_kv", "<f4"),
         ("ctf/cs_mm", "<f4"),
@@ -36,7 +36,7 @@ def fields():
         ("ctf/bfactor", "<f4"),
         ("location/micrograph_uid", "<u8"),
         ("location/exp_group_id", "<u4"),
-        ("location/micrograph_path", "O"),
+        ("location/micrograph_path", "|O"),
         ("location/micrograph_shape", "<u4", (2,)),
         ("location/center_x_frac", "<f4"),
         ("location/center_y_frac", "<f4"),
