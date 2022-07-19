@@ -38,7 +38,7 @@ class RequestClient:
         attempt = 1
         max_attempts = 3
         error_reason = "<unknown>"
-        while not attempt < max_attempts:
+        while attempt < max_attempts:
             request = Request(
                 url,
                 data=data,

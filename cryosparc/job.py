@@ -1,12 +1,15 @@
 from contextlib import contextmanager
 from pathlib import PurePath, PurePosixPath
-from typing import IO, Iterable, Optional, Union
+from typing import IO, TYPE_CHECKING, Iterable, Optional, Union
 from typing_extensions import Literal
 
 import numpy.typing as nt
 
 from .spec import Datatype, Datafield, Datatype
 from .dataset import Dataset
+
+if TYPE_CHECKING:
+    from . import CryoSPARC
 
 
 class Job:
@@ -15,7 +18,7 @@ class Job:
     outputs
     """
 
-    def __init__(self, cs, project_uid: str, uid: str) -> None:
+    def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
         self.cs = cs
         self.puid = project_uid
         self.juid = uid

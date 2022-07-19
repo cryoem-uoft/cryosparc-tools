@@ -1,16 +1,17 @@
 from pathlib import PurePath, PurePosixPath
-from typing import IO, Optional, Union
+from typing import IO, TYPE_CHECKING, Optional, Union
 
 import numpy.typing as nt
 
 from .dataset import Dataset
 from .job import Job, CustomJob
-from .util import bopen
-from . import CryoSPARC
+
+if TYPE_CHECKING:
+    from .tools import CryoSPARC
 
 
 class Project:
-    def __init__(self, cs: CryoSPARC, uid: str) -> None:
+    def __init__(self, cs: "CryoSPARC", uid: str) -> None:
         self.cs = cs
         self.puid = uid
 

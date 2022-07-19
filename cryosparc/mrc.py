@@ -10,7 +10,7 @@ from .util import bopen
 DTType = Union[n.uint8, n.int16, n.float32, n.uint16, n.float16]
 
 
-class DT(Enum, int):
+class DT(int, Enum):
     UINT8 = 0
     INT16 = 1
     FLOAT32 = 2

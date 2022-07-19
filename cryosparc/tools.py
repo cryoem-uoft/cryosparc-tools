@@ -1,5 +1,3 @@
-__version__ = "0.1.0"
-
 from pathlib import PurePath, PurePosixPath
 import tempfile
 from typing import IO, Optional, Union
@@ -105,3 +103,6 @@ class CryoSPARC:
             mrc.write(f, data, psize)
             f.seek(0)
             return self.upload(project_uid, path, f)
+
+
+print("HELLO FROM CRYOSPARC")
