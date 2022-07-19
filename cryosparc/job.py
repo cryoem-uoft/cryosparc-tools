@@ -1,11 +1,12 @@
 from contextlib import contextmanager
-from pathlib import PurePath
-from typing import Iterable, Optional, Union
+from pathlib import PurePath, PurePosixPath
+from typing import IO, Iterable, Optional, Union
 from typing_extensions import Literal
+
+import numpy.typing as nt
 
 from .spec import Datatype, Datafield, Datatype
 from .dataset import Dataset
-from .command import CommandClient
 
 
 class Job:
@@ -14,31 +15,60 @@ class Job:
     outputs
     """
 
-    def __init__(self, cli: CommandClient, project_uid: str, uid: str) -> None:
-        self.cli = cli
+    def __init__(self, cs, project_uid: str, uid: str) -> None:
+        self.cs = cs
         self.puid = project_uid
         self.juid = uid
 
-    def dir(self) -> PurePath:
+    def dir(self) -> PurePosixPath:
         """
         Get the path to the job directory
         """
-        pass
+        return NotImplemented
 
     def load_input(self, name: str, fields: Optional[Iterable[str]] = None) -> Dataset:
-        pass
+        return NotImplemented
 
     def load_output(self, name: str, fields: Optional[Iterable[str]] = None) -> Dataset:
-        pass
+        return NotImplemented
 
     def save_output(self, name: str, dataset: Dataset):
-        pass
+        return NotImplemented
 
     def log(self, text, level: Literal["text", "warning", "error"] = "text"):
         """
         Append to a job's event log
         """
         pass
+
+    def download(self, path: Union[str, PurePosixPath]):
+        path = PurePosixPath(self.juid) / path
+        return self.cs.download(self.puid, path)
+
+    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
+        path = PurePosixPath(self.juid) / path
+        return self.cs.download_file(self.puid, path, target)
+
+    def download_dataset(self, path: Union[str, PurePosixPath]):
+        path = PurePosixPath(self.juid) / path
+        return self.cs.download_dataset(self.puid, path)
+
+    def download_mrc(self, path: Union[str, PurePosixPath]):
+        path = PurePosixPath(self.juid) / path
+        return self.cs.download_mrc(self.puid, path)
+
+    def upload(self, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
+        path = PurePosixPath(self.juid) / path
+        return self.cs.upload(self.puid, path, file)
+
+    def upload_dataset(self, path: Union[str, PurePosixPath], dset: Dataset):
+        path = PurePosixPath(self.juid) / path
+        return self.cs.upload_dataset(self.puid, path, dset)
+
+    def upload_mrc(self, path: Union[str, PurePosixPath], data: nt.NDArray, psize: float):
+        path = PurePosixPath(self.juid) / path
+        return self.cs.upload_mrc(self.puid, path, data, psize)
+
 
 class CustomJob(Job):
     """

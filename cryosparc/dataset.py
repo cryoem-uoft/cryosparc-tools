@@ -1,9 +1,10 @@
 from functools import reduce
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from textwrap import wrap
 from typing import (
+    IO,
     Any,
-    BinaryIO,
+    Union,
     Callable,
     Collection,
     Dict,
@@ -13,7 +14,6 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
-    OrderedDict,
     Set,
     Tuple,
     Type,
@@ -26,7 +26,7 @@ import numpy.typing as nt
 import numpy.core.records
 
 from cryosparc.column import Column, NumericColumn, StringColumn
-from cryosparc.util import ioopen
+from cryosparc.util import bopen
 
 from .data import Data
 from .dtype import Field, dtype_field, ndarray_dtype
@@ -421,20 +421,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return [f for f in datasets[0].descr if f in fields]
 
     @classmethod
-    def load(cls, file: Union[str, PurePath, BinaryIO]) -> "Dataset":
+    def load(cls, file: Union[str, PurePath, IO[bytes]]) -> "Dataset":
         """
         Read a dataset from disk from a path or file handle
         """
-        with ioopen(file, "rb") as f:
+        with bopen(file, "rb") as f:
             prefix = f.read(6)
             f.seek(0)
             if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
                 indata = n.load(f, allow_pickle=False)
                 return Dataset(indata)
-            else:
-                return NotImplemented
+        return NotImplemented
 
-    def save(self, file: Union[str, Path, BinaryIO], format: int = DEFAULT_FORMAT):
+    def save(self, file: Union[str, PurePath, IO[bytes]], format: int = DEFAULT_FORMAT):
         """
         Save a dataset to the given path or file handle
         """
@@ -442,7 +441,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             arrays = [col.to_numpy(copy=False, fixed=True) for col in self.cols.values()]
             dtype = [(f, a.dtype) for f, a in zip(self.cols, arrays)]
             outdata = numpy.core.records.fromarrays(arrays, dtype=dtype)
-            with ioopen(file, "wb") as f:
+            with bopen(file, "wb") as f:
                 n.save(f, outdata, allow_pickle=False)
         else:
             return NotImplemented
@@ -560,9 +559,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         )
 
     @property
-    def cols(self) -> OrderedDict[str, Column]:
+    def cols(self) -> Dict[str, Column]:
         if self._cols is None:
-            self._cols = OrderedDict()
+            self._cols = {}
             for field in self.descr:
                 Col = StringColumn if n.dtype(field[1]) == n.dtype(n.object0) else NumericColumn
                 self._cols[field[0]] = Col(self._data, field)
@@ -696,7 +695,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def innerjoin(self, *others: "Dataset", assert_no_drop=False, assume_unique=False):
         result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
         if assert_no_drop:
-            assert len(result) == len(self), "innerjoined datasets that do not have all elements in common."
+            assert len(result) == len(self), "innerjoin datasets that do not have all elements in common."
         return result
 
     def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]) -> "Dataset":
