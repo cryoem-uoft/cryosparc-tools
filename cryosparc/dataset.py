@@ -253,7 +253,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if format == NUMPY_FORMAT:
             arrays = [col.to_numpy(copy=False, fixed=True) for col in self.cols.values()]
-            dtype = [(f, a.dtype) for f, a in zip(self.cols, arrays)]
+            dtype = [(f, ndarray_dtype(a)) for f, a in zip(self.cols, arrays)]
             outdata = numpy.core.records.fromarrays(arrays, dtype=dtype)
             with bopen(file, "wb") as f:
                 n.save(f, outdata, allow_pickle=False)
