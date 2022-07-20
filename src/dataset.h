@@ -20,7 +20,8 @@
 	X(T_U16,  u16, uint16_t,        "u2",   "%" PRIu16, repr ) \
 	X(T_U32,  u32, uint32_t,        "u4",   "%" PRIu32, repr ) \
 	X(T_U64,  u64, uint64_t,        "u8",   "%" PRIu64, repr ) \
-	X(T_STR,  s,   uint64_t,        "O",    "%s", repr_str ) 
+	X(T_STR,  s,   uint64_t,        "O",    "%s", repr_str ) \
+	X(T_OBJ,  p,   void*,           "O",    "%p", repr ) 
 
 
 enum dset_type {
@@ -37,6 +38,7 @@ enum dset_type {
 	T_U32 = 11,
 	T_U64 = 12,
 	T_STR = 13,
+	T_OBJ = 14,
 };
 
 /*
