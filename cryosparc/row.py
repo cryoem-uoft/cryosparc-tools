@@ -1,36 +1,36 @@
-from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, List, Mapping, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, List, Tuple, TypeVar
 
 import numpy as n
-
-if TYPE_CHECKING:
-    from .dataset import Dataset
+import numpy.typing as nt
 
 
-class Row(Mapping):
+class Row:
     """
-    Provides row-by-row access to the datasert
+    Provides row-by-row access to a dataset
     """
 
-    def __init__(self, dataset: "Dataset", idx: int):
+    __slots__ = ("idx", "cols")  # Specifying this speeds up allocation of many rows
+
+    def __init__(self, cols: Dict[str, nt.NDArray], idx: int):
         self.idx = idx
-        self.dataset = dataset
+        self.cols = cols
         # note - don't keep around a ref to dataset.data because then when dataset.data changes (add field)
         # the already existing items will be referring to the old dataset.data!
 
     def __len__(self):
-        return len(self.dataset.fields())
+        return len(self.cols)
 
     def __getitem__(self, key: str):
-        return self.dataset[key][self.idx]
+        return self.cols[key][self.idx]
 
     def __setitem__(self, key: str, value):
-        self.dataset[key][self.idx] = value
+        self.cols[key][self.idx] = value
 
     def __contains__(self, key: str):
-        return key in self.dataset
+        return key in self.cols
 
     def __iter__(self):
-        return iter(self.dataset.fields())
+        return iter(self.cols)
 
     def get(self, key, default=None):
         if key in self:
@@ -38,21 +38,21 @@ class Row(Mapping):
         return default
 
     def get_item(self, key, default=None):
-        return self.dataset[key][self.idx] if key in self else default
+        return self.cols[key][self.idx] if key in self else default
 
     def to_list(self, exclude_uid=False):
         """Convert into a list of native python types, ordered the same way as the fields"""
-        return [self.get_item(key) for key in self.dataset.fields() if not exclude_uid or key != "uid"]
+        return [self.get_item(key) for key in self.cols if not exclude_uid or key != "uid"]
 
     def to_dict(self):
-        return {key: self[key] for key in self.dataset.fields()}
+        return {key: self[key] for key in self.cols}
 
     def to_item_dict(self):
         """Like to_dict, but all values are native python types"""
-        return {key: self.get_item(key) for key in self.dataset.fields()}
+        return {key: self.get_item(key) for key in self.cols}
 
     def from_dict(self, d):
-        for k in self.dataset.fields():
+        for k in self.cols:
             self[k] = d[k]
 
 
@@ -66,9 +66,9 @@ class Spool(List[R], Generic[R]):
     """
 
     def __init__(self, items: Iterable[R], rng: n.random.Generator = n.random.default_rng()):
+        super().__init__(items)
         self.indexes = None
         self.random = rng
-        self.extend(items)
 
     def set_random(self, rng: n.random.Generator):
         self.random = rng
