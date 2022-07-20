@@ -3,6 +3,7 @@
 
 #include <Python.h>
 #include <numpy/arrayobject.h>
+#include "dataset.h"
 
 #define C2NPY(type) _Generic((type){0},    \
 	signed char:        NPY_BYTE,      \
@@ -51,7 +52,6 @@ fmt_str (int n, char *restrict buffer, const char *restrict fmt, ...)
 }
 
 #define NFORMAT(N, fmt, ...) fmt_str(N, (char[N]){0}, (fmt), __VA_ARGS__)
-#include "dataset.h"
 PyObject * wrap_dset_new (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
@@ -191,6 +191,24 @@ PyObject * wrap_dset_get (PyObject *self, PyObject *args, PyObject *kwds)
     rtn = dset_get(dset, colkey);
     Py_END_ALLOW_THREADS;
     return PyLong_FromVoidPtr(rtn);
+} 
+PyObject * wrap_dset_getsz (PyObject *self, PyObject *args, PyObject *kwds)
+{
+    (void) self;
+    char __pyexn_errmsg[4096] = {};
+    static char *kwlist[] = {"dset",
+		"colkey",NULL};
+    unsigned long dset = {0};
+    const char * colkey = 0;
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),"s"), kwlist, &dset,
+		&colkey )) return 0;
+
+
+    uint64_t rtn = 0;
+    Py_BEGIN_ALLOW_THREADS;
+    rtn = dset_getsz(dset, colkey);
+    Py_END_ALLOW_THREADS;
+    return Py_BuildValue(NFORMAT(8,"%s",C2PYFMT(uint64_t)), rtn);
 } 
 PyObject * wrap_dset_setstr (PyObject *self, PyObject *args, PyObject *kwds)
 {

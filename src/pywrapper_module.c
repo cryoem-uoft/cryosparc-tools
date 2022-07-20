@@ -19,6 +19,7 @@
 */
 
 #include "pywrapper_wrapperfunctions.c"
+#include "pywrapper_extras.c"
 
 static PyMethodDef module_functions[] = {
 	{  "dset_new",            (PyCFunction)  wrap_dset_new,            METH_VARARGS  |  METH_KEYWORDS,  ""  },
@@ -30,6 +31,7 @@ static PyMethodDef module_functions[] = {
 	{  "dset_key",            (PyCFunction)  wrap_dset_key,            METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_type",           (PyCFunction)  wrap_dset_type,           METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_get",            (PyCFunction)  wrap_dset_get,            METH_VARARGS  |  METH_KEYWORDS,  ""  },
+	{  "dset_getsz",          (PyCFunction)  wrap_dset_getsz,          METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_setstr",         (PyCFunction)  wrap_dset_setstr,         METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_getstr",         (PyCFunction)  wrap_dset_getstr,         METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_getshp",         (PyCFunction)  wrap_dset_getshp,         METH_VARARGS  |  METH_KEYWORDS,  ""  },
@@ -38,6 +40,7 @@ static PyMethodDef module_functions[] = {
 	{  "dset_addcol_array",   (PyCFunction)  wrap_dset_addcol_array,   METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_defrag",         (PyCFunction)  wrap_dset_defrag,         METH_VARARGS  |  METH_KEYWORDS,  ""  },
 	{  "dset_dumptxt",        (PyCFunction)  wrap_dset_dumptxt,        METH_VARARGS  |  METH_KEYWORDS,  ""  },
+	{  "dset_getbuf",         (PyCFunction)  wrap_dset_getbuf,         METH_VARARGS  |  METH_KEYWORDS,  ""  },
 
 	{ NULL, NULL, 0, NULL }
 };
