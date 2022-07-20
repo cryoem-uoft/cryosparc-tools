@@ -348,9 +348,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if key not in self._data:
             aval = n.array(val, copy=False)
-            assert not aval.shape or aval.shape[0] == len(
-                self
-            ), f"Cannot broadcast '{key}' in {self} to {val} due to invalid shape"
+            assert not aval.shape or aval.shape[0] == len(self), (
+                f"Cannot broadcast '{key}' in {self} to {val} " f"due to invalid shape {aval.shape}"
+            )
             self.add_fields([key], [aval.dtype])
         self.cols[key][:] = val
 
@@ -382,12 +382,24 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self._cols
 
     @property
-    def rows(self) -> Spool[R]:
+    def rows(self) -> Spool:
         """
-        A row-by-row accessor list for items in this dataset
+        A row-by-row accessor list for items in this dataset.
+        Note: Do not store this accessor outside of this instance for a long time,
+        the values become invalid when fields are added or the dataset's contents change.
+
+        e.g., do not do this:
+
+        ```
+        dset = Dataset.load('/path/to/dataset.cs')
+        rows = dset.rows
+        dset.add_fields([('foo', 'f4')])  # or `del dataset`
+        rows[0].to_list()  # access may be invalid
+        ```
         """
         if self._rows is None:
-            self._rows = Spool(self._row_class(self, idx) for idx in range(len(self)))
+            cols = {k: n.array(c, copy=False) for k, c in self.items()}
+            self._rows = Spool([self._row_class(cols, idx) for idx in range(len(self))])
         return self._rows
 
     @property
@@ -534,8 +546,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         if isinstance(query, dict):
             return self.mask(self.query_mask(query))
         else:
-            indexes = [row.idx for row in self.rows if query(row)]
-            return self.indexes(indexes)
+            mask = [query(row) for row in self.rows]
+            return self.mask(mask)
 
     def query_mask(self, query: Dict[str, nt.ArrayLike], invert=False) -> nt.NDArray[n.bool_]:
         """
@@ -591,12 +603,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         }
         ```
         """
-        idxs = {}
-        for idx, val in enumerate(self[field]):
-            curr = idxs.get(val, [])
-            curr.append(idx)
-            idxs[val] = curr
-        return {k: self.indexes(v) for k, v in idxs.items()}
+        col = n.array(self[field], copy=False)
+        vals = n.unique(col)
+        return {val: col[col == val] for val in vals}
 
     def replace(self, query: Dict[str, nt.ArrayLike], *others: "Dataset", assume_unique=False):
         """
