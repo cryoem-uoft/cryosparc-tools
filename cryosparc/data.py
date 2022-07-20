@@ -200,3 +200,6 @@ class Data(Mapping[str, DType]):
 
     def dumptxt(self):
         core.dset_dumptxt(self.handle)
+
+    def getbuf(self, field: str):
+        return core.dset_getbuf(self.handle, field)

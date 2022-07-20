@@ -25,7 +25,7 @@ import numpy.core.records
 
 from .data import Data
 from .dtype import Field, dtype_field, ndarray_dtype
-from .column import Column, NumericColumn, StringColumn
+from .column import Column, NDColumn, NumericColumn, StringColumn
 from .row import Row, Spool, R
 from .util import bopen
 
@@ -321,6 +321,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._data.addrows(nrows)
         for field, data in populate:
             self[field[0]] = data
+        self._cols = None
 
     def __len__(self):
         """
@@ -377,8 +378,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         if self._cols is None:
             self._cols = {}
             for field in self.descr:
-                Col = StringColumn if n.dtype(field[1]) == n.dtype(n.object0) else NumericColumn
-                self._cols[field[0]] = Col(self._data, field)
+                Col = StringColumn if n.dtype(field[1]) == n.dtype(n.object0) else NDColumn
+                self._cols[field[0]] = Col(field, self._data)
         return self._cols
 
     @property

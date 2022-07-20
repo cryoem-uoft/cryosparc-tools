@@ -3,7 +3,10 @@ from inspect import getmembers
 from typing import (
     Any,
     Collection,
+    Generic,
+    Optional,
     Sequence,
+    TypeVar,
     Union,
     overload,
 )
@@ -14,12 +17,40 @@ from .data import Data
 from .dtype import Field, field_itemsize, field_shape, field_strides
 
 
+class NDColumn(nt.NDArray[Any]):
+    """
+    Dataset column, uses native numpy array interface. Used to keep _data
+    instance from getting garbage collected if a single column is extracted from
+    a dataset once that dataset has already been garbage collected.
+
+    Note that if fields are added to the the dataset, a column instance may no
+    longer be valid and must be retrieved again from `dataset[colname]`.
+    """
+
+    __slots__ = ("_data",)
+    _data: Optional[Data]
+
+    def __new__(cls, field: Field, data: Data):
+        dtype = n.dtype(field[1])
+        shape = (data.nrow(), *field_shape(field))
+        buffer = data.getbuf(field[0])
+        obj = super().__new__(cls, shape=shape, dtype=dtype, buffer=buffer)
+
+        # Keep a reference to the data so that it only gets cleaned up when all
+        # columns are cleaned up. No need to transfer this data during
+        # `__array_finalize__` because this NDColumn instance will be kept as
+        # the base
+        obj._data = data
+
+        return obj
+
+
 class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
     """
     Dataset Column entry. May be used anywhere in place of Numpy arrays
     """
 
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
+    def __init__(self, field: Field, data: Data, subset: slice = slice(0, None)):
         start, stop, step = subset.indices(data.nrow())
         dtype = n.dtype(field[1])
         self.dtype = dtype.base if dtype.shape else dtype
@@ -86,7 +117,7 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
             # a new subset (keeps underlying data)
             datalen = self._data.nrow()
             r = range(datalen)[self._subset][key]
-            return type(self)(self._data, self._field, subset=slice(r.start, r.stop, r.step))
+            return type(self)(self._field, self._data, subset=slice(r.start, r.stop, r.step))
         else:
             # Indeces or mask
             return n.array(self, copy=False)[key]
@@ -106,8 +137,8 @@ class Column(Sequence, n.lib.mixins.NDArrayOperatorsMixin, ABC):
 
 
 class NumericColumn(Column):
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
-        super().__init__(data, field, subset)
+    def __init__(self, field: Field, data: Data, subset: slice = slice(0, None)):
+        super().__init__(field, data, subset)
         self._strides = field_strides(field, self._subset.step or 1)
         self._offset = (self._subset.start or 0) * field_itemsize(field)
 
@@ -128,11 +159,11 @@ class NumericColumn(Column):
 
 
 class StringColumn(Column):
-    def __init__(self, data: Data, field: Field, subset: slice = slice(0, None)):
+    def __init__(self, field: Field, data: Data, subset: slice = slice(0, None)):
         assert len(field) == 2 and n.dtype(field[1]) == n.dtype(
             n.object0
         ), f"Cannot create String column with dtype {field[1]}"
-        super().__init__(data, field, subset)
+        super().__init__(field, data, subset)
         # Available string indexes in this dataset
         self._idxs = n.array(list(range(*self._subset.indices(self._data.nrow()))))
 
