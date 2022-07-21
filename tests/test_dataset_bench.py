@@ -202,8 +202,7 @@ def test_append_many_simple_interlace(benchmark, big_dset, dset: Dataset):
     assert new_dset["uid"][1] == other["uid"][0]
 
 
-def test_append_replace(benchmark, big_dset: Dataset):
-    dset = big_dset.copy()
+def test_append_replace(benchmark, big_dset: Dataset, dset: Dataset):
     other = Dataset.allocate(size=10000, fields=dset.descr)
     new_dset = benchmark(dset.replace, {}, other)
     assert len(new_dset) == len(big_dset) + len(other)
@@ -212,7 +211,7 @@ def test_append_replace(benchmark, big_dset: Dataset):
 
 def test_append_replace_unique(benchmark, big_dset: Dataset, dset: Dataset):
     other = Dataset.allocate(size=10000, fields=dset.descr)
-    new_dset = benchmark(dset.replace, {}, other, assume_unique=True)
+    new_dset = benchmark(dset.replace, {}, other, assume_disjoint=True, assume_unique=True)
     assert len(new_dset) == len(big_dset) + len(other)
     assert new_dset["uid"][-1] == other["uid"][-1]
 
@@ -238,7 +237,9 @@ def test_append_replace_query(benchmark, big_dset: Dataset, dset: Dataset):
 
 def test_append_replace_query_unique(benchmark, big_dset: Dataset, dset: Dataset):
     other = Dataset.allocate(size=10000, fields=dset.descr)
-    new_dset = benchmark(dset.replace, {"location/micrograph_uid": 6655121610611186569}, other, assume_unique=True)
+    new_dset = benchmark(
+        dset.replace, {"location/micrograph_uid": 6655121610611186569}, other, assume_disjoint=True, assume_unique=True
+    )
     assert len(new_dset) == len(big_dset) + len(other) - 1191
 
 
@@ -253,7 +254,7 @@ def test_append_replace_many(benchmark, big_dset: Dataset, dset: Dataset):
 def test_append_replace_many_unique(benchmark, big_dset: Dataset, dset: Dataset):
     other1 = Dataset.allocate(size=5000, fields=dset.descr)
     other2 = Dataset.allocate(size=5000, fields=dset.descr)
-    new_dset = benchmark(dset.replace, {}, other1, other2, assume_unique=True)
+    new_dset = benchmark(dset.replace, {}, other1, other2, assume_disjoint=True, assume_unique=True)
     assert len(new_dset) == len(big_dset) + len(other1) + len(other2)
     assert new_dset["uid"][-1] == other2["uid"][-1]
 
@@ -266,6 +267,7 @@ def test_append_replace_many_query(benchmark, big_dset: Dataset, dset: Dataset):
         {"location/micrograph_uid": [2539634023577218663, 6655121610611186569]},
         other1,
         other2,
+        assume_disjoint=True,
         assume_unique=True,
     )
     assert len(new_dset) == len(big_dset) + len(other1) + len(other2) - 1191 - 1210

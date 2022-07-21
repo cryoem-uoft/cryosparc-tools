@@ -32,6 +32,7 @@ class DsetType(int, Enum):
     T_U32 = 11
     T_U64 = 12
     T_STR = 13
+    T_OBJ = 14
 
 
 DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
@@ -47,7 +48,8 @@ DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
     DsetType.T_U16: n.uint16,
     DsetType.T_U32: n.uint32,
     DsetType.T_U64: n.uint64,
-    DsetType.T_STR: n.object0,
+    DsetType.T_STR: n.object0,  # Note: Prefer T_OBJ instead
+    DsetType.T_OBJ: n.object0,
 }
 
 TYPE_TO_DSET_MAP = {
@@ -56,8 +58,8 @@ TYPE_TO_DSET_MAP = {
         float: DsetType.T_F64,
         complex: DsetType.T_C64,
         int: DsetType.T_I64,
-        str: DsetType.T_STR,
-        object: DsetType.T_STR,
+        str: DsetType.T_OBJ,
+        object: DsetType.T_OBJ,
     },
 }
 
@@ -67,6 +69,8 @@ class Data(Mapping[str, DType]):
     Accessor and memory management class for native dataset memory. Can be used
     as a mapping where values are field type descriptors.
     """
+
+    __slots__ = ("handle",)
 
     handle: int
 
@@ -146,17 +150,6 @@ class Data(Mapping[str, DType]):
         shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
         return tuple(s for s in shape if s != 0)
 
-    def getstr(self, field: str, index: Union[int, n.integer]) -> str:
-        # TODO: See how bad the memory usage is due to having to create a new
-        # string instance each time. Might be good to maintain a string cache
-        # for each string column
-        return core.dset_getstr(self.handle, field, int(index))
-
-    def setstr(self, field: str, index: Union[int, n.integer], value: Union[str, bytes]):
-        if isinstance(value, bytes):
-            value = value.decode("ascii", errors="ignore")
-        core.dset_setstr(self.handle, field, int(index), value)
-
     def addrows(self, num) -> bool:
         return core.dset_addrows(self.handle, num) != 0
 
@@ -181,7 +174,7 @@ class Data(Mapping[str, DType]):
             assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
             return self.addcol_array(field, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
         elif dt.char in {"S", "U"}:
-            return self.addcol_scalar(field, DsetType.T_STR)
+            return self.addcol_scalar(field, DsetType.T_OBJ)  # Will be converted
         else:
             assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
             return self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt.type])

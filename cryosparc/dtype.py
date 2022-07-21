@@ -38,29 +38,9 @@ def field_shape(field: Field) -> Shape:
     return n.dtype(field_dtype(field)).shape
 
 
-def field_itemsize(field: Field) -> int:
-    return n.dtype(field_dtype(field)).itemsize
-
-
 def ndarray_dtype(a: nt.NDArray) -> DType:
     assert len(a.dtype.descr) == 1, "Cannot get dtype from record array"
     return (a.dtype.str, a.shape[1:]) if len(a.shape) > 1 else a.dtype.str
-
-
-def field_strides(field: Field, step: int = 1):
-    """
-    Get __array_interface__ strides
-    https://numpy.org/devdocs/reference/arrays.interface.html#python-side
-    """
-    dt = n.dtype(field_dtype(field))
-    if dt.shape:
-        strides = [dt.base.itemsize]
-        for i in reversed(range(len(dt.shape))):
-            strides.append(strides[-1] * dt.shape[i])
-    else:
-        strides = [dt.itemsize]
-    strides[-1] *= step
-    return tuple(reversed(strides))
 
 
 def dtypestr(dtype: nt.DTypeLike) -> str:

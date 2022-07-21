@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, List, Tuple, Typ
 import numpy as n
 import numpy.typing as nt
 
+from .column import Column
+
 
 class Row:
     """
@@ -11,7 +13,7 @@ class Row:
 
     __slots__ = ("idx", "cols")  # Specifying this speeds up allocation of many rows
 
-    def __init__(self, cols: Dict[str, nt.NDArray], idx: int):
+    def __init__(self, cols: Dict[str, Column], idx: int):
         self.idx = idx
         self.cols = cols
         # note - don't keep around a ref to dataset.data because then when dataset.data changes (add field)

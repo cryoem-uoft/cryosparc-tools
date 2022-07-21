@@ -1,6 +1,5 @@
 from functools import reduce
 from pathlib import PurePath
-from textwrap import wrap
 from typing import (
     IO,
     Any,
@@ -25,7 +24,7 @@ import numpy.core.records
 
 from .data import Data
 from .dtype import Field, dtype_field, ndarray_dtype
-from .column import Column, NDColumn, NumericColumn, StringColumn
+from .column import Column
 from .row import Row, Spool, R
 from .util import bopen
 
@@ -252,7 +251,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Save a dataset to the given path or file handle
         """
         if format == NUMPY_FORMAT:
-            arrays = [col.to_numpy(copy=False, fixed=True) for col in self.cols.values()]
+            arrays = [col.to_fixed() for col in self.cols.values()]
             dtype = [(f, ndarray_dtype(a)) for f, a in zip(self.cols, arrays)]
             outdata = numpy.core.records.fromarrays(arrays, dtype=dtype)
             with bopen(file, "wb") as f:
@@ -266,7 +265,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             "Dataset",
             Data,
             int,
-            n.ndarray,
+            nt.NDArray,
             Mapping[str, nt.ArrayLike],
             List[Tuple[str, nt.ArrayLike]],
         ] = 0,
@@ -348,11 +347,16 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Set or add a field to the dataset.
         """
         if key not in self._data:
-            aval = n.array(val, copy=False)
-            assert not aval.shape or aval.shape[0] == len(self), (
-                f"Cannot broadcast '{key}' in {self} to {val} " f"due to invalid shape {aval.shape}"
+            val = n.array(val, copy=False)
+            assert not val.shape or val.shape[0] == len(self), (
+                f"Cannot broadcast '{key}' in {self} to {val} " f"due to invalid shape {val.shape}"
             )
-            self.add_fields([key], [aval.dtype])
+            self.add_fields([key], [ndarray_dtype(val)])
+        if isinstance(val, n.ndarray):
+            if val.dtype.char == "S":
+                val = n.vectorize(bytes.decode, otypes="O")(val)
+            elif val.dtype.char == "U":
+                val = n.vectorize(str, otypes="O")(val)
         self.cols[key][:] = val
 
     def __delitem__(self, key: str):
@@ -378,8 +382,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         if self._cols is None:
             self._cols = {}
             for field in self.descr:
-                Col = StringColumn if n.dtype(field[1]) == n.dtype(n.object0) else NDColumn
-                self._cols[field[0]] = Col(field, self._data)
+                self._cols[field[0]] = Column(field, self._data)
         return self._cols
 
     @property
@@ -399,7 +402,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         ```
         """
         if self._rows is None:
-            cols = {k: n.array(c, copy=False) for k, c in self.items()}
+            cols = self.cols
             self._rows = Spool([self._row_class(cols, idx) for idx in range(len(self))])
         return self._rows
 
@@ -450,6 +453,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             if field[0] not in self._data:
                 self._data.addcol(field)
 
+        self._rows = None
         self._cols = None
         return self
 
@@ -468,6 +472,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             result[key] = self[key]
         self._data = result._data
         self._cols = result._cols
+        self._rows = None
         return self
 
     def filter_prefixes(self, prefixes: Collection[str]):
@@ -487,6 +492,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         result = Dataset([(f if f == "uid" else field_map(f), col) for f, col in self.cols.items()])
         self._data = result._data
         self._cols = None
+        self._rows = None
         return self
 
     def copy_fields(self, old_fields: List[str], new_fields: List[str]):
@@ -494,7 +500,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         for old, new in zip(old_fields, new_fields):
             self[new] = self[old]
 
-        return None
+        self._cols = None
+        self._rows = None
+        return self
 
     def reassign_uids(self):
         self["uid"] = generate_uids(len(self))
@@ -570,10 +578,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         return self.indexes([row.idx for row in rows])
 
-    def indexes(self, indexes: Collection[int]):
+    def indexes(self, indexes: Union[List[int], nt.NDArray]):
         return Dataset([(f, col[indexes]) for f, col in self.cols.items()])
 
-    def mask(self, mask: Collection[bool]) -> "Dataset":
+    def mask(self, mask: Union[List[bool], nt.NDArray]) -> "Dataset":
         """
         Get a subset of the dataset that matches the given mask of rows
         """
@@ -608,18 +616,25 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         vals = n.unique(col)
         return {val: col[col == val] for val in vals}
 
-    def replace(self, query: Dict[str, nt.ArrayLike], *others: "Dataset", assume_unique=False):
+    def replace(self, query: Dict[str, nt.ArrayLike], *others: "Dataset", assume_disjoint=False, assume_unique=False):
         """
         Replaces values matching the given query with others. The query is a
         key/value map of allowed field values. The values can be either a single
         scalar value or a set of possible values. If nothing matches the query
         (e.g., {} specified), works the same way as append.
+
+        Specify `assume_disjoint=True` when all input datasets do not any UIDs
+        in common.
+
+        Specify `assume_unique=True` when all input datasets do not have any
+        duplicate UIDs.
         """
         keep_fields = self.common_fields(self, *others, assert_same_fields=True)
         others_len = sum(len(o) for o in others)
         keep_mask = n.ones(len(self), dtype=bool)
-        for other in others:
-            keep_mask &= n.isin(self["uid"], other["uid"], assume_unique=assume_unique, invert=True)
+        if not assume_disjoint:
+            for other in others:
+                keep_mask &= n.isin(self["uid"], other["uid"], assume_unique=assume_unique, invert=True)
         if query:
             keep_mask &= self.query_mask(query, invert=True)
 
@@ -639,20 +654,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def __repr__(self) -> str:
         s = f"{type(self).__name__}(["
         size = len(self)
-        infix = ", "
 
         for k, v in self.items():
             if size > 6:
-                contents = f"{infix.join(map(repr, v[:3]))}, ... , {infix.join(map(repr, v[-3:]))}"
+                contents = f"{str(v[:3])[:-1]} ... {str(v[-3:])[1:]}"
             else:
-                contents = infix.join(map(repr, v))
-            s += "\n" + "\n".join(
-                wrap(
-                    f"('{k}', array([" + contents + f"], dtype={v.dtype})),",
-                    width=100,
-                    initial_indent="    ",
-                    subsequent_indent=" " * 8,
-                )
-            )
-        s += "\n])"
+                contents = str(v)
+            contents = " ".join(contents.split("\n"))
+            contents = " ".join([x for x in contents.split(" ") if len(x) > 0])
+            s += "\n" + f"    ('{k}', {contents}),"
+
+        s += f"\n])  # {size} items, {len(self.cols)} fields"
         return s

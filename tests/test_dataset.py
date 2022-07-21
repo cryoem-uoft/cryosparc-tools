@@ -2,7 +2,7 @@ from io import BytesIO
 from base64 import b64decode
 import pytest
 import numpy as n
-from cryosparc.dataset import Dataset, NumericColumn, StringColumn
+from cryosparc.dataset import Dataset, Column
 
 
 @pytest.fixture
@@ -92,14 +92,14 @@ def test_non_existent_key_assignment():
 def test_valid_key_assignment():
     storage = Dataset.allocate(size=3, fields=[("gain_ref_blob/path", "O")])
     storage["gain_ref_blob/path"] = "Hello World!"
-    assert isinstance(storage["gain_ref_blob/path"], StringColumn)
+    assert isinstance(storage["gain_ref_blob/path"], Column)
     assert len(storage["gain_ref_blob/path"]) == 3
 
 
 def test_valid_multi_dimensional_key_assignment():
     storage = Dataset.allocate(size=3, fields=[("location/micrograph_shape", "<u4", (2,))])
     storage["location/micrograph_shape"] = n.array([42, 24])
-    assert isinstance(storage["location/micrograph_shape"], NumericColumn)
+    assert isinstance(storage["location/micrograph_shape"], Column)
     assert len(storage["location/micrograph_shape"]) == 3
     assert all(storage["location/micrograph_shape"][2] == n.array([42, 24]))
 
