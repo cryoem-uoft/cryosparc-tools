@@ -53,17 +53,20 @@ def test_len(big_dset: Dataset):
 def test_fields(big_dset: Dataset):
     fields = big_dset.fields()
     assert len(fields) == 28
+    # assert len(fields) == 26
     assert fields[0] == "uid"
 
 
 def test_fields_no_uid(big_dset: Dataset):
     fields = big_dset.fields(exclude_uid=True)
     assert len(fields) == 27
+    # assert len(fields) == 25
     assert fields[0] != "uid"
 
 
 def test_dtypes(big_dset: Dataset):
-    assert len(big_dset.descr) == 28
+    assert len(big_dset.descr()) == 28
+    # assert len(big_dset.descr()) == 26
 
 
 def test_contains(big_dset: Dataset):
@@ -73,6 +76,7 @@ def test_contains(big_dset: Dataset):
 def test_add_fields(dset: Dataset):
     dset.add_fields(["foo", "baz"], ["u8", "f4"])
     assert len(dset.fields()) == 30
+    # assert len(dset.fields()) == 28
 
 
 def test_rename_fields(dset: Dataset):
@@ -85,14 +89,14 @@ def test_get_items(benchmark, dset: Dataset):
     @benchmark
     def _():
         dset._rows = None
-        assert len(dset.rows) == 1961726
+        assert len(dset.rows()) == 1961726
 
 
 def test_get_items_to_list(benchmark, dset, fields):
     @benchmark
     def _():
         dset._rows = None
-        items = dset.rows
+        items = dset.rows()
         first = items[0]
         l = first.to_list()
         assert len(l) == len(fields)
@@ -103,7 +107,7 @@ def test_get_items_to_dict(benchmark, dset: Dataset[Row], fields):
     @benchmark
     def _():
         dset._rows = None
-        items = dset.rows
+        items = dset.rows()
         first = items[0]
         d = first.to_dict()
         assert set(d.keys()) == {f[0] for f in fields}
@@ -114,7 +118,7 @@ def test_get_items_to_item_dict(benchmark, dset: Dataset[Row], fields):
     @benchmark
     def _():
         dset._rows = None
-        first = dset.rows[0]
+        first = dset.rows()[0]
         item_d = first.to_item_dict()
         assert set(item_d.keys()) == {f[0] for f in fields}
         assert any(item_d.values())
@@ -140,6 +144,7 @@ def test_filter_prefixes(benchmark, big_dset: Dataset):
         dset = big_dset.copy()
         filtered = dset.filter_fields(lambda n: not n.startswith("pick_stats"))
         assert len(filtered.fields()) == 24
+        # assert len(filtered.fields()) == 22
 
 
 def test_copy_fields(benchmark, big_dset: Dataset):
@@ -147,6 +152,7 @@ def test_copy_fields(benchmark, big_dset: Dataset):
     def _():
         dset = big_dset.copy()
         dset.copy_fields(["ctf/type", "ctf/exp_group_id"], ["foo", "bar"])
+        # dset.copy_fields(["ctf/exp_group_id"], ["bar"])
         assert all(dset["ctf/type"] == dset["foo"])
         assert all(dset["ctf/exp_group_id"] == dset["bar"])
 
@@ -163,28 +169,28 @@ def test_append_union(benchmark, big_dset: Dataset, dset: Dataset):
 
 
 def test_append_many(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr)
+    empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.append_many, dset, empty, other)
     assert len(new_dset) == len(big_dset) * 2
 
 
 def test_append_many_union(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr)
+    empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.union_many, dset, dset, empty, other)
     assert len(new_dset) == len(big_dset) * 2
 
 
 def test_append_many_union_repeat_allowed(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr)
+    empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.append_many, dset, dset, empty, other, repeat_allowed=True)
     assert len(new_dset) == len(big_dset) * 3
 
 
 def test_append_many_simple(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr)
+    empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.append_many, dset, empty, other, assert_same_fields=True)
     assert len(new_dset) == len(big_dset) * 2
@@ -201,40 +207,40 @@ def test_append_many_simple_interlace(benchmark, big_dset, dset: Dataset):
 
 
 def test_append_replace(benchmark, big_dset: Dataset, dset: Dataset):
-    other = Dataset.allocate(size=10000, fields=dset.descr)
+    other = Dataset.allocate(size=10000, fields=dset.descr())
     new_dset = benchmark(dset.replace, {}, other)
     assert len(new_dset) == len(big_dset) + len(other)
     assert new_dset["uid"][-1] == other["uid"][-1]
 
 
 def test_append_replace_unique(benchmark, big_dset: Dataset, dset: Dataset):
-    other = Dataset.allocate(size=10000, fields=dset.descr)
+    other = Dataset.allocate(size=10000, fields=dset.descr())
     new_dset = benchmark(dset.replace, {}, other, assume_disjoint=True, assume_unique=True)
     assert len(new_dset) == len(big_dset) + len(other)
     assert new_dset["uid"][-1] == other["uid"][-1]
 
 
 def test_append_replace_empty(benchmark, big_dset, dset: Dataset):
-    other = Dataset.allocate(0, fields=dset.descr)
+    other = Dataset.allocate(0, fields=dset.descr())
     new_dset = benchmark(dset.replace, {}, other)
     assert len(new_dset) == len(big_dset)
     assert new_dset == big_dset
 
 
 def test_append_replace_empty_query(benchmark, big_dset: Dataset, dset: Dataset):
-    other = Dataset.allocate(0, fields=dset.descr)
+    other = Dataset.allocate(0, fields=dset.descr())
     new_dset = benchmark(dset.replace, {"location/micrograph_uid": 6655121610611186569}, other)
     assert len(new_dset) == len(big_dset) - 1191
 
 
 def test_append_replace_query(benchmark, big_dset: Dataset, dset: Dataset):
-    other = Dataset.allocate(size=10000, fields=dset.descr)
+    other = Dataset.allocate(size=10000, fields=dset.descr())
     new_dset = benchmark(dset.replace, {"location/micrograph_uid": 6655121610611186569}, other)
     assert len(new_dset) == len(big_dset) + len(other) - 1191
 
 
 def test_append_replace_query_unique(benchmark, big_dset: Dataset, dset: Dataset):
-    other = Dataset.allocate(size=10000, fields=dset.descr)
+    other = Dataset.allocate(size=10000, fields=dset.descr())
     new_dset = benchmark(
         dset.replace, {"location/micrograph_uid": 6655121610611186569}, other, assume_disjoint=True, assume_unique=True
     )
@@ -242,24 +248,24 @@ def test_append_replace_query_unique(benchmark, big_dset: Dataset, dset: Dataset
 
 
 def test_append_replace_many(benchmark, big_dset: Dataset, dset: Dataset):
-    other1 = Dataset.allocate(size=5000, fields=dset.descr)
-    other2 = Dataset.allocate(size=5000, fields=dset.descr)
+    other1 = Dataset.allocate(size=5000, fields=dset.descr())
+    other2 = Dataset.allocate(size=5000, fields=dset.descr())
     new_dset = benchmark(dset.replace, {}, other1, other2)
     assert len(new_dset) == len(big_dset) + len(other1) + len(other2)
     assert new_dset["uid"][-1] == other2["uid"][-1]
 
 
 def test_append_replace_many_unique(benchmark, big_dset: Dataset, dset: Dataset):
-    other1 = Dataset.allocate(size=5000, fields=dset.descr)
-    other2 = Dataset.allocate(size=5000, fields=dset.descr)
+    other1 = Dataset.allocate(size=5000, fields=dset.descr())
+    other2 = Dataset.allocate(size=5000, fields=dset.descr())
     new_dset = benchmark(dset.replace, {}, other1, other2, assume_disjoint=True, assume_unique=True)
     assert len(new_dset) == len(big_dset) + len(other1) + len(other2)
     assert new_dset["uid"][-1] == other2["uid"][-1]
 
 
 def test_append_replace_many_query(benchmark, big_dset: Dataset, dset: Dataset):
-    other1 = Dataset.allocate(size=5000, fields=dset.descr)
-    other2 = Dataset.allocate(size=5000, fields=dset.descr)
+    other1 = Dataset.allocate(size=5000, fields=dset.descr())
+    other2 = Dataset.allocate(size=5000, fields=dset.descr())
     new_dset = benchmark(
         dset.replace,
         {"location/micrograph_uid": [2539634023577218663, 6655121610611186569]},
@@ -354,7 +360,7 @@ def test_subset_split_by(benchmark, dset: Dataset):
 
 
 def test_items_split_by(benchmark, dset: Dataset):
-    rows_split = benchmark(dset.rows.split_by, "location/micrograph_uid")
+    rows_split = benchmark(dset.rows().split_by, "location/micrograph_uid")
     assert len(rows_split) == 1644
     assert len(rows_split[2539634023577218663]) == 1210
 

@@ -50,7 +50,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     ```
     dset = Dataset.load('/path/to/particles.cs')
 
-    for particle in dset.rows:
+    for particle in dset.rows():
         print(
             f"Particle located in file {particle['blob/path']} "
             f"at index {particle['blob/idx']}")
@@ -127,11 +127,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         keep_masks = []
         keep_uids = n.array([], dtype=n.uint64)
         for dset in datasets:
-            mask = n.isin(dset["uid"], keep_uids, assume_unique=assume_unique, invert=True)
+            uid = dset["uid"]
+            mask = n.isin(uid, keep_uids, assume_unique=assume_unique, invert=True)
             if assume_unique:
-                unique_uids = dset["uid"][mask]
+                unique_uids = uid[mask]
             else:
-                unique_uids, first_idxs = n.unique(dset["uid"], return_index=True)
+                unique_uids, first_idxs = n.unique(uid, return_index=True)
                 unique_mask = n.zeros(len(dset), dtype=bool)
                 unique_mask[first_idxs] = True
                 mask &= unique_mask
@@ -185,7 +186,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         fields_by_dataset: List[List[Field]] = []
         for dset in datasets:
             group: List[Field] = []
-            for field in dset.descr:
+            for field in dset.descr():
                 if field not in all_fields:
                     all_fields.append(field)
                     group.append(field)
@@ -217,15 +218,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if not datasets:
             return []
-        fields: Set[Field] = set.intersection(*(set(dset.descr) for dset in datasets))
+        fields: Set[Field] = set.intersection(*(set(dset.descr()) for dset in datasets))
         if assert_same_fields:
             for dset in datasets:
-                assert len(dset.descr) == len(fields), (
+                assert len(dset.descr()) == len(fields), (
                     "One or more datasets in this operation do not have the same fields. "
                     f"Common fields: {fields}. "
-                    f"Excess fields: {set.difference(set(dset.descr), fields)}"
+                    f"Excess fields: {set.difference(set(dset.descr()), fields)}"
                 )
-        return [f for f in datasets[0].descr if f in fields]
+        return [f for f in datasets[0].descr() if f in fields]
 
     @classmethod
     def load(cls, file: Union[str, PurePath, IO[bytes]]) -> "Dataset":
@@ -262,8 +263,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         faster and results in a smaller file size but is not numpy-compatible.
         """
         if format == NUMPY_FORMAT:
-            arrays = [col.to_fixed() for col in self.cols.values()]
-            dtype = [(f, array_dtype(a)) for f, a in zip(self.cols, arrays)]
+            cols = self.cols()
+            arrays = [col.to_fixed() for col in cols.values()]
+            dtype = [(f, array_dtype(a)) for f, a in zip(cols, arrays)]
             outdata = numpy.core.records.fromarrays(arrays, dtype=dtype)
             with bopen(file, "wb") as f:
                 n.save(f, outdata, allow_pickle=False)
@@ -283,8 +285,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         `format=CSDAT_FORMAT`. Call `Dataset.load` on the resulting file/buffer
         to retrieve the original data.
         """
-        arrays = [col.to_fixed() for col in self.cols.values()]
-        descr = [dtype_field(f, array_dtype(a)) for f, a in zip(self.cols, arrays)]
+        cols = self.cols()
+        arrays = [col.to_fixed() for col in cols.values()]
+        descr = [dtype_field(f, array_dtype(a)) for f, a in zip(cols, arrays)]
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
@@ -312,7 +315,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         # Always initialize with at least a UID field
         super().__init__()
         self._row_class = row_class
-        self._cols = None
         self._rows = None
 
         if isinstance(allocate, Dataset):
@@ -353,7 +355,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._data.addrows(nrows)
         for field, data in populate:
             self[field[0]] = data
-        self._cols = None
 
     def __len__(self):
         """
@@ -365,15 +366,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Iterate over the fields in this dataset hello world
         """
-        return self.cols.__iter__()
+        return self._data.__iter__()
 
     def __getitem__(self, key: str) -> Column:
         """
-        Get either a specific field in the dataset, a single row or a set of
-        rows. Note that Datasets are internally organized by columns so
-        row-based operations are always slower.
+        Get either a specific field in the dataset.
         """
-        return self.cols[key]
+        return Column(dtype_field(key, self._data[key]), self._data)
 
     def __setitem__(self, key: str, val: Any):
         """
@@ -390,7 +389,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 val = n.vectorize(bytes.decode, otypes="O")(val)
             elif val.dtype.char == "U":
                 val = n.vectorize(str, otypes="O")(val)
-        self.cols[key][:] = val
+        n.copyto(self[key], val)
 
     def __delitem__(self, key: str):
         """
@@ -406,45 +405,38 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return (
             type(self) == type(other)
             and len(self) == len(other)
-            and self.descr == other.descr
+            and self.descr() == other.descr()
             and all(n.array_equal(c1, c2) for c1, c2 in zip(self.values(), other.values()))
         )
 
-    @property
     def cols(self) -> Dict[str, Column]:
-        if self._cols is None:
-            self._cols = {}
-            for field in self.descr:
-                self._cols[field[0]] = Column(field, self._data)
-        return self._cols
+        return {field[0]: Column(field, self._data) for field in self.descr()}
 
-    @property
     def rows(self) -> Spool:
         """
-        A row-by-row accessor list for items in this dataset.
-        Note: Do not store this accessor outside of this instance for a long time,
-        the values become invalid when fields are added or the dataset's contents change.
+        A row-by-row accessor list for items in this dataset. Note: Do not store
+        this accessor outside of this instance for a long time, the values
+        become invalid when fields are added or the dataset's contents change.
 
         e.g., do not do this:
 
         ```
         dset = Dataset.load('/path/to/dataset.cs')
-        rows = dset.rows
-        dset.add_fields([('foo', 'f4')])  # or `del dataset`
+        rows = dset.rows()
+        dset.add_fields([('foo', 'f4')])
         rows[0].to_list()  # access may be invalid
         ```
         """
         if self._rows is None:
-            cols = self.cols
+            cols = self.cols()
             self._rows = Spool([self._row_class(cols, idx) for idx in range(len(self))])
         return self._rows
 
-    @property
     def descr(self, exclude_uid=False) -> List[Field]:
         """
         Retrive the numpy-compatible description for dataset fields
         """
-        return [dtype_field(f, dt) for f, dt in self._data.items()]
+        return [dtype_field(f, dt) for f, dt in self._data.items() if not exclude_uid or f != "uid"]
 
     def copy(self):
         return type(self)(allocate=self)
@@ -487,7 +479,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 self._data.addcol(field)
 
         self._rows = None
-        self._cols = None
         return self
 
     def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
@@ -496,15 +487,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         function that returns `True` if a given field name should be removed.
         """
         test = (lambda n: n in names) if isinstance(names, Collection) else names
-        new_fields = [f for f in self.descr if f[0] == "uid" or test(f[0])]
-        if len(new_fields) == len(self.descr):
+        new_fields = [f for f in self.descr() if f[0] == "uid" or test(f[0])]
+        if len(new_fields) == len(self.descr()):
             return self
 
         result = self.allocate(len(self), new_fields)
         for key, *_ in new_fields:
             result[key] = self[key]
         self._data = result._data
-        self._cols = result._cols
         self._rows = None
         return self
 
@@ -522,9 +512,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if isinstance(field_map, dict):
             field_map = lambda x: field_map.get(x, x)
-        result = Dataset([(f if f == "uid" else field_map(f), col) for f, col in self.cols.items()])
+        result = Dataset([(f if f == "uid" else field_map(f), col) for f, col in self.cols().items()])
         self._data = result._data
-        self._cols = None
         self._rows = None
         return self
 
@@ -533,7 +522,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         for old, new in zip(old_fields, new_fields):
             self[new] = self[old]
 
-        self._cols = None
         self._rows = None
         return self
 
@@ -542,17 +530,17 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self
 
     def to_list(self, exclude_uid=False) -> List[list]:
-        return [row.to_list(exclude_uid) for row in self.rows]
+        return [row.to_list(exclude_uid) for row in self.rows()]
 
     def append(self, *others: "Dataset", repeat_allowed=False):
         """Append the given dataset or datasets. Return a new dataset"""
         if len(others) == 0:
             return self
         indent = "\n    "
-        assert self.descr == self.common_fields(*others), (
+        assert self.descr() == self.common_fields(*others), (
             f"Cannot append datasets with mismatched types.\n"
-            f"Self:\n{indent}{self.descr}"
-            f"Others:\n{indent}{indent.join(str(d.descr) for d in others)}"
+            f"Self:\n{indent}{self.descr()}"
+            f"Others:\n{indent}{indent.join(str(d.descr()) for d in others)}"
         )
         return type(self).append_many(self, *others, repeat_allowed=repeat_allowed)
 
@@ -588,7 +576,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         if isinstance(query, dict):
             return self.mask(self.query_mask(query))
         else:
-            mask = [query(row) for row in self.rows]
+            mask = [query(row) for row in self.rows()]
             return self.mask(mask)
 
     def query_mask(self, query: Dict[str, nt.ArrayLike], invert=False) -> nt.NDArray[n.bool_]:
@@ -612,22 +600,22 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.indexes([row.idx for row in rows])
 
     def indexes(self, indexes: Union[List[int], nt.NDArray]):
-        return Dataset([(f, col[indexes]) for f, col in self.cols.items()])
+        return Dataset([(f, col[indexes]) for f, col in self.cols().items()])
 
     def mask(self, mask: Union[List[bool], nt.NDArray]) -> "Dataset":
         """
         Get a subset of the dataset that matches the given mask of rows
         """
         assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
-        return Dataset([(f, col[mask]) for f, col in self.cols.items()])
+        return Dataset([(f, col[mask]) for f, col in self.cols().items()])
 
     def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1) -> "Dataset":
         """
         Get at subset of the dataset with rows in the given range
         """
-        return Dataset([(f, col[slice(start, stop, step)]) for f, col in self.cols.items()])
+        return Dataset([(f, col[slice(start, stop, step)]) for f, col in self.cols().items()])
 
-    def split_by(self, field: str) -> Dict[Any, "Dataset"]:
+    def split_by(self, field: str):
         """
         Create a mapping from possible values of the given field and to a
         datasets filtered by rows of that value.
@@ -645,9 +633,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         }
         ```
         """
-        col = n.array(self[field], copy=False)
-        vals = n.unique(col)
-        return {val: col[col == val] for val in vals}
+        cols = self.cols()
+        col = cols[field]
+        idxs = {}
+        for idx, val in enumerate(col):
+            curr = idxs.get(val, [])
+            curr.append(idx)
+            idxs[val] = curr
+
+        return {val: self.indexes(idx) for val, idx in idxs.items()}
 
     def replace(self, query: Dict[str, nt.ArrayLike], *others: "Dataset", assume_disjoint=False, assume_unique=False):
         """
@@ -666,8 +660,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         others_len = sum(len(o) for o in others)
         keep_mask = n.ones(len(self), dtype=bool)
         if not assume_disjoint:
+            uids = self["uid"]
             for other in others:
-                keep_mask &= n.isin(self["uid"], other["uid"], assume_unique=assume_unique, invert=True)
+                keep_mask &= n.isin(uids, other["uid"], assume_unique=assume_unique, invert=True)
         if query:
             keep_mask &= self.query_mask(query, invert=True)
 
@@ -688,7 +683,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         s = f"{type(self).__name__}(["
         size = len(self)
 
-        for k, v in self.items():
+        cols = self.cols()
+        for k, v in cols.items():
             if size > 6:
                 contents = f"{str(v[:3])[:-1]} ... {str(v[-3:])[1:]}"
             else:
@@ -697,7 +693,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             contents = " ".join([x for x in contents.split(" ") if len(x) > 0])
             s += "\n" + f"    ('{k}', {contents}),"
 
-        s += f"\n])  # {size} items, {len(self.cols)} fields"
+        s += f"\n])  # {size} items, {len(cols)} fields"
         return s
 
 
