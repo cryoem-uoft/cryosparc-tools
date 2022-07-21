@@ -389,7 +389,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 val = n.vectorize(bytes.decode, otypes="O")(val)
             elif val.dtype.char == "U":
                 val = n.vectorize(str, otypes="O")(val)
-        n.copyto(self[key], val)
+        n.copyto(self[key], val, casting='unsafe')
 
     def __delitem__(self, key: str):
         """
@@ -512,7 +512,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if isinstance(field_map, dict):
             field_map = lambda x: field_map.get(x, x)
-        result = Dataset([(f if f == "uid" else field_map(f), col) for f, col in self.cols().items()])
+        result = Dataset([(f if f == "uid" else field_map(f), col) for f, col in self.items()])
         self._data = result._data
         self._rows = None
         return self
@@ -600,20 +600,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.indexes([row.idx for row in rows])
 
     def indexes(self, indexes: Union[List[int], nt.NDArray]):
-        return Dataset([(f, col[indexes]) for f, col in self.cols().items()])
+        return Dataset([(f, col[indexes]) for f, col in self.items()])
 
     def mask(self, mask: Union[List[bool], nt.NDArray]) -> "Dataset":
         """
         Get a subset of the dataset that matches the given mask of rows
         """
         assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
-        return Dataset([(f, col[mask]) for f, col in self.cols().items()])
+        return Dataset([(f, col[mask]) for f, col in self.items()])
 
     def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1) -> "Dataset":
         """
         Get at subset of the dataset with rows in the given range
         """
-        return Dataset([(f, col[slice(start, stop, step)]) for f, col in self.cols().items()])
+        return Dataset([(f, col[slice(start, stop, step)]) for f, col in self.items()])
 
     def split_by(self, field: str):
         """

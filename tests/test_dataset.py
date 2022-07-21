@@ -48,13 +48,13 @@ def test_storage_from_other():
 def test_basic_data_constructor():
     data = Dataset()
     assert len(data) == 0
-    assert len(data.descr) == 1
+    assert len(data.descr()) == 1
 
 
 def test_empty_data_constructor():
     data = Dataset(0)
     assert len(data) == 0
-    assert len(data.descr) == 1
+    assert len(data.descr()) == 1
 
 
 def test_invalid_data_fields():
@@ -159,8 +159,7 @@ def test_from_file(io_data):
     expected["field4"][1] = 1.0
     expected["field5"][0:] = 43
 
-    assert expected.fields() == result.fields()
-    assert expected.descr == result.descr
+    assert expected.descr() == result.descr()
     assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
 
 

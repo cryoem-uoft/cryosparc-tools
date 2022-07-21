@@ -504,7 +504,7 @@ compute_col_reserved_space (uint32_t crow, const ds_column *c) {
 static ds*
 more_memory (uint64_t idx, uint64_t nbytes_more) {
 
-	const uint64_t more = roundup(nbytes_more, 1<<25); // 32 MB at a time (too little? too much?)
+	const uint64_t more = roundup(nbytes_more, 1<<15); // 32 kB at a time (too little? too much?)
 
 	ds *d = ds_module.slots[idx].memory;
 	d->stats.nrealloc++;
@@ -736,7 +736,7 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 
 DSET_API uint64_t 
 dset_new(void) {
-	const size_t DS_INITIAL_SZ = 1<<25; // 32MB as a good default?
+	const size_t DS_INITIAL_SZ = 1<<15; // 32 kB as a good default?
 	ds * d = 0;
 
 	uint64_t handle = dset_new_(DS_INITIAL_SZ, &d);

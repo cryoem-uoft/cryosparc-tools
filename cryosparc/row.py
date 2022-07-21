@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, List, Tuple, TypeVar
+from typing import Any, Dict, Generic, Iterable, List, Tuple, TypeVar
 
 import numpy as n
-import numpy.typing as nt
 
 from .column import Column
 
@@ -13,13 +12,12 @@ class Row:
 
     __slots__ = ("idx", "cols")  # Specifying this speeds up allocation of many rows
 
-    def __init__(self, cols: Dict[str, Column], idx: int):
+    def __init__(self, cols: Dict[str, Column], idx: int = 0):
         self.idx = idx
         self.cols = cols
         # note - don't keep around a ref to cols because then when col.`_data`
         # changes (e.g., a field is added to the dataset) the already existing
         # items will be referring to the old dataset.data!
-
 
     def __len__(self):
         return len(self.cols)
@@ -58,6 +56,16 @@ class Row:
     def from_dict(self, d):
         for k in self.cols:
             self[k] = d[k]
+
+    def __repr__(self) -> str:
+        result = f"{type(self).__name__}(["
+        for k in self:
+            val = self[k]
+            result += f"\n    ('{k}', [{val if isinstance(val, n.ndarray) else repr(val)}]),"
+        return result + "\n])"
+
+    def _ipython_key_completions_(self):
+        return list(self.cols)
 
 
 R = TypeVar("R", bound=Row)
