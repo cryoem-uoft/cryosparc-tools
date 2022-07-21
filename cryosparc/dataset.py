@@ -378,12 +378,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Set or add a field to the dataset.
         """
-        if key not in self._data:
-            val = n.array(val, copy=False)
-            assert not val.shape or val.shape[0] == len(self), (
-                f"Cannot broadcast '{key}' in {self} to {val} " f"due to invalid shape {val.shape}"
-            )
-            self.add_fields([key], [array_dtype(val)])
+        assert key in self._data, f"Cannot set non-existing dataset key {key}; use add_fields() first"
         if isinstance(val, n.ndarray):
             if val.dtype.char == "S":
                 val = n.vectorize(bytes.decode, otypes="O")(val)
@@ -519,6 +514,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def copy_fields(self, old_fields: List[str], new_fields: List[str]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
+        current_fields = self.fields()
+        missing_fields = [
+            dtype_field(new, self._data[old]) for old, new in zip(old_fields, new_fields) if new not in current_fields
+        ]
+        if missing_fields:
+            self.add_fields(missing_fields)
         for old, new in zip(old_fields, new_fields):
             self[new] = self[old]
 
