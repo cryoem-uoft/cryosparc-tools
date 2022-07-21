@@ -696,6 +696,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         s += f"\n])  # {size} items, {len(cols)} fields"
         return s
 
+    def _ipython_key_completions_(self):
+        return self.fields()
+
 
 def load(file: Union[str, PurePath, IO[bytes]]) -> "Dataset":
     return Dataset.load(file)

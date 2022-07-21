@@ -9,7 +9,7 @@ from .spec import Datatype, Datafield, Datatype
 from .dataset import Dataset
 
 if TYPE_CHECKING:
-    from . import CryoSPARC
+    from .tools import CryoSPARC
 
 
 class Job:
