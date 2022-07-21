@@ -389,7 +389,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 val = n.vectorize(bytes.decode, otypes="O")(val)
             elif val.dtype.char == "U":
                 val = n.vectorize(str, otypes="O")(val)
-        n.copyto(self[key], val, casting='unsafe')
+        self[key][:] = val
 
     def __delitem__(self, key: str):
         """
