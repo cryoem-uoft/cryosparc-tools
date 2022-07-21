@@ -27,7 +27,7 @@ from .data import Data
 from .dtype import Field, dtype_field, field_dtype, array_dtype
 from .column import Column
 from .row import Row, Spool, R
-from .util import bopen, u32bytesle, u32intle
+from .util import bopen, hashcache, u32bytesle, u32intle
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -381,9 +381,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assert key in self._data, f"Cannot set non-existing dataset key {key}; use add_fields() first"
         if isinstance(val, n.ndarray):
             if val.dtype.char == "S":
-                val = n.vectorize(bytes.decode, otypes="O")(val)
+                cache = hashcache.init(bytes.decode)
+                val = n.vectorize(cache.f, otypes="O")(val)
             elif val.dtype.char == "U":
-                val = n.vectorize(str, otypes="O")(val)
+                cache = hashcache.init(str)
+                val = n.vectorize(cache.f, otypes="O")(val)
         self[key][:] = val
 
     def __delitem__(self, key: str):
