@@ -38,7 +38,7 @@ def field_shape(field: Field) -> Shape:
     return n.dtype(field_dtype(field)).shape
 
 
-def ndarray_dtype(a: nt.NDArray) -> DType:
+def array_dtype(a: nt.NDArray) -> DType:
     assert len(a.dtype.descr) == 1, "Cannot get dtype from record array"
     return (a.dtype.str, a.shape[1:]) if len(a.shape) > 1 else a.dtype.str
 

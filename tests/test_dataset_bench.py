@@ -1,10 +1,8 @@
 from io import BytesIO
-import json
-from time import sleep
 import pytest
 import numpy as n
-from cryosparc.dataset import Dataset
-from cryosparc.row import Row
+import cryosparc.dataset as ds
+from cryosparc.dataset import Dataset, Row
 
 
 @pytest.fixture
@@ -368,36 +366,31 @@ def test_copy(benchmark, dset: Dataset):
     assert len(new_dset) == len(dset)
 
 
-# FIXME: Not required for this round of tests
-"""
-def test_to_dataframe(benchmark, dset: Dataset):
-    @benchmark
-    def _():
-        # FIXME: Not required in this version
-        dframe = dset.to_dataframe()
-        assert dframe is not None
-
-
 def test_streaming_bytes(benchmark, dset: Dataset):
+    stream = BytesIO()
+
     @benchmark
     def _():
         total_bytes = 0
-        stream = BytesIO()
-        for dat in dset.to_stream():
+        for dat in dset.stream():
             stream.write(dat)
             total_bytes += len(dat)
         stream.seek(0)
         assert total_bytes > 0
-        assert stream.read(6) == dataset.VERSION_MAGIC_PREFIXES[dataset.HIGHEST_VERSION]
-        assert int(n.frombuffer(stream.read(4), dtype=n.uint32)[0]) == \
-            len(json.dumps(dset.descr, separators=(',', ':')).encode()) + 1  # not sure why + 1??
+
+    assert stream.read(6) == ds.FORMAT_MAGIC_PREFIXES[ds.NEWEST_FORMAT]
 
 
-def test_from_streaming_bytes(benchmark, big_dset, big_dset_stream: BytesIO):
-    @benchmark
-    def _():
-        result = Dataset.from_stream(big_dset_stream)
-        big_dset_stream.seek(0)
-        assert len(result) == len(big_dset)
-        assert result.fields() == big_dset.fields()
-"""
+def test_from_streaming_bytes(benchmark, big_dset: Dataset):
+    stream = BytesIO()
+    for dat in big_dset.stream():
+        stream.write(dat)
+    stream.seek(0)
+
+    def load():
+        result = Dataset.load(stream)
+        stream.seek(0)
+        return result
+
+    result = benchmark(load)
+    assert len(result) == len(big_dset)

@@ -21,12 +21,13 @@ from typing import (
 import numpy as n
 import numpy.typing as nt
 import numpy.core.records
+import snappy
 
 from .data import Data
-from .dtype import Field, dtype_field, ndarray_dtype
+from .dtype import Field, dtype_field, field_dtype, array_dtype
 from .column import Column
 from .row import Row, Spool, R
-from .util import bopen
+from .util import bopen, u32bytesle, u32intle
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -38,13 +39,6 @@ FORMAT_MAGIC_PREFIXES = {
     CSDAT_FORMAT: b"\x94CSDAT",  # .csl binary format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
-
-
-def generate_uids(num: int = 0):
-    """
-    Generate the given number of random 64-bit unsigned integer uids
-    """
-    return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)
 
 
 class Dataset(MutableMapping[str, Column], Generic[R]):
@@ -238,32 +232,76 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Read a dataset from disk from a path or file handle
         """
+        prefix = None
         with bopen(file, "rb") as f:
             prefix = f.read(6)
-            f.seek(0)
             if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                f.seek(0)
                 indata = n.load(f, allow_pickle=False)
                 return Dataset(indata)
-        return NotImplemented
+            elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+                headersize = u32intle(f.read(4))
+                header = f.read(headersize).decode()
+                headerparts = [h.split(" ") for h in header.split("\n")]
+                dtype = [(f, t, tuple(map(int, s[0].split(",")))) if s else (f, t) for f, t, *s in headerparts]
+                cols = {}
+                for field in dtype:
+                    colsize = u32intle(f.read(4))
+                    buffer = snappy.uncompress(f.read(colsize))
+                    cols[field[0]] = n.frombuffer(buffer, dtype=field_dtype(field))
+                return Dataset(cols)
+
+        raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
 
     def save(self, file: Union[str, PurePath, IO[bytes]], format: int = DEFAULT_FORMAT):
         """
-        Save a dataset to the given path or file handle
+        Save a dataset to the given path or I/O buffer.
+
+        By default, saves as a numpy record array in the .npy format. Specify
+        `format=CSDAT_FORMAT` to save in the latest .cs file format which is
+        faster and results in a smaller file size but is not numpy-compatible.
         """
         if format == NUMPY_FORMAT:
             arrays = [col.to_fixed() for col in self.cols.values()]
-            dtype = [(f, ndarray_dtype(a)) for f, a in zip(self.cols, arrays)]
+            dtype = [(f, array_dtype(a)) for f, a in zip(self.cols, arrays)]
             outdata = numpy.core.records.fromarrays(arrays, dtype=dtype)
             with bopen(file, "wb") as f:
                 n.save(f, outdata, allow_pickle=False)
+        elif format == CSDAT_FORMAT:
+            with bopen(file, "wb") as f:
+                for chunk in self.stream():
+                    f.write(chunk)
         else:
-            return NotImplemented
+            raise TypeError(f"Invalid dataset save format for {file}: {format}")
+
+    def stream(self):
+        """
+        Generate a binary representation for this dataset. Results may be
+        written to a file or buffer to be sent over the network.
+
+        Buffer will have the same format as Dataset files saved with
+        `format=CSDAT_FORMAT`. Call `Dataset.load` on the resulting file/buffer
+        to retrieve the original data.
+        """
+        arrays = [col.to_fixed() for col in self.cols.values()]
+        descr = [dtype_field(f, array_dtype(a)) for f, a in zip(self.cols, arrays)]
+
+        yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
+
+        header = "\n".join(f'{f} {t} {",".join(map(str, s[0]))}' if s else f"{f} {t}" for f, t, *s in descr)
+        header = header.encode()
+        yield u32bytesle(len(header))
+        yield header
+
+        for arr in arrays:
+            compressed: bytes = snappy.compress(arr.data)
+            yield u32bytesle(len(compressed))
+            yield compressed
 
     def __init__(
         self,
         allocate: Union[
             "Dataset",
-            Data,
             int,
             nt.NDArray,
             Mapping[str, nt.ArrayLike],
@@ -282,11 +320,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             self._data = allocate._data.copy()
             return
 
-        if isinstance(allocate, Data):
-            # Create from existing data (no copy)
-            self._data = allocate
-            return
-
         self._data = Data()
         populate: List[Tuple[Field, n.ndarray]] = []
         if isinstance(allocate, (int, n.integer)):
@@ -298,11 +331,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         elif isinstance(allocate, Mapping):
             for f, v in allocate.items():
                 a = n.array(v, copy=False)
-                populate.append((dtype_field(f, a.dtype), a))
+                populate.append((dtype_field(f, array_dtype(a)), a))
         else:
             for f, v in allocate:
                 a = n.array(v, copy=False)
-                populate.append((dtype_field(f, ndarray_dtype(a)), a))
+                populate.append((dtype_field(f, array_dtype(a)), a))
 
         # Check that all entries are the same length
         nrows = 0
@@ -351,7 +384,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             assert not val.shape or val.shape[0] == len(self), (
                 f"Cannot broadcast '{key}' in {self} to {val} " f"due to invalid shape {val.shape}"
             )
-            self.add_fields([key], [ndarray_dtype(val)])
+            self.add_fields([key], [array_dtype(val)])
         if isinstance(val, n.ndarray):
             if val.dtype.char == "S":
                 val = n.vectorize(bytes.decode, otypes="O")(val)
@@ -666,3 +699,41 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         s += f"\n])  # {size} items, {len(self.cols)} fields"
         return s
+
+
+def load(file: Union[str, PurePath, IO[bytes]]) -> "Dataset":
+    return Dataset.load(file)
+
+
+def allocate(size: int = 0, fields: List[Field] = []):
+    return Dataset.allocate(size, fields)
+
+
+def append(*datasets: Dataset, assert_same_fields=False, repeat_allowed=False):
+    return Dataset.append_many(*datasets, assert_same_fields=assert_same_fields, repeat_allowed=repeat_allowed)
+
+
+def union(*datasets: Dataset, assert_same_fields=False, assume_unique=False):
+    return Dataset.union_many(*datasets, assert_same_fields=assert_same_fields, assume_unique=assume_unique)
+
+
+def interlace(*datasets: Dataset, assert_same_fields=False):
+    return Dataset.interlace(*datasets, assert_same_fields=assert_same_fields)
+
+
+def innerjoin(*datasets: Dataset, assume_unique=False):
+    return Dataset.innerjoin_many(*datasets, assume_unique=assume_unique)
+
+
+def generate_uids(num: int = 0):
+    """
+    Generate the given number of random 64-bit unsigned integer uids
+    """
+    return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)
+
+
+allocate.__doc__ = Dataset.allocate.__doc__
+append.__doc__ = Dataset.append_many.__doc__
+union.__doc__ = Dataset.union_many.__doc__
+interlace.__doc__ = Dataset.interlace.__doc__
+innerjoin.__doc__ = Dataset.innerjoin_many.__doc__
