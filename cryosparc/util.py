@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from pathlib import PurePath
-from typing import IO, Callable, Union
+from typing import IO, Callable, Dict, Generic, TypeVar, Union
 from typing_extensions import Literal
 import numpy as n
 
@@ -13,17 +13,34 @@ V = TypeVar("V")
 
 class hashcache(Dict[K, V], Generic[K, V]):
     """
-    Utility class to cache string conversions and avoid excessive string
-    allocation. Example usage for convering numpy "S" bytes to "str":
+    Simple utility class to cache the result of a mapping and avoid excessive
+    heap allocation. Initialize with `cache = hashcache(f)` and use `cache.f` as
+    the mapping function.
+
+    Here is an example of unoptimized code for convering `bytes` to `str`:
 
     ```
-    a = n.array([b"Hello", b"Hello", b"Hello"], dtype="S")
-    cache = hashcache.init(bytes.decode)
-    strs = n.vectorize(cache.f, otypes="O")(a)
+    a = [b"Hello", b"Hello", b"Hello"]
+    strs = list(map(bytes.decode, a))
     ```
 
-    This only allocates heap memory once for each unique string in the input
-    array when converting to strings
+    The input array `a` has duplicate items. Using `bytes.decode` directly
+    in the mapping causes Python to allocate a fresh string for each bytes.
+
+    Here is the optimized version with `hashcache`:
+
+    ```
+    a = [b"Hello", b"Hello", b"Hello"]
+    cache = hashcache(bytes.decode)
+    strs = list(map(cache.f, a))
+    ```
+
+    This only allocates heap memory once for each unique item in the input list.
+    After the first encounter, `cache.f` returns the previously-computed value
+    of the same input, reducing heap usage and allocation by a factor of 3.
+
+    For this to be most effective, ensure the given `f` function is pure and
+    stable (i.e., always returns the same result for a given input)
     """
 
     __slots__ = ("factory", "f")
