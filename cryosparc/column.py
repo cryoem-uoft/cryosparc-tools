@@ -4,7 +4,7 @@ import numpy.typing as nt
 
 from .data import Data
 from .dtype import Field, field_shape
-from .util import hashcache, strbytelen, strencodenull
+from .util import hashcache, strencodenull
 
 
 class Column(nt.NDArray[Any]):

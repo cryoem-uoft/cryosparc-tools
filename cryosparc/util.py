@@ -87,6 +87,9 @@ def strbytelen(s: str) -> int:
 
 
 def strencodenull(s: str) -> bytes:
+    """
+    Encode string into UTF-8 binary ending with a null-character terminator \0
+    """
     return s.encode() + b"\0"
 
 

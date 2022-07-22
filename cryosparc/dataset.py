@@ -23,7 +23,7 @@ import numpy.core.records
 import snappy
 
 from .data import Data
-from .dtype import Field, dtype_field, field_dtype, array_dtype
+from .dtype import Field, decode_fields, dtype_field, encode_fields, field_dtype, array_dtype
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, hashcache, u32bytesle, u32intle
@@ -294,7 +294,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     @classmethod
     def load(cls, file: Union[str, PurePath, IO[bytes]]) -> "Dataset":
         """
-        Read a dataset from disk from a path or file handle
+        Read a dataset from disk from a path or file handle.
         """
         prefix = None
         with bopen(file, "rb") as f:
@@ -305,9 +305,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 return Dataset(indata)
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
                 headersize = u32intle(f.read(4))
-                header = f.read(headersize).decode()
-                headerparts = [h.split(" ") for h in header.split("\n")]
-                dtype = [(f, t, tuple(map(int, s[0].split(",")))) if s else (f, t) for f, t, *s in headerparts]
+                dtype = decode_fields(f.read(headersize))
                 cols = {}
                 for field in dtype:
                     colsize = u32intle(f.read(4))
@@ -326,10 +324,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         faster and results in a smaller file size but is not numpy-compatible.
         """
         if format == NUMPY_FORMAT:
-            cols = self.cols()
-            arrays = [col.to_fixed() for col in cols.values()]
-            dtype = [(f, array_dtype(a)) for f, a in zip(cols, arrays)]
-            outdata = numpy.core.records.fromarrays(arrays, dtype=dtype)
+            outdata = self.to_records(fixed=True)
             with bopen(file, "wb") as f:
                 n.save(f, outdata, allow_pickle=False)
         elif format == CSDAT_FORMAT:
@@ -354,8 +349,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
-        header = "\n".join(f'{f} {t} {",".join(map(str, s[0]))}' if s else f"{f} {t}" for f, t, *s in descr)
-        header = header.encode()
+        header = encode_fields(descr)
         yield u32bytesle(len(header))
         yield header
 
@@ -467,10 +461,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             and all(n.array_equal(c1, c2) for c1, c2 in zip(self.values(), other.values()))
         )
 
+    def __array__(self):
+        return self.to_records()
+
     def cols(self) -> Dict[str, Column]:
         return dict(self.items())
 
-    def rows(self) -> Spool:
+    def rows(self) -> Spool[R]:
         """
         A row-by-row accessor list for items in this dataset. Note: Do not store
         this accessor outside of this instance for a long time, the values
@@ -595,6 +592,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def to_list(self, exclude_uid=False) -> List[list]:
         return [row.to_list(exclude_uid) for row in self.rows()]
+
+    def to_records(self, fixed=False):
+        cols = self.cols()
+        arrays = [col.to_fixed() if fixed else col for col in cols.values()]
+        dtype = [(f, array_dtype(a)) for f, a in zip(cols, arrays)]
+        return numpy.core.records.fromarrays(arrays, dtype=dtype)
 
     def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]) -> "Dataset":
         """

@@ -1,4 +1,5 @@
-from typing import Tuple, Union
+from typing import List, Tuple, Union
+import json
 import numpy as n
 import numpy.typing as nt
 
@@ -55,3 +56,11 @@ def dtypestr(dtype: nt.DTypeLike) -> str:
 def dtype_field(name: str, dtype: nt.DTypeLike) -> Field:
     dt = n.dtype(dtype)
     return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)
+
+
+def encode_fields(fields: List[Field]) -> bytes:
+    return json.dumps(fields).encode()
+
+
+def decode_fields(data: bytes) -> List[Field]:
+    return json.loads(data)

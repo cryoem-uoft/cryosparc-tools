@@ -1,11 +1,11 @@
-from typing import Any, Dict, Generic, Iterable, List, Tuple, TypeVar
+from typing import Any, Dict, Generic, Iterable, List, Mapping, Tuple, TypeVar
 
 import numpy as n
 
 from .column import Column
 
 
-class Row:
+class Row(Mapping):
     """
     Provides row-by-row access to a dataset
     """
@@ -34,24 +34,15 @@ class Row:
     def __iter__(self):
         return iter(self.cols)
 
-    def get(self, key, default=None):
-        if key in self:
-            return self[key]
-        return default
-
-    def get_item(self, key, default=None):
-        return self.cols[key][self.idx] if key in self else default
+    def item(self, key, default=None):
+        return self.cols[key].item(self.idx) if key in self else default
 
     def to_list(self, exclude_uid=False):
         """Convert into a list of native python types, ordered the same way as the fields"""
-        return [self.get_item(key) for key in self.cols if not exclude_uid or key != "uid"]
+        return [self.cols[key].item(self.idx) for key in self.cols if not exclude_uid or key != "uid"]
 
     def to_dict(self):
-        return {key: self[key] for key in self.cols}
-
-    def to_item_dict(self):
-        """Like to_dict, but all values are native python types"""
-        return {key: self.get_item(key) for key in self.cols}
+        return {key: self.cols[key].item(self.idx) for key in self.cols}
 
     def from_dict(self, d):
         for k in self.cols:
