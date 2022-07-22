@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Iterable, Optional, Union
-from typing_extensions import Literal
+from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
+from typing_extensions import Literal, TypedDict
 
 import numpy.typing as nt
 
@@ -12,6 +12,24 @@ if TYPE_CHECKING:
     from .tools import CryoSPARC
 
 
+class OutputResult(TypedDict):
+    uid: str
+    type: str
+    name: str
+    group_name: str
+    title: str
+    description: str
+    versions: List[int]
+    metafiles: List[str]
+    min_fields: List[Tuple[str, str]]
+    num_items: int
+    passthrough: bool
+
+
+class JobDoc(TypedDict):
+    output_results: List[OutputResult]
+
+
 class Job:
     """
     Immutable reference to a job in cryoSPARC with ability to load inputs and
@@ -20,20 +38,42 @@ class Job:
 
     def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
         self.cs = cs
-        self.puid = project_uid
-        self.juid = uid
+        self.project_uid = project_uid
+        self.uid = uid
+
+    @property
+    def doc(self) -> JobDoc:
+        if not self._doc:
+            self.refresh()
+        return self._doc
+
+    def refresh(self):
+        self._doc = self.cs.cli.get_job(self.project_uid, self.uid)  # type: ignore
+        return self
 
     def dir(self) -> PurePosixPath:
         """
-        Get the path to the job directory
+        Get the path to the project directory
         """
+        return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
+
+    def load_input(self, name: str, fields: Iterable[str] = []) -> Dataset:
         return NotImplemented
 
-    def load_input(self, name: str, fields: Optional[Iterable[str]] = None) -> Dataset:
-        return NotImplemented
+    def load_output(self, name: str, fields: Iterable[str] = []) -> Dataset:
+        job = self.doc
+        fields = set(fields)
+        results = [
+            result
+            for result in job["output_results"]
+            if result["group_name"] == name and (not fields or result["name"] in fields)
+        ]
+        if not results:
+            raise TypeError(f"Job {self.project_uid}-{self.uid} does not have any results for output {name}")
 
-    def load_output(self, name: str, fields: Optional[Iterable[str]] = None) -> Dataset:
-        return NotImplemented
+        metafiles = set().union(*(r["metafiles"] for r in results))
+        datasets = [self.cs.download_dataset(self.project_uid, f) for f in metafiles]
+        return Dataset.innerjoin(*datasets)
 
     def save_output(self, name: str, dataset: Dataset):
         return NotImplemented
@@ -45,32 +85,32 @@ class Job:
         pass
 
     def download(self, path: Union[str, PurePosixPath]):
-        path = PurePosixPath(self.juid) / path
-        return self.cs.download(self.puid, path)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download(self.project_uid, path)
 
     def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
-        path = PurePosixPath(self.juid) / path
-        return self.cs.download_file(self.puid, path, target)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download_file(self.project_uid, path, target)
 
     def download_dataset(self, path: Union[str, PurePosixPath]):
-        path = PurePosixPath(self.juid) / path
-        return self.cs.download_dataset(self.puid, path)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download_dataset(self.project_uid, path)
 
     def download_mrc(self, path: Union[str, PurePosixPath]):
-        path = PurePosixPath(self.juid) / path
-        return self.cs.download_mrc(self.puid, path)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download_mrc(self.project_uid, path)
 
     def upload(self, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
-        path = PurePosixPath(self.juid) / path
-        return self.cs.upload(self.puid, path, file)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.upload(self.project_uid, path, file)
 
     def upload_dataset(self, path: Union[str, PurePosixPath], dset: Dataset):
-        path = PurePosixPath(self.juid) / path
-        return self.cs.upload_dataset(self.puid, path, dset)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.upload_dataset(self.project_uid, path, dset)
 
     def upload_mrc(self, path: Union[str, PurePosixPath], data: nt.NDArray, psize: float):
-        path = PurePosixPath(self.juid) / path
-        return self.cs.upload_mrc(self.puid, path, data, psize)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.upload_mrc(self.project_uid, path, data, psize)
 
 
 class CustomJob(Job):

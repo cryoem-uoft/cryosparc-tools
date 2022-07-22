@@ -1,6 +1,7 @@
+from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 import tempfile
-from typing import IO, Optional, Union
+from typing import IO, Union
 
 import numpy.typing as nt
 
@@ -8,6 +9,7 @@ from . import mrc
 from .command import CommandClient, RequestClient
 from .dataset import Dataset
 from .project import Project
+from .job import Job
 from .util import bopen
 
 
@@ -40,8 +42,31 @@ class CryoSPARC:
         self.vis = RequestClient(host=host, port=port + 3, timeout=timeout)
         self.timeout = timeout
 
-    def find_project(self, project_uid: str) -> Optional[Project]:
-        pass
+    def test_connection(self):
+        if self.cli.test_connection():  # type: ignore
+            print(f"Connection succeeded to cryoSPARC command_core at {self.cli.url}")
+        else:
+            print(f"Connection FAILED to cryoSPARC command_core at {self.cli.url}")
+            return False
+
+        with self.vis.request() as response:
+            if response.read():
+                print(f"Connection succeeded to cryoSPARC command_vis at {self.vis.url}")
+            else:
+                print(f"Connection FAILED to cryoSPARC command_vis at {self.vis.url}")
+                return False
+
+        return True
+
+    def find_project(self, project_uid: str) -> Project:
+        project = Project(self, project_uid)
+        project.refresh()
+        return project
+
+    def find_job(self, project_uid: str, job_uid: str) -> Job:
+        job = Job(self, project_uid, job_uid)
+        job.refresh()
+        return job
 
     def download(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
@@ -54,25 +79,44 @@ class CryoSPARC:
         print(particles)
         ```
         """
-        data = {"project_uid": project_uid, "file": str(path)}
+        data = {"project_uid": project_uid, "path_rel": str(path)}
         return self.vis.json_request("/get_project_file", data=data)
 
     def download_file(self, project_uid: str, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
         """
         Download
         """
-        with self.download(project_uid, path) as request:
+        with self.download(project_uid, path) as response:
             with bopen(target, "wb") as f:
-                f.write(request.read())
+                f.write(response.read())
         return target
 
     def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]):
-        with self.download(project_uid, path) as request:
-            return Dataset.load(request)
+        with self.download(project_uid, path) as response:
+            size = response.headers.get("Content-Length")
+            mime = response.headers.get("Content-Type")
+            if mime == "application/x-cryosparc-dataset":
+                # Stream format; can load directly without seek
+                return Dataset.load(response)
+
+            # Numpy format, cannot load directly because requires seekable
+            ONE_MB = 2**20
+            if size and int(size) < ONE_MB:
+                # Smaller than 1MB, just read all into memory and load
+                return Dataset.load(BytesIO(response.read()))
+
+            # Read into temporary file in 1MB chunks. Load from that temporary file
+            with tempfile.TemporaryFile("w+b") as f:
+                data = response.read(ONE_MB)
+                while data:
+                    f.write(data)
+                    data = response.read(ONE_MB)
+                f.seek(0)
+                return Dataset.load(f)
 
     def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]):
-        with self.download(project_uid, path) as request:
-            return mrc.read(request)
+        with self.download(project_uid, path) as response:
+            return mrc.read(response)
 
     def upload(self, project_uid: str, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
         """
@@ -103,6 +147,3 @@ class CryoSPARC:
             mrc.write(f, data, psize)
             f.seek(0)
             return self.upload(project_uid, path, f)
-
-
-print("HELLO FROM CRYOSPARC")

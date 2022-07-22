@@ -90,9 +90,9 @@ class CommandClient(RequestClient):
         cls: Optional[Type[json.JSONEncoder]] = None,
     ):
         super().__init__(host, port, url, timeout, cls)
-        self.__reload__()  # attempt connection immediately to gather methods
+        self._reload_()  # attempt connection immediately to gather methods
 
-    def __get_callable__(self, key):
+    def _get_callable_(self, key):
         def func(*args, **kwargs):
             params = kwargs if len(kwargs) else args
             data = {
@@ -119,11 +119,11 @@ class CommandClient(RequestClient):
 
         return func
 
-    def __reload__(self):
-        system = self.__get_callable__("system.describe")()
+    def _reload_(self):
+        system = self._get_callable_("system.describe")()
         self.endpoints = [p["name"] for p in system["procs"]]
         for key in self.endpoints:
-            setattr(self, key, self.__get_callable__(key))
+            setattr(self, key, self._get_callable_(key))
 
     def __call__(self):
-        self.__reload__()
+        self._reload_()
