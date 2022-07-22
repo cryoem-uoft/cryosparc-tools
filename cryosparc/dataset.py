@@ -444,11 +444,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assert key in self._data, f"Cannot set non-existing dataset key {key}; use add_fields() first"
         if isinstance(val, n.ndarray):
             if val.dtype.char == "S":
-                cache = hashcache(bytes.decode)
-                val = n.vectorize(cache.f, otypes="O")(val)
+                val = n.vectorize(hashcache(bytes.decode), otypes="O")(val)
             elif val.dtype.char == "U":
-                cache = hashcache(str)
-                val = n.vectorize(cache.f, otypes="O")(val)
+                val = n.vectorize(hashcache(str), otypes="O")(val)
         self[key][:] = val
 
     def __delitem__(self, key: str):

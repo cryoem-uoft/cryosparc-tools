@@ -31,8 +31,7 @@ class hashcache(Dict[K, V], Generic[K, V]):
 
     ```
     a = [b"Hello", b"Hello", b"Hello"]
-    cache = hashcache(bytes.decode)
-    strs = list(map(cache.f, a))
+    strs = list(map(hashcache(bytes.decode), a))
     ```
 
     This only allocates heap memory once for each unique item in the input list.
@@ -40,18 +39,25 @@ class hashcache(Dict[K, V], Generic[K, V]):
     of the same input, reducing heap usage and allocation by a factor of 3.
 
     For this to be most effective, ensure the given `f` function is pure and
-    stable (i.e., always returns the same result for a given input)
+    stable (i.e., always returns the same result for a given input).
+
+    May also be used as a wrapper (must take a single hashable argument):
+
+    ```
+    @hashcache
+    def f(x): ...
+    ```
     """
 
-    __slots__ = ("factory", "f")
+    __slots__ = ("factory", "__call__")
 
-    def __new__(cls, _: Callable[[K], V]):
+    def __new__(cls, _f: Callable[[K], V]):
         return super().__new__(cls)
 
     def __init__(self, key_value_factory: Callable[[K], V]):
         super().__init__(self)
         self.factory = key_value_factory
-        self.f = self.__getitem__
+        self.__call__ = self.__getitem__
 
     def __missing__(self, key):
         new = self.factory(key)
@@ -78,6 +84,10 @@ def strbytelen(s: str) -> int:
     Get the number of bytes in a string's UTF-8 representation
     """
     return len(str.encode(s))
+
+
+def strencodenull(s: str) -> bytes:
+    return s.encode() + b"\0"
 
 
 @contextmanager

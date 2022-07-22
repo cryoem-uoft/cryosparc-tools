@@ -4,7 +4,7 @@ import numpy.typing as nt
 
 from .data import Data
 from .dtype import Field, field_shape
-from .util import hashcache, strbytelen
+from .util import hashcache, strbytelen, strencodenull
 
 
 class Column(nt.NDArray[Any]):
@@ -41,8 +41,6 @@ class Column(nt.NDArray[Any]):
         returned as is
         """
         if self.dtype.char == "O":
-            cache = hashcache(strbytelen)
-            maxlen = n.vectorize(cache.f)(self).max() + 1
-            return n.array(self, dtype=f"S{maxlen}")
+            return n.vectorize(hashcache(strencodenull), otypes="S")(self)
         else:
             return self
