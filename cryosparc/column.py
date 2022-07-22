@@ -4,6 +4,7 @@ import numpy.typing as nt
 
 from .data import Data
 from .dtype import Field, field_shape
+from .util import hashcache, strbytelen
 
 
 class Column(nt.NDArray[Any]):
@@ -34,10 +35,14 @@ class Column(nt.NDArray[Any]):
         return obj
 
     def to_fixed(self):
+        """
+        If this Column is composed of Python objects, convert to fixed-size
+        strings. Otherwise the array is already in fixed form and may be
+        returned as is
+        """
         if self.dtype.char == "O":
-            # NOTE: This does not work correcly with strings containing
-            # characters that take up more than 1 byte
-            maxlen = n.vectorize(len)(self).max() + 1
+            cache = hashcache(strbytelen)
+            maxlen = n.vectorize(cache.f)(self).max() + 1
             return n.array(self, dtype=f"S{maxlen}")
         else:
             return self

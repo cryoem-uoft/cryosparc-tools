@@ -7,7 +7,11 @@ import numpy as n
 OpenBinaryMode = Literal["rb", "wb", "xb", "ab", "r+b", "w+b", "x+b", "a+b"]
 
 
-class hashcache(dict):
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+class hashcache(Dict[K, V], Generic[K, V]):
     """
     Utility class to cache string conversions and avoid excessive string
     allocation. Example usage for convering numpy "S" bytes to "str":
@@ -24,12 +28,13 @@ class hashcache(dict):
 
     __slots__ = ("factory", "f")
 
-    @classmethod
-    def init(cls, key_value_factory: Callable):
-        r = cls()
-        r.factory = key_value_factory
-        r.f = r.__getitem__
-        return r
+    def __new__(cls, _: Callable[[K], V]):
+        return super().__new__(cls)
+
+    def __init__(self, key_value_factory: Callable[[K], V]):
+        super().__init__(self)
+        self.factory = key_value_factory
+        self.f = self.__getitem__
 
     def __missing__(self, key):
         new = self.factory(key)
@@ -49,6 +54,13 @@ def u32intle(buffer: bytes) -> int:
     Get int from buffer representing a uint32 integer in little endian
     """
     return n.frombuffer(buffer, dtype="<u4")[0]
+
+
+def strbytelen(s: str) -> int:
+    """
+    Get the number of bytes in a string's UTF-8 representation
+    """
+    return len(str.encode(s))
 
 
 @contextmanager
