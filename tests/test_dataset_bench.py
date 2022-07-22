@@ -159,7 +159,7 @@ def test_copy_fields(benchmark, big_dset: Dataset):
 
 def test_append(benchmark, big_dset: Dataset, dset: Dataset):
     dset = dset.reassign_uids()
-    new_dset = benchmark(dset.append, big_dset)
+    new_dset = benchmark(dset.append, big_dset, assert_same_fields=True)
     assert len(new_dset) == len(big_dset) * 2
 
 
@@ -171,28 +171,28 @@ def test_append_union(benchmark, big_dset: Dataset, dset: Dataset):
 def test_append_many(benchmark, big_dset, dset: Dataset):
     empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
-    new_dset = benchmark(Dataset.append_many, dset, empty, other)
+    new_dset = benchmark(Dataset.append, dset, empty, other)
     assert len(new_dset) == len(big_dset) * 2
 
 
 def test_append_many_union(benchmark, big_dset, dset: Dataset):
     empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
-    new_dset = benchmark(Dataset.union_many, dset, dset, empty, other)
+    new_dset = benchmark(Dataset.union, dset, dset, empty, other)
     assert len(new_dset) == len(big_dset) * 2
 
 
 def test_append_many_union_repeat_allowed(benchmark, big_dset, dset: Dataset):
     empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
-    new_dset = benchmark(Dataset.append_many, dset, dset, empty, other, repeat_allowed=True)
+    new_dset = benchmark(Dataset.append, dset, dset, empty, other, repeat_allowed=True)
     assert len(new_dset) == len(big_dset) * 3
 
 
 def test_append_many_simple(benchmark, big_dset, dset: Dataset):
     empty = Dataset.allocate(0, dset.descr())
     other = dset.copy().reassign_uids()
-    new_dset = benchmark(Dataset.append_many, dset, empty, other, assert_same_fields=True)
+    new_dset = benchmark(Dataset.append, dset, empty, other, assert_same_fields=True)
     assert len(new_dset) == len(big_dset) * 2
 
 
@@ -287,7 +287,7 @@ def test_innerjoin_many(benchmark, dset: Dataset):
     other1 = dset.slice(500_000, 1_250_000)
     other2 = dset.slice(750_000, 1_500_000)
     expected = dset.slice(750_000, 1_250_000)
-    new_dset = benchmark(Dataset.innerjoin_many, dset, other1, other2, assume_unique=True)
+    new_dset = benchmark(Dataset.innerjoin, dset, other1, other2, assume_unique=True)
     assert new_dset == expected
 
 

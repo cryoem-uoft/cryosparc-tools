@@ -1,4 +1,3 @@
-from functools import reduce
 from pathlib import PurePath
 from typing import (
     IO,
@@ -73,6 +72,30 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dset.add_fields(fields)
         return dset
 
+    def append(self, *others: "Dataset", assert_same_fields=False, repeat_allowed=False):
+        """
+        Concatenate many datasets together into one new one.
+
+        May be called either as an instance method or an initializer to create a
+        new dataset from one or more datasets:
+
+        ```
+        dset = d1.append(d2, d3)
+        # or
+        dset = Dataset.append(d1, d2, d3)
+        ```
+
+        Set `assert_same_fields=True` to enforce that datasets have identical
+        fields. Otherwise, only takes fields common to all datasets.
+
+        Set `repeat_allowed=True` to skip duplicate uid checks.
+
+        To initialize from zero or more datasets, use `Dataset.append_many`
+        """
+        return type(self).append_many(
+            self, *others, assert_same_fields=assert_same_fields, repeat_allowed=repeat_allowed
+        )
+
     @classmethod
     def append_many(
         cls,
@@ -81,19 +104,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         repeat_allowed=False,
     ) -> "Dataset":
         """
-        Concatenate many datasets together into one new one.
-
-        Set `assert_same_fields=True` to enforce that datasets have identical
-        fields. Otherwise, only takes fields common to all datasets.
-
-        Set `repeat_allowed=True` to skip duplicate uid checks.
+        Similar to `Dataset.append`. If no datasets are provided, returns an
+        empty Dataset with just the `uid` field.
         """
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
             assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
 
         if len(datasets) == 1:
-            return datasets[0].copy()
+            return datasets[0]
 
         size = sum(len(d) for d in datasets)
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
@@ -107,6 +126,29 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return result
 
+    def union(self, *others: "Dataset", assert_same_fields=False, assume_unique=False):
+        """
+        Take the row union of all the given datasets, based on their uid fields.
+
+        May be called either as an instance method or an initializer to create a
+        new dataset from one or more datasets:
+
+        ```
+        dset = d1.union(d2, d3)
+        # or
+        dset = Dataset.union(d1, d2, d3)
+        ```
+
+        Set `assert_same_fields=True` to enforce that datasets have identical
+        fields. Otherwise, only takes fields common to all datasets.
+
+        Set `assume_unique=True` to assume that each dataset's UIDs are unique
+        (though there may be common ones between datasets)
+
+        To initialize from zero or more datasets, use `Dataset.union_many`
+        """
+        return type(self).union_many(self, *others, assert_same_fields=assert_same_fields, assume_unique=assume_unique)
+
     @classmethod
     def union_many(
         cls,
@@ -115,13 +157,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assume_unique=False,
     ) -> "Dataset":
         """
-        Take the row union of all the given datasets, based on their uid fields.
-
-        Set `assert_same_fields=True` to enforce that datasets have identical
-        fields. Otherwise, only takes fields common to all datasets.
-
-        Set `assume_unique=True` to assume that each dataset's UIDs are unique
-        (though they may be shared between datasets)
+        Similar to `Dataset.union`. If no datasets are provided, returns an
+        empty Dataset with just the `uid` field.
         """
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
@@ -173,13 +210,39 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return result
 
+    def innerjoin(self, *others: "Dataset", assert_no_drop=False, assume_unique=False):
+        """
+        Create a new dataset with fields from all provided datasets and only
+        including rows common to all provided datasets (based on UID)
+
+        May be called either as an instance method or an initializer to create a new
+        dataset from one or more datasets:
+
+        ```
+        dset = d1.innerjoin(d2, d3)
+        # or
+        dset = Dataset.innerjoin(d1, d2, d3)
+        ```
+
+        Set `assert_no_drop=True` to ensure the provided datasets include at least
+        all rows from the first dataset.
+        """
+        result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
+        if assert_no_drop:
+            assert len(result) == len(self), "innerjoin datasets that do not have all elements in common."
+        return result
+
     @classmethod
     def innerjoin_many(cls, *datasets: "Dataset", assume_unique=False) -> "Dataset":
+        """
+        Similar to `Dataset.innerjoin`. If no datasets are provided, returns an
+        empty Dataset with just the `uid` field.
+        """
         if not datasets:
             return Dataset()
 
         if len(datasets) == 1:
-            return datasets[0].copy()  # Only one to join, noop
+            return datasets[0]  # Only one to join, noop
 
         # Gather common fields
         all_fields: List[Field] = []
@@ -196,9 +259,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         ), "Cannot innerjoin datasets with fields of the same name but different types"
 
         # Get common UIDs
-        uids = map(lambda d: d["uid"], datasets)
-        intersect = lambda a1, a2: n.intersect1d(a1, a2, assume_unique=assume_unique)
-        common_uids = reduce(intersect, uids)
+        common_uids = datasets[0]["uid"]
+        for dset in datasets[1:]:
+            common_uids = n.intersect1d(common_uids, dset["uid"], assume_unique=assume_unique)
 
         # Create a new dataset with just the UIDs from both datasets
         result = cls.allocate(len(common_uids), fields=all_fields)
@@ -381,10 +444,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assert key in self._data, f"Cannot set non-existing dataset key {key}; use add_fields() first"
         if isinstance(val, n.ndarray):
             if val.dtype.char == "S":
-                cache = hashcache.init(bytes.decode)
+                cache = hashcache(bytes.decode)
                 val = n.vectorize(cache.f, otypes="O")(val)
             elif val.dtype.char == "U":
-                cache = hashcache.init(str)
+                cache = hashcache(str)
                 val = n.vectorize(cache.f, otypes="O")(val)
         self[key][:] = val
 
@@ -407,7 +470,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         )
 
     def cols(self) -> Dict[str, Column]:
-        return {field[0]: Column(field, self._data) for field in self.descr()}
+        return dict(self.items())
 
     def rows(self) -> Spool:
         """
@@ -534,31 +597,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def to_list(self, exclude_uid=False) -> List[list]:
         return [row.to_list(exclude_uid) for row in self.rows()]
-
-    def append(self, *others: "Dataset", repeat_allowed=False):
-        """Append the given dataset or datasets. Return a new dataset"""
-        if len(others) == 0:
-            return self
-        indent = "\n    "
-        assert self.descr() == self.common_fields(*others), (
-            f"Cannot append datasets with mismatched types.\n"
-            f"Self:\n{indent}{self.descr()}"
-            f"Others:\n{indent}{indent.join(str(d.descr()) for d in others)}"
-        )
-        return type(self).append_many(self, *others, repeat_allowed=repeat_allowed)
-
-    def union(self, *others: "Dataset"):
-        """
-        Unite this dataset with the given others (uses the `uid` field to
-        determine uniqueness). Returns a new dataset.
-        """
-        return type(self).union_many(self, *others)
-
-    def innerjoin(self, *others: "Dataset", assert_no_drop=False, assume_unique=False):
-        result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
-        if assert_no_drop:
-            assert len(result) == len(self), "innerjoin datasets that do not have all elements in common."
-        return result
 
     def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]) -> "Dataset":
         """
@@ -703,39 +741,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.fields()
 
 
-def load(file: Union[str, PurePath, IO[bytes]]) -> "Dataset":
-    return Dataset.load(file)
-
-
-def allocate(size: int = 0, fields: List[Field] = []):
-    return Dataset.allocate(size, fields)
-
-
-def append(*datasets: Dataset, assert_same_fields=False, repeat_allowed=False):
-    return Dataset.append_many(*datasets, assert_same_fields=assert_same_fields, repeat_allowed=repeat_allowed)
-
-
-def union(*datasets: Dataset, assert_same_fields=False, assume_unique=False):
-    return Dataset.union_many(*datasets, assert_same_fields=assert_same_fields, assume_unique=assume_unique)
-
-
-def interlace(*datasets: Dataset, assert_same_fields=False):
-    return Dataset.interlace(*datasets, assert_same_fields=assert_same_fields)
-
-
-def innerjoin(*datasets: Dataset, assume_unique=False):
-    return Dataset.innerjoin_many(*datasets, assume_unique=assume_unique)
-
-
 def generate_uids(num: int = 0):
     """
     Generate the given number of random 64-bit unsigned integer uids
     """
     return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)
-
-
-allocate.__doc__ = Dataset.allocate.__doc__
-append.__doc__ = Dataset.append_many.__doc__
-union.__doc__ = Dataset.union_many.__doc__
-interlace.__doc__ = Dataset.interlace.__doc__
-innerjoin.__doc__ = Dataset.innerjoin_many.__doc__

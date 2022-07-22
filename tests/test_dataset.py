@@ -85,8 +85,8 @@ def test_invalid_key_assignment():
 
 def test_non_existent_key_assignment():
     storage = Dataset.allocate(size=3)
-    storage["gain_ref_blob"] = n.zeros(3)
-    assert all(storage["gain_ref_blob"] == n.zeros(3))
+    with pytest.raises(AssertionError):
+        storage["gain_ref_blob"] = n.zeros(3)
 
 
 def test_valid_key_assignment():
