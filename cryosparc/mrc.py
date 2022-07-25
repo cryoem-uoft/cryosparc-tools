@@ -83,14 +83,12 @@ def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, nt.NDArray]:
         f.seek(1024 + header.nsymbt)  # seek to start of data
 
         data = n.fromfile(f, dtype=dtype, count=header.nz * header.ny * header.nx)
-        data.reshape(header.nz, header.ny, header.nx)
+        data = data.reshape(header.nz, header.ny, header.nx)
 
         if dtype == n.float16:
             data = data.astype(n.float32)
 
         return header, data
-
-    assert False, "Did not finish reading mrc file {file}"
 
 
 def write(file: Union[str, PurePath, IO[bytes]], data: nt.NDArray, psize: float):
@@ -127,7 +125,7 @@ def _read_header(file: IO) -> Header:
         xlen=float(xlen),
         ylen=float(ylen),
         zlen=float(zlen),
-        origin=tuple(origin.tolist()),
+        origin=tuple(origin),
         nsymbt=int(nsymbt),
     )
 

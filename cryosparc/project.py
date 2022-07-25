@@ -30,7 +30,8 @@ class Project:
         """
         Get the path to the project directory
         """
-        return PurePosixPath(self.cs.cli.get_project_dir_abs(self.uid))  # type: ignore
+        path: str = self.cs.cli.get_project_dir_abs(self.uid)  # type: ignore
+        return PurePosixPath(path)
 
     def find_job(self, job_uid: str) -> Job:
         job = Job(self.cs, self.uid, job_uid)

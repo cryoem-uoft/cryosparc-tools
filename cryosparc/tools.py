@@ -13,6 +13,9 @@ from .job import Job
 from .util import bopen
 
 
+ONE_MB = 2**20
+
+
 class CryoSPARC:
     """
     High-level class for interfacing with a running cryoSPARC instance.
@@ -100,13 +103,12 @@ class CryoSPARC:
                 return Dataset.load(response)
 
             # Numpy format, cannot load directly because requires seekable
-            ONE_MB = 2**20
             if size and int(size) < ONE_MB:
                 # Smaller than 1MB, just read all into memory and load
                 return Dataset.load(BytesIO(response.read()))
 
             # Read into temporary file in 1MB chunks. Load from that temporary file
-            with tempfile.TemporaryFile("w+b") as f:
+            with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
                 data = response.read(ONE_MB)
                 while data:
                     f.write(data)
@@ -116,7 +118,13 @@ class CryoSPARC:
 
     def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]):
         with self.download(project_uid, path) as response:
-            return mrc.read(response)
+            with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
+                data = response.read(ONE_MB)
+                while data:
+                    f.write(data)
+                    data = response.read(ONE_MB)
+                f.seek(0)
+                return mrc.read(f)  # FIXME: Optimize file reading
 
     def upload(self, project_uid: str, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
         """
