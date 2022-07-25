@@ -3,7 +3,7 @@ import numpy as n
 import numpy.typing as nt
 
 from .data import Data
-from .dtype import Field, field_shape
+from .dtype import Field, fielddtype
 from .util import hashcache, strencodenull
 
 
@@ -21,10 +21,10 @@ class Column(nt.NDArray[Any]):
     _data: Optional[Data]
 
     def __new__(cls, field: Field, data: Data):
-        dtype = n.dtype(field[1])
-        shape = (data.nrow(), *field_shape(field))
+        dtype = n.dtype(fielddtype(field))
+        shape = (data.nrow(), *dtype.shape)
         buffer = data.getbuf(field[0])
-        obj = super().__new__(cls, shape=shape, dtype=dtype, buffer=buffer)
+        obj = super().__new__(cls, shape=shape, dtype=dtype.base, buffer=buffer)
 
         # Keep a reference to the data so that it only gets cleaned up when all
         # columns are cleaned up. No need to transfer this data during

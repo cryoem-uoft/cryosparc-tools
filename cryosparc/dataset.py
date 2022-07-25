@@ -23,7 +23,7 @@ import numpy.core.records
 import snappy
 
 from .data import Data
-from .dtype import Field, decode_fields, dtype_field, encode_fields, field_dtype, array_dtype
+from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, hashcache, u32bytesle, u32intle
@@ -92,6 +92,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         To initialize from zero or more datasets, use `Dataset.append_many`
         """
+        if not others:
+            return self
         return type(self).append_many(
             self, *others, assert_same_fields=assert_same_fields, repeat_allowed=repeat_allowed
         )
@@ -102,7 +104,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         *datasets: "Dataset",
         assert_same_fields=False,
         repeat_allowed=False,
-    ) -> "Dataset":
+    ):
         """
         Similar to `Dataset.append`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
@@ -112,7 +114,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
 
         if len(datasets) == 1:
-            return datasets[0]
+            return cls(datasets[0])
 
         size = sum(len(d) for d in datasets)
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
@@ -147,6 +149,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         To initialize from zero or more datasets, use `Dataset.union_many`
         """
+        if not others:
+            return self
         return type(self).union_many(self, *others, assert_same_fields=assert_same_fields, assume_unique=assume_unique)
 
     @classmethod
@@ -155,7 +159,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         *datasets: "Dataset",
         assert_same_fields=False,
         assume_unique=False,
-    ) -> "Dataset":
+    ):
         """
         Similar to `Dataset.union`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
@@ -188,7 +192,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return result
 
     @classmethod
-    def interlace(cls, *datasets: "Dataset", assert_same_fields=False) -> "Dataset":
+    def interlace(cls, *datasets: "Dataset", assert_same_fields=False):
         if not datasets:
             return cls()
 
@@ -227,22 +231,25 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Set `assert_no_drop=True` to ensure the provided datasets include at least
         all rows from the first dataset.
         """
+        if not others:
+            return self
         result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
         if assert_no_drop:
             assert len(result) == len(self), "innerjoin datasets that do not have all elements in common."
         return result
 
     @classmethod
-    def innerjoin_many(cls, *datasets: "Dataset", assume_unique=False) -> "Dataset":
+    def innerjoin_many(cls, *datasets: "Dataset", assume_unique=False):
         """
         Similar to `Dataset.innerjoin`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
         """
         if not datasets:
-            return Dataset()
+            return cls()
 
         if len(datasets) == 1:
-            return datasets[0]  # Only one to join, noop
+            dset = datasets[0]
+            return cls(dset)  # Only one to join, noop
 
         # Gather common fields
         all_fields: List[Field] = []
@@ -292,7 +299,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return [f for f in datasets[0].descr() if f in fields]
 
     @classmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]]) -> "Dataset":
+    def load(cls, file: Union[str, PurePath, IO[bytes]]):
         """
         Read a dataset from disk from a path or file handle.
         """
@@ -302,7 +309,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
                 f.seek(0)
                 indata = n.load(f, allow_pickle=False)
-                return Dataset(indata)
+                return cls(indata)
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
                 headersize = u32intle(f.read(4))
                 dtype = decode_fields(f.read(headersize))
@@ -310,8 +317,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 for field in dtype:
                     colsize = u32intle(f.read(4))
                     buffer = snappy.uncompress(f.read(colsize))
-                    cols[field[0]] = n.frombuffer(buffer, dtype=field_dtype(field))
-                return Dataset(cols)
+                    cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
+                return cls(cols)
 
         raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
 
@@ -345,7 +352,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         cols = self.cols()
         arrays = [col.to_fixed() for col in cols.values()]
-        descr = [dtype_field(f, array_dtype(a)) for f, a in zip(cols, arrays)]
+        descr = [makefield(f, arraydtype(a)) for f, a in zip(cols, arrays)]
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
@@ -368,7 +375,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             List[Tuple[str, nt.ArrayLike]],
         ] = 0,
         row_class: Type[R] = Row,
-    ) -> None:
+    ):
         # Always initialize with at least a UID field
         super().__init__()
         self._row_class = row_class
@@ -390,11 +397,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         elif isinstance(allocate, Mapping):
             for f, v in allocate.items():
                 a = n.array(v, copy=False)
-                populate.append((dtype_field(f, array_dtype(a)), a))
+                populate.append((makefield(f, arraydtype(a)), a))
         else:
             for f, v in allocate:
                 a = n.array(v, copy=False)
-                populate.append((dtype_field(f, array_dtype(a)), a))
+                populate.append((makefield(f, arraydtype(a)), a))
 
         # Check that all entries are the same length
         nrows = 0
@@ -429,7 +436,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Get either a specific field in the dataset.
         """
-        return Column(dtype_field(key, self._data[key]), self._data)
+        return Column(makefield(key, self._data[key]), self._data)
 
     def __setitem__(self, key: str, val: Any):
         """
@@ -491,7 +498,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Retrive the numpy-compatible description for dataset fields
         """
-        return [dtype_field(f, dt) for f, dt in self._data.items() if not exclude_uid or f != "uid"]
+        return [makefield(f, dt) for f, dt in self._data.items() if not exclude_uid or f != "uid"]
 
     def copy(self):
         return type(self)(allocate=self)
@@ -503,18 +510,18 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return [k for k in self._data.keys() if not exclude_uid or k != "uid"]
 
     @overload
-    def add_fields(self, fields: List[Field]) -> "Dataset":
+    def add_fields(self, fields: List[Field]) -> "Dataset[R]":
         ...
 
     @overload
-    def add_fields(self, fields: List[str], dtypes: Union[str, List[nt.DTypeLike]]) -> "Dataset":
+    def add_fields(self, fields: List[str], dtypes: Union[str, List[nt.DTypeLike]]) -> "Dataset[R]":
         ...
 
     def add_fields(
         self,
         fields: Union[List[str], List[Field]],
         dtypes: Optional[Union[str, List[nt.DTypeLike]]] = None,
-    ) -> "Dataset":
+    ) -> "Dataset[R]":
         """
         Ensures the dataset has the given fields.
         """
@@ -525,7 +532,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         if dtypes:
             dt = dtypes.split(",") if isinstance(dtypes, str) else dtypes
             assert len(fields) == len(dt), "Incorrect dtype spec"
-            desc = [dtype_field(str(f), dt) for f, dt in zip(fields, dt)]
+            desc = [makefield(str(f), dt) for f, dt in zip(fields, dt)]
         else:
             desc = fields  # type: ignore
 
@@ -567,7 +574,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if isinstance(field_map, dict):
             field_map = lambda x: field_map.get(x, x)
-        result = Dataset([(f if f == "uid" else field_map(f), col) for f, col in self.items()])
+        result = type(self)([(f if f == "uid" else field_map(f), col) for f, col in self.items()])
         self._data = result._data
         self._rows = None
         return self
@@ -576,7 +583,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         current_fields = self.fields()
         missing_fields = [
-            dtype_field(new, self._data[old]) for old, new in zip(old_fields, new_fields) if new not in current_fields
+            makefield(new, self._data[old]) for old, new in zip(old_fields, new_fields) if new not in current_fields
         ]
         if missing_fields:
             self.add_fields(missing_fields)
@@ -595,11 +602,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def to_records(self, fixed=False):
         cols = self.cols()
-        arrays = [col.to_fixed() if fixed else col for col in cols.values()]
-        dtype = [(f, array_dtype(a)) for f, a in zip(cols, arrays)]
+        arrays = [(col.to_fixed() if fixed else col) for col in cols.values()]
+        dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
         return numpy.core.records.fromarrays(arrays, dtype=dtype)
 
-    def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]) -> "Dataset":
+    def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]):
         """
         Get a subset of data based on whether the fields match the values in the
         given query. They query is either a test function that gets called on
@@ -634,7 +641,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return n.invert(mask, out=mask) if invert else mask
 
-    def subset(self, rows: Collection[Row]) -> "Dataset":
+    def subset(self, rows: Collection[Row]):
         """
         Get a subset of dataset that only includes the given list of rows (from
         this dataset)
@@ -642,20 +649,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.indexes([row.idx for row in rows])
 
     def indexes(self, indexes: Union[List[int], nt.NDArray]):
-        return Dataset([(f, col[indexes]) for f, col in self.items()])
+        return type(self)([(f, col[indexes]) for f, col in self.items()])
 
-    def mask(self, mask: Union[List[bool], nt.NDArray]) -> "Dataset":
+    def mask(self, mask: Union[List[bool], nt.NDArray]):
         """
         Get a subset of the dataset that matches the given mask of rows
         """
         assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
-        return Dataset([(f, col[mask]) for f, col in self.items()])
+        return type(self)([(f, col[mask]) for f, col in self.items()])
 
-    def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1) -> "Dataset":
+    def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1):
         """
         Get at subset of the dataset with rows in the given range
         """
-        return Dataset([(f, col[slice(start, stop, step)]) for f, col in self.items()])
+        return type(self)([(f, col[slice(start, stop, step)]) for f, col in self.items()])
 
     def split_by(self, field: str):
         """
