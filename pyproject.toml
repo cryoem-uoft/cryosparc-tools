@@ -15,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "build",
+    "jupyter-book ~= 0.13",
     "pytest ~= 7.1",
     "pytest-benchmark ~= 3.4",
     "pytest-xdist[psutil] ~= 2.5.0",
