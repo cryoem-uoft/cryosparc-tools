@@ -59,4 +59,4 @@ def encode_fields(fields: List[Field]) -> bytes:
 
 
 def decode_fields(data: bytes) -> List[Field]:
-    return json.loads(data)
+    return [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in json.loads(data)]
