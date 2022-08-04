@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 import tempfile
 from typing import IO, Union
+import tempfile
 
 import numpy.typing as nt
 
@@ -52,7 +53,7 @@ class CryoSPARC:
             print(f"Connection FAILED to cryoSPARC command_core at {self.cli.url}")
             return False
 
-        with self.vis.request() as response:
+        with self.vis._request() as response:
             if response.read():
                 print(f"Connection succeeded to cryoSPARC command_vis at {self.vis.url}")
             else:
@@ -83,7 +84,7 @@ class CryoSPARC:
         ```
         """
         data = {"project_uid": project_uid, "path_rel": str(path)}
-        return self.vis.json_request("/get_project_file", data=data)
+        return self.vis._json_request("/get_project_file", data=data)
 
     def download_file(self, project_uid: str, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
         """
@@ -134,7 +135,7 @@ class CryoSPARC:
         with bopen(file) as f:
             url = f"/upload_project_file/{project_uid}"
             query = {"path": path}
-            with self.vis.request(url=url, query=query, data=f) as res:
+            with self.vis._request(url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
                     f"Could not upload project {project_uid} file {path}.\n"
                     f"Response from cryoSPARC: {res.read().decode()}"

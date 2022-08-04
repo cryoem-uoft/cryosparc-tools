@@ -24,17 +24,19 @@ class RequestClient:
         host: str = "localhost",
         port: int = 39000,
         url: str = "",
+        headers: dict = {},
         timeout: int = 300,
         cls: Optional[Type[json.JSONEncoder]] = None,
     ):
         self.url = f"http://{host}:{port}{url}"
         self.cls = cls
         self.timeout = timeout
+        self.headers = headers
 
     @contextmanager
-    def request(self, url="", query: dict = {}, data=None, headers={}) -> Generator[HTTPResponse, None, None]:
+    def _request(self, url="", query: dict = {}, data=None, headers={}) -> Generator[HTTPResponse, None, None]:
         url = f"{self.url}{url}{'?' + urlencode(query) if query else ''}"
-        headers = {"Originator": "client", **headers}
+        headers = {"Originator": "client", **self.headers, **headers}
         attempt = 1
         max_attempts = 3
         error_reason = "<unknown>"
@@ -66,13 +68,13 @@ class RequestClient:
 
         raise RequestClient.Error(self, error_reason, url=url)
 
-    def json_request(self, url="", query={}, data=None, headers={}):
+    def _json_request(self, url="", query={}, data=None, headers={}):
         """
         Sends data in JSON, receives, arbitrary response
         """
         headers = {"Content-Type": "application/json", **headers}
         data = json.dumps(data, cls=self.cls).encode()
-        return self.request(url=url, query=query, data=data, headers=headers)
+        return self._request(url=url, query=query, data=data, headers=headers)
 
 
 class CommandClient(RequestClient):
@@ -85,14 +87,15 @@ class CommandClient(RequestClient):
         self,
         host: str = "localhost",
         port: int = 39002,
-        url: str = "/api",
+        url: str = "",
         timeout: int = 300,
+        headers: dict = {},
         cls: Optional[Type[json.JSONEncoder]] = None,
     ):
-        super().__init__(host, port, url, timeout, cls)
-        self._reload_()  # attempt connection immediately to gather methods
+        super().__init__(host, port, url, headers, timeout, cls)
+        self._reload()  # attempt connection immediately to gather methods
 
-    def _get_callable_(self, key):
+    def _get_callable(self, key):
         def func(*args, **kwargs):
             params = kwargs if len(kwargs) else args
             data = {
@@ -103,7 +106,7 @@ class CommandClient(RequestClient):
             }
             res = None
             try:
-                with self.json_request(data=data) as request:
+                with self._json_request("/api", data=data) as request:
                     res = json.loads(request.read())
             except RequestClient.Error as err:
                 raise RequestClient.Error(
@@ -111,19 +114,22 @@ class CommandClient(RequestClient):
                 ) from err
 
             assert res, f'JSON response not received for method "{key}" with params {params}'
-            assert "error" not in res, (
-                f'Encountered error for method "{key}" with params {params}:\n'
-                f"{res['error']['message'] if 'message' in res['error'] else res['error']}"
-            )
+            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + self._format_error(res["error"])
             return res["result"]
 
         return func
 
-    def _reload_(self):
-        system = self._get_callable_("system.describe")()
+    def _reload(self):
+        system = self._get_callable("system.describe")()
         self.endpoints = [p["name"] for p in system["procs"]]
         for key in self.endpoints:
-            setattr(self, key, self._get_callable_(key))
+            setattr(self, key, self._get_callable(key))
+
+    def _format_error(self, error):
+        err = error["message"] if "message" in error else str(error)
+        if "data" in error and "traceback" in error["data"]:
+            err += "\n" + error["data"]["traceback"]
+        return err
 
     def __call__(self):
-        self._reload_()
+        self._reload()
