@@ -301,7 +301,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     @classmethod
     def load(cls, file: Union[str, PurePath, IO[bytes]]):
         """
-        Read a dataset from disk from a path or file handle.
+        Read a dataset from path or file handle.
+
+        If given a file handle pointing to data in the usual numpy array format
+        (i.e., created by `numpy.save()`), then the handle must be seekable.
+        This restriction does not apply when loading the newer CSDAT format.
         """
         prefix = None
         with bopen(file, "rb") as f:
@@ -428,7 +432,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def __iter__(self):
         """
-        Iterate over the fields in this dataset hello world
+        Iterate over the fields in this dataset
         """
         return self._data.__iter__()
 
@@ -508,6 +512,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Retrieve a list of field names available in this dataset
         """
         return [k for k in self._data.keys() if not exclude_uid or k != "uid"]
+
+    def prefixes(self) -> List[str]:
+        """
+        List of prefixes available in this dataset
+        """
+        return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
 
     @overload
     def add_fields(self, fields: List[Field]) -> "Dataset[R]":
