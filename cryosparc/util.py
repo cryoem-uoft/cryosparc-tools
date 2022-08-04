@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from pathlib import PurePath
-from typing import IO, Callable, Dict, Generic, Optional, TypeVar, Union
+from typing import IO, Callable, Dict, Generic, Iterator, Optional, Sequence, TypeVar, Union
 from typing_extensions import Literal
 import numpy as n
 import numpy.typing as nt
@@ -68,6 +68,17 @@ class hashcache(Dict[K, V], Generic[K, V]):
         return new
 
 
+def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
+    """
+    Get the first item from the given iterator. Returns None if the iterator is
+    empty
+    """
+    try:
+        return it[0] if isinstance(it, Sequence) else next(it)
+    except (StopIteration, IndexError):
+        return None
+
+
 def u32bytesle(x: int) -> bytes:
     """
     Get the uint32 bytes of for integer x in little endian
@@ -79,7 +90,7 @@ def u32intle(buffer: bytes) -> int:
     """
     Get int from buffer representing a uint32 integer in little endian
     """
-    return n.frombuffer(buffer, dtype="<u4")[0]
+    return int(n.frombuffer(buffer, dtype="<u4")[0])
 
 
 def strbytelen(s: str) -> int:
@@ -162,11 +173,11 @@ def trimarray(arr: nt.NDArray, shape: Shape):
 
 def lowpass(arr: nt.NDArray, psize: float, amount: float = 0.0, order: float = 1.0):
     """
-    Apply simple butterworth lowpass filter to the 2D or 3D array data with the
-    given pixel size. `amount` should be a non-negative integer specified in
+    Apply butterworth lowpass filter to the 2D or 3D array data with the given
+    pixel size. `amount` should be a non-negative integer specified in
     Angstroms.
     """
-    assert amount >= 0, "Lowpass filter amount must be non-negative"
+    assert amount > 0, "Lowpass filter amount must be non-negative"
     assert len(arr.shape) == 2 or (len(arr.shape) == 3 and arr.shape[0] == 1), (
         f"Cannot apply low-pass filter on data with shape {arr.shape}; " "must be two-dimensional"
     )
