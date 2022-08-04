@@ -1,13 +1,14 @@
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-import tempfile
 from typing import IO, Union
+import os
+import re
 import tempfile
 
 import numpy.typing as nt
 
 from . import mrc
-from .command import CommandClient, RequestClient
+from .command import CommandClient
 from .dataset import Dataset
 from .project import Project
 from .job import Job
@@ -15,6 +16,7 @@ from .util import bopen
 
 
 ONE_MB = 2**20
+LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 
 
 class CryoSPARC:
@@ -41,10 +43,17 @@ class CryoSPARC:
 
     """
 
-    def __init__(self, host: str = "localhost", port: int = 39000, timeout: int = 300) -> None:
-        self.cli = CommandClient(host=host, port=port + 2, timeout=timeout)
-        self.vis = RequestClient(host=host, port=port + 3, timeout=timeout)
-        self.timeout = timeout
+    def __init__(
+        self,
+        license: str = os.getenv("CRYOSPARC_LICENSE_ID", ""),
+        host: str = "localhost",
+        port: int = 39000,
+        timeout: int = 300,
+    ):
+        assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified cryoSPARC license ID {license}"
+
+        self.cli = CommandClient(host=host, port=port + 2, headers={"License-ID": license}, timeout=timeout)
+        self.vis = CommandClient(host=host, port=port + 3, headers={"License-ID": license}, timeout=timeout)
 
     def test_connection(self):
         if self.cli.test_connection():  # type: ignore
