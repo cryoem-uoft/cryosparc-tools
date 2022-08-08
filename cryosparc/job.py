@@ -173,11 +173,12 @@ class ExternalJob(Job):
 
     def start(self):
         # Set job status to "running"
-        pass
+        self.cs.cli.set_job_status(self.project_uid, self.uid, "running")  # type: ignore
 
     def stop(self, error=False):
-        # Set job status to "completed" or ailed
-        pass
+        # Set job status to "completed" or "failed"
+        status = "failed" if error else "completed"
+        self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
 
     @contextmanager
     def run(self):
@@ -190,5 +191,6 @@ class ExternalJob(Job):
         except:
             # TODO: Set job to error status, send error to joblog
             error = True
+            raise
         finally:
             self.stop(error)

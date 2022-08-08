@@ -114,7 +114,7 @@ class CommandClient(RequestClient):
                 ) from err
 
             assert res, f'JSON response not received for method "{key}" with params {params}'
-            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + self._format_error(res["error"])
+            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + res["error"]
             return res["result"]
 
         return func
@@ -124,12 +124,6 @@ class CommandClient(RequestClient):
         self.endpoints = [p["name"] for p in system["procs"]]
         for key in self.endpoints:
             setattr(self, key, self._get_callable(key))
-
-    def _format_error(self, error):
-        err = error["message"] if "message" in error else str(error)
-        if "data" in error and "traceback" in error["data"]:
-            err += "\n" + error["data"]["traceback"]
-        return err
 
     def __call__(self):
         self._reload()

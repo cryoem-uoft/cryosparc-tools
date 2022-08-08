@@ -139,7 +139,8 @@ class Project:
         )
 
         job = self.find_external_job(job_uid)
-        job.save_output(output, dataset)
+        with job.run():
+            job.save_output(output, dataset)
 
         return job.uid
 
