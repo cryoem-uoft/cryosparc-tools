@@ -8,6 +8,7 @@ parts:
   chapters:
   - file: examples/notebooks
   - file: examples/markdown-notebooks
+  - file: examples/recenter-particles
 - caption: API Reference
   chapters:
   - file: api/index
