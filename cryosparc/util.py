@@ -7,6 +7,7 @@ import numpy.typing as nt
 
 from .dtype import Shape
 
+OpenTextMode = Literal["r", "w", "x", "a", "r+", "w+", "x+", "a+"]
 OpenBinaryMode = Literal["rb", "wb", "xb", "ab", "r+b", "w+b", "x+b", "a+b"]
 
 
@@ -105,6 +106,19 @@ def strencodenull(s: str) -> bytes:
     Encode string into UTF-8 binary ending with a null-character terminator \0
     """
     return s.encode() + b"\0"
+
+
+@contextmanager
+def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r"):
+    """
+    open alias specific to finary files. If the given file is an open IO handle,
+    will just yields directly.
+    """
+    if isinstance(file, (str, PurePath)):
+        with open(file, mode) as f:
+            yield f
+    else:
+        yield file
 
 
 @contextmanager
