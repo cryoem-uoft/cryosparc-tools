@@ -17,6 +17,7 @@ from typing import (
     Union,
     overload,
 )
+from typing_extensions import Literal
 import numpy as n
 import numpy.typing as nt
 import numpy.core.records
@@ -530,7 +531,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def add_fields(
         self,
         fields: Union[List[str], List[Field]],
-        dtypes: Optional[Union[str, List[nt.DTypeLike]]] = None,
+        dtypes: Union[str, List[nt.DTypeLike], Literal[None]] = None,
     ) -> "Dataset[R]":
         """
         Ensures the dataset has the given fields.

@@ -111,8 +111,8 @@ def strencodenull(s: str) -> bytes:
 @contextmanager
 def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r"):
     """
-    open alias specific to finary files. If the given file is an open IO handle,
-    will just yields directly.
+    "with open(...)" alias for text files that tranparently yields already-open
+    files or file-like objects.
     """
     if isinstance(file, (str, PurePath)):
         with open(file, mode) as f:
@@ -124,8 +124,8 @@ def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r"):
 @contextmanager
 def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
     """
-    open alias specific to finary files. If the given file is an open IO handle,
-    will just yields directly.
+    "with open(...)" alias for binary files that tranparently yields already-open
+    files or file-like objects.
     """
     if isinstance(file, (str, PurePath)):
         with open(file, mode) as f:

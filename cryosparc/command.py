@@ -114,7 +114,7 @@ class CommandClient(RequestClient):
                 ) from err
 
             assert res, f'JSON response not received for method "{key}" with params {params}'
-            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + res["error"]
+            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + str(res["error"])
             return res["result"]
 
         return func

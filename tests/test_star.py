@@ -91,10 +91,10 @@ def test_write():
     star.write(
         result,
         data=[
-            (123.0, 456.0),
-            (789.0, 123.0),
+            (123.0, 456.0, "particles.mrc", "mic.mrc", 1),
+            (789.0, 123.0, "particles.mrc", "mic.mrc", 0),
         ],
-        labels=["rlnCoordinateX", "rlnCoordinateY"],
+        labels=["rlnCoordinateX", "rlnCoordinateY", "rlnImageName", "rlnCtfDataAreCtfPremultiplied"],
     )
     assert (
         result.getvalue()
@@ -104,8 +104,11 @@ data_
 loop_
 _rlnCoordinateX #1
 _rlnCoordinateY #2
-123.0 456.0
-789.0 123.0
+_rlnImageName #3
+_rlnMicrographName #4
+_rlnCtfDataAreCtfPremultiplied #5
+123.0 456.0 particles.mrc mic.mrc 1
+789.0 123.0 particles.mrc mic.mrc 0
 
 """
     )
