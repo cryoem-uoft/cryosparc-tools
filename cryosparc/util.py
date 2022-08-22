@@ -5,7 +5,7 @@ from typing_extensions import Literal
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
 
 from .dtype import Shape
 

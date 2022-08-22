@@ -1,7 +1,7 @@
-import re
 from contextlib import contextmanager
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Pattern, TextIO, Union
+from time import sleep
+from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Pattern, Union
 from typing_extensions import Literal
 
 from cryosparc.dtype import decode_fields
@@ -11,35 +11,8 @@ from .util import first
 from .dataset import Dataset
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
     from .tools import CryoSPARC
-
-
-class JobLogIO(TextIO):
-    def __init__(
-        self,
-        cs: "CryoSPARC",
-        project_uid: str,
-        job_uid: str,
-        checkpoint_line_pattern: Union[str, Pattern[str], Literal[None]] = None,
-        pipe: Union[TextIO, None] = None,
-    ):
-        super().__init__()
-        self.cs = cs
-        self.project_uid = project_uid
-        self.job_uid = job_uid
-
-    def readable(self) -> bool:
-        return False
-
-    def writable(self) -> bool:
-        return True
-
-    def seekable(self) -> bool:
-        return False
-
-    def write(self, __s: str) -> int:
-        return super().write(__s)
 
 
 class Job:
@@ -71,6 +44,9 @@ class Job:
         Get the path to the project directory
         """
         return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
+
+    def clear(self):
+        return self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
 
     def load_input(self, name: str, fields: Iterable[str] = []):
         job = self.doc
@@ -105,22 +81,15 @@ class Job:
         """
         Append to a job's event log
         """
-        pass
+        self.cs.cli.job_send_streamlog(  # type: ignore
+            project_uid=self.project_uid, job_uid=self.uid, message=text, error=level != "text"
+        )
 
-    def logio(
-        self,
-        level: Literal["text", "warning", "error"] = "text",
-        checkpoint_line_pattern: Union[str, Pattern[str], Literal[None]] = None,
-        pipe: Union[TextIO, None] = None,
-    ) -> TextIO:
+    def log_checkpoint(self, meta: dict = {}):
         """
-        Get a writeable handle with the same interface as sys.stdout or
-        sys.stderr that when written to writes to this job's streamlong
+        Append a checkpoint to the job's event log
         """
-        if checkpoint_line_pattern and not isinstance(checkpoint_line_pattern, re.Pattern):
-            checkpoint_line_pattern = re.compile(checkpoint_line_pattern)
-
-        return NotImplemented
+        self.cs.cli.job_checkpoint_streamlog(project_uid=self.project_uid, job_uid=self.uid, meta=meta)  # type: ignore
 
     def download(self, path: Union[str, PurePosixPath]):
         path = PurePosixPath(self.uid) / path
@@ -153,19 +122,62 @@ class Job:
     def subprocess(
         self,
         args: Union[str, list],
+        mute: bool = False,
+        checkpoint: bool = False,
         checkpoint_line_pattern: Union[str, Pattern[str], Literal[None]] = None,
-        mute_stdout: bool = False,
-        mute_stderr: bool = False,
         **kwargs,
     ):
         """
         Launch a subprocess and write its output and error to the job log.
+
+        Set `mute=True` to prevent forwarding the output to standard output.
+
+        Specify `checkpoint=True` to add a checkpoint to the stream log just
+        before the output begins.
+
+        Specify `checkpoint_line_pattern` as a regular expression. If a
+        given line matches the pattern, adds checkpoint to the job log _before_
+        that line is added to the log. Use this for processes with a lot of
+        structured output.
         """
         import subprocess
-        import sys
+        import re
+
+        pttrn = None
+        if checkpoint_line_pattern and isinstance(checkpoint_line_pattern, str):
+            pttrn = re.compile(checkpoint_line_pattern)
+        elif isinstance(checkpoint_line_pattern, re.Pattern):
+            pttrn = checkpoint_line_pattern
+        elif checkpoint_line_pattern:
+            raise TypeError(f"Invalid checkpoint_line_pattern argument type: {type(checkpoint_line_pattern)}")
 
         args = args if isinstance(args, str) else list(map(str, args))
-        return subprocess.run(args, **kwargs)
+        with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **kwargs) as proc:
+            assert proc.stdout, f"Subprocess {args} has not standard output"
+            if checkpoint:
+                self.log_checkpoint()
+
+            self.log("======= Forwarding subprocess output for the following command =======")
+            self.log(str(args))
+            self.log("======================================================================")
+
+            for line in proc.stdout:
+                line = line.rstrip()
+                if pttrn and pttrn.match(line):
+                    self.log_checkpoint()
+                self.log(line)
+                if not mute:
+                    print(line)
+
+            while proc.poll() is None:
+                sleep(1)
+
+            if proc.returncode != 0:
+                msg = f"Subprocess {args} exited with status {proc.returncode}"
+                self.log(msg, level="error")
+                raise RuntimeError(msg)
+
+            self.log("======================= Subprocess complete. =========================")
 
 
 class ExternalJob(Job):

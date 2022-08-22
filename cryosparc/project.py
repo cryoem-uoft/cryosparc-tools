@@ -8,7 +8,7 @@ from .spec import Datafield, Datatype
 from .job import Job, ExternalJob
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
     from .tools import CryoSPARC
 
 

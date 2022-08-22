@@ -3,7 +3,7 @@ import json
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
 
 Shape = Tuple[int, ...]
 """A numpy shape tuple from ndarray.shape"""

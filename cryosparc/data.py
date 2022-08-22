@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Dict, List, Mapping, Optional, Type, Union, ov
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
 
 from .dtype import DType, Field, Shape
 from . import core

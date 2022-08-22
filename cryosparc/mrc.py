@@ -5,7 +5,7 @@ from typing import IO, TYPE_CHECKING, Dict, NamedTuple, Tuple, Type, Union
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
 
 from .util import bopen
 

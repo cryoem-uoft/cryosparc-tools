@@ -5,7 +5,7 @@ import numpy as n
 from numpy.core.records import fromrecords
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
 
 from .util import topen
 
@@ -564,7 +564,7 @@ def write(
         arr  = np.core.records.fromrecords([
             (123., 456.),
             (789., 987.)
-        ], names='rlnCoordinateX', 'f8') , ('rlnCoordinateY', 'f8')])
+        ], names=[('rlnCoordinateX', 'f8') , ('rlnCoordinateY', 'f8')])
         star.write('two.star', arr)
     """
     if not isinstance(data, n.ndarray):

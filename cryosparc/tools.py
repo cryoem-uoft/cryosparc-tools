@@ -6,7 +6,7 @@ import re
 import tempfile
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
 
 from . import mrc
 from .command import CommandClient

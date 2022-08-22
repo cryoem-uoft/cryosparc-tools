@@ -24,7 +24,7 @@ import numpy.core.records
 import snappy
 
 if TYPE_CHECKING:
-    import numpy.typing as nt
+    import numpy.typing as nt  # type: ignore
 
 from .data import Data
 from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
@@ -376,8 +376,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def __init__(
         self,
         allocate: Union[
-            "Dataset",
             int,
+            "Dataset",
             "nt.NDArray",
             Mapping[str, "nt.ArrayLike"],
             List[Tuple[str, "nt.ArrayLike"]],
@@ -587,11 +587,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         each field.
         """
         if isinstance(field_map, dict):
+            fm = lambda x: field_map.get(x, x)
+        else:
+            fm = field_map
 
-            def field_map(x):
-                return field_map.get(x, x)
-
-        result = type(self)([(f if f == "uid" else field_map(f), col) for f, col in self.items()])
+        result = type(self)([(f if f == "uid" else fm(f), col) for f, col in self.items()])
         self._data = result._data
         self._rows = None
         return self
