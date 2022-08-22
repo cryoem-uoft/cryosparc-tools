@@ -39,8 +39,8 @@ packages = ["cryosparc"]
 [build-system]
 requires = [
     "setuptools",
-    # "numpy ~= 1.15",  # use when building normally
-    "numpy >=1.18<1.19",  # use when building with [notebook]
+    "numpy ~= 1.15",  # use when building normally
+    # "numpy >=1.18<1.19",  # use when building with [notebook]
 ]
 build-backend = "setuptools.build_meta"
 
