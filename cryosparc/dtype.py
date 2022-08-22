@@ -1,7 +1,9 @@
-from typing import List, Tuple, Union
+from typing import TYPE_CHECKING, List, Tuple, Union
 import json
 import numpy as n
-import numpy.typing as nt
+
+if TYPE_CHECKING:
+    import numpy.typing as nt
 
 Shape = Tuple[int, ...]
 """A numpy shape tuple from ndarray.shape"""
@@ -30,7 +32,7 @@ Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
 """
 
 
-def makefield(name: str, dtype: nt.DTypeLike) -> Field:
+def makefield(name: str, dtype: "nt.DTypeLike") -> Field:
     dt = n.dtype(dtype)
     return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)
 
@@ -40,12 +42,12 @@ def fielddtype(field: Field) -> DType:
     return (dt, rest[0]) if rest else dt
 
 
-def arraydtype(a: nt.NDArray) -> DType:
+def arraydtype(a: "nt.NDArray") -> DType:
     assert len(a.dtype.descr) == 1, "Cannot get dtype from record array"
     return (a.dtype.str, a.shape[1:]) if len(a.shape) > 1 else a.dtype.str
 
 
-def dtypestr(dtype: nt.DTypeLike) -> str:
+def dtypestr(dtype: "nt.DTypeLike") -> str:
     dt = n.dtype(dtype)
     if dt.shape:
         shape = ",".join(map(str, dt.shape))

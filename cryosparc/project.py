@@ -1,16 +1,14 @@
-from optparse import Option
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, List, Literal, Optional, Tuple, Union
-
-import numpy.typing as nt
+from typing import IO, TYPE_CHECKING, List, Optional, Tuple, Union
 
 from cryosparc.util import first
 
 from .dataset import Dataset
-from .spec import Datafield, Datatype, WorkspaceDocument
+from .spec import Datafield, Datatype
 from .job import Job, ExternalJob
 
 if TYPE_CHECKING:
+    import numpy.typing as nt
     from .tools import CryoSPARC
 
 
@@ -162,5 +160,5 @@ class Project:
     def upload_dataset(self, path: Union[str, PurePosixPath], dset: Dataset):
         return self.cs.upload_dataset(self.uid, path, dset)
 
-    def upload_mrc(self, path: Union[str, PurePosixPath], data: nt.NDArray, psize: float):
+    def upload_mrc(self, path: Union[str, PurePosixPath], data: "nt.NDArray", psize: float):
         return self.cs.upload_mrc(self.uid, path, data, psize)

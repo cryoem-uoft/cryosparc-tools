@@ -1,7 +1,9 @@
 from enum import Enum
-from typing import Dict, List, Mapping, Optional, Type, Union, overload
+from typing import TYPE_CHECKING, Dict, List, Mapping, Optional, Type, Union, overload
 import numpy as n
-import numpy.typing as nt
+
+if TYPE_CHECKING:
+    import numpy.typing as nt
 
 from .dtype import DType, Field, Shape
 from . import core
@@ -158,10 +160,10 @@ class Data(Mapping[str, DType]):
         ...
 
     @overload
-    def addcol(self, field: str, dtype: nt.DTypeLike) -> bool:
+    def addcol(self, field: str, dtype: "nt.DTypeLike") -> bool:
         ...
 
-    def addcol(self, field: Union[str, Field], dtype: Optional[nt.DTypeLike] = None) -> bool:
+    def addcol(self, field: Union[str, Field], dtype: Optional["nt.DTypeLike"] = None) -> bool:
         if isinstance(field, tuple):
             field, *dt = field
             dt = n.dtype(dt[0]) if len(dt) == 1 else n.dtype(tuple(dt))

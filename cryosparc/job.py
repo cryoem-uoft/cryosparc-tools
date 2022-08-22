@@ -4,8 +4,6 @@ from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Pattern, TextIO, Union
 from typing_extensions import Literal
 
-import numpy.typing as nt
-
 from cryosparc.dtype import decode_fields
 
 from .spec import Datatype, Datafield, Datatype, JobDocument
@@ -13,6 +11,7 @@ from .util import first
 from .dataset import Dataset
 
 if TYPE_CHECKING:
+    import numpy.typing as nt
     from .tools import CryoSPARC
 
 
@@ -147,13 +146,13 @@ class Job:
         path = PurePosixPath(self.uid) / path
         return self.cs.upload_dataset(self.project_uid, path, dset)
 
-    def upload_mrc(self, path: Union[str, PurePosixPath], data: nt.NDArray, psize: float):
+    def upload_mrc(self, path: Union[str, PurePosixPath], data: "nt.NDArray", psize: float):
         path = PurePosixPath(self.uid) / path
         return self.cs.upload_mrc(self.project_uid, path, data, psize)
 
     def subprocess(
         self,
-        args: list,
+        args: Union[str, list],
         checkpoint_line_pattern: Union[str, Pattern[str], Literal[None]] = None,
         mute_stdout: bool = False,
         mute_stderr: bool = False,
@@ -165,7 +164,7 @@ class Job:
         import subprocess
         import sys
 
-        args = list(map(str, args))
+        args = args if isinstance(args, str) else list(map(str, args))
         return subprocess.run(args, **kwargs)
 
 

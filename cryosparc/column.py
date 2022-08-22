@@ -1,13 +1,12 @@
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 import numpy as n
-import numpy.typing as nt
 
 from .data import Data
 from .dtype import Field, fielddtype
 from .util import hashcache, strencodenull
 
 
-class Column(nt.NDArray[Any]):
+class Column(n.ndarray):
     """
     Dataset column, uses native numpy array interface. Used to keep _data
     instance from getting garbage collected if a single column is extracted from

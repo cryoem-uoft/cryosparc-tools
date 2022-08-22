@@ -1,6 +1,7 @@
 from pathlib import PurePath
 from typing import (
     IO,
+    TYPE_CHECKING,
     Any,
     Union,
     Callable,
@@ -19,9 +20,11 @@ from typing import (
 )
 from typing_extensions import Literal
 import numpy as n
-import numpy.typing as nt
 import numpy.core.records
 import snappy
+
+if TYPE_CHECKING:
+    import numpy.typing as nt
 
 from .data import Data
 from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
@@ -375,9 +378,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         allocate: Union[
             "Dataset",
             int,
-            nt.NDArray,
-            Mapping[str, nt.ArrayLike],
-            List[Tuple[str, nt.ArrayLike]],
+            "nt.NDArray",
+            Mapping[str, "nt.ArrayLike"],
+            List[Tuple[str, "nt.ArrayLike"]],
         ] = 0,
         row_class: Type[R] = Row,
     ):
@@ -525,13 +528,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         ...
 
     @overload
-    def add_fields(self, fields: List[str], dtypes: Union[str, List[nt.DTypeLike]]) -> "Dataset[R]":
+    def add_fields(self, fields: List[str], dtypes: Union[str, List["nt.DTypeLike"]]) -> "Dataset[R]":
         ...
 
     def add_fields(
         self,
         fields: Union[List[str], List[Field]],
-        dtypes: Union[str, List[nt.DTypeLike], Literal[None]] = None,
+        dtypes: Union[str, List["nt.DTypeLike"], Literal[None]] = None,
     ) -> "Dataset[R]":
         """
         Ensures the dataset has the given fields.
@@ -584,7 +587,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         each field.
         """
         if isinstance(field_map, dict):
-            field_map = lambda x: field_map.get(x, x)
+
+            def field_map(x):
+                return field_map.get(x, x)
+
         result = type(self)([(f if f == "uid" else field_map(f), col) for f, col in self.items()])
         self._data = result._data
         self._rows = None
@@ -617,7 +623,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
         return numpy.core.records.fromarrays(arrays, dtype=dtype)
 
-    def query(self, query: Union[Dict[str, nt.ArrayLike], Callable[[R], bool]]):
+    def query(self, query: Union[Dict[str, "nt.ArrayLike"], Callable[[R], bool]]):
         """
         Get a subset of data based on whether the fields match the values in the
         given query. They query is either a test function that gets called on
@@ -639,7 +645,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             mask = [query(row) for row in self.rows()]
             return self.mask(mask)
 
-    def query_mask(self, query: Dict[str, nt.ArrayLike], invert=False) -> nt.NDArray[n.bool_]:
+    def query_mask(self, query: Dict[str, "nt.ArrayLike"], invert=False) -> "nt.NDArray[n.bool_]":
         """
         Get a boolean array representing the items to keep in the dataset that
         match the given query filter. See `query` method for example query
@@ -659,10 +665,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         return self.indexes([row.idx for row in rows])
 
-    def indexes(self, indexes: Union[List[int], nt.NDArray]):
+    def indexes(self, indexes: Union[List[int], "nt.NDArray"]):
         return type(self)([(f, col[indexes]) for f, col in self.items()])
 
-    def mask(self, mask: Union[List[bool], nt.NDArray]):
+    def mask(self, mask: Union[List[bool], "nt.NDArray"]):
         """
         Get a subset of the dataset that matches the given mask of rows
         """
@@ -703,7 +709,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return {val: self.indexes(idx) for val, idx in idxs.items()}
 
-    def replace(self, query: Dict[str, nt.ArrayLike], *others: "Dataset", assume_disjoint=False, assume_unique=False):
+    def replace(self, query: Dict[str, "nt.ArrayLike"], *others: "Dataset", assume_disjoint=False, assume_unique=False):
         """
         Replaces values matching the given query with others. The query is a
         key/value map of allowed field values. The values can be either a single

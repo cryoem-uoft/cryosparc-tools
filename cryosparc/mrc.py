@@ -1,9 +1,11 @@
 from enum import Enum
 from pathlib import PurePath
-from typing import IO, Dict, NamedTuple, Tuple, Type, Union
+from typing import IO, TYPE_CHECKING, Dict, NamedTuple, Tuple, Type, Union
 
 import numpy as n
-import numpy.typing as nt
+
+if TYPE_CHECKING:
+    import numpy.typing as nt
 
 from .util import bopen
 
@@ -72,7 +74,7 @@ DT_TO_DATATYPE: Dict[DT, Type[DTType]] = {
 DATATYPE_TO_DT = {v: k for k, v in DT_TO_DATATYPE.items()}
 
 
-def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, nt.NDArray]:
+def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "nt.NDArray"]:
     """
     Read a .mrc file at the given file into a numpy array. Returns the MRC
     header and the resulting array.
@@ -91,7 +93,7 @@ def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, nt.NDArray]:
         return header, data
 
 
-def write(file: Union[str, PurePath, IO[bytes]], data: nt.NDArray, psize: float):
+def write(file: Union[str, PurePath, IO[bytes]], data: "nt.NDArray", psize: float):
     """
     Write the given ndarray data to a file. Specify a pixel size for the mrc
     file as the last argument
@@ -130,7 +132,7 @@ def _read_header(file: IO) -> Header:
     )
 
 
-def _write_header(file: IO, data: nt.NDArray, psize: float):
+def _write_header(file: IO, data: "nt.NDArray", psize: float):
     assert data.dtype in DATATYPE_TO_DT, "Unsupported MRC dtype: {0}".format(data.dtype)
 
     header_int32 = n.zeros(256, dtype=n.int32)  # 1024 byte header

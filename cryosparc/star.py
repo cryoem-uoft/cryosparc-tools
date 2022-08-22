@@ -1,9 +1,11 @@
 from pathlib import PurePath
-from typing import IO, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union, overload
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union, overload
 from typing_extensions import Literal
 import numpy as n
-import numpy.typing as nt
 from numpy.core.records import fromrecords
+
+if TYPE_CHECKING:
+    import numpy.typing as nt
 
 from .util import topen
 
@@ -469,7 +471,7 @@ RLN_DTYPES = dict(
 )
 
 
-def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, nt.NDArray]:
+def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "nt.NDArray"]:
     """
     Read the given STAR file into memory.
 
@@ -548,7 +550,7 @@ def write(
     """
     Write a star file with a single `data_` block. Data may be provided as
     either a numpy record array or a collection of tuples with a specified
-    labels argument.
+    labels argume"nt."
 
     Example:
 
@@ -572,7 +574,7 @@ def write(
     return write_blocks(file, {name: data})
 
 
-def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, nt.NDArray]):
+def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "nt.NDArray"]):
     """
     Write a single star file composed of multiple data blocks:
 

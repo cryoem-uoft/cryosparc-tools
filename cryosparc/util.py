@@ -1,9 +1,11 @@
 from contextlib import contextmanager
 from pathlib import PurePath
-from typing import IO, Callable, Dict, Generic, Iterator, Optional, Sequence, TypeVar, Union
+from typing import IO, TYPE_CHECKING, Callable, Dict, Generic, Iterator, Optional, Sequence, TypeVar, Union
 from typing_extensions import Literal
 import numpy as n
-import numpy.typing as nt
+
+if TYPE_CHECKING:
+    import numpy.typing as nt
 
 from .dtype import Shape
 
@@ -134,7 +136,7 @@ def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
         yield file
 
 
-def downsample(arr: nt.NDArray, factor: int = 2):
+def downsample(arr: "nt.NDArray", factor: int = 2):
     """
     Downsample a micrograph by the given factor
     """
@@ -150,7 +152,7 @@ def downsample(arr: nt.NDArray, factor: int = 2):
     return out.reshape(shape)
 
 
-def padarray(arr: nt.NDArray, dim: Optional[int] = None, val: n.number = n.float32(0)):
+def padarray(arr: "nt.NDArray", dim: Optional[int] = None, val: n.number = n.float32(0)):
     """
     Pad the given 2D or 3D array so that the x and y dimensions are equal to the
     given dimension. If not dimension is given, will use the maximum of the
@@ -169,7 +171,7 @@ def padarray(arr: nt.NDArray, dim: Optional[int] = None, val: n.number = n.float
     return n.reshape(res, res.shape[-2:]) if nz == 1 else res
 
 
-def trimarray(arr: nt.NDArray, shape: Shape):
+def trimarray(arr: "nt.NDArray", shape: Shape):
     """
     Crop the given 2D or 3D array into the given shape
     """
@@ -185,7 +187,7 @@ def trimarray(arr: nt.NDArray, shape: Shape):
     return n.reshape(res, res.shape[-2:]) if z == 1 else res
 
 
-def lowpass(arr: nt.NDArray, psize: float, amount: float = 0.0, order: float = 1.0):
+def lowpass(arr: "nt.NDArray", psize: float, amount: float = 0.0, order: float = 1.0):
     """
     Apply butterworth lowpass filter to the 2D or 3D array data with the given
     pixel size. `amount` should be a non-negative integer specified in

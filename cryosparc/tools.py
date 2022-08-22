@@ -1,11 +1,12 @@
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import IO, Union
+from typing import IO, TYPE_CHECKING, Union
 import os
 import re
 import tempfile
 
-import numpy.typing as nt
+if TYPE_CHECKING:
+    import numpy.typing as nt
 
 from . import mrc
 from .command import CommandClient
@@ -157,7 +158,7 @@ class CryoSPARC:
         # FIXME: Get dataset memory buffer and send that to upload
         return NotImplemented
 
-    def upload_mrc(self, project_uid: str, path: Union[str, PurePosixPath], data: nt.NDArray, psize: float):
+    def upload_mrc(self, project_uid: str, path: Union[str, PurePosixPath], data: "nt.NDArray", psize: float):
         """
         Similar to upload() method, but works with MRC numpy arrays
         """
