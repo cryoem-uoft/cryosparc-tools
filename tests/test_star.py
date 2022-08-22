@@ -94,7 +94,13 @@ def test_write():
             (123.0, 456.0, "particles.mrc", "mic.mrc", 1),
             (789.0, 123.0, "particles.mrc", "mic.mrc", 0),
         ],
-        labels=["rlnCoordinateX", "rlnCoordinateY", "rlnImageName", "rlnCtfDataAreCtfPremultiplied"],
+        labels=[
+            "rlnCoordinateX",
+            "rlnCoordinateY",
+            "rlnImageName",
+            "rlnMicrographName",
+            "rlnCtfDataAreCtfPremultiplied",
+        ],
     )
     assert (
         result.getvalue()
