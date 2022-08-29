@@ -143,7 +143,7 @@ class CryoSPARC:
         response is not seekable.
         """
         with bopen(file) as f:
-            url = f"/upload_project_file/{project_uid}"
+            url = f"/projects/{project_uid}/files"
             query = {"path": path}
             with self.vis._request(url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
