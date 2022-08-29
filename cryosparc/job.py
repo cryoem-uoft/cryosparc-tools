@@ -1,18 +1,64 @@
 from contextlib import contextmanager
+from io import BytesIO
+import json
 from pathlib import PurePath, PurePosixPath
 from time import sleep
-from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Pattern, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, TypedDict, Union, overload
 from typing_extensions import Literal
 
 from cryosparc.dtype import decode_fields
 
 from .spec import Datatype, Datafield, Datatype, JobDocument
-from .util import first
+from .util import bopen, first
 from .dataset import Dataset
 
 if TYPE_CHECKING:
     import numpy.typing as nt  # type: ignore
     from .tools import CryoSPARC
+
+
+# Valid plot file types
+TextFormat = Literal["txt", "csv", "json", "xml"]
+ImageFormat = Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"]
+AssetFormat = Union[TextFormat, ImageFormat]
+TextContentType = Literal[
+    "text/plain",
+    "text/csv",
+    "application/json",
+    "application/xml",
+]
+ImageContentType = Literal[
+    "application/pdf",
+    "image/gif",
+    "image/jpeg",
+    "image/png",
+    "image/svg+xml",
+]
+AssetContentType = Union[TextContentType, ImageContentType]
+
+TEXT_CONTENT_TYPES: Dict[TextFormat, TextContentType] = {
+    "txt": "text/plain",
+    "csv": "text/csv",
+    "json": "application/json",
+    "xml": "application/xml",
+}
+
+IMAGE_CONTENT_TYPES: Dict[ImageFormat, ImageContentType] = {
+    "pdf": "application/pdf",
+    "gif": "image/gif",
+    "jpeg": "image/jpeg",
+    "jpg": "image/jpeg",
+    "png": "image/png",
+    "svg": "image/svg+xml",
+}
+
+ASSET_CONTENT_TYPES: Dict[AssetFormat, AssetContentType] = {**TEXT_CONTENT_TYPES, **IMAGE_CONTENT_TYPES}  # type: ignore
+
+
+class AssetFileData(TypedDict):
+    filetype: AssetContentType
+    filename: str
+    fileid: str
 
 
 class Job:
@@ -77,11 +123,11 @@ class Job:
         datasets = [self.cs.download_dataset(self.project_uid, f) for f in metafiles]
         return Dataset.innerjoin(*datasets)
 
-    def log(self, text, level: Literal["text", "warning", "error"] = "text"):
+    def log(self, text: str, level: Literal["text", "warning", "error"] = "text"):
         """
         Append to a job's event log
         """
-        self.cs.cli.job_send_streamlog(  # type: ignore
+        return self.cs.cli.job_send_streamlog(  # type: ignore
             project_uid=self.project_uid, job_uid=self.uid, message=text, error=level != "text"
         )
 
@@ -89,7 +135,35 @@ class Job:
         """
         Append a checkpoint to the job's event log
         """
-        self.cs.cli.job_checkpoint_streamlog(project_uid=self.project_uid, job_uid=self.uid, meta=meta)  # type: ignore
+        return self.cs.cli.job_checkpoint_streamlog(project_uid=self.project_uid, job_uid=self.uid, meta=meta)  # type: ignore
+
+    def log_plot(
+        self,
+        plot: Union[str, PurePath, IO[bytes], Any],
+        text: str,
+        formats: Iterable[ImageFormat] = ["png", "pdf"],
+        flags: List[str] = ["plots"],
+        raw_data: Union[str, bytes, IO[bytes], Literal[None]] = None,
+        raw_data_filename: Optional[str] = None,
+        raw_data_format: Optional[TextFormat] = None,
+    ):
+        """
+        Add a log line with the given plot information. The plot must be either
+        a file path, a binary file-like I/O (with corresponding formats=["..."]
+        specified) or a matplotlib figure.
+        """
+        imgfiles = self.upload_plot(
+            plot,
+            name=text,
+            formats=formats,
+            raw_data=raw_data,
+            raw_data_filename=raw_data_filename,
+            raw_data_format=raw_data_format,
+        )
+
+        return self.cs.cli.job_send_streamlog(  # type: ignore
+            project_uid=self.project_uid, job_uid=self.uid, message=text, flags=flags, imgfiles=imgfiles
+        )
 
     def download(self, path: Union[str, PurePosixPath]):
         path = PurePosixPath(self.uid) / path
@@ -108,8 +182,128 @@ class Job:
         return self.cs.download_mrc(self.project_uid, path)
 
     def upload(self, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
+        """
+        Upload the given file to the job directory at the given path.
+        """
         path = PurePosixPath(self.uid) / path
         return self.cs.upload(self.project_uid, path, file)
+
+    @overload
+    def upload_asset(self, file: IO[bytes], filename: str = ..., format: Optional[AssetFormat] = None):
+        ...
+
+    @overload
+    def upload_asset(self, file: IO[bytes], filename: Optional[str] = None, format: AssetFormat = ...):
+        ...
+
+    @overload
+    def upload_asset(self, file: Union[str, PurePath]):
+        ...
+
+    def upload_asset(
+        self,
+        file: Union[str, PurePath, IO[bytes]],
+        filename: Optional[str] = None,
+        format: Optional[AssetFormat] = None,
+    ):
+        """
+        Upload an image or text file to the current job. Specify either an image
+        (PNG, JPG, GIF, PDF, SVG), text file (TXT, CSV, JSON, XML) or a binary
+        IO object with data in one of those formats.
+
+        If a binary IO object is specified, either a filename or mimetype must
+        be specified.
+
+        Unlike the `upload` method which saves files to the job directory, this
+        method saves images to the database and exposes them for use in the job
+        log.
+
+        If specifying arbitrary binary I/O, specify either a filename or a file
+        format.
+        """
+        if isinstance(file, (str, PurePath)) and not filename:
+            filename = PurePath(file).name
+
+        if filename:
+            ext = filename.split(".")[-1]
+            assert ext in ASSET_CONTENT_TYPES, f"Invalid asset format {ext}"
+            format = ext
+        elif format:
+            assert format in ASSET_CONTENT_TYPES, f"Invalid asset format {format}"
+        else:
+            raise ValueError("Must specify filename or format when saving binary asset handle")
+
+        with bopen(file) as f:
+            url = f"/projects/{self.project_uid}/jobs/{self.uid}/files"
+            query = {"format": format}
+            if filename:
+                query["filename"] = filename
+
+            with self.cs.vis._request(url=url, query=query, data=f) as res:
+                assert res.status >= 200 and res.status < 300, (
+                    f"Could not upload project {self.project_uid} asset {file}.\n"
+                    f"Response from cryoSPARC: {res.read().decode()}"
+                )
+                return json.loads(res.read())
+
+    def upload_plot(
+        self,
+        figure: Union[str, PurePath, IO[bytes], Any],
+        name: Optional[str] = None,
+        formats: Iterable[ImageFormat] = ["png", "pdf"],
+        raw_data: Union[str, bytes, IO[bytes], Literal[None]] = None,
+        raw_data_filename: Optional[str] = None,
+        raw_data_format: Optional[TextFormat] = None,
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+    ):
+        """
+        Upload the given matplotlib figure in PDF and PNG formats. Returns a
+        list of the created File IDs.
+        """
+        figdata = []
+        if hasattr(figure, "savefig"):  # matplotlib plot
+            for fmt in formats:
+                assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
+                filename = f"{name or 'figure'}.{fmt}"
+                data = BytesIO()
+                figure.savefig(data, format=fmt, **savefig_kw)  # type: ignore
+                data.seek(0)
+                figdata.append((data, filename, fmt))
+        elif isinstance(figure, (str, PurePath)):  # file pathl; assume format from filename
+            figure = PurePath(figure)
+            fmt = str(figure).split(".")[-1]
+            assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
+            filename = f"{name or figure.stem}.{fmt}"
+            figdata.append((figure, filename, fmt))
+        else:  # Binary IO
+            fmt = first(iter(formats))
+            assert fmt in IMAGE_CONTENT_TYPES, f"Invalid or unspecified figure format {fmt}"
+            filename = f"{name or 'figure'}.{fmt}"
+            figdata.append((figure, filename, fmt))
+
+        if raw_data:
+            assert (
+                raw_data_filename or raw_data_format
+            ), f"One of raw_data_filename or raw_data_format must be specified when providing raw data"
+
+        assets = []
+        for data, filename, fmt in figdata:
+            asset = self.upload_asset(data, filename=filename, format=fmt)
+            assets.append(asset)
+
+        if raw_data:
+            raw_data_io = None
+            if isinstance(raw_data, str):
+                raw_data_io = BytesIO(raw_data.encode())
+            elif isinstance(raw_data, bytes):
+                raw_data_io = BytesIO(raw_data)
+            else:
+                raw_data_io = raw_data
+
+            asset = self.upload_asset(raw_data_io, filename=raw_data_filename, format=raw_data_format)  # type: ignore
+            assets.append(asset)
+
+        return assets
 
     def upload_dataset(self, path: Union[str, PurePosixPath], dset: Dataset):
         path = PurePosixPath(self.uid) / path
@@ -271,6 +465,7 @@ class ExternalJob(Job):
         """
         Allocate an empty dataset for the given output with the given name.
         Initialize with the given number of empty rows.
+        FIXME: Rename to clarify that this works on datasets
         """
         fields = self.cs.cli.job_output_fields(self.project_uid, self.uid, name)  # type: ignore
         fields = decode_fields(fields)
@@ -280,7 +475,7 @@ class ExternalJob(Job):
         """
         Job must have status "running" for this to work
         """
-        url = f"/external/upload/{self.project_uid}/{self.uid}/{name}"
+        url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/output/{name}/dataset"
         with self.cs.vis._request(url, data=dataset.stream()) as res:
             result = res.read().decode()
             assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"

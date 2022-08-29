@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 from . import mrc
 from .command import CommandClient
-from .dataset import Dataset
+from .dataset import DEFAULT_FORMAT, Dataset
 from .project import Project
 from .job import Job
 from .util import bopen
@@ -151,12 +151,24 @@ class CryoSPARC:
                     f"Response from cryoSPARC: {res.read().decode()}"
                 )
 
-    def upload_dataset(self, project_uid: str, path: Union[str, PurePosixPath], dset: Dataset):
+    def upload_dataset(
+        self, project_uid: str, path: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT
+    ):
         """
         Similar to upload() method, but works with in-memory datasets
         """
-        # FIXME: Get dataset memory buffer and send that to upload
-        return NotImplemented
+        if len(dset) < 100:
+            # Probably small enough to upload from memory
+            f = BytesIO()
+            dset.save(f, format=format)
+            f.seek(0)
+            return self.upload(project_uid, path, f)
+
+        # Write to temp file first
+        with tempfile.TemporaryFile("w+b") as f:
+            dset.save(f, format=format)
+            f.seek(0)
+            return self.upload(project_uid, path, f)
 
     def upload_mrc(self, project_uid: str, path: Union[str, PurePosixPath], data: "nt.NDArray", psize: float):
         """

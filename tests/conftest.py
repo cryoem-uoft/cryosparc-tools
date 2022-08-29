@@ -10,12 +10,7 @@ from cryosparc.dataset import Dataset
 
 
 def request_callback_core(request, uri, response_headers):
-    procs = [
-        "hello_world",
-        "get_project",
-        "get_job",
-        "job_send_streamlog"
-    ]  # Possible methods list
+    procs = ["hello_world", "get_project", "get_job", "job_send_streamlog"]  # Possible methods list
     body = json.loads(request.body)
 
     res = None
@@ -25,10 +20,7 @@ def request_callback_core(request, uri, response_headers):
     elif body["method"] == "hello_world":
         res = {"hello": "world"}
     elif body["method"] == "get_project":
-        res = {
-            "uid": "P1",
-            "title": "My Project"
-        }
+        res = {"uid": "P1", "title": "My Project"}
     elif body["method"] == "get_project_dir_abs":
         res = "/projects/my-project"
     elif body["method"] == "job_send_streamlog":

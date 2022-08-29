@@ -160,12 +160,12 @@ def padarray(arr: "nt.NDArray", dim: Optional[int] = None, val: n.number = n.flo
     """
     arr = n.reshape(arr, (-1,) + arr.shape[-2:])
     nz, ny, nx = arr.shape
-    dim = max(ny, nx) if dim is None else dim
-    res = n.full((nz, dim, dim), val, dtype=arr.dtype)
+    idim = max(ny, nx) if dim is None else dim
+    res = n.full((nz, idim, idim), val, dtype=arr.dtype)
     nya, nxa = ny // 2, nx // 2
     nyb, nxb = ny - nya, nx - nxa
-    ya, yb = (dim // 2) - nya, (dim // 2) + nyb
-    xa, xb = (dim // 2) - nxa, (dim // 2) + nxb
+    ya, yb = (idim // 2) - nya, (idim // 2) + nyb
+    xa, xb = (idim // 2) - nxa, (idim // 2) + nxb
     res[:, ya:yb, xa:xb] = arr
 
     return n.reshape(res, res.shape[-2:]) if nz == 1 else res
@@ -187,13 +187,13 @@ def trimarray(arr: "nt.NDArray", shape: Shape):
     return n.reshape(res, res.shape[-2:]) if z == 1 else res
 
 
-def lowpass(arr: "nt.NDArray", psize: float, amount: float = 0.0, order: float = 1.0):
+def lowpass(arr: "nt.NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, order: float = 1.0):
     """
     Apply butterworth lowpass filter to the 2D or 3D array data with the given
-    pixel size. `amount` should be a non-negative integer specified in
-    Angstroms.
+    pixel size (`psize_A`). `cutoff_resolution_A` should be a non-negative
+    number specified in Angstroms.
     """
-    assert amount > 0, "Lowpass filter amount must be non-negative"
+    assert cutoff_resolution_A > 0, "Lowpass filter amount must be non-negative"
     assert len(arr.shape) == 2 or (len(arr.shape) == 3 and arr.shape[0] == 1), (
         f"Cannot apply low-pass filter on data with shape {arr.shape}; " "must be two-dimensional"
     )
@@ -203,7 +203,7 @@ def lowpass(arr: "nt.NDArray", psize: float, amount: float = 0.0, order: float =
     if arr.shape[0] != arr.shape[1]:
         arr = padarray(arr, val=n.mean(arr))
 
-    radwn = (psize * arr.shape[-1]) / amount
+    radwn = (psize_A * arr.shape[-1]) / cutoff_resolution_A
     inverse_cutoff_wn2 = 1.0 / radwn**2
 
     farr = n.fft.rfft2(arr)
