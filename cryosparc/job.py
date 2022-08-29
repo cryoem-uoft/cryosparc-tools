@@ -139,26 +139,46 @@ class Job:
 
     def log_plot(
         self,
-        plot: Union[str, PurePath, IO[bytes], Any],
+        figure: Union[str, PurePath, IO[bytes], Any],
         text: str,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
         flags: List[str] = ["plots"],
-        raw_data: Union[str, bytes, IO[bytes], Literal[None]] = None,
-        raw_data_filename: Optional[str] = None,
+        raw_data: Union[str, bytes, Literal[None]] = None,
+        raw_data_file: Union[str, PurePath, IO[bytes], Literal[None]] = None,
         raw_data_format: Optional[TextFormat] = None,
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ):
         """
-        Add a log line with the given plot information. The plot must be either
-        a file path, a binary file-like I/O (with corresponding formats=["..."]
-        specified) or a matplotlib figure.
+        Add a log line with the given figure.
+
+        `figure` must be one of the following
+
+        - Path to an existing image file in PNG, JPEG, GIF, SVG or PDF format
+        - A file handle-like object with the binary data of an image
+        - A matplotlib plot
+
+        If a matplotlib figure is specified, Uploads the plots in `png` and
+        `pdf` formats. Override the `formats` argument with
+        `formats=['<format1>', '<format2>', ...]` to save in different image
+        formats.
+
+        If a file handle is specified, also specify `formats=['<format>']`,
+        where `<format>` is a valid image extension such as `png` or `pdf`.
+        Assumes `png` if not specified.
+
+        If a text-version of the given plot is available (e.g., csv), specify
+        `raw_data` with the full contents or `raw_data_file` with a path or
+        binary file handle pointing to the contents. Assumes file format from
+        extension or `raw_data_format`. Defaults to txt if cannot be determined.
         """
         imgfiles = self.upload_plot(
-            plot,
+            figure,
             name=text,
             formats=formats,
             raw_data=raw_data,
-            raw_data_filename=raw_data_filename,
+            raw_data_file=raw_data_file,
             raw_data_format=raw_data_format,
+            savefig_kw=savefig_kw,
         )
 
         return self.cs.cli.job_send_streamlog(  # type: ignore
@@ -188,18 +208,6 @@ class Job:
         path = PurePosixPath(self.uid) / path
         return self.cs.upload(self.project_uid, path, file)
 
-    @overload
-    def upload_asset(self, file: IO[bytes], filename: str = ..., format: Optional[AssetFormat] = None):
-        ...
-
-    @overload
-    def upload_asset(self, file: IO[bytes], filename: Optional[str] = None, format: AssetFormat = ...):
-        ...
-
-    @overload
-    def upload_asset(self, file: Union[str, PurePath]):
-        ...
-
     def upload_asset(
         self,
         file: Union[str, PurePath, IO[bytes]],
@@ -221,15 +229,18 @@ class Job:
         If specifying arbitrary binary I/O, specify either a filename or a file
         format.
         """
-        if isinstance(file, (str, PurePath)) and not filename:
-            filename = PurePath(file).name
-
-        if filename:
+        if format:
+            assert format in ASSET_CONTENT_TYPES, f"Invalid asset format {format}"
+        elif filename:
             ext = filename.split(".")[-1]
             assert ext in ASSET_CONTENT_TYPES, f"Invalid asset format {ext}"
             format = ext
-        elif format:
-            assert format in ASSET_CONTENT_TYPES, f"Invalid asset format {format}"
+        elif isinstance(file, (str, PurePath)):
+            file = PurePath(file)
+            filename = file.name
+            ext = filename.split(".")[-1]
+            assert ext in ASSET_CONTENT_TYPES, f"Invalid asset format {ext}"
+            format = ext
         else:
             raise ValueError("Must specify filename or format when saving binary asset handle")
 
@@ -251,26 +262,28 @@ class Job:
         figure: Union[str, PurePath, IO[bytes], Any],
         name: Optional[str] = None,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
-        raw_data: Union[str, bytes, IO[bytes], Literal[None]] = None,
-        raw_data_filename: Optional[str] = None,
+        raw_data: Union[str, bytes, Literal[None]] = None,
+        raw_data_file: Union[str, PurePath, IO[bytes], Literal[None]] = None,
         raw_data_format: Optional[TextFormat] = None,
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ):
         """
-        Upload the given matplotlib figure in PDF and PNG formats. Returns a
-        list of the created File IDs.
+        Upload the given figure. Returns a list of the created asset objects.
+        See `log_plot` for argument explanations.
         """
         figdata = []
+        basename = name or "figure"
         if hasattr(figure, "savefig"):  # matplotlib plot
             for fmt in formats:
                 assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
-                filename = f"{name or 'figure'}.{fmt}"
+                filename = f"{basename}.{fmt}"
                 data = BytesIO()
                 figure.savefig(data, format=fmt, **savefig_kw)  # type: ignore
                 data.seek(0)
                 figdata.append((data, filename, fmt))
-        elif isinstance(figure, (str, PurePath)):  # file pathl; assume format from filename
+        elif isinstance(figure, (str, PurePath)):  # file path; assume format from filename
             figure = PurePath(figure)
+            basename = figure.stem
             fmt = str(figure).split(".")[-1]
             assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
             filename = f"{name or figure.stem}.{fmt}"
@@ -278,29 +291,31 @@ class Job:
         else:  # Binary IO
             fmt = first(iter(formats))
             assert fmt in IMAGE_CONTENT_TYPES, f"Invalid or unspecified figure format {fmt}"
-            filename = f"{name or 'figure'}.{fmt}"
+            filename = f"{basename}.{fmt}"
             figdata.append((figure, filename, fmt))
 
-        if raw_data:
-            assert (
-                raw_data_filename or raw_data_format
-            ), f"One of raw_data_filename or raw_data_format must be specified when providing raw data"
+        raw_data_filename = f"{name}.{raw_data_format or 'txt'}" if name else None
+        if raw_data and raw_data_file:
+            raise ValueError("Ambiguous invocation; specify only one of raw_data or raw_data_file")
+        elif isinstance(raw_data, str):
+            raw_data_file = BytesIO(raw_data.encode())
+        elif isinstance(raw_data, bytes):
+            raw_data_file = BytesIO(raw_data)
+        elif isinstance(raw_data_file, (str, PurePath)):
+            raw_data_path = PurePath(raw_data_file)
+            raw_data_filename = raw_data_path.name
+            ext = raw_data_format or raw_data_filename.split(".")[-1]
+            assert ext in TEXT_CONTENT_TYPES, f"Invalid raw data filename {raw_data_file}"
+            raw_data_format = ext
 
         assets = []
         for data, filename, fmt in figdata:
             asset = self.upload_asset(data, filename=filename, format=fmt)
             assets.append(asset)
 
-        if raw_data:
-            raw_data_io = None
-            if isinstance(raw_data, str):
-                raw_data_io = BytesIO(raw_data.encode())
-            elif isinstance(raw_data, bytes):
-                raw_data_io = BytesIO(raw_data)
-            else:
-                raw_data_io = raw_data
-
-            asset = self.upload_asset(raw_data_io, filename=raw_data_filename, format=raw_data_format)  # type: ignore
+        if raw_data_file:
+            raw_data_format = raw_data_format or "txt"
+            asset = self.upload_asset(raw_data_file, filename=raw_data_filename, format=raw_data_format)
             assets.append(asset)
 
         return assets
