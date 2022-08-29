@@ -119,7 +119,7 @@ def test_get_items_to_item_dict(benchmark, dset: Dataset[Row], fields):
     def _():
         dset._rows = None
         first = dset.rows()[0]
-        item_d = first.to_item_dict()
+        item_d = first.to_dict()
         assert set(item_d.keys()) == {f[0] for f in fields}
         assert any(item_d.values())
 

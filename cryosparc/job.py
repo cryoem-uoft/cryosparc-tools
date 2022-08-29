@@ -3,8 +3,9 @@ from io import BytesIO
 import json
 from pathlib import PurePath, PurePosixPath
 from time import sleep
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, TypedDict, Union, overload
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, TypedDict, Union
 from typing_extensions import Literal
+from cryosparc.command import make_json_request, make_request
 
 from cryosparc.dtype import decode_fields
 
@@ -102,7 +103,7 @@ class Job:
 
         data = {"project_uid": self.project_uid, "job_uid": self.uid, "input_name": name, "slots": list(fields)}
 
-        with self.cs.vis._json_request("/load_job_input", data=data) as response:
+        with make_json_request(self.cs.vis, "/load_job_input", data=data) as response:
             mime = response.headers.get("Content-Type")
             if mime != "application/x-cryosparc-dataset":
                 raise TypeError(f"Unable to load dataset for job {self.project_uid}-{self.uid} input {name}")
@@ -250,7 +251,7 @@ class Job:
             if filename:
                 query["filename"] = filename
 
-            with self.cs.vis._request(url=url, query=query, data=f) as res:
+            with make_request(self.cs.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
                     f"Could not upload project {self.project_uid} asset {file}.\n"
                     f"Response from cryoSPARC: {res.read().decode()}"
@@ -491,7 +492,7 @@ class ExternalJob(Job):
         Job must have status "running" for this to work
         """
         url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/output/{name}/dataset"
-        with self.cs.vis._request(url, data=dataset.stream()) as res:
+        with make_request(self.cs.vis, url, data=dataset.stream()) as res:
             result = res.read().decode()
             assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"
 

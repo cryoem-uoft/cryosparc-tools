@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import numpy.typing as nt  # type: ignore
 
 from . import mrc
-from .command import CommandClient
+from .command import CommandClient, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
 from .project import Project
 from .job import Job
@@ -58,16 +58,16 @@ class CryoSPARC:
 
     def test_connection(self):
         if self.cli.test_connection():  # type: ignore
-            print(f"Connection succeeded to cryoSPARC command_core at {self.cli.url}")
+            print(f"Connection succeeded to cryoSPARC command_core at {self.cli._url}")
         else:
-            print(f"Connection FAILED to cryoSPARC command_core at {self.cli.url}")
+            print(f"Connection FAILED to cryoSPARC command_core at {self.cli._url}")
             return False
 
-        with self.vis._request() as response:
+        with make_request(self.vis) as response:
             if response.read():
-                print(f"Connection succeeded to cryoSPARC command_vis at {self.vis.url}")
+                print(f"Connection succeeded to cryoSPARC command_vis at {self.vis._url}")
             else:
-                print(f"Connection FAILED to cryoSPARC command_vis at {self.vis.url}")
+                print(f"Connection FAILED to cryoSPARC command_vis at {self.vis._url}")
                 return False
 
         return True
@@ -94,15 +94,18 @@ class CryoSPARC:
         ```
         """
         data = {"project_uid": project_uid, "path_rel": str(path)}
-        return self.vis._json_request("/get_project_file", data=data)
+        return make_json_request(self.vis, "/get_project_file", data=data)
 
     def download_file(self, project_uid: str, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
         """
-        Download
+        Download a file from the project directory to the given writeable target.
         """
         with self.download(project_uid, path) as response:
             with bopen(target, "wb") as f:
-                f.write(response.read())
+                data = response.read(ONE_MB)
+                while data:
+                    f.write(data)
+                    data = response.read(ONE_MB)
         return target
 
     def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]):
@@ -145,7 +148,7 @@ class CryoSPARC:
         with bopen(file) as f:
             url = f"/projects/{project_uid}/files"
             query = {"path": path}
-            with self.vis._request(url=url, query=query, data=f) as res:
+            with make_request(self.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
                     f"Could not upload project {project_uid} file {path}.\n"
                     f"Response from cryoSPARC: {res.read().decode()}"
