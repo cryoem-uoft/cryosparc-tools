@@ -53,7 +53,7 @@ class CommandClient:
                 ) from err
 
             assert res, f'JSON response not received for method "{key}" with params {params}'
-            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + str(res["error"])
+            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + format_server_error(res["error"])
             return res["result"]
 
         return func
@@ -70,7 +70,7 @@ class CommandClient:
 
 @contextmanager
 def make_request(
-    client: CommandClient, url="", query: dict = {}, data=None, headers={}
+    client: CommandClient, url="", query: dict = {}, data=None, headers={}, method: str = "post"
 ) -> Generator[HTTPResponse, None, None]:
     """
     Create a raw request/response context with the given command client.
@@ -88,15 +88,18 @@ def make_request(
     max_attempts = 3
     error_reason = "<unknown>"
     while attempt < max_attempts:
-        request = Request(
-            url,
-            data=data,
-            headers=headers,
-        )
+        request = Request(url, data=data, headers=headers, method=method)
         try:
             with urlopen(request, timeout=client._timeout) as response:
                 yield response
                 return
+        except TimeoutError as error:
+            error_reason = "Timeout Error"
+            print(
+                f"*** {type(client).__name__}: command ({url}) did not reply within timeout of {client._timeout} seconds, "
+                f"attempt {attempt} of {max_attempts}"
+            )
+            attempt += 1
         except HTTPError as error:
             error_reason = f"HTTP Error {error.code} {error.reason}"
             print(f"*** {type(client).__name__}: ({url}) {error_reason}")
@@ -105,13 +108,6 @@ def make_request(
             error_reason = f"URL Error {error.reason}"
             print(f"*** {type(client).__name__}: ({url}) {error_reason}")
             raise
-        except TimeoutError as error:
-            error_reason = "Timeout Error"
-            print(
-                f"*** {type(client).__name__}: command ({url}) did not reply within timeout of {client._timeout} seconds, "
-                f"attempt {attempt} of {max_attempts}"
-            )
-            attempt += 1
 
     raise CommandClient.Error(client, error_reason, url=url)
 
@@ -131,3 +127,13 @@ def make_json_request(client: CommandClient, url="", query={}, data=None, header
     headers = {"Content-Type": "application/json", **headers}
     data = json.dumps(data, cls=client._cls).encode()
     return make_request(client, url=url, query=query, data=data, headers=headers)
+
+
+def format_server_error(error):
+    err = error["message"] if "message" in error else str(error)
+    if "data" in error and error["data"]:
+        if isinstance(error["data"], dict) and "traceback" in error["data"]:
+            err += "\n" + error["data"]["traceback"]
+        else:
+            err += "\n" + str(error["data"])
+    return err

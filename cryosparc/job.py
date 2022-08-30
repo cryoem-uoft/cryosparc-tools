@@ -491,7 +491,7 @@ class ExternalJob(Job):
         """
         Job must have status "running" for this to work
         """
-        url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/output/{name}/dataset"
+        url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/outputs/{name}/dataset"
         with make_request(self.cs.vis, url, data=dataset.stream()) as res:
             result = res.read().decode()
             assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"
