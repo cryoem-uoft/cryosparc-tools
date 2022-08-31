@@ -1,5 +1,8 @@
+"""
+Helper module for reading and writing relion star files.
+"""
 from pathlib import PurePath
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union, overload
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union, overload
 from typing_extensions import Literal
 import numpy as n
 from numpy.core.records import fromrecords
@@ -9,11 +12,9 @@ if TYPE_CHECKING:
 
 from .util import topen
 
-Fmt = Union[str, Sequence[str]]
-
-# Star file field type definitions
-# object types are always strings
-RLN_DTYPES = dict(
+# Available star file fields and their types. Fields marked as type ``object``
+# should always be interepreted as strings.
+RLN_DTYPES: Dict[str, Type[object]] = dict(
     rlnComment=object,
     # Area
     rlnAreaId=int,
@@ -473,11 +474,30 @@ RLN_DTYPES = dict(
 
 def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "nt.NDArray"]:
     """
-    Read the given STAR file into memory.
+    Read the given star file into memory
 
-    Returns a dictionary where each key is a block name found in the star file
-    (e.g., `"particles"` for block `data_particles` and `""` for block `data_`)
-    and each value is a numpy record array of the contents of that block.
+    Returns:
+        Dict[str, nt.NDArray]: a dictionary of numpy record arrays
+
+        Each key is a block name found in the star file (e.g., ``"particles"``
+        for block ``data_particles`` and ``""`` for block ``data_``)
+
+    Examples:
+
+        Read a star file with a sole ``data_`` block
+
+        >>> from cryosparc import star
+        >>> data = star.read('particles.star')['']
+        >>> data
+        array([...])
+
+        Read a star file with multiple blocks
+
+        >>> blocks = star.read('particles_with_optics.star')
+        >>> blocks['particles']
+        array([...])
+        >>> blocks['optics']
+        array([...])
     """
     with topen(file, "r") as f:
         data_blocks = []
@@ -548,24 +568,35 @@ def write(
     labels: Optional[List[str]] = None,
 ):
     """
-    Write a star file with a single `data_` block. Data may be provided as
+    Write a star file with a single "data\\_" block. Data may be provided as
     either a numpy record array or a collection of tuples with a specified
-    labels argume"nt."
+    labels argument.
 
-    Example:
+    Args:
+        file: File path or handle to write
+        data: Numpy record array or Python list of tuples
+        name: Name of data block, to be prepended with "data\\_" when written to
+            the star file. Defaults to "".
+        labels: Names of each column in the data. Not required if given a numpy
+            record array that includes the names. Defaults to None.
 
-        from cryosparc import star
+    Examples:
 
-        star.write('one.star', [
-            (123., 456.),
-            (789., 987.)
-        ], labels=['rlnCoordinateX', 'rlnCoordinateY'])
+        With array of tuples
 
-        arr  = np.core.records.fromrecords([
-            (123., 456.),
-            (789., 987.)
-        ], names=[('rlnCoordinateX', 'f8') , ('rlnCoordinateY', 'f8')])
-        star.write('two.star', arr)
+        >>> from cryosparc import star
+        >>> star.write('one.star', [
+        >>>     (123., 456.),
+        >>>     (789., 987.)
+        >>> ], labels=['rlnCoordinateX', 'rlnCoordinateY'])
+
+        With numpy record array
+
+        >>> arr  = np.core.records.fromrecords([
+        >>>     (123., 456.),
+        >>>     (789., 987.)
+        >>> ], names=[('rlnCoordinateX', 'f8') , ('rlnCoordinateY', 'f8')])
+        >>> star.write('two.star', arr)
     """
     if not isinstance(data, n.ndarray):
         assert labels, f"Cannot write STAR file data with missing labels: {data}"
@@ -578,23 +609,26 @@ def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "nt.N
     """
     Write a single star file composed of multiple data blocks:
 
-    Example optics group + particles:
+    Args:
+        file: File path or handle to write
+        blocks (Mapping[str, nt.NDArray]): Dictionary of record arrays to write
 
-        from cryosparc import star
-        import numpy as np
+    Examples:
 
-        optics = np.core.records.fromrecords([
-            ('mydata', ..., 0.1, 0.1)
-        ], names='rlnOpticsGroupName,...,rlnBeamTiltX,rlnBeamTiltY'])
+        With optics group and particles
 
-        particles = np.core.records.fromrecords([
-            (123., 456.), ... (789., 987.),
-        ], names='rlnCoordinateX,rlnCoordinateY')
-
-        star.write('particles.star', {
-            'optics': optics,
-            'particles': particles
-        }
+        >>> from cryosparc import star
+        >>> import numpy as np
+        >>> optics = np.core.records.fromrecords([
+        >>>     ('mydata', ..., 0.1, 0.1)
+        >>> ], names='rlnOpticsGroupName,...,rlnBeamTiltX,rlnBeamTiltY'])
+        >>> particles = np.core.records.fromrecords([
+        >>>     (123., 456.), ... (789., 987.),
+        >>> ], names='rlnCoordinateX,rlnCoordinateY')
+        >>> star.write('particles.star', {
+        >>>     'optics': optics,
+        >>>     'particles': particles
+        >>> })
     """
     # Check that each value has labels to write
     entries = []
@@ -624,9 +658,7 @@ def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof: Literal
 
 
 def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof=False) -> Tuple[Optional[int], str]:
-    """
-    Read from the given file handle line-by-line until the line m
-    """
+    # Read from the given file handle line-by-line until the line m
     num_lines = 0
     inp = ""
     while True:

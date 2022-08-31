@@ -10,9 +10,53 @@ from urllib.parse import urlencode
 
 class CommandClient:
     """
-    Class of communicating with cryoSPARC's command_core and command_rtp
-    HTTP services
+    Class for communicating with cryoSPARC's ``command_core`` and
+    ``command_vis`` HTTP services.
+
+    Upon initialization, retrieves a list of available JSONRPC_ endpoints and
+    creates corresponding instance methods for each one. Reference of available
+    methods for the ``command_core`` service (a.k.a. "cli") is  available in the
+    `CryoSPARC Guide`_.
+
+    Args:
+        host: Domain name or IP address of cryoSPARC master. Defaults to "localhost".
+        port: Command server base port. Defaults to 39002.
+        url: Base URL path prefix for all requests (e.g., "/v1"). Defaults to "".
+        timeout: How long to wait for a request to complete before timing out,
+            in seconds. Defaults to 300.
+        headers: Default HTTP headers to send with every request. Defaults to {}.
+        cls: Class to handle JSON encoding of special Python objects, such as
+            numpy arrays. Defaults to None.
+
+    Attrs:
+
+        service: name of CryoSPARC service this command client communicates with
+
+    Examples:
+
+        Connect to `command_core`
+
+        >>> from cryosparc.command import CommandClient
+        >>> cli = CommandClient(
+        >>>     host="csmaster",
+        >>>     port=39002,
+        >>>     headers={"License-ID": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+        >>> )
+
+        Queue a job
+
+        >>> cli.enqueue_job(project_uid="P3", job_uid="J42", lane="csworker")
+        "launched"
+
+    .. _JSONRPC:
+        https://www.jsonrpc.org
+
+    .. _CryoSPARC Guide:
+        https://guide.cryosparc.com/setup-configuration-and-management/management-and-monitoring/cli
+
     """
+
+    service: str
 
     class Error(BaseException):
         def __init__(self, parent: "CommandClient", reason: str, *args: object, url: str = "") -> None:
@@ -21,6 +65,7 @@ class CommandClient:
 
     def __init__(
         self,
+        service: str = "command_core",
         host: str = "localhost",
         port: int = 39002,
         url: str = "",
@@ -28,6 +73,7 @@ class CommandClient:
         headers: dict = {},
         cls: Optional[Type[json.JSONEncoder]] = None,
     ):
+        self.service = service
         self._url = f"http://{host}:{port}{url}"
         self._cls = cls
         self._timeout = timeout
@@ -69,17 +115,30 @@ class CommandClient:
 
 
 @contextmanager
-def make_request(
-    client: CommandClient, url="", query: dict = {}, data=None, headers={}, method: str = "post"
-) -> Generator[HTTPResponse, None, None]:
+def make_request(client: CommandClient, url="", query: dict = {}, data=None, headers={}, method: str = "post"):
     """
-    Create a raw request/response context with the given command client.
+    Create a raw HTTP request/response context with the given command client.
 
-    Usage:
+    Args:
+        client: command client instance
+        url: URL to append to the client's initialized URL. Defaults to "".
+        query: Query string parameters. Defaults to {}.
+        data: Request body data. Usually in binary. Defaults to None.
+        headers: HTTP headers. Defaults to {}.
+        method: HTTP method. Defaults to "post".
 
-        cli = CommandClient()
-        with make_request(cli, url="/download_file", query={'path': '/file.txt'}) as response:
-            data = response.read()
+    Raises:
+        CommandClient.Error: General error such as timeout, URL or HTTP
+
+    Yields:
+        http.client.HTTPResponse:  Use with a context manager to get HTTP response
+
+    Example:
+
+        >>> from cryosparc.command import CommandClient, make_request
+        >>> cli = CommandClient()
+        >>> with make_request(cli, url="/download_file", query={'path': '/file.txt'}) as response:
+        >>>     data = response.read()
 
     """
     url = f"{client._url}{url}{'?' + urlencode(query) if query else ''}"
@@ -89,6 +148,7 @@ def make_request(
     error_reason = "<unknown>"
     while attempt < max_attempts:
         request = Request(url, data=data, headers=headers, method=method)
+        response = None
         try:
             with urlopen(request, timeout=client._timeout) as response:
                 yield response
@@ -101,27 +161,38 @@ def make_request(
             )
             attempt += 1
         except HTTPError as error:
-            error_reason = f"HTTP Error {error.code} {error.reason}"
+            error_reason = f"HTTP Error {error.code} {error.reason}; please check cryosparcm log {client.service} for additional information."
             print(f"*** {type(client).__name__}: ({url}) {error_reason}")
-            raise
+            break
         except URLError as error:
             error_reason = f"URL Error {error.reason}"
             print(f"*** {type(client).__name__}: ({url}) {error_reason}")
-            raise
+            break
 
     raise CommandClient.Error(client, error_reason, url=url)
 
 
 def make_json_request(client: CommandClient, url="", query={}, data=None, headers={}):
     """
-    Similar to make_request, except sends request body data JSON and receives
-    arbitrary response.
+    Similar to ``make_request``, except sends request body data JSON and
+    receives arbitrary response.
 
-    Usage:
+    Args:
+        client: command client instance
+        url: URL path to append to the client's initialized root URL. Defaults to "".
+        query: Query string parameters. Defaults to {}.
+        data: JSON-encodable request body. Defaults to None.
+        headers: HTTP headers. Defaults to {}.
 
-        cli = CommandClient()
-        with make_json_request(cli, url="/download_file", data={'path': '/file.txt'}) as response:
-            data = response.read()
+    Yields:
+        http.client.HTTPResponse: Use with a context manager to get HTTP response
+
+    Example:
+
+        >>> from cryosparc.command import CommandClient, make_json_request
+        >>> cli = CommandClient()
+        >>> with make_json_request(cli, url="/download_file", data={'path': '/file.txt'}) as response:
+        >>>     data = response.read()
 
     """
     headers = {"Content-Type": "application/json", **headers}

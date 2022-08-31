@@ -1,3 +1,13 @@
+"""
+Main module exporting the ``CryoSPARC`` class for interfaing with a cryoSPARC
+instance from Python
+
+Example:
+
+    >>> from cryosparc.tools import CryoSPARC
+    >>> cs = CryoSPARC()
+
+"""
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Union
@@ -16,33 +26,46 @@ from .job import Job
 from .util import bopen
 
 
-ONE_MB = 2**20
+ONE_MIB = 2**20
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 
 
 class CryoSPARC:
     """
-    High-level class for interfacing with a running cryoSPARC instance.
+    High-level class for interfacing with a cryoSPARC instance.
 
-    Initialize with the host and base port of the running cryoSPARC instance
-    accessible on the current network.
+    Initialize with the host and base port of the running cryoSPARC instance.
+    This hostname and (at minimum) ``port + 2`` and ``port + 3`` should be
+    accessible on the network.
 
-    Example usage:
+    Args:
+        license: cryoSPARC license key. Defaults to ``os.getenv("CRYOSPARC_LICENSE_ID")``.
+        host: Hostname or IP address running cryoSPARC master. Defaults to "localhost".
+        port: cryoSPARC base port number. Defaults to 39000.
+        timeout: Timeout error for HTTP requests to cryoSPARC command services. Defaults to 300.
 
+    Attributes:
+        cli (CommandClient): HTTP/JSONRPC client for ``command_core`` service (port + 2).
+        vis (CommandClient): HTTP/JSONRPC client for ``command_vis`` service (port + 3).
+
+    Examples:
+        Load project job and micrographs
+
+        >>> from cryosparc import CryoSPARC
+        >>> cs = CryoSPARC(port=39000)
+        >>> project = cs.find_project('P3')
+        >>> job = project.find_job('J42')
+        >>> micrographs = job.load_output('exposures')
+
+        Remove corrupt exposures (assumes ``is_mic_corrupt`` function)
+
+        >>> filtered_micrographs = micrographs.query(is_mic_corrupt)
+        >>> job.save_output('micrographs', filtered_micrographs)
     ```
-    from cryosparc import CryoSPARC
-
-    cs = CryoSPARC(port=39000)
-    project = cs.find_project('P3')
-    job = project.find_job('J42')
-    micrographs = job.load_output('exposures')
-
-    # Remove corrupt exposures
-    filtered_micrographs = micrographs.query(is_mic_corrupt)
-    job.save_output('micrographs', filtered_micrographs)
-    ```
-
     """
+
+    cli: CommandClient
+    vis: CommandClient
 
     def __init__(
         self,
@@ -53,10 +76,20 @@ class CryoSPARC:
     ):
         assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified cryoSPARC license ID {license}"
 
-        self.cli = CommandClient(host=host, port=port + 2, headers={"License-ID": license}, timeout=timeout)
-        self.vis = CommandClient(host=host, port=port + 3, headers={"License-ID": license}, timeout=timeout)
+        self.cli = CommandClient(
+            service="command_core", host=host, port=port + 2, headers={"License-ID": license}, timeout=timeout
+        )
+        self.vis = CommandClient(
+            service="command_vis", host=host, port=port + 3, headers={"License-ID": license}, timeout=timeout
+        )
 
     def test_connection(self):
+        """
+        Verify connection to cryoSPARC command services
+
+        Returns:
+            bool: True if connection succeeded, False otherwise
+        """
         if self.cli.test_connection():  # type: ignore
             print(f"Connection succeeded to cryoSPARC command_core at {self.cli._url}")
         else:
@@ -73,25 +106,56 @@ class CryoSPARC:
         return True
 
     def find_project(self, project_uid: str) -> Project:
+        """
+        Get a project by its unique ID.
+
+        Args:
+            project_uid: The project UID
+
+        Returns:
+            Project: project instance
+        """
         project = Project(self, project_uid)
         project.refresh()
         return project
 
     def find_job(self, project_uid: str, job_uid: str) -> Job:
+        """
+        Get a job by its unique project and job ID.
+
+        Args:
+            job_uid: The job UID
+            project_uid: The project UID
+
+        Returns:
+            Job: job instance
+        """
         job = Job(self, project_uid, job_uid)
         job.refresh()
         return job
 
     def download(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
-        Open a file in the current project for reading. Example usage:
+        Open a file in the current project for reading. Use this method to get
+        files from a remote cryoSPARC instance whose the project directories are
+        not available on the client file system,
 
-        ```
-        cs = CryoSPARC()
-        with cs.download('P3', 'J42/particles.cs') as req:
-            particles = Dataset.load(req)
-        print(particles)
-        ```
+        Args:
+            project_uid: Short unique ID of cryoSPARC project, e.g., "P3"
+            path: Relative path to file in project directory
+
+        Yields:
+            HTTPResponse: Use a context manager to read the file from the
+            request body
+
+        Examples:
+
+            Download a job's metadata
+
+            >>> cs = CryoSPARC()
+            >>> with cs.download('P3', 'J42/job.json') as res:
+            >>>     job_data = json.loads(res.read())
+
         """
         data = {"project_uid": project_uid, "path_rel": str(path)}
         return make_json_request(self.vis, "/get_project_file", data=data)
@@ -102,10 +166,10 @@ class CryoSPARC:
         """
         with self.download(project_uid, path) as response:
             with bopen(target, "wb") as f:
-                data = response.read(ONE_MB)
+                data = response.read(ONE_MIB)
                 while data:
                     f.write(data)
-                    data = response.read(ONE_MB)
+                    data = response.read(ONE_MIB)
         return target
 
     def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]):
@@ -117,26 +181,26 @@ class CryoSPARC:
                 return Dataset.load(response)
 
             # Numpy format, cannot load directly because requires seekable
-            if size and int(size) < ONE_MB:
-                # Smaller than 1MB, just read all into memory and load
+            if size and int(size) < ONE_MIB:
+                # Smaller than 1MiB, just read all into memory and load
                 return Dataset.load(BytesIO(response.read()))
 
-            # Read into temporary file in 1MB chunks. Load from that temporary file
+            # Read into temporary file in 1MiB chunks. Load from that temporary file
             with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
-                data = response.read(ONE_MB)
+                data = response.read(ONE_MIB)
                 while data:
                     f.write(data)
-                    data = response.read(ONE_MB)
+                    data = response.read(ONE_MIB)
                 f.seek(0)
                 return Dataset.load(f)
 
     def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]):
         with self.download(project_uid, path) as response:
             with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
-                data = response.read(ONE_MB)
+                data = response.read(ONE_MIB)
                 while data:
                     f.write(data)
-                    data = response.read(ONE_MB)
+                    data = response.read(ONE_MIB)
                 f.seek(0)
                 return mrc.read(f)  # FIXME: Optimize file reading
 
