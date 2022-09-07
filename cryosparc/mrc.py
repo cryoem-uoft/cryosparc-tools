@@ -9,15 +9,29 @@ if TYPE_CHECKING:
 
 from .util import bopen
 
-DTType = Union[n.uint8, n.int16, n.float32, n.uint16, n.float16]
-
 
 class DT(int, Enum):
+    """
+    MRC data type enumerations
+    """
+
     UINT8 = 0
     INT16 = 1
     FLOAT32 = 2
     UINT16 = 6
     FLOAT16 = 12
+
+
+VOXEL_TYPES = {
+    "16 BIT FLOAT": DT.FLOAT16,
+    "32 BIT FLOAT": DT.FLOAT32,
+    "SIGNED 16 BIT INTEGER": DT.INT16,
+    "UNSIGNED 8 BIT INTEGER": DT.UINT8,
+    "UNSIGNED 16 BIT INTEGER": DT.UINT16,
+}
+"""
+Map from EPU voxelType values to integer data types
+"""
 
 
 class Header(NamedTuple):
@@ -63,7 +77,7 @@ class Header(NamedTuple):
     """
 
 
-DT_TO_DATATYPE: Dict[DT, Type[DTType]] = {
+DT_TO_DATATYPE = {
     DT.UINT8: n.uint8,
     DT.INT16: n.int16,
     DT.FLOAT32: n.float32,
@@ -87,7 +101,7 @@ def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "nt.NDArray"]:
         data = n.fromfile(f, dtype=dtype, count=header.nz * header.ny * header.nx)
         data = data.reshape(header.nz, header.ny, header.nx)
 
-        if dtype == n.float16:
+        if dtype is n.float16:
             data = data.astype(n.float32)
 
         return header, data

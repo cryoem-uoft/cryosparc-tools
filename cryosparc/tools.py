@@ -10,10 +10,11 @@ Example:
 """
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Union
+from typing import IO, TYPE_CHECKING, Iterable, Optional, Union
 import os
 import re
 import tempfile
+import numpy as n
 
 if TYPE_CHECKING:
     import numpy.typing as nt  # type: ignore
@@ -28,6 +29,17 @@ from .util import bopen
 
 ONE_MIB = 2**20
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
+SUPPORTED_EXPOSURE_FORMATS = {
+    "MRC",
+    "MRCS",
+    "TIFF",
+    "CMRCBZ2",
+    "MRCBZ2",
+    "EER",
+}
+"""
+Supported micrograph file formats.
+"""
 
 
 class CryoSPARC:
@@ -245,3 +257,46 @@ class CryoSPARC:
             mrc.write(f, data, psize)
             f.seek(0)
             return self.upload(project_uid, path, f)
+
+
+def get_import_signatures(abs_paths: Union[str, Iterable[str], "nt.ArrayLike"]):
+    """
+    Get list of import signatures for the given path or paths.
+
+    Args:
+        abs_paths (str | Iterable[str]): Absolute path or list of file paths
+
+    Returns:
+        List[int]: List of import signatures as 64-bit numpy integers
+    """
+    from hashlib import sha1
+
+    if isinstance(abs_paths, str):
+        abs_paths = [abs_paths]
+
+    return [n.frombuffer(sha1(path.encode()).digest()[:8], dtype=n.uint64)[0] for path in abs_paths]
+
+
+def get_exposure_format(data_format: str, voxel_type: Optional[str] = None) -> str:
+    """
+    Get the format for an exposure type were
+
+    Args:
+        data_format (str): One of `SUPPORTED_EXPOSURE_FORMATS` such as `"TIFF"`
+            or `"MRC"`. The value of the `<dataFormat>` tag in an EPU XML file.
+        voxel_type (str, optional): The value of the `<voxelType>` tag in an EPU
+            file such as `"32 BIT FLOAT"`. Required when `data_format` is `MRC`
+            or `MRCS`. Defaults to None.
+
+    Returns:
+        str: The format string to save in a CryoSPARC exposure dataset. e.g.,
+            `"TIFF"` or `"MRC/2"`
+    """
+    assert data_format in SUPPORTED_EXPOSURE_FORMATS, f"Unsupported exposure format {data_format}"
+    if data_format not in {"MRC", "MRCS"}:
+        return data_format
+
+    assert (
+        voxel_type and voxel_type in mrc.VOXEL_TYPES
+    ), f'Unsupported voxel type "{voxel_type}" specified with MRC exposure format'
+    return f"MRC/{mrc.VOXEL_TYPES[voxel_type]}"
