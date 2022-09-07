@@ -3,7 +3,7 @@ from io import BytesIO
 import json
 from pathlib import PurePath, PurePosixPath
 from time import sleep
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, TypedDict, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, TypedDict, Union, overload
 from typing_extensions import Literal
 from cryosparc.command import make_json_request, make_request
 
@@ -421,6 +421,29 @@ class ExternalJob(Job):
         self.refresh()
         return self.doc["output_result_groups"][-1]["name"]
 
+    @overload
+    def add_output(
+        self,
+        type: Datatype,
+        name: Optional[str] = ...,
+        slots: List[Union[str, Datafield]] = ...,
+        passthrough: Union[str, Literal[False]] = ...,
+        title: Optional[str] = None,
+    ) -> str:
+        ...
+
+    @overload
+    def add_output(
+        self,
+        type: Datatype,
+        name: Optional[str] = ...,
+        slots: List[Union[str, Datafield]] = ...,
+        passthrough: Union[str, Literal[False]] = ...,
+        title: Optional[str] = None,
+        alloc: int = ...,
+    ) -> Dataset:
+        ...
+
     def add_output(
         self,
         type: Datatype,
@@ -428,14 +451,16 @@ class ExternalJob(Job):
         slots: List[Union[str, Datafield]] = [],
         passthrough: Union[str, Literal[False]] = False,
         title: Optional[str] = None,
-    ):
+        alloc: Optional[int] = None,
+    ) -> Union[str, Dataset]:
         """
         Add an output slot to the current job.
 
         One of `type` or `passthrough` must be specified, where `passthrough` is
         the name of an existing input (added via `add_input`).
 
-        Returns the name of the created output
+        Returns the name of the created output. If `init` is set to an integer,
+        returns blank dataset initialized with the given number of items.
         """
         self.cs.vis.add_external_job_output(  # type: ignore
             project_uid=self.project_uid,
@@ -447,7 +472,8 @@ class ExternalJob(Job):
             title=title,
         )
         self.refresh()
-        return self.doc["output_result_groups"][-1]["name"]
+        name = self.doc["output_result_groups"][-1]["name"]
+        return name if alloc is None else self.alloc_output(name, alloc)
 
     def connect(
         self,
@@ -477,11 +503,10 @@ class ExternalJob(Job):
         self.refresh()
         return status
 
-    def init_output(self, name: str, size: int = 0):
+    def alloc_output(self, name: str, size: int = 0):
         """
         Allocate an empty dataset for the given output with the given name.
         Initialize with the given number of empty rows.
-        FIXME: Rename to clarify that this works on datasets
         """
         fields = self.cs.cli.job_output_fields(self.project_uid, self.uid, name)  # type: ignore
         fields = decode_fields(fields)
