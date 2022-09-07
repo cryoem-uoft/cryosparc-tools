@@ -5,10 +5,17 @@ format: jb-book
 root: intro
 parts:
 - caption: Examples
+  numbered: True
   chapters:
-  - file: examples/notebooks
-  - file: examples/markdown-notebooks
   - file: examples/recenter-particles
+  - file: examples/cryolo
+  - file: examples/hi-res-2d-classes
+  - file: examples/magnification
+  - file: examples/xml-exposure-groups
 - caption: API Reference
   chapters:
   - file: api/index
+    sections:
+    - file: api/tools
+    - file: api/command
+    - file: api/star

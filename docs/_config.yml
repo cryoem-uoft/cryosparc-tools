@@ -31,3 +31,9 @@ html:
   favicon: favicon.png
   use_issues_button: true
   use_repository_button: true
+
+sphinx:
+  extra_extensions:
+    - 'sphinx.ext.autodoc'
+    - 'sphinx.ext.napoleon'
+    - 'autodocsumm'

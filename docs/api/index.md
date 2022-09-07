@@ -1,1 +1,5 @@
-# API Reference
+Modules
+=======
+
+```{tableofcontents}
+```
