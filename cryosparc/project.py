@@ -7,7 +7,7 @@ from .row import R
 from .spec import Datafield, Datatype
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray  # type: ignore
     from .tools import CryoSPARC
 
 
@@ -158,5 +158,5 @@ class Project:
     def upload_dataset(self, path: Union[str, PurePosixPath], dset: Dataset):
         return self.cs.upload_dataset(self.uid, path, dset)
 
-    def upload_mrc(self, path: Union[str, PurePosixPath], data: "nt.NDArray", psize: float):
+    def upload_mrc(self, path: Union[str, PurePosixPath], data: "NDArray", psize: float):
         return self.cs.upload_mrc(self.uid, path, data, psize)

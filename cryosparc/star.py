@@ -8,7 +8,7 @@ import numpy as n
 from numpy.core.records import fromrecords
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray  # type: ignore
 
 from .util import topen
 
@@ -472,7 +472,7 @@ RLN_DTYPES: Dict[str, Type[object]] = dict(
 )
 
 
-def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "nt.NDArray"]:
+def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
     """
     Read the given star file into memory
 
@@ -500,7 +500,7 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "nt.NDArray"]:
         array([...])
     """
     with topen(file, "r") as f:
-        data_blocks = []
+        data_blocks: List[tuple] = []
         line = 0
 
         # Stage 1: Determine available fields the STAR file and what line the
@@ -530,7 +530,7 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "nt.NDArray"]:
             ), f"Cannot find start of label names in the data block starting at line {dblk_start} in the STAR file."
             line += num
             skiprows += num
-            dtype = []
+            dtype: List[Tuple[str, Type[object]]] = []
             while val:
                 val = val.strip()
                 if val.startswith("_"):
@@ -605,7 +605,7 @@ def write(
     return write_blocks(file, {name: data})
 
 
-def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "nt.NDArray"]):
+def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDArray"]):
     """
     Write a single star file composed of multiple data blocks:
 
@@ -665,11 +665,6 @@ def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof=False) -
         num_lines += 1
         inp = f.readline()
         if inp == "":  # end of file
-            if not allow_eof:
-                num_lines = None
-            break
-        elif line_test(inp):
-            # found the test condition
-            break
-
-    return num_lines, inp
+            return (num_lines if allow_eof else None), inp
+        elif line_test(inp):  # found the test condition
+            return num_lines, inp

@@ -3,8 +3,8 @@ from io import BytesIO
 import json
 from pathlib import PurePath, PurePosixPath
 from time import sleep
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, TypedDict, Union, overload
-from typing_extensions import Literal
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, Union, overload
+from typing_extensions import Literal, TypedDict
 
 from .command import make_json_request, make_request
 from .dataset import Dataset
@@ -14,7 +14,7 @@ from .util import bopen, first
 
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray
     from .tools import CryoSPARC
 
 
@@ -325,7 +325,7 @@ class Job:
         path = PurePosixPath(self.uid) / path
         return self.cs.upload_dataset(self.project_uid, path, dset)
 
-    def upload_mrc(self, path: Union[str, PurePosixPath], data: "nt.NDArray", psize: float):
+    def upload_mrc(self, path: Union[str, PurePosixPath], data: "NDArray", psize: float):
         path = PurePosixPath(self.uid) / path
         return self.cs.upload_mrc(self.project_uid, path, data, psize)
 

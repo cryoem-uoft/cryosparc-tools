@@ -24,13 +24,13 @@ from typing import (
 from typing_extensions import Literal
 import numpy as n
 import numpy.core.records
-import snappy
+import snappy  # type: ignore
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
 
 from .data import Data
-from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
+from .dtype import DType, Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, hashcache, u32bytesle, u32intle
@@ -76,6 +76,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         >>>         f"at index {particle['blob/idx']}")
 
     """
+
+    _row_class: Type[R]
+    _rows: Optional[Spool]
+    _data: Data
 
     @classmethod
     def allocate(cls, size: int = 0, fields: List[Field] = []):
@@ -312,7 +316,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         ), "Cannot innerjoin datasets with fields of the same name but different types"
 
         # Get common UIDs
-        common_uids = datasets[0]["uid"]
+        common_uids = n.array(datasets[0]["uid"], copy=False)
         for dset in datasets[1:]:
             common_uids = n.intersect1d(common_uids, dset["uid"], assume_unique=assume_unique)
 
@@ -420,11 +424,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         allocate: Union[
             int,
             "Dataset",
-            "nt.NDArray",
-            Mapping[str, "nt.ArrayLike"],
-            List[Tuple[str, "nt.ArrayLike"]],
+            "NDArray",
+            Mapping[str, "ArrayLike"],
+            List[Tuple[str, "ArrayLike"]],
         ] = 0,
-        row_class: Type[R] = Row,
+        row_class: Type[R] = Row
     ):
         # Always initialize with at least a UID field
         super().__init__()
@@ -506,13 +510,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         self.drop_fields([key])
 
-    def __eq__(self, other: "Dataset"):
+    def __eq__(self, other: object):
         """
         Check that two datasets share the same fields in the same order and that
         those fields have the same values.
         """
         return (
-            type(self) == type(other)
+            isinstance(other, type(self))
+            and type(self) == type(other)
             and len(self) == len(other)
             and self.descr() == other.descr()
             and all(n.array_equal(c1, c2) for c1, c2 in zip(self.values(), other.values()))
@@ -570,13 +575,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         ...
 
     @overload
-    def add_fields(self, fields: List[str], dtypes: Union[str, List["nt.DTypeLike"]]) -> "Dataset[R]":
+    def add_fields(self, fields: List[str], dtypes: Union[str, List["DTypeLike"]]) -> "Dataset[R]":
         ...
 
     def add_fields(
         self,
         fields: Union[List[str], List[Field]],
-        dtypes: Union[str, List["nt.DTypeLike"], Literal[None]] = None,
+        dtypes: Union[str, List["DTypeLike"], Literal[None]] = None,
     ) -> "Dataset[R]":
         """
         Ensures the dataset has the given fields.
@@ -620,7 +625,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes))
 
     def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
-        test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))
+        test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))  # type: ignore
         return self.filter_fields(test)
 
     def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]]):
@@ -665,7 +670,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
         return numpy.core.records.fromarrays(arrays, dtype=dtype)
 
-    def query(self, query: Union[Dict[str, "nt.ArrayLike"], Callable[[R], bool]]):
+    def query(self, query: Union[Dict[str, "ArrayLike"], Callable[[R], bool]]):
         """
         Get a subset of data based on whether the fields match the values in the
         given query. They query is either a test function that gets called on
@@ -687,7 +692,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             mask = [query(row) for row in self.rows()]
             return self.mask(mask)
 
-    def query_mask(self, query: Dict[str, "nt.ArrayLike"], invert=False) -> "nt.NDArray[n.bool_]":
+    def query_mask(self, query: Dict[str, "ArrayLike"], invert=False) -> "NDArray[n.bool_]":
         """
         Get a boolean array representing the items to keep in the dataset that
         match the given query filter. See `query` method for example query
@@ -707,10 +712,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         return self.indexes([row.idx for row in rows])
 
-    def indexes(self, indexes: Union[List[int], "nt.NDArray"]):
+    def indexes(self, indexes: Union[List[int], "NDArray"]):
         return type(self)([(f, col[indexes]) for f, col in self.items()])
 
-    def mask(self, mask: Union[List[bool], "nt.NDArray"]):
+    def mask(self, mask: Union[List[bool], "NDArray"]):
         """
         Get a subset of the dataset that matches the given mask of rows
         """
@@ -743,7 +748,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         cols = self.cols()
         col = cols[field]
-        idxs = {}
+        idxs: Dict[Any, List[int]] = {}
         for idx, val in enumerate(col):
             curr = idxs.get(val, [])
             curr.append(idx)
@@ -751,7 +756,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return {val: self.indexes(idx) for val, idx in idxs.items()}
 
-    def replace(self, query: Dict[str, "nt.ArrayLike"], *others: "Dataset", assume_disjoint=False, assume_unique=False):
+    def replace(self, query: Dict[str, "ArrayLike"], *others: "Dataset", assume_disjoint=False, assume_unique=False):
         """
         Replaces values matching the given query with others. The query is a
         key/value map of allowed field values. The values can be either a single

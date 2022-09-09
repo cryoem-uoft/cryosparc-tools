@@ -3,7 +3,7 @@ import json
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray, DTypeLike  # type: ignore
 
 Shape = Tuple[int, ...]
 """A numpy shape tuple from ndarray.shape"""
@@ -32,7 +32,7 @@ Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
 """
 
 
-def makefield(name: str, dtype: "nt.DTypeLike") -> Field:
+def makefield(name: str, dtype: "DTypeLike") -> Field:
     dt = n.dtype(dtype)
     return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)
 
@@ -42,12 +42,12 @@ def fielddtype(field: Field) -> DType:
     return (dt, rest[0]) if rest else dt
 
 
-def arraydtype(a: "nt.NDArray") -> DType:
+def arraydtype(a: "NDArray") -> DType:
     assert len(a.dtype.descr) == 1, "Cannot get dtype from record array"
     return (a.dtype.str, a.shape[1:]) if len(a.shape) > 1 else a.dtype.str
 
 
-def dtypestr(dtype: "nt.DTypeLike") -> str:
+def dtypestr(dtype: "DTypeLike") -> str:
     dt = n.dtype(dtype)
     if dt.shape:
         shape = ",".join(map(str, dt.shape))
@@ -65,4 +65,4 @@ def decode_fields(data: Union[bytes, list]) -> List[Field]:
         l = json.loads(data) if isinstance(data, bytes) else data
         return [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in l]
     except:
-        raise ValueError(f"Incorrect dataset field format {data}")
+        raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}")

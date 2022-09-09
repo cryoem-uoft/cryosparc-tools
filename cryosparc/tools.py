@@ -17,7 +17,7 @@ import tempfile
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray  # type: ignore
 
 from . import mrc
 from .command import CommandClient, make_json_request, make_request
@@ -248,7 +248,7 @@ class CryoSPARC:
             f.seek(0)
             return self.upload(project_uid, path, f)
 
-    def upload_mrc(self, project_uid: str, path: Union[str, PurePosixPath], data: "nt.NDArray", psize: float):
+    def upload_mrc(self, project_uid: str, path: Union[str, PurePosixPath], data: "NDArray", psize: float):
         """
         Similar to upload() method, but works with MRC numpy arrays
         """
@@ -258,7 +258,7 @@ class CryoSPARC:
             return self.upload(project_uid, path, f)
 
 
-def get_import_signatures(abs_paths: Union[str, Iterable[str], "nt.ArrayLike"]):
+def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):
     """
     Get list of import signatures for the given path or paths.
 

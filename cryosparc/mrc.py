@@ -1,11 +1,11 @@
 from enum import Enum
 from pathlib import PurePath
-from typing import IO, TYPE_CHECKING, Dict, NamedTuple, Tuple, Type, Union
+from typing import IO, TYPE_CHECKING, NamedTuple, Tuple, Union
 
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray  # type: ignore
 
 from .util import bopen
 
@@ -88,7 +88,7 @@ DT_TO_DATATYPE = {
 DATATYPE_TO_DT = {v: k for k, v in DT_TO_DATATYPE.items()}
 
 
-def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "nt.NDArray"]:
+def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "NDArray"]:
     """
     Read a .mrc file at the given file into a numpy array. Returns the MRC
     header and the resulting array.
@@ -107,7 +107,7 @@ def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "nt.NDArray"]:
         return header, data
 
 
-def write(file: Union[str, PurePath, IO[bytes]], data: "nt.NDArray", psize: float):
+def write(file: Union[str, PurePath, IO[bytes]], data: "NDArray", psize: float):
     """
     Write the given ndarray data to a file. Specify a pixel size for the mrc
     file as the last argument
@@ -130,7 +130,7 @@ def _read_header(file: IO) -> Header:
     assert int(datatype) in DT_TO_DATATYPE, f"Unknown mrc datatype {datatype}"
 
     xlen, ylen, zlen = header_float32[10:13]
-    origin = header_float32[49:52].tolist()
+    origin = (header_float32[49], header_float32[50], header_float32[51])
     nsymbt = header_int32[23:24][0]
 
     return Header(
@@ -141,20 +141,20 @@ def _read_header(file: IO) -> Header:
         xlen=float(xlen),
         ylen=float(ylen),
         zlen=float(zlen),
-        origin=tuple(origin),
+        origin=origin,
         nsymbt=int(nsymbt),
     )
 
 
-def _write_header(file: IO, data: "nt.NDArray", psize: float):
-    assert data.dtype in DATATYPE_TO_DT, "Unsupported MRC dtype: {0}".format(data.dtype)
+def _write_header(file: IO, data: "NDArray", psize: float):
+    assert data.dtype.type in DATATYPE_TO_DT, "Unsupported MRC dtype: {0}".format(data.dtype)
 
     header_int32 = n.zeros(256, dtype=n.int32)  # 1024 byte header
     header_float32 = header_int32.view(n.float32)
 
     # data is C order: nz, ny, nx
     header_int32[:3] = data.shape[::-1]  # nx, ny, nz
-    header_int32[3] = DATATYPE_TO_DT[data.dtype]
+    header_int32[3] = DATATYPE_TO_DT[data.dtype.type]
     header_int32[7:10] = data.shape[::-1]  # mx, my, mz (grid size)
     header_float32[10:13] = [psize * i for i in data.shape[::-1]]  # xlen, ylen, zlen
     header_float32[13:16] = 90.0  # CELLB

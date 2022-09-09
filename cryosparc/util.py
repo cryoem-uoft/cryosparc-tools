@@ -19,7 +19,7 @@ from typing_extensions import Literal
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
 
 from .dtype import Shape
 
@@ -145,7 +145,7 @@ class BinaryIteratorIO(BinaryIO):
         return b"".join(l)
 
 
-class AsyncBinaryIteratorIO(BinaryIO):
+class AsyncBinaryIteratorIO:
     """
     Similar to `BinaryIteratorIO` except the iterator yields bytes asynchronously.
 
@@ -196,7 +196,7 @@ class AsyncBinaryIteratorIO(BinaryIO):
         l = []
         if n is None or n < 0:
             while True:
-                m = self._read1()
+                m = await self._read1()
                 if not m:
                     break
                 l.append(m)
@@ -275,7 +275,7 @@ def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
         yield file
 
 
-def downsample(arr: "nt.NDArray", factor: int = 2):
+def downsample(arr: "NDArray", factor: int = 2):
     """
     Downsample a micrograph by the given factor
     """
@@ -291,7 +291,7 @@ def downsample(arr: "nt.NDArray", factor: int = 2):
     return out.reshape(shape)
 
 
-def padarray(arr: "nt.NDArray", dim: Optional[int] = None, val: n.number = n.float32(0)):
+def padarray(arr: "NDArray", dim: Optional[int] = None, val: n.number = n.float32(0)):
     """
     Pad the given 2D or 3D array so that the x and y dimensions are equal to the
     given dimension. If not dimension is given, will use the maximum of the
@@ -310,7 +310,7 @@ def padarray(arr: "nt.NDArray", dim: Optional[int] = None, val: n.number = n.flo
     return n.reshape(res, res.shape[-2:]) if nz == 1 else res
 
 
-def trimarray(arr: "nt.NDArray", shape: Shape):
+def trimarray(arr: "NDArray", shape: Shape):
     """
     Crop the given 2D or 3D array into the given shape
     """
@@ -326,7 +326,7 @@ def trimarray(arr: "nt.NDArray", shape: Shape):
     return n.reshape(res, res.shape[-2:]) if z == 1 else res
 
 
-def lowpass(arr: "nt.NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, order: float = 1.0):
+def lowpass(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, order: float = 1.0):
     """
     Apply butterworth lowpass filter to the 2D or 3D array data with the given
     pixel size (`psize_A`). `cutoff_resolution_A` should be a non-negative

@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Dict, List, Mapping, Optional, Type, Union, ov
 import numpy as n
 
 if TYPE_CHECKING:
-    import numpy.typing as nt  # type: ignore
+    from numpy.typing import DTypeLike  # type: ignore
 
-from .dtype import DType, Field, Shape
-from . import core
+from .dtype import DType, Field, Shape, fielddtype
+from . import core  # type: ignore
 
 
 Int = Union[int, n.int8, n.int16, n.int32, n.int64]
@@ -113,8 +113,8 @@ class Data(Mapping[str, DType]):
         shape = self.getshape(k)
         return (dt.str, shape) if shape else dt.str
 
-    def __contains__(self, field: str):
-        return self.type(field) > 0
+    def __contains__(self, field: object):
+        return self.type(str(field)) > 0
 
     def __iter__(self):
         for i in range(self.ncol()):
@@ -144,9 +144,6 @@ class Data(Mapping[str, DType]):
     def type(self, field: str) -> int:
         return core.dset_type(self.handle, field)
 
-    def get(self, field: str) -> int:
-        return core.dset_get(self.handle, field)
-
     def getshape(self, field: str) -> Shape:
         val: int = core.dset_getshp(self.handle, field)
         shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
@@ -160,13 +157,13 @@ class Data(Mapping[str, DType]):
         ...
 
     @overload
-    def addcol(self, field: str, dtype: "nt.DTypeLike") -> bool:
+    def addcol(self, field: str, dtype: "DTypeLike") -> bool:
         ...
 
-    def addcol(self, field: Union[str, Field], dtype: Optional["nt.DTypeLike"] = None) -> bool:
+    def addcol(self, field: Union[str, Field], dtype: Optional["DTypeLike"] = None) -> bool:
         if isinstance(field, tuple):
-            field, *dt = field
-            dt = n.dtype(dt[0]) if len(dt) == 1 else n.dtype(tuple(dt))
+            dt = n.dtype(fielddtype(field))
+            field = field[0]
         else:
             dt = n.dtype(dtype)
 

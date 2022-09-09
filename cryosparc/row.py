@@ -28,7 +28,7 @@ class Row(Mapping):
     def __setitem__(self, key: str, value):
         self.cols[key][self.idx] = value
 
-    def __contains__(self, key: str):
+    def __contains__(self, key: object):
         return key in self.cols
 
     def __iter__(self):
@@ -144,7 +144,7 @@ class Spool(List[R], Generic[R]):
         return d1, d2
 
     def split_by(self, field: str) -> Dict[Any, List[R]]:
-        items = {}
+        items: Dict[Any, List[R]] = {}
         for item in self:
             val = item[field]
             curr = items.get(val, [])
