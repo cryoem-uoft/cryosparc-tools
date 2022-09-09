@@ -51,10 +51,10 @@ class CryoSPARC:
     accessible on the network.
 
     Args:
-        license: cryoSPARC license key. Defaults to ``os.getenv("CRYOSPARC_LICENSE_ID")``.
-        host: Hostname or IP address running cryoSPARC master. Defaults to "localhost".
-        port: cryoSPARC base port number. Defaults to 39000.
-        timeout: Timeout error for HTTP requests to cryoSPARC command services. Defaults to 300.
+        license (str, optional): cryoSPARC license key. Defaults to ``os.getenv("CRYOSPARC_LICENSE_ID")``.
+        host (str, optional): Hostname or IP address running cryoSPARC master. Defaults to "localhost".
+        port (int, optional): cryoSPARC base port number. Defaults to 39000.
+        timeout (int, optional): Timeout error for HTTP requests to cryoSPARC command services. Defaults to 300.
 
     Attributes:
         cli (CommandClient): HTTP/JSONRPC client for ``command_core`` service (port + 2).
@@ -73,7 +73,6 @@ class CryoSPARC:
 
         >>> filtered_micrographs = micrographs.query(is_mic_corrupt)
         >>> job.save_output('micrographs', filtered_micrographs)
-    ```
     """
 
     cli: CommandClient
@@ -122,7 +121,7 @@ class CryoSPARC:
         Get a project by its unique ID.
 
         Args:
-            project_uid: The project UID
+            project_uid (str): The project UID
 
         Returns:
             Project: project instance
@@ -136,8 +135,8 @@ class CryoSPARC:
         Get a job by its unique project and job ID.
 
         Args:
-            job_uid: The job UID
-            project_uid: The project UID
+            project_uid (str): The project UID
+            job_uid (str): The job UID
 
         Returns:
             Job: job instance
@@ -153,8 +152,8 @@ class CryoSPARC:
         not available on the client file system,
 
         Args:
-            project_uid: Short unique ID of cryoSPARC project, e.g., "P3"
-            path: Relative path to file in project directory
+            project_uid (str): Short unique ID of cryoSPARC project, e.g., "P3"
+            path (str | PurePosixPath): Relative path to file in project directory
 
         Yields:
             HTTPResponse: Use a context manager to read the file from the

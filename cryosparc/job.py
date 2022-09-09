@@ -5,13 +5,13 @@ from pathlib import PurePath, PurePosixPath
 from time import sleep
 from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, TypedDict, Union, overload
 from typing_extensions import Literal
-from cryosparc.command import make_json_request, make_request
 
-from cryosparc.dtype import decode_fields
-
-from .spec import Datatype, Datafield, Datatype, JobDocument
-from .util import bopen, first
+from .command import make_json_request, make_request
 from .dataset import Dataset
+from .spec import Datatype, Datafield, JobDocument
+from .dtype import decode_fields
+from .util import bopen, first
+
 
 if TYPE_CHECKING:
     import numpy.typing as nt  # type: ignore
@@ -64,8 +64,8 @@ class AssetFileData(TypedDict):
 
 class Job:
     """
-    Immutable reference to a job in cryoSPARC with ability to load inputs and
-    outputs
+    Accessor class to a job in CryoSPARC with ability to load inputs and
+    outputs, add to job log, download job files
     """
 
     _doc: Optional[JobDocument] = None

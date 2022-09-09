@@ -1,11 +1,10 @@
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, List, Optional, Tuple, Union
 
-from cryosparc.util import first
-
-from .dataset import Dataset
-from .spec import Datafield, Datatype
 from .job import Job, ExternalJob
+from .dataset import Dataset
+from .row import R
+from .spec import Datafield, Datatype
 
 if TYPE_CHECKING:
     import numpy.typing as nt  # type: ignore
@@ -13,6 +12,11 @@ if TYPE_CHECKING:
 
 
 class Project:
+    """
+    Accessor class for CryoSPARC projects with ability to add workspaces, jobs
+    and upload/download project files.
+    """
+
     def __init__(self, cs: "CryoSPARC", uid: str) -> None:
         self.cs = cs
         self.uid = uid
@@ -71,7 +75,7 @@ class Project:
 
     def save_external_result(
         self,
-        dataset: Dataset,
+        dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
         slots: Optional[List[Union[str, Datafield]]] = None,
@@ -92,28 +96,22 @@ class Project:
 
         Returns UID of the External job where the results were saved.
 
-        Example - Save all particle data:
+        Examples:
+            Save all particle data
+            >>> particles = Dataset()
+            >>> juid = project.save_external_result(particles, 'particle', workspace_uid='W1')
 
-        ```
-        particles = Dataset()
-        juid = project.save_external_result(particles, 'particle', workspace_uid='W1')
-        ```
-
-        Example - Save particle locations that inherit passthrough slots from
-        a parent job:
-
-        ```
-        dataset = Dataset()
-        juid = project.save_external_result(
-            dataset=particles,
-            type='particle',
-            name='particles',
-            slots=['location'],
-            passthrough=('J42', 'selected_particles'),
-            user='ali@example.com'
-            title='Re-centered particles'
-        )
-        ```
+            Save particle locations that inherit passthrough slots from a parent job
+            >>> dataset = Dataset()
+            >>> juid = project.save_external_result(
+            ...     dataset=particles,
+            ...     type='particle',
+            ...     name='particles',
+            ...     slots=['location'],
+            ...     passthrough=('J42', 'selected_particles'),
+            ...     user='ali@example.com'
+            ...     title='Re-centered particles'
+            ... )
         """
         # Check slot names if present. If not provided, use all slots specified
         # in the dataset prefixes.

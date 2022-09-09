@@ -106,9 +106,9 @@ class Spool(List[R], Generic[R]):
 
     def split_into_quarter(self, num: int, seed: int):
         """Return two Spools with the split portions"""
-        idxs = n.random.default_rng(seed=seed).permutation(len(self))
-        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=n.random.default_rng(seed=seed))
-        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=n.random.default_rng(seed=seed))
+        idxs = n.random.default_rng(seed=seed).permutation(len(self))  # type: ignore
+        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=n.random.default_rng(seed=seed))  # type: ignore
+        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=n.random.default_rng(seed=seed))  # type: ignore
         return d1, d2
 
     def split_with_split(self, num: int, random=True, prefix=None, split=0):

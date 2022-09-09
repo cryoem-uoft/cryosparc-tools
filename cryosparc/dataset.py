@@ -1,3 +1,6 @@
+"""
+Classes and utilities for working with .cs files
+"""
 from pathlib import PurePath
 from typing import (
     IO,
@@ -48,29 +51,43 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with cryoSPARC .cs files.
 
-    Example usage
-
-    ```
-    dset = Dataset.load('/path/to/particles.cs')
-
-    for particle in dset.rows():
-        print(
-            f"Particle located in file {particle['blob/path']} "
-            f"at index {particle['blob/idx']}")
-    ```
-
     A dataset may be initialized with `Dataset(data)` where `data` is
     one of the following:
 
     * A size of items to allocate (e.g., `42`)
     * A mapping from column names to their contents (dict or tuple list)
     * A numpy record array
+
+    Args:
+        allocate (int | Dataset | NDArray | Mapping[str, ArrayLike], optional):
+            Allocation data, as described aboe. Defaults to 0.
+        row_class (Type[Row], optional): Class to use for row instances
+            produced by this dataset. Defaults to `Row`.
+
+    Examples:
+
+        Load a dataset from disk
+
+        >>> from cryosparc.dataset import Dataset
+        >>> dset = Dataset.load('/path/to/particles.cs')
+        >>> for particle in dset.rows():
+        >>>     print(
+        >>>         f"Particle located in file {particle['blob/path']} "
+        >>>         f"at index {particle['blob/idx']}")
+
     """
 
     @classmethod
     def allocate(cls, size: int = 0, fields: List[Field] = []):
         """
         Allocate a dataset with the given number of rows and specified fields.
+
+        Args:
+            size (int, optional): Number of rows to allocate. Defaults to 0.
+            fields (list[Field], optional): Initial fields, excluding `uid`. Defaults to [].
+
+        Returns:
+            Dataset: Empty dataset
         """
         dset = cls(size)
         dset.add_fields(fields)
@@ -81,13 +98,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Concatenate many datasets together into one new one.
 
         May be called either as an instance method or an initializer to create a
-        new dataset from one or more datasets:
-
-        ```
-        dset = d1.append(d2, d3)
-        # or
-        dset = Dataset.append(d1, d2, d3)
-        ```
+        new dataset from one or more datasets.
 
         Set `assert_same_fields=True` to enforce that datasets have identical
         fields. Otherwise, only takes fields common to all datasets.
@@ -95,6 +106,25 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Set `repeat_allowed=True` to skip duplicate uid checks.
 
         To initialize from zero or more datasets, use `Dataset.append_many`
+
+        Args:
+            assert_same_fields (bool, optional): If not set or False, appends
+                only common dataset fields. If True, fails when input don't have
+                all fields in common. Defaults to False.
+            repeat_allowed (bool, optional): If True, does not fail when there
+                are duplicate UIDs. Defaults to False.
+
+        Returns:
+            Dataset: appended dataset
+
+        Examples:
+
+            As an instance method
+            >>> dset = d1.append(d2, d3)
+
+            As a class method
+            >>> dset = Dataset.append(d1, d2, d3)
+
         """
         if not others:
             return self
@@ -112,6 +142,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Similar to `Dataset.append`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
+
+        Args:
+            assert_same_fields (bool, optional): Same as for `append`. Defaults to False.
+            repeat_allowed (bool, optional): Same as for `append` method. Defaults to False.
+
+        Returns:
+            Dataset: Appended dataset
         """
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
@@ -139,12 +176,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         May be called either as an instance method or an initializer to create a
         new dataset from one or more datasets:
 
-        ```
-        dset = d1.union(d2, d3)
-        # or
-        dset = Dataset.union(d1, d2, d3)
-        ```
-
         Set `assert_same_fields=True` to enforce that datasets have identical
         fields. Otherwise, only takes fields common to all datasets.
 
@@ -152,6 +183,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         (though there may be common ones between datasets)
 
         To initialize from zero or more datasets, use `Dataset.union_many`
+
+        Examples:
+
+            As instance method
+            >>> dset = d1.union(d2, d3)
+
+            As class method
+            >>> dset = Dataset.union(d1, d2, d3)
+
         """
         if not others:
             return self
@@ -226,14 +266,16 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         May be called either as an instance method or an initializer to create a new
         dataset from one or more datasets:
 
-        ```
-        dset = d1.innerjoin(d2, d3)
-        # or
-        dset = Dataset.innerjoin(d1, d2, d3)
-        ```
-
         Set `assert_no_drop=True` to ensure the provided datasets include at least
         all rows from the first dataset.
+
+        Examples:
+
+            As instance method
+            >>> dset = d1.innerjoin(d2, d3)
+
+            As class method
+            >>> dset = Dataset.innerjoin(d1, d2, d3)
         """
         if not others:
             return self
@@ -488,14 +530,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         this accessor outside of this instance for a long time, the values
         become invalid when fields are added or the dataset's contents change.
 
-        e.g., do not do this:
+        Examples:
 
-        ```
-        dset = Dataset.load('/path/to/dataset.cs')
-        rows = dset.rows()
-        dset.add_fields([('foo', 'f4')])
-        rows[0].to_list()  # access may be invalid
-        ```
+            Do NOT do this!!
+
+            >>> dset = Dataset.load('/path/to/dataset.cs')
+            >>> rows = dset.rows()
+            >>> dset.add_fields([('foo', 'f4')])
+            >>> rows[0].to_list()  # access may be invalid
         """
         if self._rows is None:
             cols = self.cols()
@@ -631,12 +673,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         If any field is not in the dataset, it is ignored and all data is kept.
 
-        Example query:
+        Examples:
 
-            dset.query({
-                'uid': [123456789, 987654321],
-                'micrograph_blob/path': '/path/to/exposure.mrc'
-            })
+            >>> dset.query({
+            ...     'uid': [123456789, 987654321],
+            ...     'micrograph_blob/path': '/path/to/exposure.mrc'
+            ... })
 
         """
         if isinstance(query, dict):
@@ -686,18 +728,18 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Create a mapping from possible values of the given field and to a
         datasets filtered by rows of that value.
 
-        Example:
+        Examples:
 
-        ```
-        dset = Dataset([
-            ('uid', [1, 2, 3, 4]),
-            ('foo', ['hello', 'world', 'hello', 'world'])
-        ])
-        assert dset.split_by('foo') == {
-            'hello': Dataset([('uid', [1, 3]), ('foo', ['hello', 'hello'])]),
-            'world': Dataset([('uid', [2, 4]), ('foo', ['world', 'world'])])
-        }
-        ```
+
+            >>> dset = Dataset([
+            ...     ('uid', [1, 2, 3, 4]),
+            ...     ('foo', ['hello', 'world', 'hello', 'world'])
+            ... ])
+            >>> assert dset.split_by('foo') == {
+            ...     'hello': Dataset([('uid', [1, 3]), ('foo', ['hello', 'hello'])]),
+            ...     'world': Dataset([('uid', [2, 4]), ('foo', ['world', 'world'])])
+            ... }
+
         """
         cols = self.cols()
         col = cols[field]

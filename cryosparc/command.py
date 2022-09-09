@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 class CommandClient:
     """
-    Class for communicating with cryoSPARC's ``command_core`` and
+    Class for communicating with CryoSPARC's ``command_core`` and
     ``command_vis`` HTTP services.
 
     Upon initialization, retrieves a list of available JSONRPC_ endpoints and
@@ -19,14 +19,17 @@ class CommandClient:
     `CryoSPARC Guide`_.
 
     Args:
-        host: Domain name or IP address of cryoSPARC master. Defaults to "localhost".
-        port: Command server base port. Defaults to 39002.
-        url: Base URL path prefix for all requests (e.g., "/v1"). Defaults to "".
-        timeout: How long to wait for a request to complete before timing out,
-            in seconds. Defaults to 300.
-        headers: Default HTTP headers to send with every request. Defaults to {}.
-        cls: Class to handle JSON encoding of special Python objects, such as
-            numpy arrays. Defaults to None.
+        host (str, optional): Domain name or IP address of CryoSPARC master.
+            Defaults to "localhost".
+        port (int, optional): Command server base port. Defaults to 39002.
+        url (str, optional): Base URL path prefix for all requests (e.g., "/v1").
+            Defaults to "".
+        timeout (int, optional): How long to wait for a request to complete
+            before timing out, in seconds. Defaults to 300.
+        headers (dict, optional): Default HTTP headers to send with every
+            request. Defaults to {}.
+        cls (Type[JSONEncoder], optional): Class to handle JSON encoding of
+            special Python objects, such as numpy arrays. Defaults to None.
 
     Attrs:
 
@@ -115,17 +118,19 @@ class CommandClient:
 
 
 @contextmanager
-def make_request(client: CommandClient, url="", query: dict = {}, data=None, headers={}, method: str = "post"):
+def make_request(
+    client: CommandClient, method: str = "post", url: str = "", query: dict = {}, data=None, headers: dict = {}
+):
     """
     Create a raw HTTP request/response context with the given command client.
 
     Args:
-        client: command client instance
-        url: URL to append to the client's initialized URL. Defaults to "".
-        query: Query string parameters. Defaults to {}.
-        data: Request body data. Usually in binary. Defaults to None.
-        headers: HTTP headers. Defaults to {}.
-        method: HTTP method. Defaults to "post".
+        client (CommandClient, optional): command client instance
+        method (str, optional): HTTP method. Defaults to "post".
+        url (str, optional): URL to append to the client's initialized URL. Defaults to "".
+        query (dict, optional): Query string parameters. Defaults to {}.
+        data (Any, optional): Request body data. Usually in binary. Defaults to None.
+        headers (dict, optional): HTTP headers. Defaults to {}.
 
     Raises:
         CommandClient.Error: General error such as timeout, URL or HTTP

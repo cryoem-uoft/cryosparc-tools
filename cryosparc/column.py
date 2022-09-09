@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Optional
 import numpy as n
 
 from .data import Data
