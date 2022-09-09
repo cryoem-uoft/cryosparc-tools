@@ -1,6 +1,20 @@
 from contextlib import contextmanager
 from pathlib import PurePath
-from typing import IO, TYPE_CHECKING, Callable, Dict, Generic, Iterator, Optional, Sequence, TypeVar, Union
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    AsyncGenerator,
+    AsyncIterator,
+    BinaryIO,
+    Callable,
+    Dict,
+    Generic,
+    Iterator,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+)
 from typing_extensions import Literal
 import numpy as n
 
@@ -20,42 +34,40 @@ V = TypeVar("V")
 class hashcache(Dict[K, V], Generic[K, V]):
     """
     Simple utility class to cache the result of a mapping and avoid excessive
-    heap allocation. Initialize with `cache = hashcache(f)` and use `cache.f` as
-    the mapping function.
+    heap allocation. Initialize with `cache = hashcache(f)` and use `cache` the
+    mapping function.
 
-    Here is an example of unoptimized code for convering `bytes` to `str`:
+    Examples:
 
-    ```
-    a = [b"Hello", b"Hello", b"Hello"]
-    strs = list(map(bytes.decode, a))
-    ```
+        Unoptimized code for convering `bytes` to `str`:
 
-    The input array `a` has duplicate items. Using `bytes.decode` directly
-    in the mapping causes Python to allocate a fresh string for each bytes.
+        >>> a = [b"Hello", b"Hello", b"Hello"]
+        >>> strs = list(map(bytes.decode, a))
 
-    Here is the optimized version with `hashcache`:
+        The input array `a` has duplicate items. Using `bytes.decode` directly
+        in the mapping causes Python to allocate a fresh string for each bytes.
 
-    ```
-    a = [b"Hello", b"Hello", b"Hello"]
-    strs = list(map(hashcache(bytes.decode), a))
-    ```
+        Here is the optimized version with `hashcache`:
 
-    This only allocates heap memory once for each unique item in the input list.
-    After the first encounter, `cache.f` returns the previously-computed value
-    of the same input, reducing heap usage and allocation by a factor of 3.
+        >>> a = [b"Hello", b"Hello", b"Hello"]
+        >>> strs = list(map(hashcache(bytes.decode), a))
 
-    For this to be most effective, ensure the given `f` function is pure and
-    stable (i.e., always returns the same result for a given input).
+        This only allocates heap memory once for each unique item in the input
+        list. After the first encounter, `cache.f` returns the
+        previously-computed value of the same input, reducing heap usage and
+        allocation by a factor of 3.
 
-    May also be used as a wrapper (must take a single hashable argument):
+        For this to be most effective, ensure the given `f` function is pure and
+        stable (i.e., always returns the same result for a given input).
 
-    ```
-    @hashcache
-    def f(x): ...
-    ```
+        May also be used as a wrapper (must take a single hashable argument):
+
+        >>> @hashcache
+        >>> def f(x): ...
     """
 
-    __slots__ = ("factory", "__call__")
+    __slots__ = "factory"
+    __call__ = dict.__getitem__
 
     def __new__(cls, _f: Callable[[K], V]):
         return super().__new__(cls)
@@ -63,12 +75,139 @@ class hashcache(Dict[K, V], Generic[K, V]):
     def __init__(self, key_value_factory: Callable[[K], V]):
         super().__init__(self)
         self.factory = key_value_factory
-        self.__call__ = self.__getitem__
 
     def __missing__(self, key):
         new = self.factory(key)
         self.__setitem__(key, new)
         return new
+
+
+class BinaryIteratorIO(BinaryIO):
+    """
+    Read through a iterator that yields bytes as if it was a file.
+
+    Args:
+        iter (Iterator[bytes]): Generator that yields bytes
+    """
+
+    def __init__(self, iter: Iterator[bytes]):
+        self._iter = iter
+        self._left = b""
+
+    def readable(self):
+        """
+        Returns:
+            bool: True
+        """
+        return True
+
+    def seekable(self) -> bool:
+        """
+        Returns:
+            bool: False
+        """
+        return False
+
+    def _read1(self, n: Optional[int] = None):
+        while not self._left:
+            try:
+                self._left = next(self._iter)
+            except StopIteration:
+                break
+        ret = self._left[:n]
+        self._left = self._left[len(ret) :]
+        return ret
+
+    def read(self, n: Optional[int] = None) -> bytes:
+        """
+        Read the given number of bytes from the iterator
+
+        Args:
+            n (int, optional): Number of bytes to read. Reads all bytes if not specified. Defaults to None.
+
+        Returns:
+            bytes: Zero or more bytes read
+        """
+        l = []
+        if n is None or n < 0:
+            while True:
+                m = self._read1()
+                if not m:
+                    break
+                l.append(m)
+        else:
+            while n > 0:
+                m = self._read1(n)
+                if not m:
+                    break
+                n -= len(m)
+                l.append(m)
+        return b"".join(l)
+
+
+class AsyncBinaryIteratorIO(BinaryIO):
+    """
+    Similar to `BinaryIteratorIO` except the iterator yields bytes asynchronously.
+
+    Args:
+        iter (AsyncIterator[bytes]): Generator that asynchronously yields bytes
+
+    """
+
+    def __init__(self, iter: Union[AsyncIterator[bytes], AsyncGenerator[bytes, None]]):
+        self._iter = iter
+        self._left = b""
+
+    def readable(self):
+        """
+        Returns:
+            bool: True
+        """
+
+        return True
+
+    def seekable(self) -> bool:
+        """
+        Returns:
+            bool: False
+        """
+        return False
+
+    async def _read1(self, n: Optional[int] = None):
+        while not self._left:
+            try:
+                self._left = await self._iter.__anext__()
+            except StopAsyncIteration:
+                break
+        ret = self._left[:n]
+        self._left = self._left[len(ret) :]
+        return ret
+
+    async def read(self, n: Optional[int] = None):
+        """
+        Read the given number of bytes from the async iterator.
+
+        Args:
+            n (int, optional): Number of bytes to read. Reads all bytes if not specified. Defaults to None.
+
+        Returns:
+            bytes: Zero or more bytes read
+        """
+        l = []
+        if n is None or n < 0:
+            while True:
+                m = self._read1()
+                if not m:
+                    break
+                l.append(m)
+        else:
+            while n > 0:
+                m = await self._read1(n)
+                if not m:
+                    break
+                n -= len(m)
+                l.append(m)
+        return b"".join(l)
 
 
 def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
