@@ -9,7 +9,7 @@ PyObject * wrap_dset_getbuf (PyObject *self, PyObject *args, PyObject *kwds)
     static char *kwlist[] = {"dset", "colkey", NULL};
     unsigned long dset = {0};
     const char * colkey = 0;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),"s"), kwlist, &dset, &colkey)) 
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),"s"), kwlist, &dset, &colkey))
     {
         return 0;
     }

@@ -69,7 +69,7 @@ DSET_API  uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 
 DSET_API  int        dset_addrows       (uint64_t dset, uint32_t num);
 DSET_API  int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
-DSET_API  int        dset_addcol_array  (uint64_t dset, const char * key, int type, const uint8_t shape[3]);
+DSET_API  int        dset_addcol_array  (uint64_t dset, const char * key, int type, uint8_t shape0, uint8_t shape1, uint8_t shape2);
 
 
 DSET_API  int        dset_defrag (uint64_t dset, int realloc_smaller);
@@ -880,13 +880,12 @@ dset_getshp (uint64_t dset, const char * colkey)
 
 DSET_API int 
 dset_addcol_scalar (uint64_t dset, const char * key, int type) {
-	const uint8_t shape[3] = {};
-	return dset_addcol_array(dset, key, type, shape);
+	return dset_addcol_array(dset, key, type, 0, 0, 0);
 }
 
 
 DSET_API int 
-dset_addcol_array (uint64_t dset, const char * key, int type, const uint8_t shape[3]) {
+dset_addcol_array (uint64_t dset, const char * key, int type, uint8_t shape0, uint8_t shape1, uint8_t shape2) {
 
 	if(!tcheck(type)) {
 		nonfatal("invalid column data type: %i", type);
@@ -902,8 +901,10 @@ dset_addcol_array (uint64_t dset, const char * key, int type, const uint8_t shap
 
 	// hypothetical new column descriptor.
 	ds_column col = {};
-	col.type      =  ksz > SHORTKEYSZ ? -t : t;
-	memcpy(col.shape,shape,sizeof(col.shape));
+	col.type =  ksz > SHORTKEYSZ ? -t : t;
+	col.shape[0] = shape0;
+	col.shape[1] = shape1;
+	col.shape[2] = shape2;
 
 	if (d->ncol == d->ccol) {
 

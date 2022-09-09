@@ -1,8 +1,5 @@
-#define NPY_NO_DEPRECATED_API NPY_1_8_API_VERSION
-#define PY_ARRAY_UNIQUE_SYMBOL SHARED_ARRAY_ARRAY_API
-
 #include <Python.h>
-#include <numpy/arrayobject.h>
+#include "dataset.h"
 
 #if !defined(MODULENAME)
 #define MODULENAME example
@@ -69,9 +66,6 @@ static struct PyModuleDef module_def = {
 static PyObject *module_init(void)
 {
 	PyObject *m;
-
-	// Import numpy arrays
-	import_array1(NULL);
 
 	// Register the module
 	if (!(m = PyModule_Create(&module_def)))

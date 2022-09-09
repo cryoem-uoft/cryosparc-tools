@@ -1,8 +1,4 @@
-#define NPY_NO_DEPRECATED_API NPY_1_8_API_VERSION
-#define PY_ARRAY_UNIQUE_SYMBOL SHARED_ARRAY_ARRAY_API
-
 #include <Python.h>
-#include <numpy/arrayobject.h>
 #include "dataset.h"
 
 #define C2NPY(type) _Generic((type){0},    \
@@ -319,21 +315,26 @@ PyObject * wrap_dset_addcol_array (PyObject *self, PyObject *args, PyObject *kwd
     static char *kwlist[] = {"dset",
 		"key",
 		"type",
-		"shape",NULL};
+		"shape0",
+		"shape1",
+		"shape2",NULL};
     unsigned long dset = {0};
     const char * key = 0;
     int type = {0};
-    PyArrayObject *shape = NULL;
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s%s",C2PYFMT(unsigned long),"s",C2PYFMT(int),"O!"), kwlist, &dset,
+    unsigned char shape0 = {0};
+    unsigned char shape1 = {0};
+    unsigned char shape2 = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s%s%s%s",C2PYFMT(unsigned long),"s",C2PYFMT(int),C2PYFMT(unsigned char),C2PYFMT(unsigned char),C2PYFMT(unsigned char)), kwlist, &dset,
 		&key,
 		&type,
-		&PyArray_Type,&shape )) return 0;
-    if(PyArray_TYPE(shape) != C2NPY(uint8_t)){strncpy(__pyexn_errmsg,"Invalid data type for argument shape (expected const uint8_t *)",4095);PyErr_SetString(PyExc_ValueError, __pyexn_errmsg); return 0; }
-        if(!PyArray_ISCARRAY(shape)){strncpy(__pyexn_errmsg,"Argument shape is not contiguous",4095);PyErr_SetString(PyExc_ValueError, __pyexn_errmsg); return 0; }
+		&shape0,
+		&shape1,
+		&shape2 )) return 0;
+
 
     int rtn = 0;
     Py_BEGIN_ALLOW_THREADS;
-    rtn = dset_addcol_array(dset, key, type, PyArray_DATA(shape));
+    rtn = dset_addcol_array(dset, key, type, shape0, shape1, shape2);
     Py_END_ALLOW_THREADS;
     return Py_BuildValue(NFORMAT(8,"%s",C2PYFMT(int)), rtn);
 } 

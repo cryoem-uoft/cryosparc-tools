@@ -14,13 +14,14 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "autodocsumm",
     "build",
     "black ~= 22.3.0",
     "httpretty ~= 1.1.4",
     "jupyter-book ~= 0.13",
     "pytest ~= 7.1",
     "pytest-benchmark ~= 3.4",
-    "pytest-xdist[psutil] ~= 2.5.0",
+    "pytest-xdist[psutil] ~= 2.5.0"
 ]
 
 notebook = [
@@ -37,11 +38,7 @@ notebook = [
 packages = ["cryosparc"]
 
 [build-system]
-requires = [
-    "setuptools",
-    "numpy ~= 1.15",  # use when building normally
-    # "numpy >=1.18<1.19",  # use when building with [notebook]
-]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.black]

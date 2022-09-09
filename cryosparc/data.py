@@ -188,7 +188,7 @@ class Data(Mapping[str, DType]):
         s = n.zeros(3, dtype=n.uint8)
         for i, d in enumerate(shape):
             s[i] = d
-        return core.dset_addcol_array(self.handle, field, dtype, s) != 0
+        return core.dset_addcol_array(self.handle, field, dtype, *s) != 0
 
     def defrag(self) -> bool:
         return core.dset_defrag(self.handle) != 0
