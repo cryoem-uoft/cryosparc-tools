@@ -36,7 +36,7 @@ Toolkit for interfacing with cryoSPARC
 Recompile native modules after making changes to C code:
 
 ```sh
-python -m setup develop
+make
 ```
 
 ### Build Packages for Publishing
@@ -64,7 +64,7 @@ commit this change.
 Clean previous build artefacts:
 
 ```sh
-rm -rf build dist *.egg-info cryosparc/*.so
+make clean
 ```
 
 Install additional dependencies to conda environment before running `pip`:
@@ -93,7 +93,7 @@ Rebuild
 
 ```
 pip install -e ".[notebook]"
-python -m setup develop
+make
 ```
 
 Run the notebook server with the `CRYOSPARC_LICENSE_ID` environment variable
