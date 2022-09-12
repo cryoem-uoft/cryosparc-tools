@@ -1,8 +1,7 @@
 from contextlib import contextmanager
 import json
 import uuid
-from typing import Generator, Optional, Type
-from http.client import HTTPResponse
+from typing import Optional, Type
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -158,7 +157,7 @@ def make_request(
             with urlopen(request, timeout=client._timeout) as response:
                 yield response
                 return
-        except TimeoutError as error:
+        except TimeoutError:
             error_reason = "Timeout Error"
             print(
                 f"*** {type(client).__name__}: command ({url}) did not reply within timeout of {client._timeout} seconds, "
