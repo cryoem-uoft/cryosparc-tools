@@ -24,13 +24,12 @@ from typing import (
 from typing_extensions import Literal
 import numpy as n
 import numpy.core.records
-import snappy  # type: ignore
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
 
 from .data import Data
-from .dtype import DType, Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
+from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, hashcache, u32bytesle, u32intle
@@ -71,9 +70,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         >>> from cryosparc.dataset import Dataset
         >>> dset = Dataset.load('/path/to/particles.cs')
         >>> for particle in dset.rows():
-        >>>     print(
-        >>>         f"Particle located in file {particle['blob/path']} "
-        >>>         f"at index {particle['blob/idx']}")
+        ...     print(
+        ...         f"Particle located in file {particle['blob/path']} "
+        ...         f"at index {particle['blob/idx']}")
 
     """
 
@@ -239,22 +238,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             startidx += num
         return result
 
-    @classmethod
-    def interlace(cls, *datasets: "Dataset", assert_same_fields=False):
+    def interlace(self, *datasets: "Dataset", assert_same_fields=False):
         if not datasets:
-            return cls()
+            return self
 
-        assert all(
-            len(dset) == len(datasets[0]) for dset in datasets
-        ), "All datasets must be the same length to interlace."
-        keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
+        assert all(len(dset) == len(self) for dset in datasets), "All datasets must be the same length to interlace."
+        datasets = (self,) + datasets
+        keep_fields = self.common_fields(*datasets, assert_same_fields=assert_same_fields)
         all_uids = n.concatenate([dset["uid"] for dset in datasets])
-        assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
+        assert len(all_uids) == len(n.unique(all_uids)), "Cannot interlace datasets that contain the same UIDs."
 
         step = len(datasets)
-        stride = len(datasets[0])
+        stride = len(self)
         startidx = 0
-        result = cls.allocate(len(all_uids), keep_fields)
+        result = type(self).allocate(len(all_uids), keep_fields)
         for dset in datasets:
             for key, *_ in keep_fields:
                 result[key][startidx : startidx + (stride * step) : step] = dset[key]
@@ -344,7 +341,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 assert len(dset.descr()) == len(fields), (
                     "One or more datasets in this operation do not have the same fields. "
                     f"Common fields: {fields}. "
-                    f"Excess fields: {set.difference(set(dset.descr()), fields)}"
+                    f"Excess fields: {set(dset.descr()).difference(fields)}"
                 )
         return [f for f in datasets[0].descr() if f in fields]
 
@@ -365,6 +362,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 indata = n.load(f, allow_pickle=False)
                 return cls(indata)
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+                import snappy
+
                 headersize = u32intle(f.read(4))
                 dtype = decode_fields(f.read(headersize))
                 cols = {}
@@ -404,6 +403,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         `format=CSDAT_FORMAT`. Call `Dataset.load` on the resulting file/buffer
         to retrieve the original data.
         """
+        import snappy
+
         cols = self.cols()
         arrays = [col.to_fixed() for col in cols.values()]
         descr = [makefield(f, arraydtype(a)) for f, a in zip(cols, arrays)]
@@ -423,12 +424,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self,
         allocate: Union[
             int,
-            "Dataset",
+            "Dataset[Any]",
             "NDArray",
             Mapping[str, "ArrayLike"],
             List[Tuple[str, "ArrayLike"]],
         ] = 0,
-        row_class: Type[R] = Row
+        row_class: Type[R] = Row,
     ):
         # Always initialize with at least a UID field
         super().__init__()
@@ -643,6 +644,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._rows = None
         return self
 
+    def rename_prefix(self, old_prefix: str, new_prefix: str):
+        prefix_map = {old_prefix: new_prefix}
+
+        def field_map(name):
+            prefix, base = name.split("/")
+            return prefix_map.get(prefix, prefix) + "/" + base
+
+        return self.rename_fields(field_map)
+
     def copy_fields(self, old_fields: List[str], new_fields: List[str]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         current_fields = self.fields()
@@ -780,7 +790,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             keep_mask &= self.query_mask(query, invert=True)
 
         offset = keep_mask.sum()
-        result = Dataset.allocate(offset + others_len, keep_fields)
+        result = type(self).allocate(offset + others_len, keep_fields)
         for key, col in self.items():
             result[key][:offset] = col[keep_mask]
 

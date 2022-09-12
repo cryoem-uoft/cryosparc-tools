@@ -106,7 +106,7 @@ class Data(Mapping[str, DType]):
     def __getitem__(self, k: str) -> DType:
         t = self.type(k)
         if t == 0:
-            raise KeyError(f"Unknown dset field {t}")
+            raise KeyError(f"Unknown dset field {k}")
         assert t in DSET_TO_TYPE_MAP, f"Unknown dset field type {t}"
         dst = DsetType(t)
         dt = n.dtype(DSET_TO_TYPE_MAP[dst])

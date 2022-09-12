@@ -33,7 +33,7 @@ class Column(n.ndarray):
 
         return obj
 
-    def to_fixed(self):
+    def to_fixed(self) -> "Column":
         """
         If this Column is composed of Python objects, convert to fixed-size
         strings. Otherwise the array is already in fixed form and may be
