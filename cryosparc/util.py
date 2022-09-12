@@ -3,6 +3,7 @@ from pathlib import PurePath
 from typing import (
     IO,
     TYPE_CHECKING,
+    Any,
     AsyncGenerator,
     AsyncIterator,
     BinaryIO,
@@ -242,11 +243,12 @@ def strbytelen(s: str) -> int:
     return len(str.encode(s))
 
 
-def strencodenull(s: str) -> bytes:
+def strencodenull(s: Any) -> bytes:
     """
-    Encode string into UTF-8 binary ending with a null-character terminator \0
+    Encode string-like value into UTF-8 binary ending with a null-character
+    terminator \0
     """
-    return s.encode() + b"\0"
+    return ("" if s is None else str(s)).encode() + b"\0"
 
 
 @contextmanager
