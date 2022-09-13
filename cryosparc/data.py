@@ -187,11 +187,11 @@ class Data(Mapping[str, DType]):
             s[i] = d
         return core.dset_addcol_array(self.handle, field, dtype, *s) != 0
 
+    def getbuf(self, field: str) -> memoryview:
+        return core.dset_getbuf(self.handle, field)
+
     def defrag(self) -> bool:
         return core.dset_defrag(self.handle) != 0
 
     def dumptxt(self):
         core.dset_dumptxt(self.handle)
-
-    def getbuf(self, field: str):
-        return core.dset_getbuf(self.handle, field)

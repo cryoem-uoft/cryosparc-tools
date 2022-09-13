@@ -201,6 +201,23 @@ def test_streaming_bytes():
     assert dset == result
 
 
+def test_pickle_unpickle():
+    import pickle
+
+    dset = Dataset(
+        [
+            ("uid", n.array([1, 2, 3])),
+            ("dat", n.array(["Hello", "World", "!"])),
+        ]
+    )
+    pickled = pickle.dumps(dset, protocol=pickle.HIGHEST_PROTOCOL)
+    del dset  # calls data destructor to clear dset memory
+
+    dset = pickle.loads(pickled)
+    assert n.array_equal(dset["uid"], [1, 2, 3])
+    assert n.array_equal(dset["dat"], ["Hello", "World", "!"])
+
+
 # FIXME: Is this required?
 """
 def test_combine_queries():

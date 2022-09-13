@@ -6,7 +6,6 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
-    Union,
     Callable,
     Collection,
     Dict,
@@ -75,6 +74,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         ...         f"at index {particle['blob/idx']}")
 
     """
+
+    __slots__ = ("_row_class", "_rows", "_data")
 
     _row_class: Type[R]
     _rows: Optional[Spool]
@@ -523,6 +524,23 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             and self.descr() == other.descr()
             and all(n.array_equal(c1, c2) for c1, c2 in zip(self.values(), other.values()))
         )
+
+    def __getstate__(self):
+        d = self.__dict__ if hasattr(self, "__dict__") else {}
+        return {
+            **d,
+            "_row_class": self._row_class,
+            "_rows": None,
+            "_data": {f: n.array(c, copy=False) for f, c in self.items()},
+        }
+
+    def __setstate__(self, state):
+        row_class = state.pop("_row_class")
+        data = state.pop("_data")
+        state.pop("_rows")
+        self.__init__(data, row_class=row_class)
+        if hasattr(self, "__dict__"):
+            self.__dict__.update(state)
 
     def __array__(self):
         return self.to_records()
