@@ -5,10 +5,17 @@ from time import time
 import urllib.request
 import pytest
 import httpretty
-import numpy as n
 from numpy.core.records import fromrecords
+
 from cryosparc.tools import CryoSPARC
-from cryosparc.dataset import Dataset
+from cryosparc.dataset import Dataset as BaseDataset, Row
+
+# Always use this class for testing to ensure `Dataset#items` property is never used
+# internally. Downstream CryoSPARC relies on this.
+class Dataset(BaseDataset[Row]):
+    @property
+    def items(self):
+        return self.rows()
 
 
 def request_callback_core(request, uri, response_headers):

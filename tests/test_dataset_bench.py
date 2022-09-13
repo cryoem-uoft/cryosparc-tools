@@ -2,7 +2,7 @@ from io import BytesIO
 import pytest
 import numpy as n
 import cryosparc.dataset as ds
-from cryosparc.dataset import Dataset, Row
+from .conftest import Dataset
 
 
 @pytest.fixture
@@ -103,7 +103,7 @@ def test_get_items_to_list(benchmark, dset, fields):
         assert any(l)
 
 
-def test_get_items_to_dict(benchmark, dset: Dataset[Row], fields):
+def test_get_items_to_dict(benchmark, dset: Dataset, fields):
     @benchmark
     def _():
         dset._rows = None
@@ -114,7 +114,7 @@ def test_get_items_to_dict(benchmark, dset: Dataset[Row], fields):
         assert any(d.values())
 
 
-def test_get_items_to_item_dict(benchmark, dset: Dataset[Row], fields):
+def test_get_items_to_item_dict(benchmark, dset: Dataset, fields):
     @benchmark
     def _():
         dset._rows = None

@@ -407,7 +407,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         import snappy
 
         cols = self.cols()
-        arrays = [col.to_fixed() for col in cols.values()]
+        arrays = [cols[c].to_fixed() for c in cols]
         descr = [makefield(f, arraydtype(a)) for f, a in zip(cols, arrays)]
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
@@ -522,7 +522,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             and type(self) == type(other)
             and len(self) == len(other)
             and self.descr() == other.descr()
-            and all(n.array_equal(c1, c2) for c1, c2 in zip(self.values(), other.values()))
+            and all(n.array_equal(self[c1], other[c2]) for c1, c2 in zip(self, other))
         )
 
     def __getstate__(self):
@@ -531,7 +531,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             **d,
             "_row_class": self._row_class,
             "_rows": None,
-            "_data": {f: n.array(c, copy=False) for f, c in self.items()},
+            "_data": {f: n.array(self[f], copy=False) for f in self},
         }
 
     def __setstate__(self, state):
@@ -546,7 +546,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.to_records()
 
     def cols(self) -> Dict[str, Column]:
-        return dict(self.items())
+        return dict((k, self[k]) for k in self)
 
     def rows(self) -> Spool[R]:
         """
@@ -581,7 +581,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Retrieve a list of field names available in this dataset
         """
-        return [k for k in self._data.keys() if not exclude_uid or k != "uid"]
+        return [k for k in self._data if not exclude_uid or k != "uid"]
 
     def prefixes(self) -> List[str]:
         """
@@ -657,7 +657,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         else:
             fm = field_map
 
-        result = type(self)([(f if f == "uid" else fm(f), col) for f, col in self.items()])
+        result = type(self)([(f if f == "uid" else fm(f), self[f]) for f in self])
         self._data = result._data
         self._rows = None
         return self
@@ -694,7 +694,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def to_records(self, fixed=False):
         cols = self.cols()
-        arrays = [(col.to_fixed() if fixed else col) for col in cols.values()]
+        arrays = [(cols[c].to_fixed() if fixed else cols[c]) for c in cols]
         dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
         return numpy.core.records.fromarrays(arrays, dtype=dtype)
 
@@ -741,20 +741,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.indexes([row.idx for row in rows])
 
     def indexes(self, indexes: Union[List[int], "NDArray"]):
-        return type(self)([(f, col[indexes]) for f, col in self.items()])
+        return type(self)([(f, self[f][indexes]) for f in self])
 
     def mask(self, mask: Union[List[bool], "NDArray"]):
         """
         Get a subset of the dataset that matches the given mask of rows
         """
         assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
-        return type(self)([(f, col[mask]) for f, col in self.items()])
+        return type(self)([(f, self[f][mask]) for f in self])
 
     def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1):
         """
         Get at subset of the dataset with rows in the given range
         """
-        return type(self)([(f, col[slice(start, stop, step)]) for f, col in self.items()])
+        return type(self)([(f, self[f][slice(start, stop, step)]) for f in self])
 
     def split_by(self, field: str):
         """
@@ -809,13 +809,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         offset = keep_mask.sum()
         result = type(self).allocate(offset + others_len, keep_fields)
-        for key, col in self.items():
-            result[key][:offset] = col[keep_mask]
+        for key in self:
+            result[key][:offset] = self[key][keep_mask]
 
         for other in others:
             other_len = len(other)
-            for field, value in result.items():
-                value[offset : offset + other_len] = other[field]
+            for field in result:
+                result[field][offset : offset + other_len] = other[field]
             offset += other_len
 
         return result
@@ -825,7 +825,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         size = len(self)
 
         cols = self.cols()
-        for k, v in cols.items():
+        for k in cols:
+            v = cols[k]
             if size > 6:
                 contents = f"{str(v[:3])[:-1]} ... {str(v[-3:])[1:]}"
             else:

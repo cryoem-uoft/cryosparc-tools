@@ -2,7 +2,8 @@ from io import BytesIO
 from base64 import b64decode
 import pytest
 import numpy as n
-from cryosparc.dataset import Dataset, Column
+from cryosparc.dataset import Column
+from .conftest import Dataset
 
 
 @pytest.fixture
