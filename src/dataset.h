@@ -599,8 +599,9 @@ more_columndescr_space (uint64_t idx, uint64_t ncolumns_more) {
 
 			char * move_src =(char *)  &d->columns[d->ccol];
 			char * move_dst = move_src + nbytes_more;
+			uint64_t arrheap_size = d->strheap_start - d->arrheap_start;
 
-			memmove (move_dst, move_src, nbytes_more);
+			memmove (move_dst, move_src, arrheap_size + d->strheap_sz);
 			memset  (move_src, 0,        nbytes_more);
 
 			d->strheap_start += nbytes_more;

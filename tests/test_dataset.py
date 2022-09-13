@@ -118,6 +118,11 @@ def test_add_fields():
     assert len(storage.fields()), 10
 
 
+def test_add_fields_nonebug(t20s_dset):
+    t20s_dset.add_fields([("micrograph_blob_non_dw/path", "O")])
+    assert all(t20s_dset["gain_ref_blob/path"] == "J1/imported/norm-amibox05-0.mrc")
+
+
 def test_to_list():
     storage = Dataset.allocate(size=1, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     l = storage.to_list()
@@ -174,27 +179,30 @@ def test_from_data_none():
     assert len(data) == 0
 
 
-# FIXME: Is this required?
-"""
 def test_streaming_bytes():
-    dset = Dataset(4, fields=[
-        ('field1', 'u8'),
-        ('field2', 'f4'),
-        ('field3', 'O'),
-    ])
-    dset['field1'] = 42
-    dset['field2'] = n.array([3.14, 2.73, 1.62, 3.14], dtype='f8')
-    dset['field3'][:] = n.array(['Hello', 'World', '!', '!'])
+    dset = Dataset.allocate(
+        4,
+        fields=[
+            ("field1", "u8"),
+            ("field2", "f4"),
+            ("field3", "O"),
+        ],
+    )
+    dset["field1"] = 42
+    dset["field2"] = n.array([3.14, 2.73, 1.62, 3.14], dtype="f8")
+    dset["field3"][:] = n.array(["Hello", "World", "!", "!"])
 
     stream = BytesIO()
-    for dat in dset.to_stream():
+    for dat in dset.stream():
         stream.write(dat)
     stream.seek(0)
-    result = dset.from_stream(stream)
+    result = dset.load(stream)
 
     assert dset == result
 
 
+# FIXME: Is this required?
+"""
 def test_combine_queries():
     assert Dataset.combine_queries([
         {},
