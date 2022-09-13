@@ -78,7 +78,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     __slots__ = ("_row_class", "_rows", "_data")
 
     _row_class: Type[R]
-    _rows: Optional[Spool]
+    _rows: Optional[Spool[R]]
     _data: Data
 
     @classmethod
@@ -550,18 +550,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def rows(self) -> Spool[R]:
         """
-        A row-by-row accessor list for items in this dataset. Note: Do not store
-        this accessor outside of this instance for a long time, the values
-        become invalid when fields are added or the dataset's contents change.
+        A row-by-row accessor list for items in this dataset.
 
-        Examples:
-
-            Do NOT do this!!
+        Example:
 
             >>> dset = Dataset.load('/path/to/dataset.cs')
-            >>> rows = dset.rows()
-            >>> dset.add_fields([('foo', 'f4')])
-            >>> rows[0].to_list()  # access may be invalid
+            >>> for row in dset.rows()
+            ...    print(row.to_dict())
         """
         if self._rows is None:
             cols = self.cols()
@@ -622,7 +617,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return self._reset()
 
-    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
+    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
         """
         Remove the given fields from the dataset. Provide a list of fields or
         function that returns `True` if a given field name should be removed.
@@ -635,16 +630,16 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         result = self.allocate(len(self), new_fields)
         for key, *_ in new_fields:
             result[key] = self[key]
-        return self._reset(result._data)
+        return result if copy else self._reset(result._data)
 
-    def filter_prefixes(self, prefixes: Collection[str]):
-        return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes))
+    def filter_prefixes(self, prefixes: Collection[str], copy: bool = False):
+        return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes), copy=copy)
 
-    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
+    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
         test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))  # type: ignore
-        return self.filter_fields(test)
+        return self.filter_fields(test, copy=copy)
 
-    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]]):
+    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], copy: bool = False):
         """
         Specify a mapping dictionary or function that specifies how to rename
         each field.
@@ -655,18 +650,29 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             fm = field_map
 
         result = type(self)([(f if f == "uid" else fm(f), self[f]) for f in self])
-        return self._reset(result._data)
+        return result if copy else self._reset(result._data)
 
-    def rename_prefix(self, old_prefix: str, new_prefix: str):
+    def rename_prefix(self, old_prefix: str, new_prefix: str, copy: bool = False):
         prefix_map = {old_prefix: new_prefix}
 
         def field_map(name):
             prefix, base = name.split("/")
             return prefix_map.get(prefix, prefix) + "/" + base
 
-        return self.rename_fields(field_map)
+        return self.rename_fields(field_map, copy=copy)
 
     def copy_fields(self, old_fields: List[str], new_fields: List[str]):
+        """
+        Copy the values at the given old fields into the new fields, allocating
+        them if necessary
+
+        Args:
+            old_fields (List[str]): Name of old fields to copy from
+            new_fields (List[str]): New of new fields to copy to
+
+        Returns:
+            Self, with modified fields
+        """
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         current_fields = self.fields()
         missing_fields = [
@@ -833,9 +839,18 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return s
 
     def _reset(self, data: Optional[Data] = None):
-        if data:
-            self._data = data
-        self._rows = None
+        self._data = data or self._data
+
+        # Check if rows can be preserved
+        if self._rows is None or len(self._rows) != self._data.nrow():
+            self._rows = None
+            return self
+
+        # Preserve old rows, just reassign cols
+        cols = self.cols()
+        for r in self._rows:
+            r.cols = cols
+
         return self
 
     def _ipython_key_completions_(self):
