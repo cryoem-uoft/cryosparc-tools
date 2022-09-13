@@ -620,8 +620,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             if field[0] not in self._data:
                 self._data.addcol(field)
 
-        self._rows = None
-        return self
+        return self._reset()
 
     def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]]):
         """
@@ -636,9 +635,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         result = self.allocate(len(self), new_fields)
         for key, *_ in new_fields:
             result[key] = self[key]
-        self._data = result._data
-        self._rows = None
-        return self
+        return self._reset(result._data)
 
     def filter_prefixes(self, prefixes: Collection[str]):
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes))
@@ -658,9 +655,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             fm = field_map
 
         result = type(self)([(f if f == "uid" else fm(f), self[f]) for f in self])
-        self._data = result._data
-        self._rows = None
-        return self
+        return self._reset(result._data)
 
     def rename_prefix(self, old_prefix: str, new_prefix: str):
         prefix_map = {old_prefix: new_prefix}
@@ -682,8 +677,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         for old, new in zip(old_fields, new_fields):
             self[new] = self[old]
 
-        self._rows = None
-        return self
+        return self._reset()
 
     def reassign_uids(self):
         self["uid"] = generate_uids(len(self))
@@ -837,6 +831,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         s += f"\n])  # {size} items, {len(cols)} fields"
         return s
+
+    def _reset(self, data: Optional[Data] = None):
+        if data:
+            self._data = data
+        self._rows = None
+        return self
 
     def _ipython_key_completions_(self):
         return self.fields()
