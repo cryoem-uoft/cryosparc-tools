@@ -218,6 +218,13 @@ def test_pickle_unpickle():
     assert n.array_equal(dset["dat"], ["Hello", "World", "!"])
 
 
+def test_column_aggregation(t20s_dset):
+    assert type(t20s_dset["uid"]) == Column
+    assert type(n.max(t20s_dset["uid"])) == n.uint64
+    assert isinstance(n.mean(t20s_dset["uid"]), n.number)
+    assert not isinstance(n.mean(t20s_dset["uid"]), n.ndarray)
+
+
 # FIXME: Is this required?
 """
 def test_combine_queries():
