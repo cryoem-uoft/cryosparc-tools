@@ -19,6 +19,12 @@ class Row(Mapping):
         # changes (e.g., a field is added to the dataset) the already existing
         # items will be referring to the old dataset.data!
 
+    def __array__(self, dtype=None):
+        # Prevent numpy from attempting to turn row to array of strings
+        a = n.ndarray(shape=(), dtype=n.dtype(object))
+        a[()] = self
+        return a
+
     def __len__(self):
         return len(self.cols)
 
@@ -78,7 +84,7 @@ class Spool(List[R], Generic[R]):
 
     # -------------------------------------------------- Spooling and Splitting
     def split(self, num: int, random=True, prefix=None):
-        """Return two SpoolingLists with the split portions"""
+        """Return two spools with the split portions"""
         if random:
             idxs = self.random.permutation(len(self))
         else:

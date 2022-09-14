@@ -3,6 +3,7 @@ from base64 import b64decode
 import pytest
 import numpy as n
 from cryosparc.dataset import Column
+from cryosparc.row import Row
 from .conftest import Dataset
 
 
@@ -224,6 +225,11 @@ def test_column_aggregation(t20s_dset):
     assert type(n.max(t20s_dset["uid"])) == n.uint64
     assert isinstance(n.mean(t20s_dset["uid"]), n.number)
     assert not isinstance(n.mean(t20s_dset["uid"]), n.ndarray)
+
+
+def test_row_array_type(t20s_dset):
+    rowarr = n.array(t20s_dset.rows())
+    assert isinstance(rowarr[0], Row)
 
 
 # FIXME: Is this required?
