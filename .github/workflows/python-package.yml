@@ -38,7 +38,11 @@ jobs:
         black --check .
     - name: Type check with Pyright
       run: pyright
+    - name: Downgrade numpy
+      if: ${{ matrix.python-version }} == 3.7
+      run: |
+        # test with older numpy version to ensure compatibility
+        pip install numpy==1.15
     - name: Test with pytest
       run: |
-        if [[ "${{ matrix.python-version }}" == "3.7" ]]; then; pip install numpy==1.15; fi
         pytest --benchmark-disable -n auto
