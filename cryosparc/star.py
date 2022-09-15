@@ -499,9 +499,17 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
         >>> blocks['optics']
         array([...])
     """
+
+    # If numpy.loadtxt has a max_rows argument, can read more efficiently.
+    from inspect import signature
+    import tempfile
+
+    use_max_rows = "max_rows" in signature(n.loadtxt).parameters
+
     with topen(file, "r") as f:
         data_blocks: List[tuple] = []
         line = 0
+        skiprows = 0
 
         # Stage 1: Determine available fields the STAR file and what line the
         # data starts and ends at
@@ -555,7 +563,22 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
         f.seek(0)
         data = {}
         for dblk_name, dtype, skiprows, maxrows in data_blocks:
-            data[dblk_name] = n.loadtxt(f, dtype=dtype, skiprows=skiprows, max_rows=maxrows, ndmin=1)
+            if use_max_rows:
+                # Can read directly
+                data[dblk_name] = n.loadtxt(f, dtype=dtype, skiprows=skiprows, max_rows=maxrows, ndmin=1)
+                f.readline()
+                continue
+
+            # Cannot read directly because loadtxt attempts to read every row.
+            # Save required rows to tempfile first and read form there
+            with tempfile.TemporaryFile("w+") as temp:
+                for _ in range(skiprows):
+                    f.readline()
+                for _ in range(maxrows):
+                    temp.write(f.readline())
+                temp.seek(0)
+                data[dblk_name] = n.loadtxt(temp, dtype=dtype, ndmin=1)
+
             f.readline()  # skip one more line
 
         return data

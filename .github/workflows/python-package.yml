@@ -31,15 +31,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install --editable .[dev]
-    - name: Lint with flake8 and black
+    - name: Lint with black
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
         black --check .
     - name: Type check with Pyright
       run: pyright
     - name: Downgrade numpy
-      if: ${{ matrix.python-version }} == 3.7
+      if: ${{ matrix.python-version == "3.7" }}
       run: |
         # test with older numpy version to ensure compatibility
         pip install numpy==1.15

@@ -24,7 +24,7 @@ from .command import CommandClient, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
 from .project import Project
 from .job import Job
-from .util import bopen
+from .util import bopen, padarray, trimarray
 
 
 ONE_MIB = 2**20
@@ -299,3 +299,60 @@ def get_exposure_format(data_format: str, voxel_type: Optional[str] = None) -> s
         voxel_type and voxel_type in mrc.VOXEL_TYPES
     ), f'Unsupported voxel type "{voxel_type}" specified with MRC exposure format'
     return f"MRC/{mrc.VOXEL_TYPES[voxel_type]}"
+
+
+def downsample(arr: "NDArray", factor: int = 2):
+    """
+    Downsample a micrograph by the given factor
+    """
+    assert factor >= 1, "Must bin by a factor of 1 or greater"
+    arr = n.reshape(arr, (-1,) + arr.shape[-2:])
+    nz, ny, nx = arr.shape
+    clipx = (nx // factor) * factor
+    clipy = (ny // factor) * factor
+    shape = (nz, (clipy // factor), (clipx // factor)) if nz > 1 else ((clipy // factor), (clipx // factor))
+    out = arr[:, :clipy, :clipx].reshape(nz, clipy, (clipx // factor), factor)
+    out = out.sum(axis=-1)
+    out = out.reshape(nz, (clipy // factor), factor, -1).sum(axis=-2)
+    return out.reshape(shape)
+
+
+def lowpass(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, order: float = 1.0):
+    """
+    Apply butterworth lowpass filter to the 2D or 3D array data with the given
+    pixel size (`psize_A`). `cutoff_resolution_A` should be a non-negative
+    number specified in Angstroms.
+    """
+    assert cutoff_resolution_A > 0, "Lowpass filter amount must be non-negative"
+    assert len(arr.shape) == 2 or (len(arr.shape) == 3 and arr.shape[0] == 1), (
+        f"Cannot apply low-pass filter on data with shape {arr.shape}; " "must be two-dimensional"
+    )
+
+    arr = n.reshape(arr, arr.shape[-2:])
+    shape = arr.shape
+    if arr.shape[0] != arr.shape[1]:
+        arr = padarray(arr, val=n.mean(arr))
+
+    radwn = (psize_A * arr.shape[-1]) / cutoff_resolution_A
+    inverse_cutoff_wn2 = 1.0 / radwn**2
+
+    farr = n.fft.rfft2(arr)
+    ny, nx = farr.shape
+    yp = 0
+
+    for y in range(ny // 2):
+        yp = (ny // 2) if y == 0 else ny - y
+
+        # y goes from DC to one before nyquist
+        # x goes from DC to one before nyquist
+        r2 = (n.arange(nx - 1) ** 2) + (y * y)
+        f = 1.0 / (1.0 + (r2 * inverse_cutoff_wn2) ** order)
+        farr[y][:-1] *= f
+        farr[yp][:-1] *= f
+
+    # zero nyquist at the end
+    farr[ny // 2] = 0.0
+    farr[:, nx - 1] = 0.0
+
+    result = n.fft.irfft2(farr)
+    return trimarray(result, shape) if result.shape != shape else result

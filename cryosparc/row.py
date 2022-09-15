@@ -3,6 +3,7 @@ from typing import Any, Dict, Generic, Iterable, List, Mapping, Tuple, TypeVar
 import numpy as n
 
 from .column import Column
+from .util import default_rng
 
 
 class Row(Mapping):
@@ -74,12 +75,12 @@ class Spool(List[R], Generic[R]):
     randomizing based on row fields
     """
 
-    def __init__(self, items: Iterable[R], rng: n.random.Generator = n.random.default_rng()):
+    def __init__(self, items: Iterable[R], rng: "n.random.Generator" = default_rng()):
         super().__init__(items)
         self.indexes = None
         self.random = rng
 
-    def set_random(self, rng: n.random.Generator):
+    def set_random(self, rng: "n.random.Generator"):
         self.random = rng
 
     # -------------------------------------------------- Spooling and Splitting
@@ -112,9 +113,9 @@ class Spool(List[R], Generic[R]):
 
     def split_into_quarter(self, num: int, seed: int):
         """Return two Spools with the split portions"""
-        idxs = n.random.default_rng(seed=seed).permutation(len(self))  # type: ignore
-        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=n.random.default_rng(seed=seed))  # type: ignore
-        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=n.random.default_rng(seed=seed))  # type: ignore
+        idxs = default_rng(seed=seed).permutation(len(self))  # type: ignore
+        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=default_rng(seed=seed))  # type: ignore
+        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=default_rng(seed=seed))  # type: ignore
         return d1, d2
 
     def split_with_split(self, num: int, random=True, prefix=None, split=0):

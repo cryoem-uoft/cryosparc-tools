@@ -20,7 +20,7 @@ from typing_extensions import Literal
 import numpy as n
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
+    from numpy.typing import NDArray  # type: ignore
 
 from .dtype import Shape
 
@@ -277,22 +277,6 @@ def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
         yield file
 
 
-def downsample(arr: "NDArray", factor: int = 2):
-    """
-    Downsample a micrograph by the given factor
-    """
-    assert factor >= 1, "Must bin by a factor of 1 or greater"
-    arr = n.reshape(arr, (-1,) + arr.shape[-2:])
-    nz, ny, nx = arr.shape
-    clipx = (nx // factor) * factor
-    clipy = (ny // factor) * factor
-    shape = (nz, (clipy // factor), (clipx // factor)) if nz > 1 else ((clipy // factor), (clipx // factor))
-    out = arr[:, :clipy, :clipx].reshape(nz, clipy, (clipx // factor), factor)
-    out = out.sum(axis=-1)
-    out = out.reshape(nz, (clipy // factor), factor, -1).sum(axis=-2)
-    return out.reshape(shape)
-
-
 def padarray(arr: "NDArray", dim: Optional[int] = None, val: n.number = n.float32(0)):
     """
     Pad the given 2D or 3D array so that the x and y dimensions are equal to the
@@ -328,42 +312,18 @@ def trimarray(arr: "NDArray", shape: Shape):
     return n.reshape(res, res.shape[-2:]) if z == 1 else res
 
 
-def lowpass(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, order: float = 1.0):
+def default_rng(seed=None) -> "n.random.Generator":
     """
-    Apply butterworth lowpass filter to the 2D or 3D array data with the given
-    pixel size (`psize_A`). `cutoff_resolution_A` should be a non-negative
-    number specified in Angstroms.
+    Create a numpy random number generator or RandomState (depending on numpy
+    version)
+
+    Args:
+        seed (Any, optional): Seed to initialize generator with. Defaults to None.
+
+    Returns:
+        n.random.Generator: Random number generator
     """
-    assert cutoff_resolution_A > 0, "Lowpass filter amount must be non-negative"
-    assert len(arr.shape) == 2 or (len(arr.shape) == 3 and arr.shape[0] == 1), (
-        f"Cannot apply low-pass filter on data with shape {arr.shape}; " "must be two-dimensional"
-    )
-
-    arr = n.reshape(arr, arr.shape[-2:])
-    shape = arr.shape
-    if arr.shape[0] != arr.shape[1]:
-        arr = padarray(arr, val=n.mean(arr))
-
-    radwn = (psize_A * arr.shape[-1]) / cutoff_resolution_A
-    inverse_cutoff_wn2 = 1.0 / radwn**2
-
-    farr = n.fft.rfft2(arr)
-    ny, nx = farr.shape
-    yp = 0
-
-    for y in range(ny // 2):
-        yp = (ny // 2) if y == 0 else ny - y
-
-        # y goes from DC to one before nyquist
-        # x goes from DC to one before nyquist
-        r2 = (n.arange(nx - 1) ** 2) + (y * y)
-        f = 1.0 / (1.0 + (r2 * inverse_cutoff_wn2) ** order)
-        farr[y][:-1] *= f
-        farr[yp][:-1] *= f
-
-    # zero nyquist at the end
-    farr[ny // 2] = 0.0
-    farr[:, nx - 1] = 0.0
-
-    result = n.fft.irfft2(farr)
-    return trimarray(result, shape) if result.shape != shape else result
+    if hasattr(n.random, "default_rng"):
+        return n.random.default_rng(seed)
+    else:
+        return n.random.RandomState(seed)  # type: ignore
