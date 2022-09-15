@@ -227,13 +227,36 @@ def test_column_aggregation(t20s_dset):
     assert not isinstance(n.mean(t20s_dset["uid"]), n.ndarray)
 
 
-@pytest.mark.skipif(
-    n.__version__.startswith("1.15."),
-    reason="This works correctly with newer numpy versions and the use case is limited",
-)
+@pytest.mark.skipif(n.__version__.startswith("1.15."), reason="works with newer numpy versions, use case is limited")
 def test_row_array_type(t20s_dset):
     rowarr = n.array(t20s_dset.rows())
     assert isinstance(rowarr[0], Row)
+
+
+def test_innerjoin_bigger():
+    d1 = Dataset([("uid", [1, 2, 3]), ("dat1", ["Hello", "World", "!"])])
+    d2 = Dataset([("uid", [0, 1, 2, 3, 4]), ("dat2", ["(", "Hello", "World", "!", ")"])])
+
+    assert d1.innerjoin(d2) == Dataset(
+        [
+            ("uid", [1, 2, 3]),
+            ("dat1", ["Hello", "World", "!"]),
+            ("dat2", ["Hello", "World", "!"]),
+        ]
+    )
+
+
+def test_innerjoin_smaller():
+    d1 = Dataset([("uid", [1, 2, 3]), ("dat1", ["Hello", "World", "!"])])
+    d2 = Dataset([("uid", [3, 1]), ("dat2", ["Hello", "World"])])
+
+    assert d1.innerjoin(d2) == Dataset(
+        [
+            ("uid", [1, 3]),
+            ("dat1", ["Hello", "!"]),
+            ("dat2", ["World", "Hello"]),
+        ]
+    )
 
 
 # FIXME: Is this required?

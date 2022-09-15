@@ -5,10 +5,12 @@ from time import time
 import urllib.request
 import pytest
 import httpretty
+import numpy as n
 from numpy.core.records import fromrecords
 
 from cryosparc.tools import CryoSPARC
 from cryosparc.dataset import Dataset as BaseDataset, Row
+from cryosparc.util import default_rng
 
 # Always use this class for testing to ensure `Dataset#items` property is never used
 # internally. Downstream CryoSPARC relies on this.
@@ -16,6 +18,11 @@ class Dataset(BaseDataset[Row]):
     @property
     def items(self):
         return self.rows()
+
+    def shuffle(self):
+        idxs = n.arange(len(self))
+        default_rng().shuffle(idxs)
+        return self.indexes(idxs)
 
 
 def request_callback_core(request, uri, response_headers):

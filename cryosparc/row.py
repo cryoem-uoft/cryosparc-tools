@@ -75,6 +75,12 @@ R = TypeVar("R", bound=Row)
 Type variable for a `Row` subclass.
 """
 
+DEFAULT_RNG = default_rng()
+try:
+    random_integers = DEFAULT_RNG.integers
+except AttributeError:
+    random_integers = DEFAULT_RNG.randint
+
 
 class Spool(List[R], Generic[R]):
     """
@@ -87,7 +93,7 @@ class Spool(List[R], Generic[R]):
             to numpy.random.default_rng().
     """
 
-    def __init__(self, items: Iterable[R], rng: "n.random.Generator" = default_rng()):
+    def __init__(self, items: Iterable[R], rng: "n.random.Generator" = DEFAULT_RNG):
         super().__init__(items)
         self.indexes = None
         self.random = rng
@@ -116,7 +122,7 @@ class Spool(List[R], Generic[R]):
 
     def split_half_in_order(self, prefix: str, random=True):
         if random:
-            splitvals = n.random.randint(2, size=len(self))
+            splitvals = random_integers(2, size=len(self))
         else:
             splitvals = n.arange(len(self)) % 2
         for idx, p in enumerate(self):

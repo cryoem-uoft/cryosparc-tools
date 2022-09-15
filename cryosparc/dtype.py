@@ -37,6 +37,10 @@ def makefield(name: str, dtype: "DTypeLike") -> Field:
     return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)
 
 
+def safe_makefield(name: str, dtype: "DTypeLike") -> Field:
+    return ("uid", n.dtype(n.uint64).str) if name == "uid" else makefield(name, dtype)
+
+
 def fielddtype(field: Field) -> DType:
     _, dt, *rest = field
     return (dt, rest[0]) if rest else dt

@@ -28,10 +28,10 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
 
 from .data import Data
-from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype
+from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype, safe_makefield
 from .column import Column
 from .row import Row, Spool, R
-from .util import bopen, hashcache, u32bytesle, u32intle
+from .util import bopen, default_rng, hashcache, u32bytesle, u32intle
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -59,6 +59,7 @@ FORMAT_MAGIC_PREFIXES = {
     CSDAT_FORMAT: b"\x94CSDAT",  # .csl binary format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
+RNG = default_rng()
 
 
 class Dataset(MutableMapping[str, Column], Generic[R]):
@@ -338,7 +339,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             return self
         result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
         if assert_no_drop:
-            assert len(result) == len(self), "innerjoin datasets that do not have all elements in common."
+            assert len(result) == len(self), "Cannot innerjoin datasets that do not have all elements in common."
         return result
 
     @classmethod
@@ -381,10 +382,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         # Create a new dataset with just the UIDs from both datasets
         result = cls.allocate(len(common_uids), fields=all_fields)
-        for dset, group in zip(datasets, fields_by_dataset):
-            mask = n.isin(dset["uid"], common_uids, assume_unique=assume_unique)
+
+        # Use first dataset to determine stable order of UIDs
+        common_mask = n.isin(datasets[0]["uid"], common_uids, assume_unique=assume_unique)
+        common_uids = datasets[0]["uid"][common_mask]
+        for key, *_ in fields_by_dataset[0]:
+            result[key] = datasets[0][key][common_mask]
+
+        for dset, group in zip(datasets[1:], fields_by_dataset[1:]):
+            _, common_indeces, _ = n.intersect1d(
+                dset["uid"], common_uids, assume_unique=assume_unique, return_indices=True
+            )
             for key, *_ in group:
-                result[key] = dset[key][mask]
+                result[key] = dset[key][common_indeces]
 
         return result
 
@@ -540,15 +550,16 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         elif isinstance(allocate, n.ndarray):  # record array
             for field in allocate.dtype.descr:
                 assert field[0], f"Cannot initialize with record array of dtype {allocate.dtype}"
+                field = ("uid", "u8") if field[0] == "uid" else field
                 populate.append((field, allocate[field[0]]))
         elif isinstance(allocate, Mapping):
             for f, v in allocate.items():
                 a = n.array(v, copy=False)
-                populate.append((makefield(f, arraydtype(a)), a))
+                populate.append((safe_makefield(f, arraydtype(a)), a))
         else:
             for f, v in allocate:
                 a = n.array(v, copy=False)
-                populate.append((makefield(f, arraydtype(a)), a))
+                populate.append((safe_makefield(f, arraydtype(a)), a))
 
         # Check that all entries are the same length
         nrows = 0
@@ -802,7 +813,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         if dtypes:
             dt = dtypes.split(",") if isinstance(dtypes, str) else dtypes
             assert len(fields) == len(dt), "Incorrect dtype spec"
-            desc = [makefield(str(f), dt) for f, dt in zip(fields, dt)]
+            desc = [safe_makefield(str(f), dt) for f, dt in zip(fields, dt)]
         else:
             desc = fields  # type: ignore
 
@@ -1184,10 +1195,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return result
 
     def __repr__(self) -> str:
-        s = f"{type(self).__name__}(["
         size = len(self)
-
         cols = self.cols()
+        s = f"{type(self).__name__}([  # {size} items, {len(cols)} fields"
+
         for k in cols:
             v = cols[k]
             if size > 6:
@@ -1198,7 +1209,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             contents = " ".join([x for x in contents.split(" ") if len(x) > 0])
             s += "\n" + f"    ('{k}', {contents}),"
 
-        s += f"\n])  # {size} items, {len(cols)} fields"
+        s += "\n])"
         return s
 
     def _reset(self, data: Optional[Data] = None):
@@ -1230,4 +1241,4 @@ def generate_uids(num: int = 0):
     Returns:
         NDArray: Numpy array of random unsigned 64-bit integers
     """
-    return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)
+    return RNG.integers(0, 2**64, size=(num,), dtype=n.uint64)

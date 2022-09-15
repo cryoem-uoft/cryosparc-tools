@@ -279,13 +279,14 @@ def test_append_replace_many_query(benchmark, big_dset: Dataset, dset: Dataset):
 
 def test_innerjoin(benchmark, dset: Dataset):
     other = dset.slice(500000, 1500000)
-    joined = benchmark(dset.innerjoin, other, assume_unique=True)
-    assert len(joined) == 1000000
+    expected = other
+    joined = benchmark(dset.innerjoin, other.shuffle(), assume_unique=True)
+    assert joined == expected
 
 
 def test_innerjoin_many(benchmark, dset: Dataset):
     other1 = dset.slice(500_000, 1_250_000)
-    other2 = dset.slice(750_000, 1_500_000)
+    other2 = dset.slice(750_000, 1_500_000).shuffle()
     expected = dset.slice(750_000, 1_250_000)
     new_dset = benchmark(Dataset.innerjoin, dset, other1, other2, assume_unique=True)
     assert new_dset == expected

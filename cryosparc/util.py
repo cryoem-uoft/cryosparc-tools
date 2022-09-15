@@ -323,7 +323,7 @@ def default_rng(seed=None) -> "n.random.Generator":
     Returns:
         n.random.Generator: Random number generator
     """
-    if hasattr(n.random, "default_rng"):
+    try:
         return n.random.default_rng(seed)
-    else:
+    except AttributeError:
         return n.random.RandomState(seed)  # type: ignore
