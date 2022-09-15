@@ -49,4 +49,4 @@ build-backend = "setuptools.build_meta"
 line-length = 120
 
 [tool.pyright]
-include = ["cryosparc", "test", "setup.py"]
+include = ["cryosparc", "tests", "setup.py"]
