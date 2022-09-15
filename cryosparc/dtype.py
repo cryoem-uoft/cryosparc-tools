@@ -62,7 +62,7 @@ def encode_fields(fields: List[Field]) -> bytes:
 
 def decode_fields(data: Union[bytes, list]) -> List[Field]:
     try:
-        l = json.loads(data) if isinstance(data, bytes) else data
-        return [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in l]
-    except:
+        fields = json.loads(data) if isinstance(data, bytes) else data
+        return [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in fields]
+    except Exception:
         raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}")

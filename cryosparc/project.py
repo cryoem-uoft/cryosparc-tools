@@ -119,7 +119,7 @@ class Project:
         if slots is None:
             slots = list(prefixes)
         slot_names = {s if isinstance(s, str) else s["prefix"] for s in slots}
-        assert slot_names.intersection(prefixes) == slot_names, f"Given dataset missing required slots"
+        assert slot_names.intersection(prefixes) == slot_names, "Given dataset missing required slots"
 
         passthrough_str = ".".join(passthrough) if passthrough else None
         job_uid, output = self.cs.vis.create_external_result(  # type: ignore

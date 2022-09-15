@@ -98,9 +98,9 @@ def test_get_items_to_list(benchmark, dset, fields):
         dset._rows = None
         items = dset.rows()
         first = items[0]
-        l = first.to_list()
-        assert len(l) == len(fields)
-        assert any(l)
+        lst = first.to_list()
+        assert len(lst) == len(fields)
+        assert any(lst)
 
 
 def test_get_items_to_dict(benchmark, dset: Dataset, fields):

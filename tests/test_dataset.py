@@ -127,18 +127,18 @@ def test_add_fields_nonebug(t20s_dset):
 
 def test_to_list():
     storage = Dataset.allocate(size=1, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
-    l = storage.to_list()
-    assert len(l) == 1
-    assert len(l[0]) == 4
+    lst = storage.to_list()
+    assert len(lst) == 1
+    assert len(lst[0]) == 4
 
 
 def test_to_list_exclude_uid():
     storage = Dataset.allocate(size=1, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     storage["field3"][0] = "Hello"
-    l = storage.to_list(exclude_uid=True)
-    assert len(l) == 1
-    assert len(l[0]) == 3
-    assert l == [[0, 0.0, "Hello"]]
+    lst = storage.to_list(exclude_uid=True)
+    assert len(lst) == 1
+    assert len(lst[0]) == 3
+    assert lst == [[0, 0.0, "Hello"]]
 
 
 def test_to_file():

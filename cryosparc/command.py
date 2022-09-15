@@ -160,12 +160,16 @@ def make_request(
         except TimeoutError:
             error_reason = "Timeout Error"
             print(
-                f"*** {type(client).__name__}: command ({url}) did not reply within timeout of {client._timeout} seconds, "
+                f"*** {type(client).__name__}: command ({url}) "
+                f"did not reply within timeout of {client._timeout} seconds, "
                 f"attempt {attempt} of {max_attempts}"
             )
             attempt += 1
         except HTTPError as error:
-            error_reason = f"HTTP Error {error.code} {error.reason}; please check cryosparcm log {client.service} for additional information."
+            error_reason = (
+                f"HTTP Error {error.code} {error.reason}; "
+                f"please check cryosparcm log {client.service} for additional information."
+            )
             print(f"*** {type(client).__name__}: ({url}) {error_reason}")
             break
         except URLError as error:

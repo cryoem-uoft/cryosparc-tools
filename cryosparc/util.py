@@ -129,21 +129,21 @@ class BinaryIteratorIO(BinaryIO):
         Returns:
             bytes: Zero or more bytes read
         """
-        l = []
+        r = []
         if n is None or n < 0:
             while True:
                 m = self._read1()
                 if not m:
                     break
-                l.append(m)
+                r.append(m)
         else:
             while n > 0:
                 m = self._read1(n)
                 if not m:
                     break
                 n -= len(m)
-                l.append(m)
-        return b"".join(l)
+                r.append(m)
+        return b"".join(r)
 
 
 class AsyncBinaryIteratorIO:
@@ -194,21 +194,21 @@ class AsyncBinaryIteratorIO:
         Returns:
             bytes: Zero or more bytes read
         """
-        l = []
+        r = []
         if n is None or n < 0:
             while True:
                 m = await self._read1()
                 if not m:
                     break
-                l.append(m)
+                r.append(m)
         else:
             while n > 0:
                 m = await self._read1(n)
                 if not m:
                     break
                 n -= len(m)
-                l.append(m)
-        return b"".join(l)
+                r.append(m)
+        return b"".join(r)
 
 
 def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:

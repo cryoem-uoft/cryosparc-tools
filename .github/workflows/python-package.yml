@@ -31,9 +31,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install --editable .[dev]
-    - name: Lint with black
+    - name: Lint with black and ruff
       run: |
         black --check .
+        ruff .
     - name: Type check with Pyright
       run: pyright
     - name: Downgrade numpy

@@ -136,7 +136,9 @@ class Job:
         """
         Append a checkpoint to the job's event log
         """
-        return self.cs.cli.job_checkpoint_streamlog(project_uid=self.project_uid, job_uid=self.uid, meta=meta)  # type: ignore
+        return self.cs.cli.job_checkpoint_streamlog(  # type: ignore
+            project_uid=self.project_uid, job_uid=self.uid, meta=meta
+        )
 
     def log_plot(
         self,
@@ -539,7 +541,7 @@ class ExternalJob(Job):
         try:
             yield self
         # TODO: Set job to completed status
-        except:
+        except Exception:
             # TODO: Set job to error status, send error to joblog
             error = True
             raise

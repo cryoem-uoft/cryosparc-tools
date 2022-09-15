@@ -645,7 +645,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         each field.
         """
         if isinstance(field_map, dict):
-            fm = lambda x: field_map.get(x, x)
+            fm = lambda x: field_map.get(x, x)  # noqa
         else:
             fm = field_map
 
