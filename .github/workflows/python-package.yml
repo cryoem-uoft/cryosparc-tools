@@ -37,7 +37,7 @@ jobs:
     - name: Type check with Pyright
       run: pyright
     - name: Downgrade numpy
-      if: ${{ matrix.python-version == "3.7" }}
+      if: ${{ matrix.python-version == '3.7' }}
       run: |
         # test with older numpy version to ensure compatibility
         pip install numpy==1.15

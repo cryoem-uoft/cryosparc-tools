@@ -14,20 +14,22 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "autodocsumm",
-    "black",
     "build",
-    "flake8",
+    "black",
     "httpretty",
-    "jupyter-book",
     "pyright",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
     "pytest",
 ]
 
-notebook = [
+build = [
     "build",
+    "autodocsumm",
+    "jupyter-book",
+]
+
+examples = [
     "pandas == 1.1.4",
     "matplotlib >=3.4<3.5",
     "numpy >=1.18<1.19",

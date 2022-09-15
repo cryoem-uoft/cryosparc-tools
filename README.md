@@ -25,10 +25,11 @@ Toolkit for interfacing with cryoSPARC
    conda create -n tools python=3.7 -c conda-forge
    conda activate tools
    ```
-3. Install dev dependencies and build native modules
+3. Install dev and build dependencies and build native modules
    ```sh
    pip install -U pip
    pip install -e ".[dev]"
+   pip install -e ".[build]"
    ```
 
 ### Re-compile native module
@@ -56,10 +57,6 @@ dependencies to execute, including the following system configuration:
 
 * Nvidia GPU and driver
 * cryoSPARC running at `localhost:3000`
-
-Open `pyproject.toml`, look for the `[build-system]` line. Edit the `requires`
-to use `numpy >=1.18.0<1.19.0` instead of the normal `numpy ~= 1.15`. Do not
-commit this change.
 
 Clean previous build artefacts:
 
@@ -89,10 +86,10 @@ pip install -U pip
 pip install nvidia-pyindex
 ```
 
-Rebuild
+Install example deps and rebuild
 
 ```
-pip install -e ".[notebook]"
+pip install -e ".[examples]"
 make
 ```
 

@@ -11,6 +11,7 @@ a.out
 # Environments
 .env
 .venv
+.venv*
 env/
 venv/
 ENV/
@@ -19,6 +20,7 @@ venv.bak/
 
 # Distribution / packaging
 .Python
+.python-version
 build/
 develop-eggs/
 dist/
