@@ -1,7 +1,7 @@
 cryosparc-tools
 ===
 
-Toolkit for interfacing with cryoSPARC
+Toolkit for interfacing with CryoSPARC
 
 ## Development
 
@@ -56,7 +56,7 @@ The Jupyter notebooks in the example documentation require additional
 dependencies to execute, including the following system configuration:
 
 * Nvidia GPU and driver
-* cryoSPARC running at `localhost:3000`
+* CryoSPARC running at `localhost:39000`
 
 Clean previous build artefacts:
 
@@ -94,7 +94,7 @@ make
 ```
 
 Run the notebook server with the `CRYOSPARC_LICENSE_ID` environment variable
-containing a cryoSPARC License, open in the browser. You may also need to
+containing a CryoSPARC License, open in the browser. You may also need to
 include `LD_LIBRARY_PATH` which includes the location of CUDA Toolkit and cuDNN
 runtime libraries (e.g., `~/miniconda3/envs/tools/lib`).
 

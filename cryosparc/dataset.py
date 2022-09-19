@@ -47,7 +47,7 @@ MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inver
 
 class Dataset(MutableMapping[str, Column], Generic[R]):
     """
-    Accessor class for working with cryoSPARC .cs files.
+    Accessor class for working with CryoSPARC .cs files.
 
     A dataset may be initialized with `Dataset(data)` where `data` is
     one of the following:

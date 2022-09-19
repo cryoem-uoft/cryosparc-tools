@@ -1,31 +1,31 @@
 # Getting Started
 
 `cryosparc-tools` is a Python library that enables scripting access to the
-[cryoSPARC](https://cryosparc.com) <abbr title="cryo-electron microscopy">cryo-EM</abbr> software package.
+[CryoSPARC](https://cryosparc.com) <abbr title="cryo-electron microscopy">cryo-EM</abbr> software package.
 
 Use it for the following use cases:
 
 * Programmatically read and write exposure, particle and volume data
 * Access project and job metadata
-* Extend cryoSPARC functionality with third-party software packages
+* Extend CryoSPARC functionality with third-party software packages
 
 ```{note}
-This guide documents usage of the `cryosparc-tools` Python library. For cryoSPARC installation or general cryoSPARC usage instructions, [read the official guide](https://guide.cryosparc.com).
+This guide documents usage of the `cryosparc-tools` Python library. For CryoSPARC installation or general CryoSPARC usage instructions, [read the official guide](https://guide.cryosparc.com).
 ```
 
 
 ## Pre-requisites
 
 * [Python >= 3.7](https://www.python.org/downloads/)
-* [cryoSPARC >= v4.0](https://cryosparc.com/download)
+* [CryoSPARC >= v4.0](https://cryosparc.com/download)
 
-cryoSPARC installation must be accessible via one of the following methods:
+CryoSPARC installation must be accessible via one of the following methods:
 - Running on the local machine
 - Running on a machine on the same network with `BASE_PORT + 2` and `BASE_PORT + 3` open for TCP connections
 - Running on a remote machine with `BASE_PORT + 2` and `BASE_PORT + 3` forwarded to the local machine
 
 See [SSH Port Forwarding](https://guide.cryosparc.com/setup-configuration-and-management/how-to-download-install-and-configure/accessing-cryosparc#ssh-port-forwarding-on-a-nix-system)
-documentation for accessing a cryoSPARC instance on a remote machine accessible
+documentation for accessing a CryoSPARC instance on a remote machine accessible
 via <abbr title="Secure Shell">SSH</abbr>.
 
 
@@ -56,7 +56,7 @@ assert cs.test_connection()
 ```
 
 ```{note}
-This assumes cryoSPARC base ports +2 and +3 (e.g., 39002 and 39003) are available at `localhost` on the local machine. If cryoSPARC is on another machine on the same network, use `CryoSPARC(host="hostname", port=39000)`
+This assumes CryoSPARC base ports +2 and +3 (e.g., 39002 and 39003) are available at `localhost` on the local machine. If CryoSPARC is on another machine on the same network, use `CryoSPARC(host="hostname", port=39000)`
 ```
 
 Query projects, jobs and result datasets

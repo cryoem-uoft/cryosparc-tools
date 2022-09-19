@@ -256,7 +256,7 @@ class Job:
             with make_request(self.cs.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
                     f"Could not upload project {self.project_uid} asset {file}.\n"
-                    f"Response from cryoSPARC: {res.read().decode()}"
+                    f"Response from CryoSPARC: {res.read().decode()}"
                 )
                 return json.loads(res.read())
 

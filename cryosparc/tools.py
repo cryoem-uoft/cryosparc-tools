@@ -1,5 +1,5 @@
 """
-Main module exporting the ``CryoSPARC`` class for interfaing with a cryoSPARC
+Main module exporting the ``CryoSPARC`` class for interfaing with a CryoSPARC
 instance from Python
 
 Example:
@@ -44,17 +44,17 @@ Supported micrograph file formats.
 
 class CryoSPARC:
     """
-    High-level class for interfacing with a cryoSPARC instance.
+    High-level class for interfacing with a CryoSPARC instance.
 
-    Initialize with the host and base port of the running cryoSPARC instance.
+    Initialize with the host and base port of the running CryoSPARC instance.
     This hostname and (at minimum) ``port + 2`` and ``port + 3`` should be
     accessible on the network.
 
     Args:
-        license (str, optional): cryoSPARC license key. Defaults to ``os.getenv("CRYOSPARC_LICENSE_ID")``.
-        host (str, optional): Hostname or IP address running cryoSPARC master. Defaults to "localhost".
-        port (int, optional): cryoSPARC base port number. Defaults to 39000.
-        timeout (int, optional): Timeout error for HTTP requests to cryoSPARC command services. Defaults to 300.
+        license (str, optional): CryoSPARC license key. Defaults to ``os.getenv("CRYOSPARC_LICENSE_ID")``.
+        host (str, optional): Hostname or IP address running CryoSPARC master. Defaults to "localhost".
+        port (int, optional): CryoSPARC base port number. Defaults to 39000.
+        timeout (int, optional): Timeout error for HTTP requests to CryoSPARC command services. Defaults to 300.
 
     Attributes:
         cli (CommandClient): HTTP/JSONRPC client for ``command_core`` service (port + 2).
@@ -85,7 +85,7 @@ class CryoSPARC:
         port: int = 39000,
         timeout: int = 300,
     ):
-        assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified cryoSPARC license ID {license}"
+        assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified CryoSPARC license ID {license}"
 
         self.cli = CommandClient(
             service="command_core", host=host, port=port + 2, headers={"License-ID": license}, timeout=timeout
@@ -96,22 +96,22 @@ class CryoSPARC:
 
     def test_connection(self):
         """
-        Verify connection to cryoSPARC command services
+        Verify connection to CryoSPARC command services
 
         Returns:
             bool: True if connection succeeded, False otherwise
         """
         if self.cli.test_connection():  # type: ignore
-            print(f"Connection succeeded to cryoSPARC command_core at {self.cli._url}")
+            print(f"Connection succeeded to CryoSPARC command_core at {self.cli._url}")
         else:
-            print(f"Connection FAILED to cryoSPARC command_core at {self.cli._url}")
+            print(f"Connection FAILED to CryoSPARC command_core at {self.cli._url}")
             return False
 
         with make_request(self.vis, method="get") as response:
             if response.read():
-                print(f"Connection succeeded to cryoSPARC command_vis at {self.vis._url}")
+                print(f"Connection succeeded to CryoSPARC command_vis at {self.vis._url}")
             else:
-                print(f"Connection FAILED to cryoSPARC command_vis at {self.vis._url}")
+                print(f"Connection FAILED to CryoSPARC command_vis at {self.vis._url}")
                 return False
 
         return True
@@ -148,11 +148,11 @@ class CryoSPARC:
     def download(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
         Open a file in the current project for reading. Use this method to get
-        files from a remote cryoSPARC instance whose the project directories are
+        files from a remote CryoSPARC instance whose the project directories are
         not available on the client file system,
 
         Args:
-            project_uid (str): Short unique ID of cryoSPARC project, e.g., "P3"
+            project_uid (str): Short unique ID of CryoSPARC project, e.g., "P3"
             path (str | PurePosixPath): Relative path to file in project directory
 
         Yields:
@@ -226,7 +226,7 @@ class CryoSPARC:
             with make_request(self.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
                     f"Could not upload project {project_uid} file {path}.\n"
-                    f"Response from cryoSPARC: {res.read().decode()}"
+                    f"Response from CryoSPARC: {res.read().decode()}"
                 )
 
     def upload_dataset(
