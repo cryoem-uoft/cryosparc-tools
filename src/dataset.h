@@ -7,21 +7,29 @@
 
 #define repr(x,a,b,val) val 
 
+#ifdef _WIN32
+typedef _Fcomplex ds_float_complex_t;
+typedef _Dcomplex ds_double_complex_t;
+#else
+typedef float complex ds_float_complex_t;
+typedef double complex ds_double_complex_t;
+#endif
+
 #define DSET_TYPELIST(X) \
-	X(T_F32,  f,   float,           "f4",   "%g", repr ) \
-	X(T_F64,  d,   double,          "f8",   "%g", repr ) \
-	X(T_C32,  cf,  float complex,   "c8",   "%s", repr_cfloat ) \
-	X(T_C64,  cd,  double complex,  "c16",  "%s", repr_cdouble) \
-	X(T_I8,   i8,  int8_t,          "i1",   "%" PRIi8,  repr ) \
-	X(T_I16,  i16, int16_t,         "i2",   "%" PRIi16, repr ) \
-	X(T_I32,  i32, int32_t,         "i4",   "%" PRIi32, repr ) \
-	X(T_I64,  i64, int64_t,         "i8",   "%" PRIi64, repr ) \
-	X(T_U8,   u8,  uint8_t,         "u1",   "%" PRIu8,  repr ) \
-	X(T_U16,  u16, uint16_t,        "u2",   "%" PRIu16, repr ) \
-	X(T_U32,  u32, uint32_t,        "u4",   "%" PRIu32, repr ) \
-	X(T_U64,  u64, uint64_t,        "u8",   "%" PRIu64, repr ) \
-	X(T_STR,  s,   uint64_t,        "O",    "%s", repr_str ) \
-	X(T_OBJ,  p,   void*,           "O",    "%p", repr ) 
+	X(T_F32,  f,   float,               "f4",   "%g", repr ) \
+	X(T_F64,  d,   double,              "f8",   "%g", repr ) \
+	X(T_C32,  cf,  ds_float_complex_t,  "c8",   "%s", repr_cfloat ) \
+	X(T_C64,  cd,  ds_double_complex_t, "c16",  "%s", repr_cdouble) \
+	X(T_I8,   i8,  int8_t,              "i1",   "%" PRIi8,  repr ) \
+	X(T_I16,  i16, int16_t,             "i2",   "%" PRIi16, repr ) \
+	X(T_I32,  i32, int32_t,             "i4",   "%" PRIi32, repr ) \
+	X(T_I64,  i64, int64_t,             "i8",   "%" PRIi64, repr ) \
+	X(T_U8,   u8,  uint8_t,             "u1",   "%" PRIu8,  repr ) \
+	X(T_U16,  u16, uint16_t,            "u2",   "%" PRIu16, repr ) \
+	X(T_U32,  u32, uint32_t,            "u4",   "%" PRIu32, repr ) \
+	X(T_U64,  u64, uint64_t,            "u8",   "%" PRIu64, repr ) \
+	X(T_STR,  s,   uint64_t,            "O",    "%s", repr_str ) \
+	X(T_OBJ,  p,   void*,               "O",    "%p", repr ) 
 
 
 enum dset_type {
@@ -113,9 +121,9 @@ DSET_API  void        dset_dumptxt (uint64_t dset);
 #define DSMUTEX_LOCK(mutex) WaitForSingleObject(mutex, INFINITE)
 #define DSMUTEX_UNLOCK(mutex) ReleaseMutex(mutex)
 
-typedef HANDLE dsmutex_t;
-typedef INIT_ONCE dsonce_t;
-typedef	DWORD dsmutex_lock_t;
+typedef HANDLE ds_mutex_t;
+typedef INIT_ONCE ds_once_t;
+typedef	DWORD ds_mutex_lock_t;
 
 #else
 
@@ -125,9 +133,9 @@ typedef	DWORD dsmutex_lock_t;
 #define DSMUTEX_LOCK(mutex) pthread_mutex_lock(&mutex)
 #define DSMUTEX_UNLOCK(mutex) pthread_mutex_unlock(&mutex)
 
-typedef pthread_mutex_t dsmutex_t;
-typedef pthread_once_t dsonce_t;
-typedef	int dsmutex_lock_t;
+typedef pthread_mutex_t ds_mutex_t;
+typedef pthread_once_t ds_once_t;
+typedef	int ds_mutex_lock_t;
 #endif
 
 /*
@@ -165,9 +173,9 @@ __attribute__ ((format (printf, 1, 2)))
 #endif
 nonfatal(char *fmt, ...)
 {
-	char buf[1024]  = {};
-	char buf2[128]  = {};
-	char buf3[1024] = {};
+	char buf[1024];
+	char buf2[128];
+	char buf3[1024];
 
 	int e = errno;
 	if (e != 0) snprintf(buf2,sizeof(buf2)," (errno %d: %s)", e, strerror(e));
@@ -181,15 +189,15 @@ nonfatal(char *fmt, ...)
 	DSPRINTERR(buf3);
 }
 
-static _Noreturn void 
+static _Noreturn
 #if defined(__clang__) || defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif
 fatal(char *fmt, ...)
 {
-	char buf[1024]  = {};
-	char buf2[128]  = {};
-	char buf3[1024] = {};
+	char buf[1024];
+	char buf2[128];
+	char buf3[1024];
 
 	int e = errno;
 	if (e != 0) snprintf(buf2,sizeof(buf2)," (errno %d: %s)", e, strerror(e));
@@ -279,8 +287,8 @@ typedef struct {
 	to support datasets.
 */
 static struct {
-	dsonce_t    init_guard;
-	dsmutex_t   mtx;
+	ds_once_t    init_guard;
+	ds_mutex_t   mtx;
 
 	uint64_t          nslots;
 	ds_slot *         slots;
@@ -291,7 +299,7 @@ static struct {
 
 #ifdef _WIN32
 BOOL CALLBACK
-_module_init(PINIT_ONCE InitOnce, PVOID *lpContext)
+_module_init(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *lpContext)
 {
 	// initialize the mutex, and enable some protections against programmer errors
 	HANDLE mutex = CreateMutex(
@@ -328,6 +336,7 @@ module_init(void) {
 	xassert(TRUE == InitOnceExecuteOnce(
 		&ds_module.init_guard, // One-time initialization structure
 		_module_init,          // Pointer to initialization callback function
+		NULL,                  // Optional parameter to callback function (not used)
 		&context               // Receives pointer to created mutex
 	));
 #else
@@ -341,7 +350,7 @@ lock (void) {
 	This lock only needs to be held when creating or destroying datasets.
 	We don't guarantee that datasets can be safely accessed concurrently, that's up to the user.
 */
-	dsmutex_lock_t rc = DSMUTEX_LOCK(ds_module.mtx);
+	ds_mutex_lock_t rc = DSMUTEX_LOCK(ds_module.mtx);
 	errno = (int) rc;
 	xassert(rc == DSMUTEX_LOCK_SUCCESS);
 }
@@ -948,7 +957,7 @@ dset_addcol_array (uint64_t dset, const char * key, int type, uint8_t shape0, ui
 	const int8_t t   = abs_i8(type);
 
 	// hypothetical new column descriptor.
-	ds_column col = {};
+	ds_column col;
 	col.type =  ksz > SHORTKEYSZ ? -t : t;
 	col.shape[0] = shape0;
 	col.shape[1] = shape1;
@@ -1142,14 +1151,14 @@ dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * va
 
 
 static char* 
-repr_cfloat (uint64_t ds, int sz, char * buf, float complex fc)
+repr_cfloat (uint64_t ds, int sz, char * buf, ds_float_complex_t fc)
 {
 	snprintf(buf,sz,"(%f,%f)", crealf(fc), cimagf(fc));
 	return buf;
 }
 
 static char*
-repr_cdouble (uint64_t ds, int sz, char * buf, double complex dc)
+repr_cdouble (uint64_t ds, int sz, char * buf, ds_double_complex_t dc)
 {
 	snprintf(buf,sz,"(%f,%f)", creal(dc), cimag(dc));
 	return buf;
@@ -1210,7 +1219,7 @@ dset_dumptxt (uint64_t dset) {
 		for (unsigned i = 0; i < d->ncol; i++,c++) {
 			/* TODO/bug: doesn't print non-scalar columns correctly yet */
 
-			char buf[1000] = {};
+			char buf[1000];
 
 			char * data = d;
 			data += d->arrheap_start + c->offset;
