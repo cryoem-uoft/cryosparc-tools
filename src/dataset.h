@@ -112,6 +112,7 @@ DSET_API  void        dset_dumptxt (uint64_t dset);
 #include <assert.h>
 #include <stdalign.h>
 #include <stdarg.h>    // functions with variable number of arguments (e.g. error message callback)
+#include <stdnoreturn.h>
 
 #ifdef _WIN32
 #define _WIN32_WINNT 0x0600
@@ -167,7 +168,7 @@ typedef	int ds_mutex_lock_t;
 /*
 	Default error message logging actions
 */
-static void 
+static void
 #if defined(__clang__) || defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif
@@ -189,7 +190,7 @@ nonfatal(char *fmt, ...)
 	DSPRINTERR(buf3);
 }
 
-static _Noreturn
+static noreturn void
 #if defined(__clang__) || defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif
