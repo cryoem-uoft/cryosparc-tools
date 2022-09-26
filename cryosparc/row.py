@@ -8,7 +8,8 @@ from .util import default_rng
 
 class Row(Mapping):
     """
-    Provides row-by-row access to a dataset
+    Provides row-by-row access to a dataset. Do not initialize directly. See
+    dataset module.
     """
 
     __slots__ = ("idx", "cols")  # Specifying this speeds up allocation of many rows
@@ -45,7 +46,10 @@ class Row(Mapping):
         return self.cols[key].item(self.idx) if key in self else default
 
     def to_list(self, exclude_uid=False):
-        """Convert into a list of native python types, ordered the same way as the fields"""
+        """
+        Convert into a list of native python types in the same order as the
+        declared fields.
+        """
         return [self.cols[key].item(self.idx) for key in self.cols if not exclude_uid or key != "uid"]
 
     def to_dict(self):
@@ -67,12 +71,20 @@ class Row(Mapping):
 
 
 R = TypeVar("R", bound=Row)
+"""
+Type variable for a `Row` subclass.
+"""
 
 
 class Spool(List[R], Generic[R]):
     """
-    List-like database row accessor class with support for splitting and
+    List-like dataset row accessor class with support for splitting and
     randomizing based on row fields
+
+    Args:
+        items (Iterable[R]): List of rows
+        rng (Generator, optional): Numpy random number generator. Defaults
+            to numpy.random.default_rng().
     """
 
     def __init__(self, items: Iterable[R], rng: "n.random.Generator" = default_rng()):
@@ -85,7 +97,9 @@ class Spool(List[R], Generic[R]):
 
     # -------------------------------------------------- Spooling and Splitting
     def split(self, num: int, random=True, prefix=None):
-        """Return two spools with the split portions"""
+        """
+        Return two spools with the split portions
+        """
         if random:
             idxs = self.random.permutation(len(self))
         else:
@@ -112,14 +126,18 @@ class Spool(List[R], Generic[R]):
         return d1, d2
 
     def split_into_quarter(self, num: int, seed: int):
-        """Return two Spools with the split portions"""
+        """
+        Return two Spools with the split portions
+        """
         idxs = default_rng(seed=seed).permutation(len(self))  # type: ignore
         d1 = Spool(items=(self[i] for i in idxs[:num]), rng=default_rng(seed=seed))  # type: ignore
         d2 = Spool(items=(self[i] for i in idxs[num:]), rng=default_rng(seed=seed))  # type: ignore
         return d1, d2
 
     def split_with_split(self, num: int, random=True, prefix=None, split=0):
-        """Return two Spools with the split portions"""
+        """
+        Return two Spools with the split portions
+        """
         if random:
             idxs = self.random.permutation(len(self))
         else:
@@ -135,7 +153,9 @@ class Spool(List[R], Generic[R]):
         return d1, d2
 
     def split_by_splits(self, prefix="alignments"):
-        """Return two Spools with the split portions"""
+        """
+        Return two Spools with the split portions
+        """
         idxs = n.arange(len(self))
         field = "split"
         if prefix is not None:
@@ -145,7 +165,9 @@ class Spool(List[R], Generic[R]):
         return d1, d2
 
     def split_from_field(self, field: str, vals: Tuple[Any, Any] = (0, 1)):
-        """split into two from pre recorded split in field, between given vals"""
+        """
+        split into two from pre recorded split in field, between given vals
+        """
         d1 = Spool((img for img in self if img[field] == vals[0]), rng=self.random)
         d2 = Spool((img for img in self if img[field] == vals[1]), rng=self.random)
         return d1, d2
@@ -160,13 +182,17 @@ class Spool(List[R], Generic[R]):
         return items
 
     def get_random_subset(self, num: int):
-        "Just a randomly selected subset, without replacement. Returns a list."
+        """
+        Just a randomly selected subset, without replacement. Returns a list.
+        """
         assert num <= len(self), "Not Enough Images!"
         idxs = self.random.choice(len(self), size=num, replace=False)
         return [self[i] for i in idxs]
 
     def setup_spooling(self, random=True):
-        """Setup indices and minibatches for spooling"""
+        """
+        Setup indices and minibatches for spooling
+        """
         if random:
             self.indexes = self.random.permutation(len(self))
         else:
@@ -174,7 +200,8 @@ class Spool(List[R], Generic[R]):
         self.spool_index = 0
 
     def spool(self, num: int, peek: bool = False):
-        """Return a list consisting of num randomly selected elements.
+        """
+        Return a list consisting of num randomly selected elements.
         Advance the spool.
         Return self.minibatch_size elements if num is None.
         if peek is true, don't advance the spool, just return the first num elements.

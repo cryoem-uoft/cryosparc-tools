@@ -35,9 +35,25 @@ from .util import bopen, hashcache, u32bytesle, u32intle
 
 # Save format options
 NUMPY_FORMAT = 1
+"""
+Numpy-array .cs file format. Same as `DEFAULT_FORMAT`.
+"""
+
 CSDAT_FORMAT = 2
+"""
+Compressed stream .cs file format. Same as `NEWEST_FORMAT`.
+"""
+
 DEFAULT_FORMAT = NUMPY_FORMAT
+"""
+Default save .cs file format. Same as `NUMPY_FORMAT`.
+"""
+
 NEWEST_FORMAT = CSDAT_FORMAT
+"""
+Newest save .cs file format. Same as `CSDAT_FORMAT`.
+"""
+
 FORMAT_MAGIC_PREFIXES = {
     NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
     CSDAT_FORMAT: b"\x94CSDAT",  # .csl binary format
@@ -58,7 +74,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     Args:
         allocate (int | Dataset | NDArray | Mapping[str, ArrayLike], optional):
-            Allocation data, as described aboe. Defaults to 0.
+            Allocation data, as described above. Defaults to 0.
         row_class (Type[Row], optional): Class to use for row instances
             produced by this dataset. Defaults to `Row`.
 
@@ -180,20 +196,27 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         May be called either as an instance method or an initializer to create a
         new dataset from one or more datasets:
 
-        Set `assert_same_fields=True` to enforce that datasets have identical
-        fields. Otherwise, only takes fields common to all datasets.
-
-        Set `assume_unique=True` to assume that each dataset's UIDs are unique
-        (though there may be common ones between datasets)
-
         To initialize from zero or more datasets, use `Dataset.union_many`
+
+        Args:
+            assert_same_fields (bool, optional): Set to True to enforce that
+                datasets have identical fields. Otherwise, result only includes
+                fields common to all datasets. Defaults to False.
+            assume_unique (bool, optional): Set to True to to assume that each
+                input dataset's UIDs are unique (though there may be common UIDs
+                between datasets). Defaults to False.
+
+        Returns:
+            Dataset: Combined dataset
 
         Examples:
 
             As instance method
+
             >>> dset = d1.union(d2, d3)
 
             As class method
+
             >>> dset = Dataset.union(d1, d2, d3)
 
         """
@@ -211,6 +234,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Similar to `Dataset.union`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
+
+        Args:
+            assert_same_fields (bool, optional): Same as for `union`. Defaults to False.
+            assume_unique (bool, optional): Same as for `union`. Defaults to False.
+
+        Returns:
+            Dataset: combined dataset, or empty dataset if none are provided
         """
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
@@ -240,6 +270,18 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return result
 
     def interlace(self, *datasets: "Dataset", assert_same_fields=False):
+        """
+        Combine the current dataset with one or more datasets of the same length
+        by alternating rows from each dataset.
+
+        Args:
+            assert_same_fields (bool, optional): If True, fails if not all given
+            datasets have the same fields. Otherwise result only includes common
+            fields. Defaults to False.
+
+        Returns:
+            Dataset: combined dataset
+        """
         if not datasets:
             return self
 
@@ -265,19 +307,32 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Create a new dataset with fields from all provided datasets and only
         including rows common to all provided datasets (based on UID)
 
-        May be called either as an instance method or an initializer to create a new
-        dataset from one or more datasets:
+        May be called either as an instance method or an initializer to create a
+        new dataset from one or more datasets.
 
-        Set `assert_no_drop=True` to ensure the provided datasets include at least
-        all rows from the first dataset.
+        To initialize from zero or more datasets, use `Dataset.innerjoin_many`.
+
+        Args:
+            assert_no_drop (bool, optional): Set to True to ensure the provided
+                datasets include at least all UIDs from the first dataset.
+                Defaults to False.
+            assume_unique (bool, optional): Set to True if each given dataset is
+                known to have no duplicate UIDs. May speed up operation.
+                Defaults to False.
+
+        Returns:
+            Dataset: combined dataset
 
         Examples:
 
             As instance method
+
             >>> dset = d1.innerjoin(d2, d3)
 
             As class method
+
             >>> dset = Dataset.innerjoin(d1, d2, d3)
+
         """
         if not others:
             return self
@@ -291,6 +346,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Similar to `Dataset.innerjoin`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
+
+        Args:
+            assume_unique (_type_, optional): _description_. Defaults to False.
+
+        Returns:
+            _type_: _description_
         """
         if not datasets:
             return cls()
@@ -333,6 +394,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Get a list of fields common to all given datasets. Specify
         `assert_same_fields=True` to enforce that all datasets have the same
         fields.
+
+        Args:
+            assert_same_fields (bool, optional): If True, fails if datasets
+                don't all share the same fields. Defaults to False.
+
+        Returns:
+            list[Field]: List of dataset fields and their data types
         """
         if not datasets:
             return []
@@ -353,7 +421,18 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         If given a file handle pointing to data in the usual numpy array format
         (i.e., created by `numpy.save()`), then the handle must be seekable.
-        This restriction does not apply when loading the newer CSDAT format.
+        This restriction does not apply when loading the newer `CSDAT_FORMAT`.
+
+        Args:
+            file (str | Path | IO): Readable file path or handle. Must be
+                seekable if loading a dataset saved in the default
+                `NUMPY_FORMAT`
+
+        Raises:
+            TypeError: If cannot determine type of dataset file
+
+        Returns:
+            Dataset: loaded dataset
         """
         prefix = None
         with bopen(file, "rb") as f:
@@ -383,6 +462,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         By default, saves as a numpy record array in the .npy format. Specify
         `format=CSDAT_FORMAT` to save in the latest .cs file format which is
         faster and results in a smaller file size but is not numpy-compatible.
+
+        Args:
+            file (str | Path | IO): Writeable file path or handle
+            format (int, optional): Must be of the constants `DEFAULT_FORMAT`,
+                `NUMPY_FORMAT` (same as `DEFAULT_FORMAT`), or `CSDAT_FORMAT`.
+                Defaults to `DEFAULT_FORMAT`.
+
+        Raises:
+            TypeError: If invalid format specified
         """
         if format == NUMPY_FORMAT:
             outdata = self.to_records(fixed=True)
@@ -403,6 +491,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Buffer will have the same format as Dataset files saved with
         `format=CSDAT_FORMAT`. Call `Dataset.load` on the resulting file/buffer
         to retrieve the original data.
+
+        Yields:
+            bytes: Dataset file chunks
         """
         import snappy
 
@@ -478,7 +569,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def __len__(self):
         """
-        Returns the number of rows in this dataset
+        Returns:
+            int: number of rows in this dataset
         """
         return self._data.nrow()
 
@@ -491,12 +583,30 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def __getitem__(self, key: str) -> Column:
         """
         Get either a specific field in the dataset.
+
+        Args:
+            key (str): Field name
+
+        Returns:
+            Column: NDArray subclass for column data access
         """
         return Column(makefield(key, self._data[key]), self._data)
 
-    def __setitem__(self, key: str, val: Any):
+    def __setitem__(self, key: str, val: "ArrayLike"):
         """
-        Set or add a field to the dataset.
+        Set the value of a field in this dataset.
+
+        Accepts either
+        - a numpy array or array-like type with the same shape as the column of
+          the given name
+        - single value to broadcast for all cells
+
+        Note: Will fail if field does not already exist. Use `add_fields()`
+        before assigning new fields.
+
+        Args:
+            key (str): Field name
+            val (ArrayLike): numpy array or value to assign
         """
         assert key in self._data, f"Cannot set non-existing dataset key {key}; use add_fields() first"
         if isinstance(val, n.ndarray):
@@ -508,14 +618,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def __delitem__(self, key: str):
         """
-        Removes field from the dataset
+        Args:
+            key (str): Field to remove from dataset
         """
         self.drop_fields([key])
 
     def __eq__(self, other: object):
         """
-        Check that two datasets share the same fields in the same order and that
-        those fields have the same values.
+        Check whether two datasets contain the same data in the same order.
+
+        Args:
+            other (Dataset): dataset to compare
+
+        Returns:
+            bool: True or False
         """
         return (
             isinstance(other, type(self))
@@ -546,13 +662,22 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self.to_records()
 
     def cols(self) -> Dict[str, Column]:
+        """
+        Get current dataset columns, orgnaized by field
+
+        Returns:
+            dict[str, Column]: Columns
+        """
         return dict((k, self[k]) for k in self)
 
     def rows(self) -> Spool[R]:
         """
         A row-by-row accessor list for items in this dataset.
 
-        Example:
+        Returns:
+            Spool: List-like row accessor
+
+        Examples:
 
             >>> dset = Dataset.load('/path/to/dataset.cs')
             >>> for row in dset.rows()
@@ -566,21 +691,57 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def descr(self, exclude_uid=False) -> List[Field]:
         """
         Retrive the numpy-compatible description for dataset fields
+
+        Args:
+            exclude_uid (bool, optional): If True, uid field will not be
+                included. Defaults to False.
+
+        Returns:
+            list[Field]: Fields
         """
         return [makefield(f, dt) for f, dt in self._data.items() if not exclude_uid or f != "uid"]
 
     def copy(self):
+        """
+        Create a deep copy of the current dataseet
+
+        Returns:
+            Dataset: copy
+        """
         return type(self)(allocate=self)
 
     def fields(self, exclude_uid=False) -> List[str]:
         """
         Retrieve a list of field names available in this dataset
+
+        Args:
+            exclude_uid (bool, optional): If True, uid field will not be
+            included. Defaults to False.
+
+        Returns:
+            list[str]: List of field names
         """
         return [k for k in self._data if not exclude_uid or k != "uid"]
 
     def prefixes(self) -> List[str]:
         """
-        List of prefixes available in this dataset
+        List of field prefixes available in this dataset, assuming fields
+        are have format `{prefix}/{field}`.
+
+        Returns:
+            list[str]: List of prefixes
+
+        Examples:
+
+            >>> dset = Dataset({
+            ...     'uid': [123, 456, 789],
+            ...     'field': [0, 0, 0],
+            ...     'foo/one': [1, 2, 3],
+            ...     'foo/two': [4, 5, 6],
+            ...     'bar/one': ["Hello", "World", "!"]
+            ... })
+            >>> dset.prefixes()
+            ["field", "foo", "bar"]
         """
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
 
@@ -598,7 +759,41 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dtypes: Union[str, List["DTypeLike"], Literal[None]] = None,
     ) -> "Dataset[R]":
         """
-        Ensures the dataset has the given fields.
+        Adds the given fields to the dataset. If a field with the same name
+        already exists, that field will not be added (even if types don't
+        match). Fields are initialized with zeros (or "" for object fields)
+
+        Args:
+            fields (list[str] | list[Field]): Field names or description to add.
+                If a list of names is specified, the second `dtypes` argument
+                must also be specified.
+            dtypes (str | list[DTypeLike], optional): String with
+                comma-separated data type names or list of data types. Must be
+                specified if the `fields` argument is a list of strings,
+                Defaults to None.
+
+        Returns:
+            Dataset: self with added fields
+
+        Examples:
+
+            >>> dset = Dataset(3)
+            >>> dset.add_fields(
+            ...     ['foo', 'bar'],
+            ...     ['u8', ('f4', (2,))]
+            ... )
+            Dataset([
+                ('uid', [14727850622008419978 309606388100339041 15935837513913527085]),
+                ('foo', [0 0 0]),
+                ('bar', [[0. 0.] [0. 0.] [0. 0.]]),
+            ])
+            >>> dset.add_fields([('baz', "O")])
+            Dataset([
+                ('uid', [14727850622008419978 309606388100339041 15935837513913527085]),
+                ('foo', [0 0 0]),
+                ('bar', [[0. 0.] [0. 0.] [0. 0.]]),
+                ('baz', ["", "", ",]),
+            ])
         """
         if len(fields) == 0:
             return self  # noop
@@ -611,16 +806,33 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         else:
             desc = fields  # type: ignore
 
+        object_fields = []
         for field in desc:
             if field[0] not in self._data:
-                self._data.addcol(field)
+                dt = self._data.addcol(field)
+                if dt == "|O":
+                    object_fields.append(field[0])
+
+        # Reset all object fields to empty string
+        for f in object_fields:
+            self[f] = ""
 
         return self._reset()
 
     def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
         """
-        Remove the given fields from the dataset. Provide a list of fields or
-        function that returns `True` if a given field name should be removed.
+        Keep only the given fields from the dataset. Provide a list of fields or
+        function that returns `True` if a given field name should be kept.
+
+        Args:
+            names (list[str] | (str) -> bool): Collection of fields to keep or
+                function that takes a field name and returns True if that field
+                should be kept
+            copy (bool, optional): It True, return a copy of the dataset rather
+                than mutate. Defaults to False.
+
+        Returns:
+            Dataset: current dataset or copy with filtered fields
         """
         test = (lambda n: n in names) if isinstance(names, Collection) else names
         new_fields = [f for f in self.descr() if f[0] == "uid" or test(f[0])]
@@ -633,16 +845,66 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return result if copy else self._reset(result._data)
 
     def filter_prefixes(self, prefixes: Collection[str], copy: bool = False):
+        """
+        Similar to `filter_fields`, except takes list of prefixes.
+
+        Args:
+            prefixes (list[str]): Prefixes to keep
+            copy (bool, optional): If True, return a copy if the dataset rather
+                than mutate. Defaults to False.
+
+        Returns:
+            Dataset: current dataset or copy with filtered prefixes
+
+        Examples:
+
+            >>> dset = Dataset([
+            ...     ('uid', [123 456 789]),
+            ...     ('field', [0 0 0]),
+            ...     ('foo/one', [1 2 3]),
+            ...     ('foo/two', [4 5 6]),
+            ...     ('bar/one', ['Hello' 'World' '!']),
+            ... ])
+            >>> dset.filter_prefixes(['foo'])
+            Dataset([
+                ('uid', [123 456 789]),
+                ('foo/one', [1 2 3]),
+                ('foo/two', [4 5 6]),
+            ])
+        """
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes), copy=copy)
 
     def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
+        """
+        Remove the given field names from the dataset. Provide a list of fields
+        or a function that takes a field name and returns True if that field
+        should be removed
+
+        Args:
+            names (list[str] | (str) -> bool): Collection of fields to remove or
+                function that takes a field name and returns True if that field
+                should be removed
+            copy (bool, optional): If True, return a copy of dataset rather
+                than mutate. Defaults to False.
+
+        Returns:
+            Dataset: current dataset or copy with fields removed
+        """
         test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))  # type: ignore
         return self.filter_fields(test, copy=copy)
 
     def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], copy: bool = False):
         """
-        Specify a mapping dictionary or function that specifies how to rename
-        each field.
+        Change the name of dataset fields based on the given mapping.
+
+        Args:
+            field_map (dict[str, str] | (str) -> str): Field mapping function or
+                dictionary
+            copy (bool, optional): If True, return a copy of the dataset rather
+                than mutate. Defaults to False.
+
+        Returns:
+            Dataset: current dataset or copy with fields renamed
         """
         if isinstance(field_map, dict):
             fm = lambda x: field_map.get(x, x)  # noqa
@@ -653,6 +915,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return result if copy else self._reset(result._data)
 
     def rename_prefix(self, old_prefix: str, new_prefix: str, copy: bool = False):
+        """
+        Similar to rename_fields, except changes the prefix of all fields with
+        the given `old_prefix` to `new_prefix`.
+
+        Args:
+            old_prefix (str): old prefix to rename
+            new_prefix (str): new prefix
+            copy (bool, optional): If True, return a copy of the dataset rather
+                than mutate. Defaults to False.
+
+        Returns:
+            Dataset: current dataset or copy with renamed prefix.
+        """
         prefix_map = {old_prefix: new_prefix}
 
         def field_map(name):
@@ -671,7 +946,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             new_fields (List[str]): New of new fields to copy to
 
         Returns:
-            Self, with modified fields
+            Dataset: current dataset with modified fields
         """
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         current_fields = self.fields()
@@ -686,10 +961,38 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return self._reset()
 
     def reassign_uids(self):
+        """
+        Reset all values of the uid column to new unique random values.
+
+        Returns:
+            Dataset: current dataset with modified UIDs
+        """
         self["uid"] = generate_uids(len(self))
         return self
 
     def to_list(self, exclude_uid=False) -> List[list]:
+        """
+        Convert to a list of lists, each value of the outer list representing
+        one dataset row. Every value in the resulting list is guaranteed to be a
+        python type (no numpy numeric types)
+
+        Args:
+            exclude_uid (bool, optional): If True, uid column will not be
+                included in output list. Defaults to False.
+
+        Returns:
+            list: list of row lists
+
+        Examples:
+
+            >>> dset = Dataset([
+            ...     ('uid', [123 456 789]),
+            ...     ('foo/one', [1 2 3]),
+            ...     ('foo/two', [4 5 6]),
+            ... ])
+            >>> dset.to_list()
+            [[123, 1, 4], [456, 2, 5], [789, 3, 6]]
+        """
         return [row.to_list(exclude_uid) for row in self.rows()]
 
     def to_records(self, fixed=False):
@@ -701,10 +1004,22 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def query(self, query: Union[Dict[str, "ArrayLike"], Callable[[R], bool]]):
         """
         Get a subset of data based on whether the fields match the values in the
-        given query. They query is either a test function that gets called on
+        given query. The query is either a test function that gets called on
         each row or a key/value map of allowed field values.
 
+        Each value of a query dictionary may either be a single scalar value or
+        a collection of matching values.
+
         If any field is not in the dataset, it is ignored and all data is kept.
+
+        Note: Specifying a query function is very slow for large datasets.
+
+        Args:
+            query (dict[str, ArrayLike] | (Row) -> bool): Query description or
+                row test function.
+
+        Returns:
+            Dataset: Subset matching the given query
 
         Examples:
 
@@ -725,6 +1040,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Get a boolean array representing the items to keep in the dataset that
         match the given query filter. See `query` method for example query
         format.
+
+        Args:
+            query (dict[str, ArrayLike]): Query description
+            invert (bool, optional): If True, returns mask with all items
+                negated. Defaults to False.
+
+        Returns:
+            NDArray[bool]: Query mask, may be used with the `mask()` method.
         """
         query_fields = set(self.fields()).intersection(query.keys())
         mask = n.ones(len(self), dtype=bool)
@@ -737,22 +1060,55 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Get a subset of dataset that only includes the given list of rows (from
         this dataset)
+
+        Args:
+            rows (list[Row]): Target list of rows from this dataset
+
+        Returns:
+            Dataset: subset with only matching rows
         """
         return self.indexes([row.idx for row in rows])
 
     def indexes(self, indexes: Union[List[int], "NDArray"]):
+        """
+        Get a subset of data with only the matching list of row indexes
+
+        Args:
+            indexes (Collection[int]): collection of indexes to keep
+
+        Returns:
+            Dataset: subset with matching row indexes
+        """
         return type(self)([(f, self[f][indexes]) for f in self])
 
     def mask(self, mask: Union[List[bool], "NDArray"]):
         """
-        Get a subset of the dataset that matches the given mask of rows
+        Get a subset of the dataset that matches the given boolean mask of rows.
+
+        Args:
+            mask (Collection[bool]): mask to keep. Must match length of current
+                dataset.
+
+        Returns:
+            Dataset: subset with only matching rows
         """
         assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
         return type(self)([(f, self[f][mask]) for f in self])
 
     def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1):
         """
-        Get at subset of the dataset with rows in the given range
+        Get at subset of the dataset with rows in the given range.
+
+        Args:
+            start (int, optional): Start index to slice from (inclusive).
+                Defaults to 0.
+            stop (int, optional): End index to slice until (exclusive).
+                Defaults to length of dataset.
+            step (int, optional): How many entries to step over in resulting
+                slice. Defaults to 1.
+
+        Returns:
+            Dataset: subset with slice of matching rows
         """
         return type(self)([(f, self[f][slice(start, stop, step)]) for f in self])
 
@@ -763,15 +1119,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         Examples:
 
-
             >>> dset = Dataset([
             ...     ('uid', [1, 2, 3, 4]),
             ...     ('foo', ['hello', 'world', 'hello', 'world'])
             ... ])
-            >>> assert dset.split_by('foo') == {
-            ...     'hello': Dataset([('uid', [1, 3]), ('foo', ['hello', 'hello'])]),
-            ...     'world': Dataset([('uid', [2, 4]), ('foo', ['world', 'world'])])
-            ... }
+            >>> dset.split_by('foo')
+            {
+                'hello': Dataset([('uid', [1, 3]), ('foo', ['hello', 'hello'])]),
+                'world': Dataset([('uid', [2, 4]), ('foo', ['world', 'world'])])
+            }
 
         """
         cols = self.cols()
@@ -787,15 +1143,22 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def replace(self, query: Dict[str, "ArrayLike"], *others: "Dataset", assume_disjoint=False, assume_unique=False):
         """
         Replaces values matching the given query with others. The query is a
-        key/value map of allowed field values. The values can be either a single
+        key/value map of allowed field values. The values may be either a single
         scalar value or a set of possible values. If nothing matches the query
         (e.g., {} specified), works the same way as append.
 
-        Specify `assume_disjoint=True` when all input datasets do not any UIDs
-        in common.
+        All given datasets must have the same fields.
 
-        Specify `assume_unique=True` when all input datasets do not have any
-        duplicate UIDs.
+        Args:
+            query (dict[str, ArrayLike]): Query description.
+            assume_disjoint (bool, optional): If True, assumes given datasets
+                do not share any uid values. Defaults to False.
+            assume_unique (bool, optional): If True, assumes each given dataset
+                has no duplicate uid values. Defaults to False.
+
+        Returns:
+            Dataset: subset with rows matching query removed and other datasets
+                appended at the end
         """
         keep_fields = self.common_fields(self, *others, assert_same_fields=True)
         others_len = sum(len(o) for o in others)
@@ -860,5 +1223,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 def generate_uids(num: int = 0):
     """
     Generate the given number of random 64-bit unsigned integer uids
+
+    Args:
+        num (int, optional): Number of UIDs to generate. Defaults to 0.
+
+    Returns:
+        NDArray: Numpy array of random unsigned 64-bit integers
     """
     return n.random.randint(0, 2**64, size=(num,), dtype=n.uint64)

@@ -1,5 +1,5 @@
 """
-Main module exporting the ``CryoSPARC`` class for interfaing with a CryoSPARC
+Main module exporting the ``CryoSPARC`` class for interfacing with a CryoSPARC
 instance from Python
 
 Example:
@@ -153,7 +153,7 @@ class CryoSPARC:
 
         Args:
             project_uid (str): Short unique ID of CryoSPARC project, e.g., "P3"
-            path (str | PurePosixPath): Relative path to file in project directory
+            path (str | Path): Relative path to file in project directory
 
         Yields:
             HTTPResponse: Use a context manager to read the file from the
@@ -266,7 +266,7 @@ def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):
         abs_paths (str | Iterable[str]): Absolute path or list of file paths
 
     Returns:
-        List[int]: List of import signatures as 64-bit numpy integers
+        list[int]: Import signatures as 64-bit numpy integers
     """
     from hashlib import sha1
 

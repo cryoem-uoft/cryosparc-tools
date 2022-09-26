@@ -40,10 +40,10 @@ class CommandClient:
 
         >>> from cryosparc.command import CommandClient
         >>> cli = CommandClient(
-        >>>     host="csmaster",
-        >>>     port=39002,
-        >>>     headers={"License-ID": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
-        >>> )
+        ...     host="csmaster",
+        ...     port=39002,
+        ...     headers={"License-ID": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+        ... )
 
         Queue a job
 
@@ -142,7 +142,7 @@ def make_request(
         >>> from cryosparc.command import CommandClient, make_request
         >>> cli = CommandClient()
         >>> with make_request(cli, url="/download_file", query={'path': '/file.txt'}) as response:
-        >>>     data = response.read()
+        ...     data = response.read()
 
     """
     url = f"{client._url}{url}{'?' + urlencode(query) if query else ''}"
@@ -200,7 +200,7 @@ def make_json_request(client: CommandClient, url="", query={}, data=None, header
         >>> from cryosparc.command import CommandClient, make_json_request
         >>> cli = CommandClient()
         >>> with make_json_request(cli, url="/download_file", data={'path': '/file.txt'}) as response:
-        >>>     data = response.read()
+        ...     data = response.read()
 
     """
     headers = {"Content-Type": "application/json", **headers}

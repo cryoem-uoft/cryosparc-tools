@@ -153,14 +153,14 @@ class Data(Mapping[str, DType]):
         return core.dset_addrows(self.handle, num) != 0
 
     @overload
-    def addcol(self, field: Field) -> bool:
+    def addcol(self, field: Field) -> DType:
         ...
 
     @overload
-    def addcol(self, field: str, dtype: "DTypeLike") -> bool:
+    def addcol(self, field: str, dtype: "DTypeLike") -> DType:
         ...
 
-    def addcol(self, field: Union[str, Field], dtype: Optional["DTypeLike"] = None) -> bool:
+    def addcol(self, field: Union[str, Field], dtype: Optional["DTypeLike"] = None) -> DType:
         if isinstance(field, tuple):
             dt = n.dtype(fielddtype(field))
             field = field[0]
@@ -171,12 +171,17 @@ class Data(Mapping[str, DType]):
         assert existing_type == 0, f"Field {field} already defined in dataset"
         if dt.shape:
             assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
-            return self.addcol_array(field, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
-        elif dt.char in {"S", "U"}:
-            return self.addcol_scalar(field, DsetType.T_OBJ)  # Will be converted
+            assert self.addcol_array(
+                field, TYPE_TO_DSET_MAP[dt.base.type], dt.shape
+            ), f"Could not add {field} with dtype {dt}"
+            return (dt.base.str, dt.shape)
+        elif dt.char in {"O", "S", "U"}:  # all python string object types
+            assert self.addcol_scalar(field, DsetType.T_OBJ), f"Could not add {field} with dtype {dt}"
+            return dt.str
         else:
             assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
-            return self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt.type])
+            assert self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt.type]), f"Could not add {field} with dtype {dt}"
+            return dt.str
 
     def addcol_scalar(self, field: str, dtype: DsetType) -> bool:
         return core.dset_addcol_scalar(self.handle, field, dtype) != 0
