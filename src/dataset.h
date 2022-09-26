@@ -99,12 +99,36 @@ DSET_API  void        dset_dumptxt (uint64_t dset);
 #include <string.h>    // strcmp, memcpy, memmove, memset
 #include <stdio.h>     // printf, etc
 #include <stddef.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdalign.h>
 #include <stdarg.h>    // functions with variable number of arguments (e.g. error message callback)
+
+#ifdef _WIN32
+#define _WIN32_WINNT 0x0600
+#include <windows.h>
+#define DSONCE_INIT INIT_ONCE_STATIC_INIT
+#define	DSMUTEX_LOCK_SUCCESS WAIT_OBJECT_0
+#define DSMUTEX_LOCK(mutex) WaitForSingleObject(mutex, INFINITE)
+#define DSMUTEX_UNLOCK(mutex) ReleaseMutex(mutex)
+
+typedef HANDLE dsmutex_t;
+typedef INIT_ONCE dsonce_t;
+typedef	DWORD dsmutex_lock_t;
+
+#else
+
+#include <pthread.h>
+#define DSONCE_INIT PTHREAD_ONCE_INIT
+#define	DSMUTEX_LOCK_SUCCESS 0
+#define DSMUTEX_LOCK(mutex) pthread_mutex_lock(&mutex)
+#define DSMUTEX_UNLOCK(mutex) pthread_mutex_unlock(&mutex)
+
+typedef pthread_mutex_t dsmutex_t;
+typedef pthread_once_t dsonce_t;
+typedef	int dsmutex_lock_t;
+#endif
 
 /*
 	Allow the user to provide a custom allocator if they wish,
@@ -255,28 +279,42 @@ typedef struct {
 	to support datasets.
 */
 static struct {
+	dsonce_t    init_guard;
+	dsmutex_t   mtx;
 
-	pthread_once_t    init_guard;
-	pthread_mutex_t   mtx;
-
-	uint64_t          nslots; 
+	uint64_t          nslots;
 	ds_slot *         slots;
 
 } ds_module = {
-	.init_guard = PTHREAD_ONCE_INIT,
+	.init_guard = DSONCE_INIT,
 };
 
-static void
-_module_init(void) 
+#ifdef _WIN32
+BOOL CALLBACK
+_module_init(PINIT_ONCE InitOnce, PVOID *lpContext)
 {
 	// initialize the mutex, and enable some protections against programmer errors
+	HANDLE mutex = CreateMutex(
+		NULL,  // default security attributes
+		FALSE, // initially not owned
+		NULL   // unnamed mutex
+	);
+	xassert(NULL != mutex);
+	*lpContext = mutex;
+	return TRUE;
+}
+#else
+static void
+_module_init(void)
+{
+
 	pthread_mutexattr_t a;
 	xassert(0 == pthread_mutexattr_init(&a));
 	xassert(0 == pthread_mutexattr_settype(&a, PTHREAD_MUTEX_ERRORCHECK));
-
 	xassert(0 == pthread_mutex_init(&ds_module.mtx, &a));
-
 }
+#endif
+
 
 static inline void
 module_init(void) {
@@ -284,8 +322,17 @@ module_init(void) {
 	make sure that we can call module_init() as often as we want but the underlying init
 	happens exactly once.
 */
-
+#ifdef _WIN32
+	// Execute the initialization callback function
+	PVOID context = &ds_module.mtx;
+	xassert(TRUE == InitOnceExecuteOnce(
+		&ds_module.init_guard, // One-time initialization structure
+		_module_init,          // Pointer to initialization callback function
+		&context               // Receives pointer to created mutex
+	));
+#else
 	xassert(0 == pthread_once(&ds_module.init_guard, _module_init));
+#endif
 }
 
 static inline void
@@ -294,14 +341,14 @@ lock (void) {
 	This lock only needs to be held when creating or destroying datasets.
 	We don't guarantee that datasets can be safely accessed concurrently, that's up to the user.
 */
-	int rc = pthread_mutex_lock(&ds_module.mtx);
-	errno = rc;
-	xassert(rc == 0);
+	dsmutex_lock_t rc = DSMUTEX_LOCK(ds_module.mtx);
+	errno = (int) rc;
+	xassert(rc == DSMUTEX_LOCK_SUCCESS);
 }
 
 static inline void
 unlock (void) {
-	int rc = pthread_mutex_unlock(&ds_module.mtx);
+	int rc = DSMUTEX_UNLOCK(ds_module.mtx);
 	errno = rc;
 	xassert(rc == 0);
 }

@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]  # windows-latest disabled for now because pthreads is missing
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.7", "3.10"]
 
     steps:

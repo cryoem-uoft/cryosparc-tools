@@ -1,5 +1,4 @@
-cryosparc-tools
-===
+# cryosparc-tools
 
 Toolkit for interfacing with CryoSPARC
 
@@ -7,10 +6,10 @@ Toolkit for interfacing with CryoSPARC
 
 ### Prerequisites
 
-* Git LFS
-* Python >= 3.7
-* Miniconda3
-* C compiler such as GCC or Clang
+- Git LFS
+- Python >= 3.7
+- Miniconda3
+- C compiler such as GCC or Clang
 
 ### Set Up
 
@@ -20,16 +19,15 @@ Toolkit for interfacing with CryoSPARC
    cd cryosparc-tools
    git lfs pull
    ```
-2. Create and activate a conda environment named "tools" with the desired python version. See the Run Example Notebooks section to install an environment 
+2. Create and activate a conda environment named "tools" with the desired python version. See the Run Example Notebooks section to install an environment
    ```sh
    conda create -n tools python=3.7 -c conda-forge
    conda activate tools
    ```
-3. Install dev and build dependencies and build native modules
+3. Install dev dependencies and build native modules
    ```sh
    pip install -U pip
    pip install -e ".[dev]"
-   pip install -e ".[build]"
    ```
 
 ### Re-compile native module
@@ -42,21 +40,52 @@ make
 
 ### Build Packages for Publishing
 
+Install build dependencies
+
+```sh
+pip install -e ".[build]"
 ```
+
+Run the build
+
+```sh
 python -m build
 ```
 
 Packages for the current architecture and python version are added to the
 `dist/` directory.
 
+### Build Documentation
+
+Documentation is located in the `docs` directory and is powered by [Jupyter Book](https://jupyterbook.org/en/stable/intro.html).
+
+To build the docs, install build dependencies
+
+```sh
+pip install -e ".[build]"
+```
+
+Then run Jupyter Book
+
+```sh
+jupyter-book build docs
+```
+
+Site will be be built into the `docs/_build/html` directory.
+
+**Note:** Jupyter Book is not configured to re-run example notebooks upon build
+since the notebooks require an active CryoSPARC instance to run.
+
+See the [Run Example Notebooks](#run-example-notebooks) section for instructions
+on how to run the notebooks.
 
 ### Run Example Notebooks
 
 The Jupyter notebooks in the example documentation require additional
 dependencies to execute, including the following system configuration:
 
-* Nvidia GPU and driver
-* CryoSPARC running at `localhost:39000`
+- Nvidia GPU and driver
+- CryoSPARC running at `localhost:39000`
 
 Clean previous build artefacts:
 
@@ -88,7 +117,7 @@ pip install nvidia-pyindex
 
 Install example deps and rebuild
 
-```
+```sh
 pip install -e ".[examples]"
 make
 ```
