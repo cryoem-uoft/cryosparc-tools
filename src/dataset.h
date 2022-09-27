@@ -110,15 +110,17 @@ DSET_API  void        dset_dumptxt (uint64_t dset);
 #include <stdlib.h>
 #include <errno.h>
 #include <assert.h>
-#include <stdalign.h>
 #include <stdarg.h>    // functions with variable number of arguments (e.g. error message callback)
-#include <stdnoreturn.h>
 
 #ifdef _WIN32
+
 #define _WIN32_WINNT 0x0600
 #include <windows.h>
+#define DSALIGNOF __alignof
+#define DSNORETURN __declspec(noreturn)
 #define DSONCE_INIT INIT_ONCE_STATIC_INIT
 #define	DSMUTEX_LOCK_SUCCESS WAIT_OBJECT_0
+#define	DSMUTEX_UNLOCK_SUCCESS 1
 #define DSMUTEX_LOCK(mutex) WaitForSingleObject(mutex, INFINITE)
 #define DSMUTEX_UNLOCK(mutex) ReleaseMutex(mutex)
 
@@ -127,10 +129,14 @@ typedef INIT_ONCE ds_once_t;
 typedef	DWORD ds_mutex_lock_t;
 
 #else
-
+#include <stdalign.h>
+#include <stdnoreturn.h>
 #include <pthread.h>
+#define DSALIGNOF alignof
+#define DSNORETURN noreturn
 #define DSONCE_INIT PTHREAD_ONCE_INIT
 #define	DSMUTEX_LOCK_SUCCESS 0
+#define	DSMUTEX_UNLOCK_SUCCESS 0
 #define DSMUTEX_LOCK(mutex) pthread_mutex_lock(&mutex)
 #define DSMUTEX_UNLOCK(mutex) pthread_mutex_unlock(&mutex)
 
@@ -168,7 +174,7 @@ typedef	int ds_mutex_lock_t;
 /*
 	Default error message logging actions
 */
-static void
+static void 
 #if defined(__clang__) || defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif
@@ -190,7 +196,7 @@ nonfatal(char *fmt, ...)
 	DSPRINTERR(buf3);
 }
 
-static noreturn void
+static DSNORETURN void
 #if defined(__clang__) || defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif
@@ -333,12 +339,11 @@ module_init(void) {
 */
 #ifdef _WIN32
 	// Execute the initialization callback function
-	PVOID context = &ds_module.mtx;
 	xassert(TRUE == InitOnceExecuteOnce(
 		&ds_module.init_guard, // One-time initialization structure
 		_module_init,          // Pointer to initialization callback function
 		NULL,                  // Optional parameter to callback function (not used)
-		&context               // Receives pointer to created mutex
+		&ds_module.mtx         // Receives pointer to created mutex
 	));
 #else
 	xassert(0 == pthread_once(&ds_module.init_guard, _module_init));
@@ -352,15 +357,15 @@ lock (void) {
 	We don't guarantee that datasets can be safely accessed concurrently, that's up to the user.
 */
 	ds_mutex_lock_t rc = DSMUTEX_LOCK(ds_module.mtx);
-	errno = (int) rc;
+	errno = (int) rc == DSMUTEX_LOCK_SUCCESS;
 	xassert(rc == DSMUTEX_LOCK_SUCCESS);
 }
 
 static inline void
 unlock (void) {
 	int rc = DSMUTEX_UNLOCK(ds_module.mtx);
-	errno = rc;
-	xassert(rc == 0);
+	errno = (int) rc == DSMUTEX_UNLOCK_SUCCESS;
+	xassert(rc == DSMUTEX_UNLOCK_SUCCESS);
 }
 
 
@@ -440,17 +445,17 @@ handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t *
 	*gen = h >> SHIFT_GEN;
 
 	if (ds_module.nslots <= *idx) {
-		nonfatal("%s: invalid handle %" PRIx64 ", no such slot", msg_fragment, h);
+		nonfatal("%s: invalid handle %" PRIu64 ", no such slot", msg_fragment, h);
 		return 0;
 	}
 
 	if (!ds_module.slots[*idx].memory) { 
-		nonfatal("%s: invalid handle %" PRIx64 ", no heap at index %" PRIu64, msg_fragment, h, *idx);
+		nonfatal("%s: invalid handle %" PRIu64 ", no heap at index %" PRIu64, msg_fragment, h, *idx);
 		return 0;
 	}
 
 	if (ds_module.slots[*idx].generation != *gen) {
-		nonfatal("%s: invalid handle %" PRIx64 ", wrong generation counter"
+		nonfatal("%s: invalid handle %" PRIu64 ", wrong generation counter"
 				" (given %" PRIu16 ", expected %" PRIu16")", 
 				msg_fragment, h, *gen, ds_module.slots[*idx].generation);
 		return 0;
@@ -480,7 +485,7 @@ size_t Ntypes = sizeof(valid_types)/sizeof(valid_types[0]);
 static const 
 size_t type_size[] = { DSET_TYPELIST(EMIT_SZ_ARRAY_ENTRY) };
 
-#define EMIT_ALIGNCHECK(a,name,ctype,b,c,d) static_assert(alignof(ctype) <= 16, "platform incompatible");
+#define EMIT_ALIGNCHECK(a,name,ctype,b,c,d) static_assert(DSALIGNOF(ctype) <= 16, "platform incompatible");
 DSET_TYPELIST(EMIT_ALIGNCHECK) ;
 
 
@@ -1182,7 +1187,7 @@ dset_dumptxt (uint64_t dset) {
 	xassert(d);
 
 
-	printf ("dataset %"PRIx64"\n"
+	printf ("dataset %"PRIu64"\n"
 		"\ttotal size:            %"PRIu64"\n"
 		"\trows (actual)          %"PRIu64"\n"
 		"\trows (capacity)        %"PRIu64"\n"
