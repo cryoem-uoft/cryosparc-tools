@@ -5,7 +5,7 @@
 PyObject * wrap_dset_getbuf (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset", "colkey", NULL};
     unsigned long dset = {0};
     const char * colkey = 0;
