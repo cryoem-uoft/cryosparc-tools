@@ -63,10 +63,10 @@ PyObject * wrap_dset_new (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_del (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",NULL};
-    unsigned long dset = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long)), kwlist, &dset )) return 0;
+    unsigned long long dset = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long long)), kwlist, &dset )) return 0;
 
 
     Py_BEGIN_ALLOW_THREADS;
@@ -77,10 +77,10 @@ PyObject * wrap_dset_del (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_copy (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",NULL};
-    unsigned long dset = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long)), kwlist, &dset )) return 0;
+    unsigned long long dset = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long long)), kwlist, &dset )) return 0;
 
 
     uint64_t rtn = 0;
@@ -92,10 +92,10 @@ PyObject * wrap_dset_copy (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_totalsz (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",NULL};
-    unsigned long dset = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long)), kwlist, &dset )) return 0;
+    unsigned long long dset = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long long)), kwlist, &dset )) return 0;
 
 
     uint64_t rtn = 0;
@@ -107,10 +107,10 @@ PyObject * wrap_dset_totalsz (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_ncol (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",NULL};
-    unsigned long dset = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long)), kwlist, &dset )) return 0;
+    unsigned long long dset = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long long)), kwlist, &dset )) return 0;
 
 
     uint32_t rtn = 0;
@@ -122,10 +122,10 @@ PyObject * wrap_dset_ncol (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_nrow (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",NULL};
-    unsigned long dset = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long)), kwlist, &dset )) return 0;
+    unsigned long long dset = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long long)), kwlist, &dset )) return 0;
 
 
     uint64_t rtn = 0;
@@ -137,12 +137,12 @@ PyObject * wrap_dset_nrow (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_key (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"index",NULL};
-    unsigned long dset = {0};
-    unsigned long index = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),C2PYFMT(unsigned long)), kwlist, &dset,
+    unsigned long long dset = {0};
+    unsigned long long index = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long long),C2PYFMT(unsigned long long)), kwlist, &dset,
 		&index )) return 0;
 
 
@@ -155,12 +155,12 @@ PyObject * wrap_dset_key (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_type (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"colkey",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * colkey = 0;
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),"s"), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long long),"s"), kwlist, &dset,
 		&colkey )) return 0;
 
 
@@ -173,12 +173,12 @@ PyObject * wrap_dset_type (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_get (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"colkey",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * colkey = 0;
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),"s"), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long long),"s"), kwlist, &dset,
 		&colkey )) return 0;
 
 
@@ -191,12 +191,12 @@ PyObject * wrap_dset_get (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_getsz (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"colkey",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * colkey = 0;
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),"s"), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long long),"s"), kwlist, &dset,
 		&colkey )) return 0;
 
 
@@ -209,16 +209,16 @@ PyObject * wrap_dset_getsz (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_setstr (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"colkey",
 		"index",
 		"value",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * colkey = 0;
-    unsigned long index = {0};
+    unsigned long long index = {0};
     const char * value = 0;
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s%s",C2PYFMT(unsigned long),"s",C2PYFMT(unsigned long),"s"), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s%s",C2PYFMT(unsigned long long),"s",C2PYFMT(unsigned long long),"s"), kwlist, &dset,
 		&colkey,
 		&index,
 		&value )) return 0;
@@ -233,14 +233,14 @@ PyObject * wrap_dset_setstr (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_getstr (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"colkey",
 		"index",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * colkey = 0;
-    unsigned long index = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s",C2PYFMT(unsigned long),"s",C2PYFMT(unsigned long)), kwlist, &dset,
+    unsigned long long index = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s",C2PYFMT(unsigned long long),"s",C2PYFMT(unsigned long long)), kwlist, &dset,
 		&colkey,
 		&index )) return 0;
 
@@ -254,12 +254,12 @@ PyObject * wrap_dset_getstr (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_getshp (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"colkey",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * colkey = 0;
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),"s"), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long long),"s"), kwlist, &dset,
 		&colkey )) return 0;
 
 
@@ -272,12 +272,12 @@ PyObject * wrap_dset_getshp (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_addrows (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"num",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     unsigned int num = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),C2PYFMT(unsigned int)), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long long),C2PYFMT(unsigned int)), kwlist, &dset,
 		&num )) return 0;
 
 
@@ -290,14 +290,14 @@ PyObject * wrap_dset_addrows (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_addcol_scalar (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"key",
 		"type",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * key = 0;
     int type = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s",C2PYFMT(unsigned long),"s",C2PYFMT(int)), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s",C2PYFMT(unsigned long long),"s",C2PYFMT(int)), kwlist, &dset,
 		&key,
 		&type )) return 0;
 
@@ -311,20 +311,20 @@ PyObject * wrap_dset_addcol_scalar (PyObject *self, PyObject *args, PyObject *kw
 PyObject * wrap_dset_addcol_array (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"key",
 		"type",
 		"shape0",
 		"shape1",
 		"shape2",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     const char * key = 0;
     int type = {0};
     unsigned char shape0 = {0};
     unsigned char shape1 = {0};
     unsigned char shape2 = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s%s%s%s",C2PYFMT(unsigned long),"s",C2PYFMT(int),C2PYFMT(unsigned char),C2PYFMT(unsigned char),C2PYFMT(unsigned char)), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s%s%s%s%s",C2PYFMT(unsigned long long),"s",C2PYFMT(int),C2PYFMT(unsigned char),C2PYFMT(unsigned char),C2PYFMT(unsigned char)), kwlist, &dset,
 		&key,
 		&type,
 		&shape0,
@@ -341,12 +341,12 @@ PyObject * wrap_dset_addcol_array (PyObject *self, PyObject *args, PyObject *kwd
 PyObject * wrap_dset_defrag (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",
 		"realloc_smaller",NULL};
-    unsigned long dset = {0};
+    unsigned long long dset = {0};
     int realloc_smaller = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long),C2PYFMT(int)), kwlist, &dset,
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s%s",C2PYFMT(unsigned long long),C2PYFMT(int)), kwlist, &dset,
 		&realloc_smaller )) return 0;
 
 
@@ -359,10 +359,10 @@ PyObject * wrap_dset_defrag (PyObject *self, PyObject *args, PyObject *kwds)
 PyObject * wrap_dset_dumptxt (PyObject *self, PyObject *args, PyObject *kwds)
 {
     (void) self;
-    char __pyexn_errmsg[4096] = {};
+    char __pyexn_errmsg[4096];
     static char *kwlist[] = {"dset",NULL};
-    unsigned long dset = {0};
-    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long)), kwlist, &dset )) return 0;
+    unsigned long long dset = {0};
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, NFORMAT(1024,"%s",C2PYFMT(unsigned long long)), kwlist, &dset )) return 0;
 
 
     Py_BEGIN_ALLOW_THREADS;
