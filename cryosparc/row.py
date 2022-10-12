@@ -1,9 +1,9 @@
-from typing import Any, Dict, Generic, Iterable, List, Mapping, Tuple, TypeVar
+from typing import Any, Dict, Generic, Iterable, List, Mapping, Optional, Tuple, TypeVar
 
 import numpy as n
 
 from .column import Column
-from .util import default_rng
+from .util import default_rng, random_integers
 
 
 class Row(Mapping):
@@ -93,10 +93,16 @@ class Spool(List[R], Generic[R]):
             to numpy.random.default_rng().
     """
 
-    def __init__(self, items: Iterable[R], rng: "n.random.Generator" = DEFAULT_RNG):
+    DEFAULT_RNG = default_rng()
+
+    @classmethod
+    def set_default_random(cls, rng: "n.random.Generator"):
+        cls.DEFAULT_RNG = rng
+
+    def __init__(self, items: Iterable[R], rng: "Optional[n.random.Generator]" = None):
         super().__init__(items)
         self.indexes = None
-        self.random = rng
+        self.random = rng or self.DEFAULT_RNG
 
     def set_random(self, rng: "n.random.Generator"):
         self.random = rng
@@ -122,7 +128,7 @@ class Spool(List[R], Generic[R]):
 
     def split_half_in_order(self, prefix: str, random=True):
         if random:
-            splitvals = random_integers(2, size=len(self))
+            splitvals = random_integers(self.random, 2, size=len(self))
         else:
             splitvals = n.arange(len(self)) % 2
         for idx, p in enumerate(self):

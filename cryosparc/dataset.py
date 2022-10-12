@@ -59,7 +59,6 @@ FORMAT_MAGIC_PREFIXES = {
     CSDAT_FORMAT: b"\x94CSDAT",  # .csl binary format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
-RNG = default_rng()
 
 
 class Dataset(MutableMapping[str, Column], Generic[R]):
@@ -1233,7 +1232,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
 def generate_uids(num: int = 0):
     """
-    Generate the given number of random 64-bit unsigned integer uids
+    Generate the given number of random 64-bit unsigned integer uids.
 
     Args:
         num (int, optional): Number of UIDs to generate. Defaults to 0.
@@ -1241,4 +1240,4 @@ def generate_uids(num: int = 0):
     Returns:
         NDArray: Numpy array of random unsigned 64-bit integers
     """
-    return RNG.integers(0, 2**64, size=(num,), dtype=n.uint64)
+    return default_rng().integers(low=0, high=2**64, size=num, dtype=n.uint64)

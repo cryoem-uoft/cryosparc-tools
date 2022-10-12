@@ -327,3 +327,15 @@ def default_rng(seed=None) -> "n.random.Generator":
         return n.random.default_rng(seed)
     except AttributeError:
         return n.random.RandomState(seed)  # type: ignore
+
+
+def random_integers(rng: "n.random.Generator", low: int, high: Optional[int] = None, size=None, dtype=n.int64):
+    """
+    Generic way to get random integers from a numpy random generator (or
+    RandomState for older numpy)
+    """
+    try:
+        f = rng.integers
+    except AttributeError:
+        f = rng.randint
+    return f(low=low, high=high, size=size, dtype=dtype)
