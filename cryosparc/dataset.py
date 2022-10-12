@@ -1006,6 +1006,17 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return [row.to_list(exclude_uid) for row in self.rows()]
 
     def to_records(self, fixed=False):
+        """
+        Convert to a numpy record array.
+
+        Args:
+            fixed (bool, optional): If True, converts string columns
+                (``dtype("O")``) to fixed-length strings (``dtype("S")``).
+                Defaults to False.
+
+        Returns:
+            NDArray: Numpy record array
+        """
         cols = self.cols()
         arrays = [(cols[c].to_fixed() if fixed else cols[c]) for c in cols]
         dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
@@ -1014,8 +1025,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def query(self, query: Union[Dict[str, "ArrayLike"], Callable[[R], bool]]):
         """
         Get a subset of data based on whether the fields match the values in the
-        given query. The query is either a test function that gets called on
-        each row or a key/value map of allowed field values.
+        given query. The query is either a test function that is called on each
+        row or a key/value map of allowed field values.
 
         Each value of a query dictionary may either be a single scalar value or
         a collection of matching values.
@@ -1084,7 +1095,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Get a subset of data with only the matching list of row indexes
 
         Args:
-            indexes (Collection[int]): collection of indexes to keep
+            indexes (list[int] | NDArray[int]): collection of indexes to keep
 
         Returns:
             Dataset: subset with matching row indexes
@@ -1096,8 +1107,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Get a subset of the dataset that matches the given boolean mask of rows.
 
         Args:
-            mask (Collection[bool]): mask to keep. Must match length of current
-                dataset.
+            mask (list[bool] | NDArray[bool]): mask to keep. Must match length
+                of current dataset.
 
         Returns:
             Dataset: subset with only matching rows
