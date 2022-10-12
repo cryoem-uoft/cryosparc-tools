@@ -13,6 +13,7 @@ from typing import (
     Iterator,
     Optional,
     Sequence,
+    Type,
     TypeVar,
     Union,
 )
@@ -28,8 +29,10 @@ OpenTextMode = Literal["r", "w", "x", "a", "r+", "w+", "x+", "a+"]
 OpenBinaryMode = Literal["rb", "wb", "xb", "ab", "r+b", "w+b", "x+b", "a+b"]
 
 
+T = TypeVar("T")
 K = TypeVar("K")
 V = TypeVar("V")
+INT = TypeVar("INT", bound=n.integer, covariant=True)
 
 
 class hashcache(Dict[K, V], Generic[K, V]):
@@ -329,7 +332,9 @@ def default_rng(seed=None) -> "n.random.Generator":
         return n.random.RandomState(seed)  # type: ignore
 
 
-def random_integers(rng: "n.random.Generator", low: int, high: Optional[int] = None, size=None, dtype=n.int64):
+def random_integers(
+    rng: "n.random.Generator", low: int, high: Optional[int] = None, size=None, dtype: Type[INT] = n.uint64
+) -> "NDArray[INT]":
     """
     Generic way to get random integers from a numpy random generator (or
     RandomState for older numpy)
@@ -337,5 +342,5 @@ def random_integers(rng: "n.random.Generator", low: int, high: Optional[int] = N
     try:
         f = rng.integers
     except AttributeError:
-        f = rng.randint
-    return f(low=low, high=high, size=size, dtype=dtype)
+        f = rng.randint  # type: ignore
+    return f(low=low, high=high, size=size, dtype=dtype)  # type: ignore

@@ -76,10 +76,6 @@ Type variable for a `Row` subclass.
 """
 
 DEFAULT_RNG = default_rng()
-try:
-    random_integers = DEFAULT_RNG.integers
-except AttributeError:
-    random_integers = DEFAULT_RNG.randint
 
 
 class Spool(List[R], Generic[R]):
