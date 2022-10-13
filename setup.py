@@ -36,5 +36,5 @@ setup(
             extra_link_args=extra_link_args,
             depends=["src/dataset.h"],
         ),
-    )
+    ),
 )
