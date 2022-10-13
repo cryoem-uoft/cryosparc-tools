@@ -31,7 +31,7 @@ from .data import Data
 from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype, safe_makefield
 from .column import Column
 from .row import Row, Spool, R
-from .util import bopen, default_rng, hashcache, u32bytesle, u32intle
+from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -1251,4 +1251,4 @@ def generate_uids(num: int = 0):
     Returns:
         NDArray: Numpy array of random unsigned 64-bit integers
     """
-    return default_rng().integers(low=0, high=2**64, size=num, dtype=n.uint64)
+    return random_integers(default_rng(), low=0, high=2**64, size=num, dtype=n.uint64)
