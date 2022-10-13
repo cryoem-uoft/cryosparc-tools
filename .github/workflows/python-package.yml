@@ -22,7 +22,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
@@ -44,4 +44,4 @@ jobs:
         pip install numpy==1.15
     - name: Test with pytest
       run: |
-        pytest --benchmark-disable -n auto
+        pytest -v --benchmark-disable -n auto
