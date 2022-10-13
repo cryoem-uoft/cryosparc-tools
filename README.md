@@ -26,7 +26,7 @@ Toolkit for interfacing with CryoSPARC
    ```
 3. Install dev dependencies and build native modules
    ```sh
-   pip install -U pip
+   pip install -U pip wheel
    pip install -e ".[dev]"
    ```
 

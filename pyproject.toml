@@ -28,6 +28,7 @@ dev = [
 build = [
     "build",
     "autodocsumm",
+    "cython",
     "jupyter-book",
 ]
 
