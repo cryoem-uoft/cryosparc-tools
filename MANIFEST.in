@@ -1,2 +1,5 @@
 include src/*.h
 include src/*.c
+include cryosparc/*.c
+include cryosparc/*.pyx
+include cryosparc/*.pxd

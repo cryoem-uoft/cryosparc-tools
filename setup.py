@@ -22,13 +22,14 @@ elif DEBUG:
 
 setup(
     name="cryosparc_tools",
-    version="0.1.0",
+    version="4.0.0",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["src/dataset.h"],
+    package_data={"cryosparc": ["src/dataset.h", "cryosparc/core.pyx"]},
     ext_modules=cythonize(
         Extension(
             name="cryosparc.core",
-            sources=["./src/pywrapper_dataset.c", "./cryosparc/core.pyx"],
+            sources=["src/pywrapper_dataset.c", "cryosparc/core.pyx"],
             include_dirs=["src/"],
             libraries=libraries,
             define_macros=define_macros,
