@@ -43,7 +43,7 @@ examples = [
 packages = ["cryosparc"]
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]

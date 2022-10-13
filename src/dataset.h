@@ -68,7 +68,7 @@ DSET_API  uint64_t    dset_totalsz(uint64_t dset);
 DSET_API  uint32_t    dset_ncol   (uint64_t dset);
 DSET_API  uint64_t    dset_nrow   (uint64_t dset);
 DSET_API  const char* dset_key    (uint64_t dset, uint64_t index);
-DSET_API  uint8_t     dset_type   (uint64_t dset, const char * colkey);
+DSET_API  int         dset_type   (uint64_t dset, const char * colkey);
 DSET_API  void *      dset_get    (uint64_t dset, const char * colkey);
 DSET_API  uint64_t    dset_getsz  (uint64_t dset, const char * colkey);
 DSET_API  int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
@@ -77,7 +77,7 @@ DSET_API  uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 
 DSET_API  int        dset_addrows       (uint64_t dset, uint32_t num);
 DSET_API  int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
-DSET_API  int        dset_addcol_array  (uint64_t dset, const char * key, int type, uint8_t shape0, uint8_t shape1, uint8_t shape2);
+DSET_API  int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
 
 
 DSET_API  int        dset_defrag (uint64_t dset, int realloc_smaller);
@@ -890,7 +890,7 @@ dset_key(uint64_t dset, uint64_t index)
 }
 
 
-DSET_API  uint8_t
+DSET_API  int
 dset_type (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
@@ -948,7 +948,7 @@ dset_addcol_scalar (uint64_t dset, const char * key, int type) {
 
 
 DSET_API int 
-dset_addcol_array (uint64_t dset, const char * key, int type, uint8_t shape0, uint8_t shape1, uint8_t shape2) {
+dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2) {
 
 	if(!tcheck(type)) {
 		nonfatal("invalid column data type: %i", type);
@@ -965,9 +965,9 @@ dset_addcol_array (uint64_t dset, const char * key, int type, uint8_t shape0, ui
 	// hypothetical new column descriptor.
 	ds_column col;
 	col.type =  ksz > SHORTKEYSZ ? -t : t;
-	col.shape[0] = shape0;
-	col.shape[1] = shape1;
-	col.shape[2] = shape2;
+	col.shape[0] = (uint8_t) shape0;
+	col.shape[1] = (uint8_t) shape1;
+	col.shape[2] = (uint8_t) shape2;
 
 	if (d->ncol == d->ccol) {
 

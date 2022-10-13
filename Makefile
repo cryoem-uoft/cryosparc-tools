@@ -3,7 +3,7 @@ TARGET=cryosparc_tools.egg-info/PKG-INFO
 
 all: $(TARGET)
 
-$(TARGET): src/*.c src/*.h setup.py pyproject.toml
+$(TARGET): src/*.c src/*.h cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.toml
 	python -m setup develop
 
 clean:

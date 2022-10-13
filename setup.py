@@ -1,9 +1,10 @@
 import sys
 from setuptools import Extension, setup
+from Cython.Build import cythonize
 
 DEBUG = False  # set to True to enable debugging
 libraries = []
-define_macros = [("MODULENAME", "core")]
+define_macros = []
 extra_compile_args = []
 extra_link_args = []
 
@@ -24,15 +25,16 @@ setup(
     version="0.1.0",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["src/dataset.h"],
-    ext_modules=[
+    ext_modules=cythonize(
         Extension(
             name="cryosparc.core",
+            sources=["./src/pywrapper_dataset.c", "./cryosparc/core.pyx"],
+            include_dirs=["src/"],
             libraries=libraries,
             define_macros=define_macros,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
-            sources=["src/pywrapper_dataset.c", "src/pywrapper_module.c"],
-            depends=["src/dataset.h", "src/pywrapper_wrapperfunctions.c", "src/pywrapper_extras.c"],
-        )
-    ],
+            depends=["src/dataset.h"],
+        ),
+    )
 )

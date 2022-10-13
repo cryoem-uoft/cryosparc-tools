@@ -66,15 +66,13 @@ TYPE_TO_DSET_MAP = {
 }
 
 
-class Data(Mapping[str, DType]):
+class Data(core.Data, Mapping[str, DType]):
     """
     Accessor and memory management class for native dataset memory. Can be used
     as a mapping where values are field type descriptors.
     """
 
-    __slots__ = ("handle",)
-
-    handle: int
+    __slots__ = tuple()
 
     @classmethod
     def allocate(cls, size: int = 0, fields: List[Field] = []):
@@ -83,22 +81,6 @@ class Data(Mapping[str, DType]):
         for field in fields:
             data.addcol(field)
         return data
-
-    def __init__(self, copy_handle: int = 0) -> None:
-        """
-        Allocate new memory for a dataset
-        """
-        if copy_handle > 0:
-            self.handle = core.dset_copy(copy_handle)
-        else:
-            self.handle = core.dset_new()
-
-    def __del__(self):
-        """
-        When garbage-collected, removes memory for the given dataset
-        """
-        core.dset_del(self.handle)
-        self.handle = 0
 
     def __len__(self) -> int:
         return self.ncol()
@@ -121,36 +103,18 @@ class Data(Mapping[str, DType]):
             yield self.key(i)
 
     def __copy__(self):
-        return self.copy()
+        return Data(self)
 
     def __deepcopy__(self):
-        return self.copy()
-
-    def totalsz(self) -> int:
-        return core.dset_totalsz(self.handle)
+        return Data(self)
 
     def copy(self) -> "Data":
-        return Data(copy_handle=self.handle)
-
-    def ncol(self) -> int:
-        return core.dset_ncol(self.handle)
-
-    def nrow(self) -> int:
-        return core.dset_nrow(self.handle)
-
-    def key(self, index: int) -> str:
-        return core.dset_key(self.handle, index)
-
-    def type(self, field: str) -> int:
-        return core.dset_type(self.handle, field)
+        return Data(self)
 
     def getshape(self, field: str) -> Shape:
-        val: int = core.dset_getshp(self.handle, field)
+        val: int = self.getshp(field)
         shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
         return tuple(s for s in shape if s != 0)
-
-    def addrows(self, num) -> bool:
-        return core.dset_addrows(self.handle, num) != 0
 
     @overload
     def addcol(self, field: Field) -> DType:
@@ -183,20 +147,8 @@ class Data(Mapping[str, DType]):
             assert self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt.type]), f"Could not add {field} with dtype {dt}"
             return dt.str
 
-    def addcol_scalar(self, field: str, dtype: DsetType) -> bool:
-        return core.dset_addcol_scalar(self.handle, field, dtype) != 0
-
     def addcol_array(self, field: str, dtype: DsetType, shape: Shape) -> bool:
         s = n.zeros(3, dtype=n.uint8)
         for i, d in enumerate(shape):
             s[i] = d
-        return core.dset_addcol_array(self.handle, field, dtype, *s) != 0
-
-    def getbuf(self, field: str) -> memoryview:
-        return core.dset_getbuf(self.handle, field)
-
-    def defrag(self) -> bool:
-        return core.dset_defrag(self.handle) != 0
-
-    def dumptxt(self):
-        core.dset_dumptxt(self.handle)
+        return super().addcol_array(field, dtype, *s)
