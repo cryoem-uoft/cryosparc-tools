@@ -24,7 +24,7 @@ class Column(n.ndarray):
         nrow = data.nrow()
         shape = (nrow, *dtype.shape)
         buffer = data.getbuf(field[0]).memview if nrow else None
-        obj = super().__new__(cls, shape=shape, dtype=dtype.base, buffer=buffer)
+        obj = super().__new__(cls, shape=shape, dtype=dtype.base, buffer=buffer)  # type: ignore
 
         # Keep a reference to the data so that it only gets cleaned up when all
         # columns are cleaned up. No need to transfer this data during
