@@ -737,7 +737,9 @@ void ht64_new(ht64 *t, uint32_t sz) {
 
 // Free an allocated hash table
 void ht64_del(ht64 *t) {
+	if (t->ht) {
 	DSFREE(t->ht);
+	}
 	t->ht = 0;
 	t->len = 0;
 	t->exp = 0;
@@ -748,6 +750,17 @@ static inline int32_t ht64_lookup(uint64_t hash, int exp, int32_t idx) {
 	uint32_t mask = ((uint32_t)1 << exp) - 1;
 	uint32_t step = (hash >> (64 - exp)) | 1;
 	return (idx + step) & mask;
+}
+
+static inline int ht64_has(ht64 *t, const uint64_t key) {
+	uint64_t h = hash64(key);
+	for (int32_t i = h;;) {
+		i = ht64_lookup(h, t->exp, i);
+		if (t->ht[i][0] == DSHT64_INVALID) return 0; // empty, does not exist
+		else if (t->ht[i][0] == key) return 1; // found
+		// otherwise keep looking
+	}
+	return 0;
 }
 
 // Find the value of key in the hash table. Put the result in val. Returns 1
