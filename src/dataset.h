@@ -63,6 +63,7 @@ enum dset_type {
 DSET_API  uint64_t  dset_new (void);
 DSET_API  void      dset_del (uint64_t dset);
 DSET_API  uint64_t  dset_copy (uint64_t dset);
+DSET_API  uint64_t  dset_innerjoin (const char *key, uint64_t dset_r, uint64_t dset_s);
 
 DSET_API  uint64_t    dset_totalsz(uint64_t dset);
 DSET_API  uint32_t    dset_ncol   (uint64_t dset);
@@ -83,7 +84,7 @@ DSET_API  int        dset_defrag (uint64_t dset, int realloc_smaller);
 DSET_API  void       dset_dumptxt (uint64_t dset);
 
 /*
-	WRAPGEN (dset_new, dset_del, dset_copy)
+	WRAPGEN (dset_new, dset_del, dset_copy, dset_innerjoin)
 	WRAPGEN (dset_totalsz, dset_ncol, dset_nrow, dset_key, dset_type)
 	WRAPGEN (dset_get, dset_getsz, dset_setstr, dset_getstr, dset_getshp)
 	WRAPGEN (dset_addrows, dset_addcol_scalar, dset_addcol_array, dset_defrag, dset_dumptxt)
@@ -912,6 +913,30 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 	d->stats.nreassign_arroffsets++;
 }
 
+static ds *
+copyval(
+	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
+	ds *src_ds, ds_column *src_col, uint64_t src_idx,
+	size_t itemsize // assume same stride on each column
+) {
+	char *dst_ptr = (char *) dst_ds + dst_ds->arrheap_start + dst_col->offset + (dst_idx * itemsize);
+	char *src_ptr = (char *) src_ds + src_ds->arrheap_start + src_col->offset + (src_idx * itemsize);
+	memcpy(dst_ptr, src_ptr, itemsize);
+	return dst_ds;
+}
+
+static ds *
+copystr(
+	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
+	ds *src_ds, ds_column *src_col, uint64_t src_idx,
+	size_t itemsize // not used
+) {
+	char *str = getstr(src_ds, src_col, src_idx);
+	return setstr(dst_ds, dst_col, dst_idx, str);
+}
+
+// Type of copyval or copystr function pointer
+typedef ds *(*ds_innerjoin_copyval_f)(ds *, ds_column *, uint64_t, ds *, ds_column *, uint64_t, size_t);
 
 /*
 ===============================================================================
@@ -958,6 +983,168 @@ dset_copy(uint64_t dset)
 		memcpy(newds,oldds,oldds->total_sz); 
 
 	return newhandle;
+}
+
+// Compute the inner join of two Datasets R and S by matching values in the
+// column with the given key. Currently only 64-bit columns (e.g., T_U64) with
+// zero shape may be specified as keys.
+//
+// Not recommended for key columns with duplicate values (does not deduplicate
+// and only matches one row in joined dataset).
+//
+// Implements Classic Hash Join algorithm
+// https://en.wikipedia.org/wiki/Hash_join#Classic_hash_join
+DSET_API uint64_t
+dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
+{
+	uint64_t idx_r, idx_s;
+	uint16_t generation_r, generation_s;
+	ds *ds_r, *ds_s;
+	ds_column *keycol_r, *keycol_s;
+
+	// Look up the two datasets and columns to join
+	if (!(ds_r = handle_lookup(dset_r, "dset_innerjoin", &generation_r, &idx_r))) return UINT64_MAX;
+	if (!(ds_s = handle_lookup(dset_s, "dset_innerjoin", &generation_s, &idx_s))) return UINT64_MAX;
+	keycol_r = column_lookup(ds_r, key);
+	keycol_s = column_lookup(ds_s, key);
+
+	if (!keycol_r || !keycol_s) {
+		// Columns not found
+		xassert(0); return UINT64_MAX;
+	}
+	if (keycol_r->type != keycol_s->type) {
+		// Mismatch types
+		xassert(0); return UINT64_MAX;
+	}
+	if (keycol_r->shape[0] != 0 || keycol_s->shape[0] != 0) {
+		// Can only innerjoin with shape 0
+		xassert(0); return UINT64_MAX;
+	}
+	if (keycol_r->type != T_U64 && keycol_r->type != T_I64 && keycol_r->type != T_F64 && keycol_r->type != T_C32) {
+		// Can only innerjoin 64 bit types
+		xassert(0); return UINT64_MAX;
+	}
+
+	// Allocate new dataset with unioned fields
+	uint64_t dset = dset_new();
+
+	// Populate fields from the first dataset R
+	ds_column *col;
+	char *colkey;
+	for (uint32_t c = 0; c < ds_r->ncol; c++) {
+		colkey = dset_key(dset_r, c);
+		if (strcmp(key, colkey) == 0 || !column_lookup(ds_s, colkey)) {
+			// key is either target join key or not in other dataset, add now
+			// with correct type details
+			col = column_lookup(ds_r, colkey);
+			xassert(dset_addcol_array(
+				dset, colkey, col->type,
+				col->shape[0], col->shape[1], col->shape[2]
+			));
+		} // otherwise defer to dataset S for this column
+	}
+
+	// Populate fields from the second dataset S
+	for (uint32_t c = 0; c < ds_s->ncol; c++) {
+		colkey = dset_key(dset_s, c);
+		if (strcmp(key, colkey) == 0) {
+			continue; // already added in previous loop
+		}
+		col = column_lookup(ds_s, colkey);
+		xassert(dset_addcol_array(
+			dset, colkey, col->type,
+			col->shape[0], col->shape[1], col->shape[2]
+		));
+	}
+
+	// Get the data for each column to join
+	uint64_t *keydata_r = dset_get(dset_r, key);
+	uint64_t *keydata_s = dset_get(dset_s, key);
+
+	// Create a hash table of values which store the index of each column value
+	// in dataset S
+	ht64 idx_lookup;
+	ht64_new(&idx_lookup, ds_s->nrow);
+	for (uint64_t j = 0; j < ds_s->nrow; j++) {
+		xassert(ht64_insert(&idx_lookup, keydata_s[j], j));
+	}
+
+	// Determine resulting number of rows in joined dataset. Note that entries
+	// in dataset R that share the same value will not be de-duplicated and only
+	// the highest index matching row in dataset S will be used.
+	uint32_t nrow = 0;
+	for (uint64_t i = 0; i < ds_r->nrow; i++) {
+		if (ht64_has(&idx_lookup, keydata_r[i])) nrow++;
+	}
+	dset_addrows(dset, nrow);
+
+	// Populate columns of new dataset
+	uint64_t idx;
+	uint16_t generation;
+	ds *d;
+	ds_column *dst_col, *src_col;
+	size_t itemsize;
+	ds_innerjoin_copyval_f cpyval;
+	void *fromdata, *todata;
+
+	if (!(d = handle_lookup(dset, "dset_innerjoin", &generation, &idx))) return UINT64_MAX;
+
+	// First populate the columns from R in the same order as they appear in R
+	for (uint32_t c = 0; c < ds_r->ncol; c++) {
+		colkey = dset_key(dset_r, c);
+		if (column_lookup(ds_s, colkey)) {
+			continue; // will be populated from other dset
+		}
+
+		fromdata = dset_get(dset_r, colkey);
+		todata = dset_get(dset, colkey);
+		dst_col = column_lookup(d, colkey);
+		src_col = column_lookup(ds_r, colkey);
+		itemsize = type_size[abs_i8(dst_col->type)] * stride(dst_col);
+		cpyval = dst_col->type == T_STR ? copystr : copyval;
+
+		for (uint64_t i = 0, k = 0; i < ds_r->nrow; i++) {
+			if (!ht64_has(&idx_lookup, keydata_r[i])) {
+				continue; // not in dataset, don't populate it
+			}
+
+			// Copy from Dataset R to the new innerjoined dataset
+			d = cpyval(d, dst_col, k, ds_r, src_col, i, itemsize);
+
+			// Increment current index
+			k++;
+		}
+	}
+
+	// Then populate all dataset fields from S
+	for (uint32_t c = 0; c < ds_s->ncol; c++) {
+		colkey = dset_key(dset_s, c);
+		fromdata = dset_get(dset_s, colkey);
+		todata = dset_get(dset, colkey);
+		dst_col = column_lookup(d, colkey);
+		src_col = column_lookup(ds_s, colkey);
+		itemsize = type_size[abs_i8(dst_col->type)] * stride(dst_col);
+		cpyval = dst_col->type == T_STR ? copystr : copyval;
+
+		// Still iterate over R's rows to preserve UID order
+		for (uint64_t i = 0, j = 0, k = 0; i < ds_r->nrow; i++) {
+			if (!ht64_find(&idx_lookup, keydata_r[i], &j)) {
+				continue; // not in dataset, don't populate it
+			}
+			// k is now set to the row index to copy from Dataset S
+			// Copy from Dataset S to the new innerjoined dataset
+			d = cpyval(d, dst_col, k, ds_s, src_col, j, itemsize);
+
+			// Increment current joined index
+			k++;
+		}
+	}
+
+	// Clean up hash table
+	ht64_del(&idx_lookup);
+
+	// Return the handle
+	return dset;
 }
 
 DSET_API void
