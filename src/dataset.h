@@ -79,10 +79,8 @@ DSET_API  int        dset_addrows       (uint64_t dset, uint32_t num);
 DSET_API  int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
 DSET_API  int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
 
-
 DSET_API  int        dset_defrag (uint64_t dset, int realloc_smaller);
-
-DSET_API  void        dset_dumptxt (uint64_t dset);
+DSET_API  void       dset_dumptxt (uint64_t dset);
 
 /*
 	WRAPGEN (dset_new, dset_del, dset_copy)
@@ -251,10 +249,10 @@ typedef struct {
 	uint32_t   ncol;  // actual number of columns
 	uint64_t   crow;  // reserved capacity for rows
 	uint64_t   nrow;  // actual number of rows
-	uint64_t   total_sz; 
-	uint64_t   arrheap_start;
-	uint64_t   strheap_start;
-	uint64_t   strheap_sz;
+	uint64_t   total_sz; // total allocated memory size
+	uint64_t   arrheap_start; // offset where column data begins
+	uint64_t   strheap_start; // offset where string (and other data structure) heap begins
+	uint64_t   strheap_sz; // 
 	struct {
 		// lets track the number of times the more expensive operations occurr
 		// in the future we can improve the implementation based on what actually happens a lot
@@ -689,7 +687,6 @@ actual_arrheap_sz (ds *d) {
 	return 0;
 }
 
-
 static uint64_t
 stralloc(ds **d, uint64_t idx, const char * str)
 {
@@ -745,6 +742,7 @@ shift_all_string_handles(ds *d, int64_t shift, uint64_t shift_greater_than)
 static void
 strfree (uint64_t oldstr, ds *d)
 {
+	// TODO: This should check that no one else is using this string before freeing it
 	if (!oldstr) return;
 	char * strheap = ((char *)d) + d->strheap_start;
 	char * s = strheap + oldstr;
@@ -754,6 +752,27 @@ strfree (uint64_t oldstr, ds *d)
 	d->strheap_sz -= sz;
 }
 
+static inline char *
+getstr(ds *d, ds_column *c, uint64_t index) {
+	char * ptr = (char *) d;
+	uint64_t *handles = ptr + d->arrheap_start + c->offset;
+	return ptr + d->strheap_start + handles[index];
+}
+
+// Set string helper that returns dataset pointer with string assigned (may be
+// the same dataset pointer or different if required reallocation)
+static ds *
+setstr (ds *d, ds_column *c, uint64_t index, const char *value) {
+	uint64_t idx;
+	char *ptr = (char *) d;
+	uint64_t *handles = ptr + d->arrheap_start + c->offset;
+	strfree(handles[index], d);
+	uint64_t newstr = stralloc(&d, idx, value);
+	if (!d) return 0; // Could not allocate string
+
+	handles[index] = newstr;
+	return d;
+}
 
 static void
 reassign_arrayoffsets (ds *d,  uint32_t new_crow)
@@ -1110,7 +1129,6 @@ dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 {
 	ds        *d = handle_lookup(dset, colkey, 0, 0);
 	ds_column *c = column_lookup(d, colkey);
-	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
 
@@ -1118,8 +1136,7 @@ dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 		nonfatal("dset_getstr: column '%s' is not a string", colkey);
 		return 0;
 	} else {
-		uint64_t *handles = ptr + d->arrheap_start + c->offset;
-		return ptr + d->strheap_start + handles[index];
+		return getstr(d, c, index);
 	}
 }
 
@@ -1131,7 +1148,6 @@ dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * va
 
 	ds        *d = handle_lookup(dset, colkey, 0, &idx);
 	ds_column *c = column_lookup(d, colkey);
-	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
 
@@ -1145,16 +1161,8 @@ dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * va
 		return 0;
 	}
 
-	uint64_t *handles = ptr + d->arrheap_start + c->offset;
-
-	strfree(handles[index], d);		
-	uint64_t newstr = stralloc(&d,idx,value);
-	if(!d) return 0;
-
-	handles[index] = newstr;
-	return 1;
+	return setstr(d, c, index, value) ? 1 : 0;
 }
-
 
 static char* 
 repr_cfloat (uint64_t ds, int sz, char * buf, ds_float_complex_t fc)
