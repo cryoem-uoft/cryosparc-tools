@@ -54,4 +54,28 @@ int main (int argc, char ** argv)
 	printf("\n");
 
 	dset_del(d);
+
+	// Hashtable tests
+	uint64_t val;
+	ht64 ht;
+	ht64_new(&ht, 3);
+	xassert(ht.len == 0);
+	xassert(ht.exp == 2);
+
+	// Find on empty
+	xassert(!ht64_find(&ht, 42, 0));
+
+	// Insert and find
+	xassert(ht64_insert(&ht, 42, 123));
+	xassert(ht64_find(&ht, 42, &val));
+	xassert(val == 123);
+
+	// Fill up table
+	xassert(ht64_insert(&ht, 43, 456));
+	xassert(ht64_insert(&ht, 44, 789));
+	xassert(ht64_insert(&ht, 45, 12345));
+	xassert(!ht64_insert(&ht, 46, 56789)); // full
+
+	// Deallocate
+	ht64_del(&ht);
 }

@@ -29,7 +29,7 @@ typedef double complex ds_double_complex_t;
 	X(T_U32,  u32, uint32_t,            "u4",   "%" PRIu32, repr ) \
 	X(T_U64,  u64, uint64_t,            "u8",   "%" PRIu64, repr ) \
 	X(T_STR,  s,   uint64_t,            "O",    "%s", repr_str ) \
-	X(T_OBJ,  p,   void*,               "O",    "%p", repr ) 
+	X(T_OBJ,  p,   void*,               "O",    "%p", repr )
 
 
 enum dset_type {
@@ -686,6 +686,111 @@ actual_arrheap_sz (ds *d) {
 	}
 	return 0;
 }
+
+/**
+ * Definitions for hash table where every key and value is 64 bits
+ * Based on https://nullprogram.com/blog/2022/08/08/
+ * Future work: Adapt for generic key/value types for the string buffer.
+ */
+
+// Invalid or unset hashtable entry (64 bit all ones)
+#define DSHT64_INVALID 0xffffffffffffffffU
+
+typedef uint64_t ht64_row[2];
+/**
+ * Numeric hashtable where each value is a 64 bit integer
+ */
+typedef struct ht64 {
+	ht64_row *ht; // array of key/value pairs
+	int32_t len;
+	int32_t exp; // exponent that denotes total hashtable capacity
+} ht64;
+
+// https://nullprogram.com/blog/2018/07/31/
+uint64_t hash64(uint64_t x) {
+    x ^= x >> 32;
+    x *= 0xd6e8feb86659fd93U;
+    x ^= x >> 32;
+    x *= 0xd6e8feb86659fd93U;
+    x ^= x >> 32;
+    return x;
+}
+
+// Allocate a hashtable with the given size
+void ht64_new(ht64 *t, uint32_t sz) {
+	// Allocate the given size for the hash table t
+	// Determine correct exponent
+	uint32_t exp = 0;
+	while ((1 << exp) < sz) {
+		exp++;
+	}
+	size_t totalsz = sizeof(ht64_row) * (1 << exp);
+	void *mem = DSREALLOC(0, totalsz);
+	// Initialize memory to -1 (all ones)
+	memset(mem, -1, totalsz);
+	t->ht = mem;
+	xassert(t->ht[0][0] == DSHT64_INVALID) // verify that memset worked
+	t->len =  0;
+	t->exp = exp;
+}
+
+// Free an allocated hash table
+void ht64_del(ht64 *t) {
+	DSFREE(t->ht);
+	t->ht = 0;
+	t->len = 0;
+	t->exp = 0;
+}
+
+// Compute the next candidate index. Initialize idx to the hash.
+static inline int32_t ht64_lookup(uint64_t hash, int exp, int32_t idx) {
+	uint32_t mask = ((uint32_t)1 << exp) - 1;
+	uint32_t step = (hash >> (64 - exp)) | 1;
+	return (idx + step) & mask;
+}
+
+// Find the value of key in the hash table. Put the result in val. Returns 1
+// (true) if located, 0 otherwise.
+int ht64_find(ht64 *t, const uint64_t key, uint64_t *val) {
+	uint64_t h = hash64(key);
+	for (int32_t i = h;;) {
+		i = ht64_lookup(h, t->exp, i);
+		if (t->ht[i][0] == DSHT64_INVALID) {
+			// empty
+			return 0;
+		} else if (t->ht[i][0] == key) {
+			// Found, populate result
+			*val = t->ht[i][1];
+			return 1;
+		}
+		// Otherwise keep looking
+	}
+	return 0;
+}
+
+// Insert a value into the hash table
+// Will overwrite val if the key already exists
+int ht64_insert(ht64 *t, const uint64_t key, const uint64_t val) {
+	if ((uint32_t) t->len == (uint32_t) (1 << t->exp)) {
+		// hash table is full
+		return 0;
+	}
+
+	uint64_t h = hash64(key);
+	for (int32_t i = h;;) {
+		i = ht64_lookup(h, t->exp, i);
+		if (t->ht[i][0] == DSHT64_INVALID || t->ht[i][0] == key) {
+			// empty or existing key, insert here
+			t->len++;
+			t->ht[i][0] = key;
+			t->ht[i][1] = val;
+			return 1;
+		}
+		// Otherwise keep looking for a spot to insert
+	}
+	return 0;
+}
+
 
 static uint64_t
 stralloc(ds **d, uint64_t idx, const char * str)
