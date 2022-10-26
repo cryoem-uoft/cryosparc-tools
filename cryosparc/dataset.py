@@ -303,7 +303,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return result
 
-    def innerjoin(self, *others: "Dataset", assert_no_drop=False, assume_unique=False):
+    def innerjoin(self, *others: "Dataset", assert_no_drop=False):
         """
         Create a new dataset with fields from all provided datasets and only
         including rows common to all provided datasets (based on UID)
@@ -316,9 +316,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Args:
             assert_no_drop (bool, optional): Set to True to ensure the provided
                 datasets include at least all UIDs from the first dataset.
-                Defaults to False.
-            assume_unique (bool, optional): Set to True if each given dataset is
-                known to have no duplicate UIDs. May speed up operation.
                 Defaults to False.
 
         Returns:
@@ -337,22 +334,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if not others:
             return self
-        result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
+        result = type(self).innerjoin_many(self, *others)
         if assert_no_drop:
             assert len(result) == len(self), "Cannot innerjoin datasets that do not have all elements in common."
         return result
 
     @classmethod
-    def innerjoin_many(cls, *datasets: "Dataset", assume_unique=False):
+    def innerjoin_many(cls, *datasets: "Dataset"):
         """
         Similar to `Dataset.innerjoin`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
 
-        Args:
-            assume_unique (_type_, optional): _description_. Defaults to False.
-
         Returns:
-            _type_: _description_
+            Dataset: combined dataset
         """
         if not datasets:
             return cls()
@@ -386,7 +380,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         # the innerjoin. e.g., [Dataset({'uid: [x,y,z], 'idx0': [0,1,2]}), …].
         # This is faster than doing the innerjoin for all columns in C.
         indexed_dsets = [Dataset({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
-
         indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
         result = cls({"uid": indexed_dset["uid"]})
         result.add_fields(all_fields)
