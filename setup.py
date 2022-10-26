@@ -44,6 +44,7 @@ setup(
             extra_link_args=extra_link_args,
             depends=["src/dataset.h"],
         ),
-        gdb_debug=DEBUG
+        language_level=3,
+        gdb_debug=DEBUG,
     ),
 )

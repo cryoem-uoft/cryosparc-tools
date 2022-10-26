@@ -926,7 +926,7 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 	d->stats.nreassign_arroffsets++;
 }
 
-static inline ds *
+static inline void
 copyval(
 	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
 	ds *src_ds, ds_column *src_col, uint64_t src_idx,
@@ -935,7 +935,6 @@ copyval(
 	char *dst_ptr = (char *) dst_ds + dst_ds->arrheap_start + dst_col->offset + (dst_idx * itemsize);
 	char *src_ptr = (char *) src_ds + src_ds->arrheap_start + src_col->offset + (src_idx * itemsize);
 	memcpy(dst_ptr, src_ptr, itemsize);
-	return dst_ds;
 }
 
 static inline ds *
@@ -1120,7 +1119,7 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		// Copy row values from Dataset R
 		for (c = 0; c < nrcol; c++) {
 			if (src_coldata[c].is_str) {
-				copystr(d, &d->columns[c], k, ds_r, src_coldata[c].col, i);
+				d = copystr(d, &d->columns[c], k, ds_r, src_coldata[c].col, i);
 			} else {
 				copyval(d, &d->columns[c], k, ds_r, src_coldata[c].col, i, (size_t) src_coldata[c].itemsize);
 			}
@@ -1129,7 +1128,7 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		// Copy row values from Dataset S
 		for (c = nrcol; c < nrcol + nscol; c++) {
 			if (src_coldata[c].is_str) {
-				copystr(d, &d->columns[c], k, ds_s, src_coldata[c].col, j);
+				d = copystr(d, &d->columns[c], k, ds_s, src_coldata[c].col, j);
 			} else {
 				copyval(d, &d->columns[c], k, ds_s, src_coldata[c].col, j, (size_t) src_coldata[c].itemsize);
 			}
