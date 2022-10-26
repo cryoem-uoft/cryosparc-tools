@@ -25,7 +25,7 @@ cdef class Data:
             cdataset.dset_del(self._handle)
 
     def innerjoin(self, str key, Data other):
-        return Data(cdataset.dset_innerjoin(key.encode(), self._handle, other._handle))
+        return type(self)(cdataset.dset_innerjoin(key.encode(), self._handle, other._handle))
 
     def totalsz(self):
         return cdataset.dset_totalsz(self._handle)
