@@ -488,7 +488,7 @@ size_t type_size[] = { DSET_TYPELIST(EMIT_SZ_ARRAY_ENTRY) };
 DSET_TYPELIST(EMIT_ALIGNCHECK) ;
 
 
-static int8_t abs_i8 (int8_t x) {return x < 0 ? -x : x;}
+static inline int8_t abs_i8 (int8_t x) {return x < 0 ? -x : x;}
 #define EMIT_TYPECHECK_FUNCTION(typeenum, fnsuffix, a,b,c,d) \
 	static int CONCAT(tcheck_, fnsuffix) (int8_t type) {     \
 		return abs_i8(type) == typeenum;    \
@@ -926,7 +926,7 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 	d->stats.nreassign_arroffsets++;
 }
 
-static ds *
+static inline ds *
 copyval(
 	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
 	ds *src_ds, ds_column *src_col, uint64_t src_idx,
@@ -938,18 +938,14 @@ copyval(
 	return dst_ds;
 }
 
-static ds *
+static inline ds *
 copystr(
 	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
 	ds *src_ds, ds_column *src_col, uint64_t src_idx,
-	size_t itemsize // not used
 ) {
 	char *str = getstr(src_ds, src_col, src_idx);
 	return setstr(dst_ds, dst_col, dst_idx, str);
 }
-
-// Type of copyval or copystr function pointer
-typedef ds *(*ds_innerjoin_copyval_f)(ds *, ds_column *, uint64_t, ds *, ds_column *, uint64_t, size_t);
 
 /*
 ===============================================================================
@@ -1041,9 +1037,17 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// Allocate new dataset with unioned fields
 	uint64_t dset = dset_new();
 
-	// Populate fields from the first dataset R
+	// Populate fields from the first dataset R. Declare a stack-allocated
+	// dynamic array of structs which memoize the required column data
 	ds_column *col;
 	char *colkey;
+	struct {
+		ds_column *col;
+		int itemsize;
+		int is_str;
+	} src_coldata[ds_r->ncol + ds_s->ncol]; // cache of source column details
+
+	uint32_t nrcol = 0, nscol = 0; // number of columns used from R and S
 	for (uint32_t c = 0; c < ds_r->ncol; c++) {
 		colkey = dset_key(dset_r, c);
 		if (strcmp(key, colkey) == 0 || !column_lookup(ds_s, colkey)) {
@@ -1054,6 +1058,10 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 				dset, colkey, col->type,
 				col->shape[0], col->shape[1], col->shape[2]
 			));
+			src_coldata[nrcol].col = col;
+			src_coldata[nrcol].itemsize = type_size[abs_i8(col->type)] * stride(col);
+			src_coldata[nrcol].is_str = col->type == T_STR;
+			nrcol++;
 		} // otherwise defer to dataset S for this column
 	}
 
@@ -1068,6 +1076,10 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 			dset, colkey, col->type,
 			col->shape[0], col->shape[1], col->shape[2]
 		));
+		src_coldata[nrcol + nscol].col = col;
+		src_coldata[nrcol + nscol].itemsize = type_size[abs_i8(col->type)] * stride(col);
+		src_coldata[nrcol + nscol].is_str = col->type == T_STR;
+		nscol++;
 	}
 
 	// Get the data for each column to join
@@ -1095,62 +1107,35 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	uint64_t idx;
 	uint16_t generation;
 	ds *d;
-	ds_column *dst_col, *src_col;
-	size_t itemsize;
-	ds_innerjoin_copyval_f cpyval;
-	void *fromdata, *todata;
+	uint32_t c;
 
 	if (!(d = handle_lookup(dset, "dset_innerjoin", &generation, &idx))) return UINT64_MAX;
 
-	// First populate the columns from R in the same order as they appear in R
-	for (uint32_t c = 0; c < ds_r->ncol; c++) {
-		colkey = dset_key(dset_r, c);
-		if (column_lookup(ds_s, colkey)) {
-			continue; // will be populated from other dset
+	// Indeces i corresponds to R indexes, j to S indexes, k to the result dataset
+	for (uint64_t i = 0, k = 0, j = 0; i < ds_r->nrow; i++) {
+		if (!ht64_find(&idx_lookup, keydata_r[i], &j)) {
+			continue; // not in dataset, don't populate it
 		}
 
-		fromdata = dset_get(dset_r, colkey);
-		todata = dset_get(dset, colkey);
-		dst_col = column_lookup(d, colkey);
-		src_col = column_lookup(ds_r, colkey);
-		itemsize = type_size[abs_i8(dst_col->type)] * stride(dst_col);
-		cpyval = dst_col->type == T_STR ? copystr : copyval;
-
-		for (uint64_t i = 0, k = 0; i < ds_r->nrow; i++) {
-			if (!ht64_has(&idx_lookup, keydata_r[i])) {
-				continue; // not in dataset, don't populate it
+		// Copy row values from Dataset R
+		for (c = 0; c < nrcol; c++) {
+			if (src_coldata[c].is_str) {
+				copystr(d, &d->columns[c], k, ds_r, src_coldata[c].col, i);
+			} else {
+				copyval(d, &d->columns[c], k, ds_r, src_coldata[c].col, i, (size_t) src_coldata[c].itemsize);
 			}
-
-			// Copy from Dataset R to the new innerjoined dataset
-			d = cpyval(d, dst_col, k, ds_r, src_col, i, itemsize);
-
-			// Increment current index
-			k++;
 		}
-	}
 
-	// Then populate all dataset fields from S
-	for (uint32_t c = 0; c < ds_s->ncol; c++) {
-		colkey = dset_key(dset_s, c);
-		fromdata = dset_get(dset_s, colkey);
-		todata = dset_get(dset, colkey);
-		dst_col = column_lookup(d, colkey);
-		src_col = column_lookup(ds_s, colkey);
-		itemsize = type_size[abs_i8(dst_col->type)] * stride(dst_col);
-		cpyval = dst_col->type == T_STR ? copystr : copyval;
-
-		// Still iterate over R's rows to preserve UID order
-		for (uint64_t i = 0, j = 0, k = 0; i < ds_r->nrow; i++) {
-			if (!ht64_find(&idx_lookup, keydata_r[i], &j)) {
-				continue; // not in dataset, don't populate it
+		// Copy row values from Dataset S
+		for (c = nrcol; c < nrcol + nscol; c++) {
+			if (src_coldata[c].is_str) {
+				copystr(d, &d->columns[c], k, ds_s, src_coldata[c].col, j);
+			} else {
+				copyval(d, &d->columns[c], k, ds_s, src_coldata[c].col, j, (size_t) src_coldata[c].itemsize);
 			}
-			// k is now set to the row index to copy from Dataset S
-			// Copy from Dataset S to the new innerjoined dataset
-			d = cpyval(d, dst_col, k, ds_s, src_col, j, itemsize);
-
-			// Increment current joined index
-			k++;
 		}
+
+		k++; // increment row
 	}
 
 	// Clean up hash table
