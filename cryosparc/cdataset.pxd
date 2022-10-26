@@ -4,6 +4,7 @@ cdef extern from "dataset.h":
 
     Dset dset_new() nogil
     Dset dset_copy(Dset dset) nogil
+    Dset dset_innerjoin(const char *key, Dset dset_r, Dset dset_s) nogil
     void dset_del(Dset dset) nogil
 
     Py_ssize_t dset_totalsz(Dset dset) nogil
