@@ -941,7 +941,7 @@ copyval(
 static inline ds *
 copystr(
 	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
-	ds *src_ds, ds_column *src_col, uint64_t src_idx,
+	ds *src_ds, ds_column *src_col, uint64_t src_idx
 ) {
 	char *str = getstr(src_ds, src_col, src_idx);
 	return setstr(dst_ds, dst_col, dst_idx, str);
