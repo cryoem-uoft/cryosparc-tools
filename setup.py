@@ -5,6 +5,7 @@ from Cython.Build import cythonize
 DEBUG = False  # set to True to enable debugging
 libraries = []
 define_macros = []
+undef_macros = []
 extra_compile_args = []
 extra_link_args = []
 
@@ -12,6 +13,11 @@ if sys.platform == "win32":
     extra_compile_args += ["/std:c11"]
 else:
     libraries.append("pthread")
+
+if DEBUG:
+    define_macros += [("NDEBUG",)]
+else:
+    undef_macros += ["NDEBUG"]
 
 if sys.platform == "win32" and DEBUG:
     define_macros += [("_DEBUG",)]
@@ -33,9 +39,11 @@ setup(
             include_dirs=["src/"],
             libraries=libraries,
             define_macros=define_macros,
+            undef_macros=undef_macros,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
             depends=["src/dataset.h"],
         ),
+        gdb_debug=DEBUG
     ),
 )
