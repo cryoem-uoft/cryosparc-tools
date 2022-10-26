@@ -1002,6 +1002,12 @@ dset_copy(uint64_t dset)
 //
 // Implements Classic Hash Join algorithm
 // https://en.wikipedia.org/wiki/Hash_join#Classic_hash_join
+typedef struct ds_innerjoin_coldata {
+	ds_column *col;
+	int itemsize;
+	int is_str;
+} ds_innerjoin_coldata;
+
 DSET_API uint64_t
 dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 {
@@ -1033,6 +1039,11 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		xassert(0); return UINT64_MAX;
 	}
 
+	if (ds_r->ncol + ds_s->ncol > 2048) {
+		// Cannot join datasets totaling more than 2048 columns
+		xassert(0); return UINT64_MAX;
+	}
+
 	// Allocate new dataset with unioned fields
 	uint64_t dset = dset_new();
 
@@ -1040,11 +1051,13 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// dynamic array of structs which memoize the required column data
 	ds_column *col;
 	char *colkey;
-	struct {
-		ds_column *col;
-		int itemsize;
-		int is_str;
-	} src_coldata[ds_r->ncol + ds_s->ncol]; // cache of source column details
+
+	// Cache source column details (try to use stack version if possible)
+	ds_innerjoin_coldata src_coldata_stack[1024];
+	ds_innerjoin_coldata *src_coldata = &src_coldata_stack;
+	if (ds_r->ncol + ds_s->ncol > 1024) {
+		src_coldata = DSREALLOC(0, sizeof(ds_innerjoin_coldata) * (ds_r->ncol + ds_s->ncol));
+	}
 
 	uint32_t nrcol = 0, nscol = 0; // number of columns used from R and S
 	for (uint32_t c = 0; c < ds_r->ncol; c++) {
@@ -1139,6 +1152,11 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 
 	// Clean up hash table
 	ht64_del(&idx_lookup);
+
+	// Free up memoized column data, if necessary
+	if (src_coldata != &src_coldata_stack) {
+		DSFREE(src_coldata);
+	}
 
 	// Return the handle
 	return dset;
