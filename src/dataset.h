@@ -721,11 +721,10 @@ static inline uint64_t hash64(uint64_t x) {
 // Allocate a hashtable with the given size
 static void ht64_new(ds_ht64 *t, uint32_t sz) {
 	// Allocate the given size for the hash table t
-	// Determine correct exponent
 	uint32_t exp = 0;
-	while ((1 << exp) < sz) {
-		exp++;
-	}
+	do { exp++; } while ((1 << exp) < sz);
+	exp += 1; // at least double the required size for fast lookups
+
 	size_t totalsz = sizeof(ds_ht64_row) * (1 << exp);
 	void *mem = DSREALLOC(0, totalsz);
 	// Initialize memory to -1 (all ones)
