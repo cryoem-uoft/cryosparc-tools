@@ -697,18 +697,19 @@ actual_arrheap_sz (ds *d) {
 // Invalid or unset hashtable entry (64 bit all ones)
 #define DSHT64_INVALID 0xffffffffffffffffU
 
-typedef uint64_t ht64_row[2];
+typedef uint64_t ds_ht64_row[2];
+
 /**
- * Numeric hashtable where each value is a 64 bit integer
+ * Numeric hashtable where each key and value is a 64 bit integer
  */
-typedef struct ht64 {
-	ht64_row *ht; // array of key/value pairs
+typedef struct ds_ht64 {
+	ds_ht64_row *ht; // array of key/value pairs
 	int32_t len;
 	int32_t exp; // exponent that denotes total hashtable capacity
-} ht64;
+} ds_ht64;
 
 // https://nullprogram.com/blog/2018/07/31/
-uint64_t hash64(uint64_t x) {
+static inline uint64_t hash64(uint64_t x) {
     x ^= x >> 32;
     x *= 0xd6e8feb86659fd93U;
     x ^= x >> 32;
@@ -718,14 +719,14 @@ uint64_t hash64(uint64_t x) {
 }
 
 // Allocate a hashtable with the given size
-void ht64_new(ht64 *t, uint32_t sz) {
+static void ht64_new(ds_ht64 *t, uint32_t sz) {
 	// Allocate the given size for the hash table t
 	// Determine correct exponent
 	uint32_t exp = 0;
 	while ((1 << exp) < sz) {
 		exp++;
 	}
-	size_t totalsz = sizeof(ht64_row) * (1 << exp);
+	size_t totalsz = sizeof(ds_ht64_row) * (1 << exp);
 	void *mem = DSREALLOC(0, totalsz);
 	// Initialize memory to -1 (all ones)
 	memset(mem, -1, totalsz);
@@ -736,7 +737,7 @@ void ht64_new(ht64 *t, uint32_t sz) {
 }
 
 // Free an allocated hash table
-void ht64_del(ht64 *t) {
+static void ht64_del(ds_ht64 *t) {
 	if (t->ht) {
 	DSFREE(t->ht);
 	}
@@ -752,7 +753,7 @@ static inline int32_t ht64_lookup(uint64_t hash, int exp, int32_t idx) {
 	return (idx + step) & mask;
 }
 
-static inline int ht64_has(ht64 *t, const uint64_t key) {
+static inline int ht64_has(ds_ht64 *t, const uint64_t key) {
 	uint64_t h = hash64(key);
 	for (int32_t i = h;;) {
 		i = ht64_lookup(h, t->exp, i);
@@ -765,7 +766,7 @@ static inline int ht64_has(ht64 *t, const uint64_t key) {
 
 // Find the value of key in the hash table. Put the result in val. Returns 1
 // (true) if located, 0 otherwise.
-int ht64_find(ht64 *t, const uint64_t key, uint64_t *val) {
+static int ht64_find(ds_ht64 *t, const uint64_t key, uint64_t *val) {
 	uint64_t h = hash64(key);
 	for (int32_t i = h;;) {
 		i = ht64_lookup(h, t->exp, i);
@@ -784,7 +785,7 @@ int ht64_find(ht64 *t, const uint64_t key, uint64_t *val) {
 
 // Insert a value into the hash table
 // Will overwrite val if the key already exists
-int ht64_insert(ht64 *t, const uint64_t key, const uint64_t val) {
+static int ht64_insert(ds_ht64 *t, const uint64_t key, const uint64_t val) {
 	if ((uint32_t) t->len == (uint32_t) (1 << t->exp)) {
 		// hash table is full
 		return 0;
@@ -1076,7 +1077,7 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 
 	// Create a hash table of values which store the index of each column value
 	// in dataset S
-	ht64 idx_lookup;
+	ds_ht64 idx_lookup;
 	ht64_new(&idx_lookup, ds_s->nrow);
 	for (uint64_t j = 0; j < ds_s->nrow; j++) {
 		xassert(ht64_insert(&idx_lookup, keydata_s[j], j));

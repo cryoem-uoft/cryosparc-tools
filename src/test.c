@@ -32,8 +32,8 @@ int main (int argc, char ** argv)
 	float * col2 = dset_get(d, "col2");
 	float * col3 = dset_get(d, "col3");
 
-	// #define LONGSTR "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery long string as column header"
-	#define LONGSTR "very"
+	#define LONGSTR "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery long string as column header"
+	// #define LONGSTR "very"
 	xassert(dset_addcol_scalar(d, LONGSTR, T_STR));
 
 	for (int i = 0; i < 10; i++) {
