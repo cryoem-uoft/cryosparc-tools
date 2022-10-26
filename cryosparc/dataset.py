@@ -1,6 +1,7 @@
 """
 Classes and utilities for working with .cs files
 """
+from functools import reduce
 from pathlib import PurePath
 from typing import (
     IO,
@@ -361,41 +362,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             return cls(dset)  # Only one to join, noop
 
         # Gather common fields
-        all_fields: List[Field] = []
-        fields_by_dataset: List[List[Field]] = []
-        for dset in datasets:
-            group: List[Field] = []
-            for field in dset.descr():
-                if field not in all_fields:
-                    all_fields.append(field)
-                    group.append(field)
-            fields_by_dataset.append(group)
-        assert len({f[0] for f in all_fields}) == len(
-            all_fields
-        ), "Cannot innerjoin datasets with fields of the same name but different types"
+        # all_fields: List[Field] = []
+        # fields_by_dataset: List[List[Field]] = []
+        # for dset in datasets:
+        #     group: List[Field] = []
+        #     for field in dset.descr():
+        #         if field not in all_fields:
+        #             all_fields.append(field)
+        #             group.append(field)
+        #     fields_by_dataset.append(group)
+        # assert len({f[0] for f in all_fields}) == len(
+        #     all_fields
+        # ), "Cannot innerjoin datasets with fields of the same name but different types"
 
-        # Get common UIDs
-        common_uids = n.array(datasets[0]["uid"], copy=False)
-        for dset in datasets[1:]:
-            common_uids = n.intersect1d(common_uids, dset["uid"], assume_unique=assume_unique)
-
-        # Create a new dataset with just the UIDs from both datasets
-        result = cls.allocate(len(common_uids), fields=all_fields)
-
-        # Use first dataset to determine stable order of UIDs
-        common_mask = n.isin(datasets[0]["uid"], common_uids, assume_unique=assume_unique)
-        common_uids = datasets[0]["uid"][common_mask]
-        for key, *_ in fields_by_dataset[0]:
-            result[key] = datasets[0][key][common_mask]
-
-        for dset, group in zip(datasets[1:], fields_by_dataset[1:]):
-            _, common_indeces, _ = n.intersect1d(
-                dset["uid"], common_uids, assume_unique=assume_unique, return_indices=True
-            )
-            for key, *_ in group:
-                result[key] = dset[key][common_indeces]
-
-        return result
+        return reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), datasets)
 
     @classmethod
     def common_fields(cls, *datasets: "Dataset", assert_same_fields=False) -> List[Field]:
