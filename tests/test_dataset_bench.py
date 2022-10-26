@@ -277,7 +277,7 @@ def test_append_replace_many_query(benchmark, big_dset: Dataset, dset: Dataset):
     assert len(new_dset) == len(big_dset) + len(other1) + len(other2) - 1191 - 1210
 
 
-def test_innerjoin(benchmark, dset: Dataset):
+def test_innerjoin_two(benchmark, dset: Dataset):
     other = dset.slice(500000, 1500000)
     expected = other
     joined = benchmark(dset.innerjoin, other.shuffle(), assume_unique=True)

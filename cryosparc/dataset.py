@@ -361,21 +361,44 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             dset = datasets[0]
             return cls(dset)  # Only one to join, noop
 
-        # Gather common fields
-        # all_fields: List[Field] = []
-        # fields_by_dataset: List[List[Field]] = []
-        # for dset in datasets:
-        #     group: List[Field] = []
-        #     for field in dset.descr():
-        #         if field not in all_fields:
-        #             all_fields.append(field)
-        #             group.append(field)
-        #     fields_by_dataset.append(group)
-        # assert len({f[0] for f in all_fields}) == len(
-        #     all_fields
-        # ), "Cannot innerjoin datasets with fields of the same name but different types"
+        # Gather common fields (reverse because because latest datasets' fields
+        # take priority)
+        all_fields: List[Field] = []
+        fields_by_dataset: List[List[Field]] = []
+        for dset in reversed(datasets):
+            group: List[Field] = []
+            for field in reversed(dset.descr(exclude_uid=True)):
+                if field not in all_fields:
+                    group.append(field)
+            all_fields += group
+            group.reverse()  # but back into seen order
+            fields_by_dataset.append(group)
 
-        return reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), datasets)
+        # Undo reverse
+        all_fields.reverse()
+        fields_by_dataset.reverse()
+
+        assert len({f[0] for f in all_fields}) == len(
+            all_fields
+        ), "Cannot innerjoin datasets with fields of the same name but different types"
+
+        # Set up smaller indexed with just a `uid` and `idx#` column to perform
+        # the innerjoin. e.g., [Dataset({'uid: [x,y,z], 'idx0': [0,1,2]}), …].
+        # This is faster than doing the innerjoin for all columns in C.
+        indexed_dsets = [
+            Dataset({'uid': d['uid'], f'idx{i}': n.arange(len(d))})
+            for i, d in enumerate(datasets)
+        ]
+
+        indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
+        result = cls({'uid': indexed_dset['uid']})
+        result.add_fields(all_fields)
+        for i, d, fields in zip(range(len(datasets)), datasets, fields_by_dataset):
+            idxs = indexed_dset[f'idx{i}']
+            for f, *_ in fields:
+                result[f] = d[f][idxs]
+
+        return result
 
     @classmethod
     def common_fields(cls, *datasets: "Dataset", assert_same_fields=False) -> List[Field]:
@@ -507,6 +530,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             int,
             "Dataset[Any]",
             "NDArray",
+            Data,
             Mapping[str, "ArrayLike"],
             List[Tuple[str, "ArrayLike"]],
         ] = 0,
@@ -518,8 +542,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._rows = None
 
         if isinstance(allocate, Dataset):
-            # Create copy of underlying data
+            # Copy constructor, create copy of underlying data
             self._data = allocate._data.copy()
+            return
+
+        if isinstance(allocate, Data):
+            # Initialize from existing data
+            self._data = allocate
             return
 
         self._data = Data()
