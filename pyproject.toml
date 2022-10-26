@@ -56,4 +56,4 @@ line-length = 120
 
 [tool.ruff]
 line-length = 120
-exclude = ["docs"]
+exclude = ["docs", ".venv*"]

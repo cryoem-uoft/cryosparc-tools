@@ -385,16 +385,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         # Set up smaller indexed with just a `uid` and `idx#` column to perform
         # the innerjoin. e.g., [Dataset({'uid: [x,y,z], 'idx0': [0,1,2]}), …].
         # This is faster than doing the innerjoin for all columns in C.
-        indexed_dsets = [
-            Dataset({'uid': d['uid'], f'idx{i}': n.arange(len(d))})
-            for i, d in enumerate(datasets)
-        ]
+        indexed_dsets = [Dataset({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
 
         indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
-        result = cls({'uid': indexed_dset['uid']})
+        result = cls({"uid": indexed_dset["uid"]})
         result.add_fields(all_fields)
         for i, d, fields in zip(range(len(datasets)), datasets, fields_by_dataset):
-            idxs = indexed_dset[f'idx{i}']
+            idxs = indexed_dset[f"idx{i}"]
             for f, *_ in fields:
                 result[f] = d[f][idxs]
 
