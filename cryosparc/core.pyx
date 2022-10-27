@@ -6,9 +6,14 @@ cdef class Data:
 
     def __cinit__(self, other = None):
         cdef Data othr
-        if other:
+        self._handle = 0
+        if isinstance(other, Data):
+            # copy constructor
             othr = <Data> other
             self._handle = cdataset.dset_copy(othr._handle)
+        elif other:
+            # Initialize with a numeric handle
+            self._handle = <cdataset.Dset> other
         else:
             self._handle = cdataset.dset_new()
 
@@ -18,6 +23,9 @@ cdef class Data:
     def __dealloc__(self):
         if self._handle:
             cdataset.dset_del(self._handle)
+
+    def innerjoin(self, str key, Data other):
+        return type(self)(cdataset.dset_innerjoin(key.encode(), self._handle, other._handle))
 
     def totalsz(self):
         return cdataset.dset_totalsz(self._handle)

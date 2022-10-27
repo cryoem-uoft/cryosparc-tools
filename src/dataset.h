@@ -29,7 +29,7 @@ typedef double complex ds_double_complex_t;
 	X(T_U32,  u32, uint32_t,            "u4",   "%" PRIu32, repr ) \
 	X(T_U64,  u64, uint64_t,            "u8",   "%" PRIu64, repr ) \
 	X(T_STR,  s,   uint64_t,            "O",    "%s", repr_str ) \
-	X(T_OBJ,  p,   void*,               "O",    "%p", repr ) 
+	X(T_OBJ,  p,   void*,               "O",    "%p", repr )
 
 
 enum dset_type {
@@ -63,6 +63,7 @@ enum dset_type {
 DSET_API  uint64_t  dset_new (void);
 DSET_API  void      dset_del (uint64_t dset);
 DSET_API  uint64_t  dset_copy (uint64_t dset);
+DSET_API  uint64_t  dset_innerjoin (const char *key, uint64_t dset_r, uint64_t dset_s);
 
 DSET_API  uint64_t    dset_totalsz(uint64_t dset);
 DSET_API  uint32_t    dset_ncol   (uint64_t dset);
@@ -83,7 +84,7 @@ DSET_API  int        dset_defrag (uint64_t dset, int realloc_smaller);
 DSET_API  void       dset_dumptxt (uint64_t dset);
 
 /*
-	WRAPGEN (dset_new, dset_del, dset_copy)
+	WRAPGEN (dset_new, dset_del, dset_copy, dset_innerjoin)
 	WRAPGEN (dset_totalsz, dset_ncol, dset_nrow, dset_key, dset_type)
 	WRAPGEN (dset_get, dset_getsz, dset_setstr, dset_getstr, dset_getshp)
 	WRAPGEN (dset_addrows, dset_addcol_scalar, dset_addcol_array, dset_defrag, dset_dumptxt)
@@ -487,7 +488,7 @@ size_t type_size[] = { DSET_TYPELIST(EMIT_SZ_ARRAY_ENTRY) };
 DSET_TYPELIST(EMIT_ALIGNCHECK) ;
 
 
-static int8_t abs_i8 (int8_t x) {return x < 0 ? -x : x;}
+static inline int8_t abs_i8 (int8_t x) {return x < 0 ? -x : x;}
 #define EMIT_TYPECHECK_FUNCTION(typeenum, fnsuffix, a,b,c,d) \
 	static int CONCAT(tcheck_, fnsuffix) (int8_t type) {     \
 		return abs_i8(type) == typeenum;    \
@@ -687,6 +688,124 @@ actual_arrheap_sz (ds *d) {
 	return 0;
 }
 
+/**
+ * Definitions for hash table where every key and value is 64 bits
+ * Based on https://nullprogram.com/blog/2022/08/08/
+ * Future work: Adapt for generic key/value types for the string buffer.
+ */
+
+// Invalid or unset hashtable entry (64 bit all ones)
+#define DSHT64_INVALID 0xffffffffffffffffU
+
+typedef uint64_t ds_ht64_row[2];
+
+/**
+ * Numeric hashtable where each key and value is a 64 bit integer
+ */
+typedef struct ds_ht64 {
+	ds_ht64_row *ht; // array of key/value pairs
+	int32_t len;
+	int32_t exp; // exponent that denotes total hashtable capacity
+} ds_ht64;
+
+// https://nullprogram.com/blog/2018/07/31/
+static inline uint64_t hash64(uint64_t x) {
+    x ^= x >> 32;
+    x *= 0xd6e8feb86659fd93U;
+    x ^= x >> 32;
+    x *= 0xd6e8feb86659fd93U;
+    x ^= x >> 32;
+    return x;
+}
+
+// Allocate a hashtable with the given size
+static void ht64_new(ds_ht64 *t, uint32_t sz) {
+	// Allocate the given size for the hash table t
+	uint32_t exp = 0;
+	do { exp++; } while ((1 << exp) < sz);
+	exp += 1; // at least double the required size for fast lookups
+
+	size_t totalsz = sizeof(ds_ht64_row) * (1 << exp);
+	void *mem = DSREALLOC(0, totalsz);
+	// Initialize memory to -1 (all ones)
+	memset(mem, -1, totalsz);
+	t->ht = mem;
+	xassert(t->ht[0][0] == DSHT64_INVALID) // verify that memset worked
+	t->len =  0;
+	t->exp = exp;
+}
+
+// Free an allocated hash table
+static void ht64_del(ds_ht64 *t) {
+	if (t->ht) {
+	DSFREE(t->ht);
+	}
+	t->ht = 0;
+	t->len = 0;
+	t->exp = 0;
+}
+
+// Compute the next candidate index. Initialize idx to the hash.
+static inline int32_t ht64_lookup(uint64_t hash, int exp, int32_t idx) {
+	uint32_t mask = ((uint32_t)1 << exp) - 1;
+	uint32_t step = (hash >> (64 - exp)) | 1;
+	return (idx + step) & mask;
+}
+
+static inline int ht64_has(ds_ht64 *t, const uint64_t key) {
+	uint64_t h = hash64(key);
+	for (int32_t i = h;;) {
+		i = ht64_lookup(h, t->exp, i);
+		if (t->ht[i][0] == DSHT64_INVALID) return 0; // empty, does not exist
+		else if (t->ht[i][0] == key) return 1; // found
+		// otherwise keep looking
+	}
+	return 0;
+}
+
+// Find the value of key in the hash table. Put the result in val. Returns 1
+// (true) if located, 0 otherwise.
+static int ht64_find(ds_ht64 *t, const uint64_t key, uint64_t *val) {
+	uint64_t h = hash64(key);
+	for (int32_t i = h;;) {
+		i = ht64_lookup(h, t->exp, i);
+		if (t->ht[i][0] == DSHT64_INVALID) {
+			// empty
+			return 0;
+		} else if (t->ht[i][0] == key) {
+			// Found, populate result
+			*val = t->ht[i][1];
+			return 1;
+		}
+		// Otherwise keep looking
+	}
+	return 0;
+}
+
+// Insert a value into the hash table
+// Will overwrite val if the key already exists
+static int ht64_insert(ds_ht64 *t, const uint64_t key, const uint64_t val) {
+	if ((uint32_t) t->len == (uint32_t) (1 << t->exp)) {
+		// hash table is full
+		return 0;
+	}
+
+	uint64_t h = hash64(key);
+	for (int32_t i = h;;) {
+		i = ht64_lookup(h, t->exp, i);
+		if (t->ht[i][0] == DSHT64_INVALID || t->ht[i][0] == key) {
+			// empty or existing key, insert here
+			t->len++;
+			t->ht[i][0] = key;
+			t->ht[i][1] = val;
+			return 1;
+		}
+		// Otherwise keep looking for a spot to insert
+	}
+	return 0;
+}
+
+
 static uint64_t
 stralloc(ds **d, uint64_t idx, const char * str)
 {
@@ -807,6 +926,25 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 	d->stats.nreassign_arroffsets++;
 }
 
+static inline void
+copyval(
+	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
+	ds *src_ds, ds_column *src_col, uint64_t src_idx,
+	size_t itemsize // assume same stride on each column
+) {
+	char *dst_ptr = (char *) dst_ds + dst_ds->arrheap_start + dst_col->offset + (dst_idx * itemsize);
+	char *src_ptr = (char *) src_ds + src_ds->arrheap_start + src_col->offset + (src_idx * itemsize);
+	memcpy(dst_ptr, src_ptr, itemsize);
+}
+
+static inline ds *
+copystr(
+	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
+	ds *src_ds, ds_column *src_col, uint64_t src_idx
+) {
+	char *str = getstr(src_ds, src_col, src_idx);
+	return setstr(dst_ds, dst_col, dst_idx, str);
+}
 
 /*
 ===============================================================================
@@ -853,6 +991,187 @@ dset_copy(uint64_t dset)
 		memcpy(newds,oldds,oldds->total_sz); 
 
 	return newhandle;
+}
+
+// Compute the inner join of two Datasets R and S by matching values in the
+// column with the given key. Currently only 64-bit columns (e.g., T_U64) with
+// zero shape may be specified as keys.
+//
+// Not recommended for key columns with duplicate values (does not deduplicate
+// and only matches one row in joined dataset).
+//
+// Implements Classic Hash Join algorithm
+// https://en.wikipedia.org/wiki/Hash_join#Classic_hash_join
+typedef struct ds_innerjoin_coldata {
+	ds_column *col;
+	int itemsize;
+	int is_str;
+} ds_innerjoin_coldata;
+
+DSET_API uint64_t
+dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
+{
+	uint64_t dset = 0;
+	uint64_t idx_r, idx_s;
+	uint16_t generation_r, generation_s;
+	ds *ds_r, *ds_s;
+	ds_column *keycol_r, *keycol_s;
+	ds_ht64 idx_lookup; idx_lookup.ht = 0;
+
+	// Look up the two datasets and columns to join
+	if (!(ds_r = handle_lookup(dset_r, "dset_innerjoin", &generation_r, &idx_r))) return UINT64_MAX;
+	if (!(ds_s = handle_lookup(dset_s, "dset_innerjoin", &generation_s, &idx_s))) return UINT64_MAX;
+	keycol_r = column_lookup(ds_r, key);
+	keycol_s = column_lookup(ds_s, key);
+
+	if (!keycol_r || !keycol_s) {
+		nonfatal("dset_innerjoin: input dataset does not contain %s column", key);
+		return UINT64_MAX;
+	}
+	if (keycol_r->type != keycol_s->type) {
+		nonfatal("dset_innerjoin: input %s column types do match (%d, %d)", key, keycol_r->type, keycol_s->type);
+		return UINT64_MAX;
+	}
+	if (keycol_r->shape[0] != 0 || keycol_s->shape[0] != 0) {
+		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-zero shape", key);
+		return UINT64_MAX;
+	}
+
+	if (keycol_r->type != T_U64 && keycol_r->type != T_I64 && keycol_r->type != T_F64 && keycol_r->type != T_C32) {
+		// TODO: Allow innerjoining any type (or least numeric types)
+		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-64bit type %d", key, keycol_r->type);
+		return UINT64_MAX;
+	}
+
+	// Allocate new dataset with unioned fields
+	dset = dset_new();
+
+	// Populate fields from the first dataset R. Declare a stack-allocated
+	// dynamic array of structs which memoize the required column data
+	ds_column *col;
+	char *colkey;
+
+	// Cache source column details (try to use stack version if possible)
+	ds_innerjoin_coldata src_coldata_stack[1024];
+	ds_innerjoin_coldata *src_coldata = src_coldata_stack;
+	if (ds_r->ncol + ds_s->ncol > 1024) {
+		src_coldata = DSREALLOC(0, sizeof(ds_innerjoin_coldata) * (ds_r->ncol + ds_s->ncol));
+	}
+
+	uint32_t nrcol = 0, nscol = 0; // number of columns used from R and S
+	for (uint32_t c = 0; c < ds_r->ncol; c++) {
+		colkey = dset_key(dset_r, c);
+		if (strcmp(key, colkey) == 0 || !column_lookup(ds_s, colkey)) {
+			// key is either target join key or not in other dataset, add now
+			// with correct type details
+			col = column_lookup(ds_r, colkey);
+			if (!dset_addcol_array(
+				dset, colkey, col->type,
+				col->shape[0], col->shape[1], col->shape[2]
+			)) {
+				nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
+				goto fail;
+			}
+			src_coldata[nrcol].col = col;
+			src_coldata[nrcol].itemsize = type_size[abs_i8(col->type)] * stride(col);
+			src_coldata[nrcol].is_str = col->type == T_STR;
+			nrcol++;
+		} // otherwise defer to dataset S for this column
+	}
+
+	// Populate fields from the second dataset S
+	for (uint32_t c = 0; c < ds_s->ncol; c++) {
+		colkey = dset_key(dset_s, c);
+		if (strcmp(key, colkey) == 0) {
+			continue; // already added in previous loop
+		}
+		col = column_lookup(ds_s, colkey);
+		if (!dset_addcol_array(
+			dset, colkey, col->type,
+			col->shape[0], col->shape[1], col->shape[2]
+		)) {
+			nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
+			goto fail;
+		}
+		src_coldata[nrcol + nscol].col = col;
+		src_coldata[nrcol + nscol].itemsize = type_size[abs_i8(col->type)] * stride(col);
+		src_coldata[nrcol + nscol].is_str = col->type == T_STR;
+		nscol++;
+	}
+
+	// Get the data for each column to join
+	uint64_t *keydata_r = dset_get(dset_r, key);
+	uint64_t *keydata_s = dset_get(dset_s, key);
+
+	// Create a hash table of values which store the index of each column value
+	// in dataset S
+	ht64_new(&idx_lookup, ds_s->nrow);
+	for (uint64_t j = 0; j < ds_s->nrow; j++) {
+		if (!ht64_insert(&idx_lookup, keydata_s[j], j)) {
+			nonfatal("dset_innerjoin: hash table full?? cannot proceed");
+			goto fail;
+		}
+	}
+
+	// Determine resulting number of rows in joined dataset. Note that entries
+	// in dataset R that share the same value will not be de-duplicated and only
+	// the highest index matching row in dataset S will be used.
+	uint32_t nrow = 0;
+	for (uint64_t i = 0; i < ds_r->nrow; i++) {
+		if (ht64_has(&idx_lookup, keydata_r[i])) nrow++;
+	}
+	dset_addrows(dset, nrow);
+
+	// Populate columns of new dataset
+	uint64_t idx;
+	uint16_t generation;
+	ds *d;
+	uint32_t c;
+
+	if (!(d = handle_lookup(dset, "dset_innerjoin", &generation, &idx))) return UINT64_MAX;
+
+	// Indeces i corresponds to R indexes, j to S indexes, k to the result dataset
+	for (uint64_t i = 0, k = 0, j = 0; i < ds_r->nrow; i++) {
+		if (!ht64_find(&idx_lookup, keydata_r[i], &j)) {
+			continue; // not in dataset, don't populate it
+		}
+
+		// Copy row values from Dataset R
+		for (c = 0; c < nrcol; c++) {
+			if (src_coldata[c].is_str) {
+				d = copystr(d, &d->columns[c], k, ds_r, src_coldata[c].col, i);
+			} else {
+				copyval(d, &d->columns[c], k, ds_r, src_coldata[c].col, i, (size_t) src_coldata[c].itemsize);
+			}
+		}
+
+		// Copy row values from Dataset S
+		for (c = nrcol; c < nrcol + nscol; c++) {
+			if (src_coldata[c].is_str) {
+				d = copystr(d, &d->columns[c], k, ds_s, src_coldata[c].col, j);
+			} else {
+				copyval(d, &d->columns[c], k, ds_s, src_coldata[c].col, j, (size_t) src_coldata[c].itemsize);
+			}
+		}
+
+		k++; // increment row
+	}
+
+	// Success! Skip over the fail case, cleanup and return the handle
+	goto done;
+
+	fail:
+	// Delete and invalidate dataset
+	if (dset) dset_del(dset);
+	dset = UINT64_MAX;
+
+	done:
+	// Clean up hash table
+	// Free up memoized column data, if necessary
+	ht64_del(&idx_lookup);
+	if (src_coldata != src_coldata_stack) DSFREE(src_coldata);
+
+	return dset;
 }
 
 DSET_API void

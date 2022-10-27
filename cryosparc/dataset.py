@@ -1,6 +1,7 @@
 """
 Classes and utilities for working with .cs files
 """
+from functools import reduce
 from pathlib import PurePath
 from typing import (
     IO,
@@ -302,7 +303,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         return result
 
-    def innerjoin(self, *others: "Dataset", assert_no_drop=False, assume_unique=False):
+    def innerjoin(self, *others: "Dataset", assert_no_drop=False):
         """
         Create a new dataset with fields from all provided datasets and only
         including rows common to all provided datasets (based on UID)
@@ -315,9 +316,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Args:
             assert_no_drop (bool, optional): Set to True to ensure the provided
                 datasets include at least all UIDs from the first dataset.
-                Defaults to False.
-            assume_unique (bool, optional): Set to True if each given dataset is
-                known to have no duplicate UIDs. May speed up operation.
                 Defaults to False.
 
         Returns:
@@ -336,22 +334,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         if not others:
             return self
-        result = type(self).innerjoin_many(self, *others, assume_unique=assume_unique)
+        result = type(self).innerjoin_many(self, *others)
         if assert_no_drop:
             assert len(result) == len(self), "Cannot innerjoin datasets that do not have all elements in common."
         return result
 
     @classmethod
-    def innerjoin_many(cls, *datasets: "Dataset", assume_unique=False):
+    def innerjoin_many(cls, *datasets: "Dataset"):
         """
         Similar to `Dataset.innerjoin`. If no datasets are provided, returns an
         empty Dataset with just the `uid` field.
 
-        Args:
-            assume_unique (_type_, optional): _description_. Defaults to False.
-
         Returns:
-            _type_: _description_
+            Dataset: combined dataset
         """
         if not datasets:
             return cls()
@@ -360,40 +355,40 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             dset = datasets[0]
             return cls(dset)  # Only one to join, noop
 
-        # Gather common fields
+        # Gather common fields (reverse because because latest datasets' fields
+        # take priority)
         all_fields: List[Field] = []
         fields_by_dataset: List[List[Field]] = []
-        for dset in datasets:
+        for dset in reversed(datasets):
             group: List[Field] = []
-            for field in dset.descr():
+            for field in reversed(dset.descr(exclude_uid=True)):
                 if field not in all_fields:
-                    all_fields.append(field)
                     group.append(field)
+            all_fields += group
+            group.reverse()  # but back into seen order
             fields_by_dataset.append(group)
+
+        # Undo reverse
+        all_fields.reverse()
+        fields_by_dataset.reverse()
+
         assert len({f[0] for f in all_fields}) == len(
             all_fields
         ), "Cannot innerjoin datasets with fields of the same name but different types"
 
-        # Get common UIDs
-        common_uids = n.array(datasets[0]["uid"], copy=False)
-        for dset in datasets[1:]:
-            common_uids = n.intersect1d(common_uids, dset["uid"], assume_unique=assume_unique)
-
-        # Create a new dataset with just the UIDs from both datasets
-        result = cls.allocate(len(common_uids), fields=all_fields)
-
-        # Use first dataset to determine stable order of UIDs
-        common_mask = n.isin(datasets[0]["uid"], common_uids, assume_unique=assume_unique)
-        common_uids = datasets[0]["uid"][common_mask]
-        for key, *_ in fields_by_dataset[0]:
-            result[key] = datasets[0][key][common_mask]
-
-        for dset, group in zip(datasets[1:], fields_by_dataset[1:]):
-            _, common_indeces, _ = n.intersect1d(
-                dset["uid"], common_uids, assume_unique=assume_unique, return_indices=True
-            )
-            for key, *_ in group:
-                result[key] = dset[key][common_indeces]
+        # Set up smaller indexed datasets with just a `uid` and `idx#` columns
+        # to perform the innerjoin. e.g., [Dataset({'uid: [x,y,z], 'idx0':
+        # [0,1,2]}), …]. This is faster than doing the innerjoin for all columns
+        # and safer because we don't have to worry about not updating Python
+        # string reference counts in the resulting dataset.
+        indexed_dsets = [Dataset({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
+        indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
+        result = cls({"uid": indexed_dset["uid"]})
+        result.add_fields(all_fields)
+        for i, d, fields in zip(range(len(datasets)), datasets, fields_by_dataset):
+            idxs = indexed_dset[f"idx{i}"]
+            for f, *_ in fields:
+                result[f] = d[f][idxs]
 
         return result
 
@@ -527,6 +522,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             int,
             "Dataset[Any]",
             "NDArray",
+            Data,
             Mapping[str, "ArrayLike"],
             List[Tuple[str, "ArrayLike"]],
         ] = 0,
@@ -538,8 +534,13 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self._rows = None
 
         if isinstance(allocate, Dataset):
-            # Create copy of underlying data
+            # Copy constructor, create copy of underlying data
             self._data = allocate._data.copy()
+            return
+
+        if isinstance(allocate, Data):
+            # Initialize from existing data
+            self._data = allocate
             return
 
         self._data = Data()
