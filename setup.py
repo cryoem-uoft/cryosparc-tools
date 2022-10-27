@@ -14,11 +14,6 @@ if sys.platform == "win32":
 else:
     libraries.append("pthread")
 
-if DEBUG:
-    define_macros += [("NDEBUG",)]
-else:
-    undef_macros += ["NDEBUG"]
-
 if sys.platform == "win32" and DEBUG:
     define_macros += [("_DEBUG",)]
     extra_compile_args += ["/Zi"]

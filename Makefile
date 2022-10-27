@@ -8,6 +8,7 @@ $(TARGET): src/*.c src/*.h cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.to
 
 clean:
 	rm -f cryosparc/*.so
+	rm -f cryosparc/*.c
 	rm -rf build
 	rm -rf dist
 	rm -rf *.egg-info
