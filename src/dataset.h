@@ -1011,10 +1011,12 @@ typedef struct ds_innerjoin_coldata {
 DSET_API uint64_t
 dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 {
+	uint64_t dset = 0;
 	uint64_t idx_r, idx_s;
 	uint16_t generation_r, generation_s;
 	ds *ds_r, *ds_s;
 	ds_column *keycol_r, *keycol_s;
+	ds_ht64 idx_lookup; idx_lookup.ht = 0;
 
 	// Look up the two datasets and columns to join
 	if (!(ds_r = handle_lookup(dset_r, "dset_innerjoin", &generation_r, &idx_r))) return UINT64_MAX;
@@ -1023,25 +1025,27 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	keycol_s = column_lookup(ds_s, key);
 
 	if (!keycol_r || !keycol_s) {
-		// Columns not found
-		xassert(0); return UINT64_MAX;
+		nonfatal("dset_innerjoin: input dataset does not contain %s column", key);
+		return UINT64_MAX;
 	}
 	if (keycol_r->type != keycol_s->type) {
-		// Mismatch types
-		xassert(0); return UINT64_MAX;
+		nonfatal("dset_innerjoin: input %s column types do match (%d, %d)", key, keycol_r->type, keycol_s->type);
+		return UINT64_MAX;
 	}
 	if (keycol_r->shape[0] != 0 || keycol_s->shape[0] != 0) {
 		// Can only innerjoin with shape 0
-		xassert(0); return UINT64_MAX;
+		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-zero shape", key);
+		return UINT64_MAX;
 	}
+
 	if (keycol_r->type != T_U64 && keycol_r->type != T_I64 && keycol_r->type != T_F64 && keycol_r->type != T_C32) {
-		// Can only innerjoin 64 bit types
 		// TODO: Allow innerjoining any type (or least numeric types)
-		xassert(0); return UINT64_MAX;
+		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-64bit type %d", key, keycol_r->type);
+		return UINT64_MAX;
 	}
 
 	// Allocate new dataset with unioned fields
-	uint64_t dset = dset_new();
+	dset = dset_new();
 
 	// Populate fields from the first dataset R. Declare a stack-allocated
 	// dynamic array of structs which memoize the required column data
@@ -1062,10 +1066,13 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 			// key is either target join key or not in other dataset, add now
 			// with correct type details
 			col = column_lookup(ds_r, colkey);
-			xassert(dset_addcol_array(
+			if (!dset_addcol_array(
 				dset, colkey, col->type,
 				col->shape[0], col->shape[1], col->shape[2]
-			));
+			)) {
+				nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
+				goto fail;
+			}
 			src_coldata[nrcol].col = col;
 			src_coldata[nrcol].itemsize = type_size[abs_i8(col->type)] * stride(col);
 			src_coldata[nrcol].is_str = col->type == T_STR;
@@ -1080,10 +1087,13 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 			continue; // already added in previous loop
 		}
 		col = column_lookup(ds_s, colkey);
-		xassert(dset_addcol_array(
+		if (!dset_addcol_array(
 			dset, colkey, col->type,
 			col->shape[0], col->shape[1], col->shape[2]
-		));
+		)) {
+			nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
+			goto fail;
+		}
 		src_coldata[nrcol + nscol].col = col;
 		src_coldata[nrcol + nscol].itemsize = type_size[abs_i8(col->type)] * stride(col);
 		src_coldata[nrcol + nscol].is_str = col->type == T_STR;
@@ -1096,10 +1106,12 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 
 	// Create a hash table of values which store the index of each column value
 	// in dataset S
-	ds_ht64 idx_lookup;
 	ht64_new(&idx_lookup, ds_s->nrow);
 	for (uint64_t j = 0; j < ds_s->nrow; j++) {
-		xassert(ht64_insert(&idx_lookup, keydata_s[j], j));
+		if (!ht64_insert(&idx_lookup, keydata_s[j], j)) {
+			nonfatal("dset_innerjoin: hash table full?? cannot proceed");
+			goto fail;
+		}
 	}
 
 	// Determine resulting number of rows in joined dataset. Note that entries
@@ -1146,15 +1158,20 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		k++; // increment row
 	}
 
+	// Success! Skip over the fail case, cleanup and return the handle
+	goto done;
+
+	fail:
+	// Delete and invalidate dataset
+	if (dset) dset_del(dset);
+	dset = UINT64_MAX;
+
+	done:
 	// Clean up hash table
-	ht64_del(&idx_lookup);
-
 	// Free up memoized column data, if necessary
-	if (src_coldata != &src_coldata_stack) {
-		DSFREE(src_coldata);
-	}
+	ht64_del(&idx_lookup);
+	if (src_coldata != &src_coldata_stack) DSFREE(src_coldata);
 
-	// Return the handle
 	return dset;
 }
 
