@@ -1036,11 +1036,7 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	}
 	if (keycol_r->type != T_U64 && keycol_r->type != T_I64 && keycol_r->type != T_F64 && keycol_r->type != T_C32) {
 		// Can only innerjoin 64 bit types
-		xassert(0); return UINT64_MAX;
-	}
-
-	if (ds_r->ncol + ds_s->ncol > 2048) {
-		// Cannot join datasets totaling more than 2048 columns
+		// TODO: Allow innerjoining any type (or least numeric types)
 		xassert(0); return UINT64_MAX;
 	}
 
