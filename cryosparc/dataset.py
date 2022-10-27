@@ -376,9 +376,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             all_fields
         ), "Cannot innerjoin datasets with fields of the same name but different types"
 
-        # Set up smaller indexed with just a `uid` and `idx#` column to perform
-        # the innerjoin. e.g., [Dataset({'uid: [x,y,z], 'idx0': [0,1,2]}), …].
-        # This is faster than doing the innerjoin for all columns in C.
+        # Set up smaller indexed datasets with just a `uid` and `idx#` columns
+        # to perform the innerjoin. e.g., [Dataset({'uid: [x,y,z], 'idx0':
+        # [0,1,2]}), …]. This is faster than doing the innerjoin for all columns
+        # and safer because we don't have to worry about not updating Python
+        # string reference counts in the resulting dataset.
         indexed_dsets = [Dataset({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
         indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
         result = cls({"uid": indexed_dset["uid"]})
