@@ -133,13 +133,13 @@ class Spool(List[R], Generic[R]):
         d2 = Spool(items=(p for p in self if p[prefix + "/split"] == 1), rng=self.random)
         return d1, d2
 
-    def split_into_quarter(self, num: int, seed: int):
+    def split_into_quarter(self, num: int):
         """
         Return two Spools with the split portions
         """
-        idxs = default_rng(seed=seed).permutation(len(self))  # type: ignore
-        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=default_rng(seed=seed))  # type: ignore
-        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=default_rng(seed=seed))  # type: ignore
+        idxs = self.random.permutation(len(self))
+        d1 = Spool(items=(self[i] for i in idxs[:num]), rng=self.random)
+        d2 = Spool(items=(self[i] for i in idxs[num:]), rng=self.random)
         return d1, d2
 
     def split_with_split(self, num: int, random=True, prefix=None, split=0):
