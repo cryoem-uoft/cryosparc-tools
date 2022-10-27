@@ -1033,7 +1033,6 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		return UINT64_MAX;
 	}
 	if (keycol_r->shape[0] != 0 || keycol_s->shape[0] != 0) {
-		// Can only innerjoin with shape 0
 		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-zero shape", key);
 		return UINT64_MAX;
 	}
@@ -1054,7 +1053,7 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 
 	// Cache source column details (try to use stack version if possible)
 	ds_innerjoin_coldata src_coldata_stack[1024];
-	ds_innerjoin_coldata *src_coldata = &src_coldata_stack;
+	ds_innerjoin_coldata *src_coldata = src_coldata_stack;
 	if (ds_r->ncol + ds_s->ncol > 1024) {
 		src_coldata = DSREALLOC(0, sizeof(ds_innerjoin_coldata) * (ds_r->ncol + ds_s->ncol));
 	}
@@ -1170,7 +1169,7 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// Clean up hash table
 	// Free up memoized column data, if necessary
 	ht64_del(&idx_lookup);
-	if (src_coldata != &src_coldata_stack) DSFREE(src_coldata);
+	if (src_coldata != src_coldata_stack) DSFREE(src_coldata);
 
 	return dset;
 }
