@@ -67,7 +67,7 @@ class CommandClient:
 
     def __init__(
         self,
-        service: str = "command_core",
+        service: str = "command",
         host: str = "localhost",
         port: int = 39002,
         url: str = "",
