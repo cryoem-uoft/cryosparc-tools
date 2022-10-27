@@ -215,6 +215,21 @@ class CryoSPARC:
                 f.seek(0)
                 return mrc.read(f)  # FIXME: Optimize file reading
 
+    def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
+        """
+        Download a file from CryoSPARC's MongoDB GridFS storage.
+
+        Args:
+            fileid (str): GridFS file object ID
+            target (str | Path | IO): Writeable download destination path or file handle
+        """
+        with make_json_request(self.vis, url="/get_job_file", data={"fileid": fileid}) as response:
+            with bopen(target, "wb") as f:
+                data = response.read(ONE_MIB)
+                while data:
+                    f.write(data)
+                    data = response.read(ONE_MIB)
+
     def upload(self, project_uid: str, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
         """
         Open a file from the current project for reading. Note that this

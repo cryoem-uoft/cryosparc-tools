@@ -57,9 +57,19 @@ ASSET_CONTENT_TYPES: Dict[AssetFormat, AssetContentType] = {**TEXT_CONTENT_TYPES
 
 
 class AssetFileData(TypedDict):
-    filetype: AssetContentType
+    """
+    Result of job files query
+    """
+
+    _id: str
     filename: str
-    fileid: str
+    contentType: AssetContentType
+    uploadDate: str  # ISO formatted
+    length: int  # in bytes
+    chunkSize: int  # in bytes
+    md5: str
+    project_uid: str
+    job_uid: str  # also used for Session UID
 
 
 class Job:
@@ -203,6 +213,29 @@ class Job:
     def download_mrc(self, path: Union[str, PurePosixPath]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download_mrc(self.project_uid, path)
+
+    def list_assets(self) -> List[AssetFileData]:
+        """
+        Get a list of files available in the database for this job. Returns a
+        list with details about the assets. Each entry is a dict with a ``_id``
+        key which may be used to download the file with the ``download_asset``
+        method.
+
+        Returns:
+            list[AssetFileData]: Asset details
+        """
+        return self.cs.vis.list_job_files(project_uid=self.project_uid, job_uid=self.uid)  # type: ignore
+
+    def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
+        """
+        Download a job asset from the database with the given ID. Note that the
+        file does not necessary have to belong to the current job.
+
+        Args:
+            fileid (str): GridFS file object ID
+            target (str | Path | IO): Writable download destination path or file handle
+        """
+        return self.cs.download_asset(fileid, target)
 
     def upload(self, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
         """
@@ -535,14 +568,11 @@ class ExternalJob(Job):
 
     @contextmanager
     def run(self):
-        # TODO: Set job to running status
         error = False
         self.start("running")
         try:
             yield self
-        # TODO: Set job to completed status
         except Exception:
-            # TODO: Set job to error status, send error to joblog
             error = True
             raise
         finally:
