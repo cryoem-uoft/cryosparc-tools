@@ -49,49 +49,30 @@ enum dset_type {
 	T_OBJ = 14,
 };
 
-/*
-	Not too important for building a python module, but if used in a C program, 
-	the user may with to prefix something (e.g. `static` or `__declspec(dllexport)`
-	depending on the platform and the user's intent).
+uint64_t  dset_new (void);
+void      dset_del (uint64_t dset);
+uint64_t  dset_copy (uint64_t dset);
+uint64_t  dset_innerjoin (const char *key, uint64_t dset_r, uint64_t dset_s);
 
-	This can be achived by defining DSET_API to something before including this header.
-*/
-#ifndef DSET_API
-#define DSET_API
+uint64_t    dset_totalsz(uint64_t dset);
+uint32_t    dset_ncol   (uint64_t dset);
+uint64_t    dset_nrow   (uint64_t dset);
+const char* dset_key    (uint64_t dset, uint64_t index);
+int         dset_type   (uint64_t dset, const char * colkey);
+void *      dset_get    (uint64_t dset, const char * colkey);
+uint64_t    dset_getsz  (uint64_t dset, const char * colkey);
+int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
+const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
+uint32_t    dset_getshp (uint64_t dset, const char * colkey);
+
+int        dset_addrows       (uint64_t dset, uint32_t num);
+int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
+int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
+
+int        dset_defrag (uint64_t dset, int realloc_smaller);
+void       dset_dumptxt (uint64_t dset);
+
 #endif
-
-DSET_API  uint64_t  dset_new (void);
-DSET_API  void      dset_del (uint64_t dset);
-DSET_API  uint64_t  dset_copy (uint64_t dset);
-DSET_API  uint64_t  dset_innerjoin (const char *key, uint64_t dset_r, uint64_t dset_s);
-
-DSET_API  uint64_t    dset_totalsz(uint64_t dset);
-DSET_API  uint32_t    dset_ncol   (uint64_t dset);
-DSET_API  uint64_t    dset_nrow   (uint64_t dset);
-DSET_API  const char* dset_key    (uint64_t dset, uint64_t index);
-DSET_API  int         dset_type   (uint64_t dset, const char * colkey);
-DSET_API  void *      dset_get    (uint64_t dset, const char * colkey);
-DSET_API  uint64_t    dset_getsz  (uint64_t dset, const char * colkey);
-DSET_API  int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
-DSET_API  const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
-DSET_API  uint32_t    dset_getshp (uint64_t dset, const char * colkey);
-
-DSET_API  int        dset_addrows       (uint64_t dset, uint32_t num);
-DSET_API  int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
-DSET_API  int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
-
-DSET_API  int        dset_defrag (uint64_t dset, int realloc_smaller);
-DSET_API  void       dset_dumptxt (uint64_t dset);
-
-/*
-	WRAPGEN (dset_new, dset_del, dset_copy, dset_innerjoin)
-	WRAPGEN (dset_totalsz, dset_ncol, dset_nrow, dset_key, dset_type)
-	WRAPGEN (dset_get, dset_getsz, dset_setstr, dset_getstr, dset_getshp)
-	WRAPGEN (dset_addrows, dset_addcol_scalar, dset_addcol_array, dset_defrag, dset_dumptxt)
-*/
-
-
-#endif 
 /*
 ===============================================================================
 
@@ -954,8 +935,7 @@ copystr(
 
 
 
-DSET_API uint64_t 
-dset_new(void) {
+uint64_t dset_new(void) {
 	const size_t DS_INITIAL_SZ = 1<<15; // 32 kB as a good default?
 	ds * d = 0;
 
@@ -973,8 +953,7 @@ dset_new(void) {
 	return handle;
 }
 
-DSET_API uint64_t
-dset_copy(uint64_t dset)
+uint64_t dset_copy(uint64_t dset)
 {
 	uint64_t idx;
 	uint16_t generation;
@@ -1008,8 +987,7 @@ typedef struct ds_innerjoin_coldata {
 	int is_str;
 } ds_innerjoin_coldata;
 
-DSET_API uint64_t
-dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
+uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 {
 	uint64_t dset = 0;
 	uint64_t idx_r, idx_s;
@@ -1174,8 +1152,7 @@ dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	return dset;
 }
 
-DSET_API void
-dset_del(uint64_t dset)
+void dset_del(uint64_t dset)
 {
 	module_init();
 	lock();
@@ -1190,32 +1167,28 @@ dset_del(uint64_t dset)
 	unlock();
 }
 
-DSET_API uint64_t 
-dset_totalsz(uint64_t dset)
+uint64_t dset_totalsz(uint64_t dset)
 {
 	ds *d = handle_lookup(dset, "dset_ncol", 0, 0);
 	if(d) return d->total_sz;
 	else  return 0;
 }
 
-DSET_API uint32_t 
-dset_ncol(uint64_t dset)
+uint32_t dset_ncol(uint64_t dset)
 {
 	ds *d = handle_lookup(dset, "dset_ncol", 0, 0);
 	if(d) return d->ncol;
 	else  return 0;
 }
 
-DSET_API uint64_t 
-dset_nrow(uint64_t dset)
+uint64_t dset_nrow(uint64_t dset)
 {
 	ds *d = handle_lookup(dset, "dset_nrow", 0, 0);
 	if(d) return d->nrow;
 	else  return 0;
 }
 
-DSET_API const char *
-dset_key(uint64_t dset, uint64_t index)
+const char *dset_key(uint64_t dset, uint64_t index)
 {
 	const ds *d  = handle_lookup(dset, "dset_colkey", 0, 0);
 	if (!d) return "";
@@ -1228,8 +1201,7 @@ dset_key(uint64_t dset, uint64_t index)
 }
 
 
-DSET_API  int
-dset_type (uint64_t dset, const char * colkey)
+int dset_type (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
 	const ds_column *c  = column_lookup(d, colkey);
@@ -1238,8 +1210,7 @@ dset_type (uint64_t dset, const char * colkey)
 	return abs_i8(c->type);
 }
 
-DSET_API void *    
-dset_get (uint64_t dset, const char * colkey)
+void *dset_get (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
 	const ds_column *c  = column_lookup(d, colkey);
@@ -1255,8 +1226,7 @@ dset_get (uint64_t dset, const char * colkey)
 	return ptr + d->arrheap_start + c->offset;
 }
 
-DSET_API uint64_t
-dset_getsz(uint64_t dset, const char * colkey)
+uint64_t dset_getsz(uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
 	const ds_column *c  = column_lookup(d, colkey);
@@ -1266,8 +1236,7 @@ dset_getsz(uint64_t dset, const char * colkey)
 	return d->nrow * abs_i8(type_size[c->type]) * stride(c);
 }
 
-DSET_API uint32_t
-dset_getshp (uint64_t dset, const char * colkey)
+uint32_t dset_getshp (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
 	const ds_column *c  = column_lookup(d, colkey);
@@ -1279,14 +1248,12 @@ dset_getshp (uint64_t dset, const char * colkey)
 	return c->shape[0] | c->shape[1] << 8 | c->shape[2] << 16;
 }
 
-DSET_API int 
-dset_addcol_scalar (uint64_t dset, const char * key, int type) {
+int dset_addcol_scalar (uint64_t dset, const char * key, int type) {
 	return dset_addcol_array(dset, key, type, 0, 0, 0);
 }
 
 
-DSET_API int 
-dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2) {
+int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2) {
 
 	if(!tcheck(type)) {
 		nonfatal("invalid column data type: %i", type);
@@ -1347,8 +1314,7 @@ dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, int sh
 }
 
 
-DSET_API int 
-dset_addrows (uint64_t dset, uint32_t num) {
+int dset_addrows (uint64_t dset, uint32_t num) {
 	uint64_t idx; 
 
 	ds *d = handle_lookup(dset, "dset_addrows", 0, &idx);
@@ -1403,8 +1369,7 @@ dset_addrows (uint64_t dset, uint32_t num) {
 
 
 
-DSET_API int 
-dset_defrag (uint64_t dset, int realloc_smaller)
+int dset_defrag (uint64_t dset, int realloc_smaller)
 {
 	ds *d = handle_lookup(dset, "dset_compress", 0, 0);
 	if(!d) return 0;
@@ -1443,8 +1408,7 @@ dset_defrag (uint64_t dset, int realloc_smaller)
 
 
 
-DSET_API const char *    
-dset_getstr (uint64_t dset, const char * colkey, uint64_t index) 
+const char *dset_getstr (uint64_t dset, const char * colkey, uint64_t index) 
 {
 	ds        *d = handle_lookup(dset, colkey, 0, 0);
 	ds_column *c = column_lookup(d, colkey);
@@ -1460,8 +1424,7 @@ dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 }
 
 
-DSET_API int
-dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value)
+int dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value)
 {
 	uint64_t idx;
 
@@ -1507,8 +1470,7 @@ repr_str (uint64_t dset, int sz, char * buf, uint64_t handle)
 }
 
 
-DSET_API  void 
-dset_dumptxt (uint64_t dset) {
+void dset_dumptxt (uint64_t dset) {
 
 	ds *d = handle_lookup(dset, "dset_dumptxt", 0, 0);
 	xassert(d);

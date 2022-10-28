@@ -75,8 +75,6 @@ R = TypeVar("R", bound=Row)
 Type variable for a `Row` subclass.
 """
 
-DEFAULT_RNG = default_rng()
-
 
 class Spool(List[R], Generic[R]):
     """
