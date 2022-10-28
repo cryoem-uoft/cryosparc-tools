@@ -484,7 +484,7 @@ class ExternalJob(Job):
         type: Datatype,
         name: Optional[str] = None,
         slots: List[Union[str, Datafield]] = [],
-        passthrough: Union[str, Literal[False]] = False,
+        passthrough: Optional[str] = None,
         title: Optional[str] = None,
         alloc: Optional[int] = None,
     ) -> Union[str, Dataset]:
@@ -543,7 +543,7 @@ class ExternalJob(Job):
         Allocate an empty dataset for the given output with the given name.
         Initialize with the given number of empty rows.
         """
-        fields = self.cs.cli.job_output_fields(self.project_uid, self.uid, name)  # type: ignore
+        fields = self.cs.cli.get_job_output_min_fields(self.project_uid, self.uid, name)  # type: ignore
         fields = decode_fields(fields)
         return Dataset.allocate(size, fields)
 
