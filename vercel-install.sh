@@ -3,7 +3,6 @@ set -e
 
 PYTHON_VERSION="3.10.8"
 PYTHON="python3.10"
-PIP="pip3.10"
 
 # Update system deps, install sqlite
 yum update -y
@@ -18,6 +17,9 @@ make
 make altinstall
 cd ..
 
+# Create virtual environment and install python dependencies
 $PYTHON --version
-$PIP install --upgrade pip wheel
-$PIP install -e ".[build]"
+$PYTHON -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip wheel
+pip install -e ".[build]"
