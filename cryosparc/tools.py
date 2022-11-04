@@ -250,17 +250,21 @@ class CryoSPARC:
                 f.seek(0)
                 return mrc.read(f)  # FIXME: Optimize file reading
 
-    def list_assets(self) -> List[AssetDetails]:
+    def list_assets(self, project_uid: str, job_uid: str) -> List[AssetDetails]:
         """
-        Get a list of files available in the database for this job. Returns a
+        Get a list of files available in the database for given job. Returns a
         list with details about the assets. Each entry is a dict with a ``_id``
         key which may be used to download the file with the ``download_asset``
         method.
 
+        Args:
+            project_uid (str): project unique ID, e.g., "P3"
+            job_uid (str): job unique ID, e.g., "J42"
+
         Returns:
             list[AssetDetails]: Asset details
         """
-        return self.cs.vis.list_job_files(project_uid=self.project_uid, job_uid=self.uid)  # type: ignore
+        return self.vis.list_job_files(project_uid=project_uid, job_uid=job_uid)  # type: ignore
 
     def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
         """
