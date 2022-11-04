@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-PYTHON_VERSION="3.10.8"
-PYTHON="python3.10"
+PYTHON_VERSION="3.9.15"
+PYTHON="python3.9"
 
 # Update system deps, install sqlite
 yum update -y
