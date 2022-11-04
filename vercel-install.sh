@@ -7,7 +7,7 @@ PIP="pip3.10"
 
 # Update system deps, install sqlite
 yum update -y
-yum install sqlite-devel -y
+yum install bzip2-devel libffi-devel openssl-devel sqlite-devel -y
 
 # Extract and compile python
 curl -L https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz -o Python-${PYTHON_VERSION}.tgz
