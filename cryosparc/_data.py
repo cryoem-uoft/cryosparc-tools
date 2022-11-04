@@ -135,8 +135,10 @@ class Data(core.Data, Mapping[str, DType]):
         assert existing_type == 0, f"Field {field} already defined in dataset"
         if dt.shape:
             assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
+            shape = [0] * 3
+            shape[0 : len(dt.shape)] = dt.shape
             assert self.addcol_array(
-                field, TYPE_TO_DSET_MAP[dt.base.type], dt.shape
+                field, TYPE_TO_DSET_MAP[dt.base.type], *shape
             ), f"Could not add {field} with dtype {dt}"
             return (dt.base.str, dt.shape)
         elif dt.char in {"O", "S", "U"}:  # all python string object types
@@ -146,9 +148,3 @@ class Data(core.Data, Mapping[str, DType]):
             assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
             assert self.addcol_scalar(field, TYPE_TO_DSET_MAP[dt.type]), f"Could not add {field} with dtype {dt}"
             return dt.str
-
-    def addcol_array(self, field: str, dtype: DsetType, shape: Shape) -> bool:
-        s = n.zeros(3, dtype=n.uint8)
-        for i, d in enumerate(shape):
-            s[i] = d
-        return super().addcol_array(field, dtype, *s)

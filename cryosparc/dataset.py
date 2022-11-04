@@ -1,5 +1,5 @@
 """
-Classes and utilities for working with .cs files
+Classes and utilities for loading, saving and working with .cs dataset files
 """
 from functools import reduce
 from pathlib import PurePath
@@ -28,7 +28,7 @@ import numpy.core.records
 if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
 
-from .data import Data
+from ._data import Data
 from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype, safe_makefield
 from .column import Column
 from .row import Row, Spool, R
@@ -674,7 +674,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def cols(self) -> Dict[str, Column]:
         """
-        Get current dataset columns, orgnaized by field
+        Get current dataset columns, organized by field.
 
         Returns:
             dict[str, Column]: Columns
@@ -701,7 +701,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def descr(self, exclude_uid=False) -> List[Field]:
         """
-        Retrive the numpy-compatible description for dataset fields
+        Retrive the numpy-compatible description for dataset fields.
 
         Args:
             exclude_uid (bool, optional): If True, uid field will not be
@@ -714,7 +714,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def copy(self):
         """
-        Create a deep copy of the current dataseet
+        Create a deep copy of the current dataset.
 
         Returns:
             Dataset: copy
@@ -723,7 +723,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def fields(self, exclude_uid=False) -> List[str]:
         """
-        Retrieve a list of field names available in this dataset
+        Retrieve a list of field names available in this dataset.
 
         Args:
             exclude_uid (bool, optional): If True, uid field will not be
@@ -772,7 +772,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Adds the given fields to the dataset. If a field with the same name
         already exists, that field will not be added (even if types don't
-        match). Fields are initialized with zeros (or "" for object fields)
+        match). Fields are initialized with zeros (or "" for object fields).
 
         Args:
             fields (list[str] | list[Field]): Field names or description to add.
@@ -857,7 +857,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def filter_prefixes(self, prefixes: Collection[str], copy: bool = False):
         """
-        Similar to `filter_fields`, except takes list of prefixes.
+        Similar to ``filter_fields``, except takes list of prefixes.
 
         Args:
             prefixes (list[str]): Prefixes to keep
@@ -928,7 +928,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def rename_prefix(self, old_prefix: str, new_prefix: str, copy: bool = False):
         """
         Similar to rename_fields, except changes the prefix of all fields with
-        the given `old_prefix` to `new_prefix`.
+        the given ``old_prefix`` to ``new_prefix``.
 
         Args:
             old_prefix (str): old prefix to rename
@@ -950,7 +950,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def copy_fields(self, old_fields: List[str], new_fields: List[str]):
         """
         Copy the values at the given old fields into the new fields, allocating
-        them if necessary
+        them if necessary.
 
         Args:
             old_fields (List[str]): Name of old fields to copy from
@@ -985,7 +985,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Convert to a list of lists, each value of the outer list representing
         one dataset row. Every value in the resulting list is guaranteed to be a
-        python type (no numpy numeric types)
+        python type (no numpy numeric types).
 
         Args:
             exclude_uid (bool, optional): If True, uid column will not be
@@ -1034,7 +1034,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         If any field is not in the dataset, it is ignored and all data is kept.
 
-        Note: Specifying a query function is very slow for large datasets.
+        Note:
+            Specifying a query function is very slow for large datasets.
 
         Args:
             query (dict[str, ArrayLike] | (Row) -> bool): Query description or
@@ -1049,6 +1050,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             ...     'uid': [123456789, 987654321],
             ...     'micrograph_blob/path': '/path/to/exposure.mrc'
             ... })
+            Dataset(...)
 
         """
         if isinstance(query, dict):
@@ -1060,7 +1062,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def query_mask(self, query: Dict[str, "ArrayLike"], invert=False) -> "NDArray[n.bool_]":
         """
         Get a boolean array representing the items to keep in the dataset that
-        match the given query filter. See `query` method for example query
+        match the given query filter. See ``query`` method for example query
         format.
 
         Args:
@@ -1069,7 +1071,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 negated. Defaults to False.
 
         Returns:
-            NDArray[bool]: Query mask, may be used with the `mask()` method.
+            NDArray[bool]: Query mask, may be used with the ``mask()`` method.
         """
         query_fields = set(self.fields()).intersection(query.keys())
         mask = n.ones(len(self), dtype=bool)
@@ -1081,10 +1083,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def subset(self, rows: Collection[Row]):
         """
         Get a subset of dataset that only includes the given list of rows (from
-        this dataset)
+        this dataset).
 
         Args:
-            rows (list[Row]): Target list of rows from this dataset
+            rows (list[Row]): Target list of rows from this dataset.
 
         Returns:
             Dataset: subset with only matching rows
@@ -1093,7 +1095,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def indexes(self, indexes: Union[List[int], "NDArray"]):
         """
-        Get a subset of data with only the matching list of row indexes
+        Get a subset of data with only the matching list of row indexes.
 
         Args:
             indexes (list[int] | NDArray[int]): collection of indexes to keep
@@ -1119,7 +1121,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1):
         """
-        Get at subset of the dataset with rows in the given range.
+        Get subset of the dataset with rows in the given range.
 
         Args:
             start (int, optional): Start index to slice from (inclusive).

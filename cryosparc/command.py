@@ -18,6 +18,9 @@ class CommandClient:
     `CryoSPARC Guide`_.
 
     Args:
+        service (str, optional): Label for CryoSPARC Command service that this
+            instance connects to and communicates with, e.g., `command_core`,
+            `command_vis` or `command_rtp`
         host (str, optional): Domain name or IP address of CryoSPARC master.
             Defaults to "localhost".
         port (int, optional): Command server base port. Defaults to 39002.
@@ -30,13 +33,14 @@ class CommandClient:
         cls (Type[JSONEncoder], optional): Class to handle JSON encoding of
             special Python objects, such as numpy arrays. Defaults to None.
 
-    Attrs:
+    Attributes:
 
-        service: name of CryoSPARC service this command client communicates with
+        service (str): label of CryoSPARC Command service this instance connects to
+            and communicates with
 
     Examples:
 
-        Connect to `command_core`
+        Connect to ``command_core``
 
         >>> from cryosparc.command import CommandClient
         >>> cli = CommandClient(
@@ -124,11 +128,11 @@ def make_request(
     Create a raw HTTP request/response context with the given command client.
 
     Args:
-        client (CommandClient, optional): command client instance
+        client (CommandClient): command client instance
         method (str, optional): HTTP method. Defaults to "post".
         url (str, optional): URL to append to the client's initialized URL. Defaults to "".
         query (dict, optional): Query string parameters. Defaults to {}.
-        data (Any, optional): Request body data. Usually in binary. Defaults to None.
+        data (any, optional): Request body data. Usually in binary. Defaults to None.
         headers (dict, optional): HTTP headers. Defaults to {}.
 
     Raises:
@@ -186,11 +190,12 @@ def make_json_request(client: CommandClient, url="", query={}, data=None, header
     receives arbitrary response.
 
     Args:
-        client: command client instance
-        url: URL path to append to the client's initialized root URL. Defaults to "".
-        query: Query string parameters. Defaults to {}.
-        data: JSON-encodable request body. Defaults to None.
-        headers: HTTP headers. Defaults to {}.
+        client (CommandClient): command client instance
+        url (str, optional): URL path to append to the client's initialized root
+            URL. Defaults to "".
+        query (dict, optional): Query string parameters. Defaults to {}.
+        data (any, optional): JSON-encodable request body. Defaults to None.
+        headers (dict, optional): HTTP headers. Defaults to {}.
 
     Yields:
         http.client.HTTPResponse: Use with a context manager to get HTTP response

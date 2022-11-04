@@ -17,13 +17,13 @@ parts:
   - file: api/index
     sections:
     - file: api/tools
+    - file: api/command
     - file: api/project
     - file: api/job
     - file: api/dataset
     - file: api/column
     - file: api/row
     - file: api/dtype
-    - file: api/command
     - file: api/mrc
     - file: api/star
     - file: api/spec

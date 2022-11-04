@@ -1,19 +1,44 @@
 from typing import Optional
 import numpy as n
 
-from .data import Data
+from ._data import Data
 from .dtype import Field, fielddtype
 from .util import hashcache, strencodenull
 
 
 class Column(n.ndarray):
     """
-    Dataset column, uses native numpy array interface. Used to keep _data
-    instance from getting garbage collected if a single column is extracted from
-    a dataset once that dataset has already been garbage collected.
+    Dataset column that inherits form the native numpy array interface.
 
-    Note that if fields are added to the the dataset, a column instance may no
-    longer be valid and must be retrieved again from `dataset[colname]`.
+    Note:
+        Storing a column instance outside of a dataset prevents the whole
+        dataset from getting garbage collected (unless a copy gets made).
+
+    Note:
+        If new fields are added to the the dataset, a column instance may no
+        longer be valid and must be retrieved again from ``dataset[colname]``.
+
+    Examples:
+        Storing column instances
+
+        >>> dset = Dataset.allocate(1000, [('col1', 'f4'), ('col2', 'f4'), ('col3', 'f4')])
+        Dataset(...)
+        >>> col = dset['col1']
+        >>> assert isinstance(col, Column)  # ok
+        >>> del dset             # col still available but dset not garbage collected
+        >>> col = np.array(col)  # dset now may be garbage collected
+
+        Invalid column instances after adding columns
+
+        >>> dset = Dataset.allocate(1000, [('col1', 'f4')])
+        Dataset(...)
+        >>> col = dset['col1']
+        >>> dset.add_fields([('col2', 'f4'), ('col3', 'f4')])
+        >>> np.sum(col)  # DANGER!! May result in invalid access
+        >>> col = dset['col1']
+        >>> np.sum(col)  # Re-retrieved from dataset, now valid
+        0
+
     """
 
     __slots__ = ("_data",)
@@ -28,7 +53,7 @@ class Column(n.ndarray):
 
         # Keep a reference to the data so that it only gets cleaned up when all
         # columns are cleaned up. No need to transfer this data during
-        # `__array_finalize__` because this NDColumn instance will be kept as
+        # __array_finalize__ because this NDColumn instance will be kept as
         # the base
         obj._data = data
 
@@ -43,7 +68,13 @@ class Column(n.ndarray):
         """
         If this Column is composed of Python objects, convert to fixed-size
         strings. Otherwise the array is already in fixed form and may be
-        returned as is
+        returned as is.
+
+        Returns:
+            Column: Either same column with optionally converted data. If the
+                data type is ``numpy.object_``, converts to ``numpy.bytes_``
+                with a fixed element size based on the longest available string
+                length.
         """
         if self.dtype.char == "O":
             return n.vectorize(hashcache(strencodenull), otypes="S")(self)

@@ -1,20 +1,129 @@
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from typing_extensions import Literal, TypedDict
 
 
 Datatype = Literal["exposure", "particle", "template", "volume", "mask"]
+
+# Valid plot file types
+TextFormat = Literal["txt", "csv", "json", "xml"]
+"""
+Supported job stream log asset file text formats
+"""
+
+ImageFormat = Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"]
+"""
+Supported job stream log asset file image formats
+"""
+
+AssetFormat = Union[TextFormat, ImageFormat]
+"""
+Supported job stream log asset file formats
+"""
+
+TextContentType = Literal[
+    "text/plain",
+    "text/csv",
+    "application/json",
+    "application/xml",
+]
+"""
+Supported job stream log text asset MIME types
+"""
+
+ImageContentType = Literal[
+    "application/pdf",
+    "image/gif",
+    "image/jpeg",
+    "image/png",
+    "image/svg+xml",
+]
+"""
+Supported job image asset MIME types
+"""
+
+AssetContentType = Union[TextContentType, ImageContentType]
+"""
+Supported job asset MIME types
+"""
+
+TEXT_CONTENT_TYPES: Dict[TextFormat, TextContentType] = {
+    "txt": "text/plain",
+    "csv": "text/csv",
+    "json": "application/json",
+    "xml": "application/xml",
+}
+
+IMAGE_CONTENT_TYPES: Dict[ImageFormat, ImageContentType] = {
+    "pdf": "application/pdf",
+    "gif": "image/gif",
+    "jpeg": "image/jpeg",
+    "jpg": "image/jpeg",
+    "png": "image/png",
+    "svg": "image/svg+xml",
+}
+
+ASSET_CONTENT_TYPES: Dict[AssetFormat, AssetContentType] = {**TEXT_CONTENT_TYPES, **IMAGE_CONTENT_TYPES}  # type: ignore
+
+
+class AssetDetails(TypedDict):
+    """
+    Dictinary result of job asset files query.
+    """
+
+    _id: str
+    """Document ID"""
+
+    filename: str
+    """File name"""
+
+    contentType: AssetContentType
+    """Asset content type, e.g., "image/png" """
+
+    uploadDate: str  # ISO formatted
+    """ISO 8601-formatted asset upload date"""
+
+    length: int  # in bytes
+    """Size of file in bytes"""
+
+    chunkSize: int  # in bytes
+    """File chunk size in bytes"""
+
+    md5: str
+    """MD5 hash of asset"""
+
+    project_uid: str
+    """Associated project UID"""
+
+    job_uid: str  # also used for Session UID
+    """Associated job or session UID"""
+
+
+class EventLogAsset(TypedDict):
+    """
+    Dictionary item in a job event log's ``imgfiles`` property (in the ``events``
+    collection)
+    """
+
+    fileid: str
+    """Reference to file ``_id`` property in GridFS collection"""
+
+    filename: str
+    """File name"""
+
+    filetype: AssetContentType
+    """File content type, e.g., "image/png" """
 
 
 class Datafield(TypedDict):
     """Definition of a prefix field within a CS file."""
 
     dtype: str
-    """Datatype-specific string from common.py. e.g., movie_blob, ctf,
-    alignments2D."""
+    """Datatype-specific string from common.py. e.g., "movie_blob", "ctf",
+    "alignments2D"."""
 
     prefix: str
-    """where to find that fild in a corresponding .cs file e.g.,
-    alignments_class_1"""
+    """where to find field in an associated ``.cs`` file. e.g.,
+    "alignments_class_1" """
 
     required: bool
     """whether this field must necessarily exist in a corresponding
@@ -22,11 +131,24 @@ class Datafield(TypedDict):
 
 
 class InputSlot(TypedDict):
-    type: str
+    """
+    Entry in Job document's input_slot_groups.slots property
+    """
+
+    type: Datatype
+    """Cryo-EM native data type, e.g., "exposure", "particle" or "volume" """
+
     name: str
+    """Input slot name, e.g., "movie_blob" or "location" """
+
     title: str
+    """Human-readable input slot title"""
+
     description: str
+    """Human-readable description"""
+
     optional: bool
+    """If True, input is not required for the job"""
 
 
 class ConnectionSlot(TypedDict):

@@ -474,10 +474,13 @@ RLN_DTYPES: Dict[str, Type[object]] = dict(
 
 def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
     """
-    Read the given star file into memory
+    Read the given STAR file into memory.
+
+    Args:
+        file (str | Path | IO): Path or file handle to ``.star`` file.
 
     Returns:
-        Dict[str, nt.NDArray]: a dictionary of numpy record arrays
+        dict[str, NDArray]: a dictionary of numpy record arrays
 
         Each key is a block name found in the star file (e.g., ``"particles"``
         for block ``data_particles`` and ``""`` for block ``data_``)
@@ -570,7 +573,7 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
                 continue
 
             # Cannot read directly because loadtxt attempts to read every row.
-            # Save required rows to tempfile first and read form there
+            # Save required rows to tempfile first and read from there
             with tempfile.TemporaryFile("w+") as temp:
                 for _ in range(skiprows):
                     f.readline()
@@ -596,12 +599,13 @@ def write(
     labels argument.
 
     Args:
-        file: File path or handle to write
-        data: Numpy record array or Python list of tuples
-        name: Name of data block, to be prepended with "data\\_" when written to
-            the star file. Defaults to "".
-        labels: Names of each column in the data. Not required if given a numpy
-            record array that includes the names. Defaults to None.
+        file (str | Path | IO): File path or handle to write.
+        data (any): Numpy record array or Python list of tuples.
+        name (str): Name of data block, to be prepended with "data\\_" when
+            written to the star file. Defaults to "".
+        labels (list[str], optional): Names of each column in the data. Not
+            required if given a numpy record array that includes the names.
+            Defaults to None.
 
     Examples:
 
@@ -633,8 +637,8 @@ def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDAr
     Write a single star file composed of multiple data blocks:
 
     Args:
-        file: File path or handle to write
-        blocks (Mapping[str, nt.NDArray]): Dictionary of record arrays to write
+        file (str | Path | IO): File path or handle to write.
+        blocks (Mapping[str, NDArray]): Dictionary of record arrays to write.
 
     Examples:
 

@@ -1,3 +1,6 @@
+"""
+Utilities and type definitions for working with dataset fields and column types.
+"""
 from typing import TYPE_CHECKING, List, Tuple, Union
 import json
 import numpy as n

@@ -1,81 +1,48 @@
+"""
+Defines the Job and External job classes for accessing CryoSPARC jobs.
+"""
 from contextlib import contextmanager
 from io import BytesIO
 import json
 from pathlib import PurePath, PurePosixPath
 from time import sleep
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, Union, overload
-from typing_extensions import Literal, TypedDict
+from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Union, overload
+from typing_extensions import Literal
 
 from .command import make_json_request, make_request
 from .dataset import Dataset
-from .spec import Datatype, Datafield, JobDocument
-from .dtype import decode_fields
+from .spec import (
+    ASSET_CONTENT_TYPES,
+    IMAGE_CONTENT_TYPES,
+    TEXT_CONTENT_TYPES,
+    AssetDetails,
+    AssetFormat,
+    ImageFormat,
+    TextFormat,
+    EventLogAsset,
+    Datatype,
+    Datafield,
+    JobDocument,
+)
 from .util import bopen, first
 
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray, ArrayLike
     from .tools import CryoSPARC
-
-
-# Valid plot file types
-TextFormat = Literal["txt", "csv", "json", "xml"]
-ImageFormat = Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"]
-AssetFormat = Union[TextFormat, ImageFormat]
-TextContentType = Literal[
-    "text/plain",
-    "text/csv",
-    "application/json",
-    "application/xml",
-]
-ImageContentType = Literal[
-    "application/pdf",
-    "image/gif",
-    "image/jpeg",
-    "image/png",
-    "image/svg+xml",
-]
-AssetContentType = Union[TextContentType, ImageContentType]
-
-TEXT_CONTENT_TYPES: Dict[TextFormat, TextContentType] = {
-    "txt": "text/plain",
-    "csv": "text/csv",
-    "json": "application/json",
-    "xml": "application/xml",
-}
-
-IMAGE_CONTENT_TYPES: Dict[ImageFormat, ImageContentType] = {
-    "pdf": "application/pdf",
-    "gif": "image/gif",
-    "jpeg": "image/jpeg",
-    "jpg": "image/jpeg",
-    "png": "image/png",
-    "svg": "image/svg+xml",
-}
-
-ASSET_CONTENT_TYPES: Dict[AssetFormat, AssetContentType] = {**TEXT_CONTENT_TYPES, **IMAGE_CONTENT_TYPES}  # type: ignore
-
-
-class AssetFileData(TypedDict):
-    """
-    Result of job files query
-    """
-
-    _id: str
-    filename: str
-    contentType: AssetContentType
-    uploadDate: str  # ISO formatted
-    length: int  # in bytes
-    chunkSize: int  # in bytes
-    md5: str
-    project_uid: str
-    job_uid: str  # also used for Session UID
 
 
 class Job:
     """
     Accessor class to a job in CryoSPARC with ability to load inputs and
-    outputs, add to job log, download job files
+    outputs, add to job log, download job files. Should be instantiated
+    through `CryoSPARC.find_job`_ or `Project.find_job`_.
+
+    .. _CryoSPARC.find_job:
+        tools.html#cryosparc.tools.CryoSPARC.find_job
+
+    .. _Project.find_job:
+        project.html#cryosparc.project.Project.find_job
     """
 
     _doc: Optional[JobDocument] = None
@@ -87,45 +54,90 @@ class Job:
 
     @property
     def doc(self) -> JobDocument:
+        """
+        dict: Raw job document from CryoSPARC database.
+        """
         if not self._doc:
             self.refresh()
         assert self._doc, "Could not refresh job document"
         return self._doc
 
     def refresh(self):
+        """
+        Reload this job from the CryoSPARC database.
+
+        Returns:
+            Job: self
+        """
         self._doc = self.cs.cli.get_job(self.project_uid, self.uid)  # type: ignore
         return self
 
     def dir(self) -> PurePosixPath:
         """
-        Get the path to the project directory
+        Get the path to the job directory.
+
+        Returns:
+            Path: job directory Pure Path instance
         """
         return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
 
     def clear(self):
-        return self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
+        """
+        Clear this job
+        """
+        self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
 
-    def load_input(self, name: str, fields: Iterable[str] = []):
+    def load_input(self, name: str, slots: Iterable[str] = []):
+        """
+        Load the dataset connected to the job's input with the given name.
+
+        Args:
+            name (str): Input to load
+            fields (list[str], optional): List of specific slots to load, such
+                as ``movie_blob`` or ``locations``, or all slots if not
+                specified. Defaults to [].
+
+        Raises:
+            TypeError: If the job doesn't have the given input or the dataset
+                cannot be loaded.
+
+        Returns:
+            Dataset: Loaded dataset
+        """
         job = self.doc
         group = first(s for s in job["input_slot_groups"] if s["name"] == name)
         if not group:
             raise TypeError(f"Job {self.project_uid}-{self.uid} does not have an input {name}")
 
-        data = {"project_uid": self.project_uid, "job_uid": self.uid, "input_name": name, "slots": list(fields)}
-
+        data = {"project_uid": self.project_uid, "job_uid": self.uid, "input_name": name, "slots": list(slots)}
         with make_json_request(self.cs.vis, "/load_job_input", data=data) as response:
             mime = response.headers.get("Content-Type")
             if mime != "application/x-cryosparc-dataset":
                 raise TypeError(f"Unable to load dataset for job {self.project_uid}-{self.uid} input {name}")
             return Dataset.load(response)
 
-    def load_output(self, name: str, fields: Iterable[str] = []):
+    def load_output(self, name: str, slots: Iterable[str] = []):
+        """
+        Load the dataset for the job's output with the given name.
+
+        Args:
+            name (str): Output to load
+            slots (list[str], optional): List of specific slots to load,
+                such as ``movie_blob`` or ``locations``, or all slots if
+                not specified (including passthrough). Defaults to [].
+
+        Raises:
+            TypeError: If job does not have any results for the given output
+
+        Returns:
+            Dataset: Loaded dataset
+        """
         job = self.doc
-        fields = set(fields)
+        slots = set(slots)
         results = [
             result
             for result in job["output_results"]
-            if result["group_name"] == name and (not fields or result["name"] in fields)
+            if result["group_name"] == name and (not slots or result["name"] in slots)
         ]
         if not results:
             raise TypeError(f"Job {self.project_uid}-{self.uid} does not have any results for output {name}")
@@ -136,7 +148,15 @@ class Job:
 
     def log(self, text: str, level: Literal["text", "warning", "error"] = "text"):
         """
-        Append to a job's event log
+        Append to a job's event log.
+
+        Args:
+            text (str): Text to log
+            level (str, optional): Log level ("text", "warning" or "error").
+                Defaults to "text".
+
+        Returns:
+            str: Created log event ID
         """
         return self.cs.cli.job_send_streamlog(  # type: ignore
             project_uid=self.project_uid, job_uid=self.uid, message=text, error=level != "text"
@@ -144,7 +164,13 @@ class Job:
 
     def log_checkpoint(self, meta: dict = {}):
         """
-        Append a checkpoint to the job's event log
+        Append a checkpoint to the job's event log.
+
+        Args:
+            meta (dict, optional): Additional meta information. Defaults to {}.
+
+        Returns:
+            str: Created checkpoint event ID
         """
         return self.cs.cli.job_checkpoint_streamlog(  # type: ignore
             project_uid=self.project_uid, job_uid=self.uid, meta=meta
@@ -155,34 +181,56 @@ class Job:
         figure: Union[str, PurePath, IO[bytes], Any],
         text: str,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
-        flags: List[str] = ["plots"],
         raw_data: Union[str, bytes, Literal[None]] = None,
         raw_data_file: Union[str, PurePath, IO[bytes], Literal[None]] = None,
         raw_data_format: Optional[TextFormat] = None,
+        flags: List[str] = ["plots"],
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ):
         """
         Add a log line with the given figure.
 
-        `figure` must be one of the following
+        ``figure`` must be one of the following
 
         - Path to an existing image file in PNG, JPEG, GIF, SVG or PDF format
         - A file handle-like object with the binary data of an image
         - A matplotlib plot
 
-        If a matplotlib figure is specified, Uploads the plots in `png` and
-        `pdf` formats. Override the `formats` argument with
-        `formats=['<format1>', '<format2>', ...]` to save in different image
+        If a matplotlib figure is specified, Uploads the plots in ``png`` and
+        ``pdf`` formats. Override the `formats` argument with
+        ``formats=['<format1>', '<format2>', ...]`` to save in different image
         formats.
 
-        If a file handle is specified, also specify `formats=['<format>']`,
-        where `<format>` is a valid image extension such as `png` or `pdf`.
-        Assumes `png` if not specified.
+        If a text-version of the given plot is available (e.g., in ``csv``
+        format), specify ``raw_data`` with the full contents or
+        ``raw_data_file`` with a path or binary file handle pointing to the
+        contents. Assumes file format from extension or ``raw_data_format``.
+        Defaults to ``"txt"`` if cannot be determined.
 
-        If a text-version of the given plot is available (e.g., csv), specify
-        `raw_data` with the full contents or `raw_data_file` with a path or
-        binary file handle pointing to the contents. Assumes file format from
-        extension or `raw_data_format`. Defaults to txt if cannot be determined.
+        Args:
+            figure (str | Path | IO | Figure): Image file path, file handle or
+                matplotlib figure instance
+            text (str): Associated description for given figure
+            formats (list[ImageFormat], optional): Image formats to save plot
+                into. If a ``figure`` is a file handle, specify
+                ``formats=['<format>']``, where ``<format>`` is a valid image
+                extension such as ``png`` or ``pdf``. Assumes ``png`` if not
+                specified. Defaults to ["png", "pdf"].
+            raw_data (str | bytes, optional): Raw text data for associated plot,
+                generally in CSV, XML or JSON format. Cannot be specified with
+                ``raw_data_file``. Defaults to None.
+            raw_data_file (str | Path | IO, optional): Path to raw text data.
+                Cannot be specified with ``raw_data``. Defaults to None.
+            raw_data_format (TextFormat, optional): Format for raw text data.
+                Defaults to None.
+            flags (list[str], optional): Flags to use for UI rendering.
+                Generally should not be specified. Defaults to ["plots"].
+            savefig_kw (dict, optional): If a matplotlib figure is specified
+                optionally specify keyword arguments for the ``savefig`` method.
+                Defaults to dict(bbox_inches="tight", pad_inches=0).
+
+        Returns:
+            str: Created log event ID
         """
         imgfiles = self.upload_plot(
             figure,
@@ -198,23 +246,74 @@ class Job:
             project_uid=self.project_uid, job_uid=self.uid, message=text, flags=flags, imgfiles=imgfiles
         )
 
-    def download(self, path: Union[str, PurePosixPath]):
-        path = PurePosixPath(self.uid) / path
-        return self.cs.download(self.project_uid, path)
+    def download(self, path_rel: Union[str, PurePosixPath]):
+        """
+        Initiate a download request for a file inside the job's diretory
 
-    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
-        path = PurePosixPath(self.uid) / path
-        return self.cs.download_file(self.project_uid, path, target)
+        Args:
+            path_rel (str | Path): Relative path to file in job directory.
 
-    def download_dataset(self, path: Union[str, PurePosixPath]):
-        path = PurePosixPath(self.uid) / path
-        return self.cs.download_dataset(self.project_uid, path)
+        Yields:
+            HTTPResponse: Use a context manager to read the file from the
+                request body.
 
-    def download_mrc(self, path: Union[str, PurePosixPath]):
-        path = PurePosixPath(self.uid) / path
-        return self.cs.download_mrc(self.project_uid, path)
+        Examples:
 
-    def list_assets(self) -> List[AssetFileData]:
+            Download a job's metadata
+
+            >>> cs = CryoSPARC()
+            >>> job = cs.find_job("P3", "J42")
+            >>> with job.download("job.json") as res:
+            >>>     job_data = json.loads(res.read())
+
+        """
+        path_rel = PurePosixPath(self.uid) / path_rel
+        return self.cs.download(self.project_uid, path_rel)
+
+    def download_file(self, path_rel: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
+        """
+        Download file from job directory to the given target path or writeable
+        file handle.
+
+        Args:
+            path_rel (str | Path): Relative path to file in job directory.
+            target (str | Path | IO): Relative local path or writeable file
+                handle to write response file into.
+
+        Returns:
+            str | Path | IO: the resulting target path or file handle
+        """
+        path_rel = PurePosixPath(self.uid) / path_rel
+        return self.cs.download_file(self.project_uid, path_rel, target)
+
+    def download_dataset(self, path_rel: Union[str, PurePosixPath]):
+        """
+        Download a .cs dataset file from the given relative path in the job
+        directory.
+
+        Args:
+            path_rel (str | Path): Relative path to .cs file in job directory.
+
+        Returns:
+            Dataset: Loaded dataset instance
+        """
+        path_rel = PurePosixPath(self.uid) / path_rel
+        return self.cs.download_dataset(self.project_uid, path_rel)
+
+    def download_mrc(self, path_rel: Union[str, PurePosixPath]):
+        """
+        Download a .mrc file from the given relative path in the job directory.
+
+        Args:
+            path (str | Path): Relative path to .mrc file in job directory.
+
+        Returns:
+            tuple[Header, NDArray]: MRC file header and data as a numpy array
+        """
+        path_rel = PurePosixPath(self.uid) / path_rel
+        return self.cs.download_mrc(self.project_uid, path_rel)
+
+    def list_assets(self) -> List[AssetDetails]:
         """
         Get a list of files available in the database for this job. Returns a
         list with details about the assets. Each entry is a dict with a ``_id``
@@ -222,7 +321,7 @@ class Job:
         method.
 
         Returns:
-            list[AssetFileData]: Asset details
+            list[AssetDetails]: Asset details
         """
         return self.cs.vis.list_job_files(project_uid=self.project_uid, job_uid=self.uid)  # type: ignore
 
@@ -237,19 +336,23 @@ class Job:
         """
         return self.cs.download_asset(fileid, target)
 
-    def upload(self, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
+    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]):
         """
         Upload the given file to the job directory at the given path.
+
+        Args:
+            target_path_rel (str | Path): Relative target path in job directory
+            source (str | Path | IO): Local path or file handle to upload
         """
-        path = PurePosixPath(self.uid) / path
-        return self.cs.upload(self.project_uid, path, file)
+        target_path_rel = PurePosixPath(self.uid) / target_path_rel
+        return self.cs.upload(self.project_uid, target_path_rel, source)
 
     def upload_asset(
         self,
         file: Union[str, PurePath, IO[bytes]],
         filename: Optional[str] = None,
         format: Optional[AssetFormat] = None,
-    ):
+    ) -> EventLogAsset:
         """
         Upload an image or text file to the current job. Specify either an image
         (PNG, JPG, GIF, PDF, SVG), text file (TXT, CSV, JSON, XML) or a binary
@@ -264,6 +367,20 @@ class Job:
 
         If specifying arbitrary binary I/O, specify either a filename or a file
         format.
+
+        Args:
+            file (str | Path | IO): Source asset file path or handle
+            filename (str, optional): Filename of asset. If ``file`` is a handle
+                specify one of ``filename`` or ``format``. Defaults to None.
+            format (AssetFormat, optional): Format of filename. If ``file`` is
+                a handle, specify one of ``filename`` or ``format``. Defaults to
+                None.
+
+        Raises:
+            ValueError: If incorrect arguments specified
+
+        Returns:
+            EventLogAsset: Dictionary including details about uploaded asset.
         """
         if format:
             assert format in ASSET_CONTENT_TYPES, f"Invalid asset format {format}"
@@ -302,10 +419,37 @@ class Job:
         raw_data_file: Union[str, PurePath, IO[bytes], Literal[None]] = None,
         raw_data_format: Optional[TextFormat] = None,
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
-    ):
+    ) -> List[EventLogAsset]:
         """
         Upload the given figure. Returns a list of the created asset objects.
-        See `log_plot` for argument explanations.
+        Avoid using directly; use ``log_plot`` instead. See ``log_plot``
+        additional details.
+
+        Args:
+            figure (str | Path | IO | Figure): Image file path, file handle or
+                matplotlib figure instance
+            name (str): Associated name for given figure
+            formats (list[ImageFormat], optional): Image formats to save plot
+                into. If a ``figure`` is a file handle, specify
+                ``formats=['<format>']``, where ``<format>`` is a valid image
+                extension such as ``png`` or ``pdf``. Assumes ``png`` if not
+                specified. Defaults to ["png", "pdf"].
+            raw_data (str | bytes, optional): Raw text data for associated plot,
+                generally in CSV, XML or JSON format. Cannot be specified with
+                ``raw_data_file``. Defaults to None.
+            raw_data_file (str | Path | IO, optional): Path to raw text data.
+                Cannot be specified with ``raw_data``. Defaults to None.
+            raw_data_format (TextFormat, optional): Format for raw text data.
+                Defaults to None.
+            savefig_kw (dict, optional): If a matplotlib figure is specified
+                optionally specify keyword arguments for the ``savefig`` method.
+                Defaults to dict(bbox_inches="tight", pad_inches=0).
+
+        Raises:
+            ValueError: If incorrect argument specified
+
+        Returns:
+            list[EventLogAsset]: Details about created uploaded job assets
         """
         figdata = []
         basename = name or "figure"
@@ -356,13 +500,30 @@ class Job:
 
         return assets
 
-    def upload_dataset(self, path: Union[str, PurePosixPath], dset: Dataset):
-        path = PurePosixPath(self.uid) / path
-        return self.cs.upload_dataset(self.project_uid, path, dset)
+    def upload_dataset(self, target_path_rel: Union[str, PurePosixPath], dset: Dataset):
+        """
+        Upload a dataset as a CS file into the job directory.
 
-    def upload_mrc(self, path: Union[str, PurePosixPath], data: "NDArray", psize: float):
-        path = PurePosixPath(self.uid) / path
-        return self.cs.upload_mrc(self.project_uid, path, data, psize)
+        Args:
+            target_path_rel (str | Path): relative path to save dataset in job
+                directory. Should have a ``.cs`` extension.
+            dset (Dataset): dataset to save.
+        """
+        target_path_rel = PurePosixPath(self.uid) / target_path_rel
+        return self.cs.upload_dataset(self.project_uid, target_path_rel, dset)
+
+    def upload_mrc(self, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
+        """
+        Upload a numpy 2D or 3D array to the job directory as an MRC file.
+
+        Args:
+            target_path_rel (str | Path): relative path to save array in job
+                directory. Should have ``.mrc`` extension.
+            data (NDArray): Numpy array with MRC file data.
+            psize (float): Pixel size to include in MRC header.
+        """
+        target_path_rel = PurePosixPath(self.uid) / target_path_rel
+        return self.cs.upload_mrc(self.project_uid, target_path_rel, data, psize)
 
     def subprocess(
         self,
@@ -373,7 +534,8 @@ class Job:
         **kwargs,
     ):
         """
-        Launch a subprocess and write its output and error to the job log.
+        Launch a subprocess and write its text-based output and error to the job
+        log.
 
         Set `mute=True` to prevent forwarding the output to standard output.
 
@@ -384,6 +546,24 @@ class Job:
         given line matches the pattern, adds checkpoint to the job log _before_
         that line is added to the log. Use this for processes with a lot of
         structured output.
+
+        Args:
+            args (str | list): Process arguments to run
+            mute (bool, optional): If True, does not also forward process output
+                to standard output. Defaults to False.
+            checkpoint (bool, optional): If True, creates a checkpoint in the
+                job event log just before process output begins. Defaults to
+                False.
+            checkpoint_line_pattern (str | Pattern[str], optional): Regular
+                expression to match checkpoint lines for processes with a lot of
+                output. If a process outputs a line that matches this pattern, a
+                checkpoint is created in the event log before this line is
+                forwarded. Defaults to None.
+            **kwargs: Additional keyword arguments for ``subprocess.Popen``.
+
+        Raises:
+            TypeError: For invalid arguments
+            RuntimeError: If process exists with non-zero status code
         """
         import subprocess
         import re
@@ -427,8 +607,34 @@ class Job:
 
 class ExternalJob(Job):
     """
-    Mutable custom job with customizeble input slots and saveable results. Used
-    to save data
+    Mutable custom output job with customizeble input slots and output results.
+    Use External jobs to save data save cryo-EM data generated by a software
+    package outside of CryoSPARC.
+
+    Created external jobs may be connected to any other CryoSPARC job result as
+    an input. Its outputs must be created manually and may be configured to
+    passthrough inherited input fields, just as with regular CryoSPARC jobs.
+
+    Create a new External Job with ``Project.create_external_job``.
+
+    Examples:
+
+        Import multiple exposure groups into a single job
+
+        >>> from cryosparc.tools import CryoSPARC
+        >>> cs = CryoSPARC()
+        >>> project = cs.find_project("P3")
+        >>> job = project.create_external_job("W3", title="Import Image Sets")
+        >>> for i in range(3):
+        ...     dset = job.add_output(
+        ...         type="exposure",
+        ...         name=f"images_{i}",
+        ...         slots=["movie_blob", "mscope_params", "gain_ref_blob"],
+        ...         alloc=10  # allocate a dataset for this output with 10 rows
+        ...     )
+        ...     dset['movie_blob/path'] = ...  # populate dataset
+        ...     job.save_output(output_name, dset)
+
     """
 
     def add_input(
@@ -441,7 +647,44 @@ class ExternalJob(Job):
         title: Optional[str] = None,
     ):
         """
-        Add an input slot to the current job.
+        Add an input slot to the current job. May be connected to zero or more
+        outputs from other jobs (depending on the min and max values).
+
+        Args:
+            type (Datatype): cryo-EM data type for this output, e.g., "particle"
+            name (str, optional): Output name key, e.g., "picked_particles".
+                Defaults to None.
+            min (int, optional): Minimum number of required input connections.
+                Defaults to 0.
+            max (int | Literal["inf"], optional): Maximum number of input
+                connections. Specify ``"inf"`` for unlimited connections.
+                Defaults to "inf".
+            slots (list[str | Datafield], optional): List of slots that should
+                be connected to this input, such as ``"location"`` or ``"blob"``
+                Defaults to [].
+            title (str, optional): Human-readable title for this input. Defaults
+                to None.
+
+        Returns:
+            str: name of created input
+
+        Examples:
+
+            Create an external job that accepts micrographs as input:
+
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.create_external_job("W1", title="Custom Picker")
+            >>> job.uid
+            "J3"
+            >>> job.add_input(
+            ...     type="exposure",
+            ...     name="input_micrographs",
+            ...     min=1,
+            ...     slots=["micrograph_blob", "ctf"],
+            ...     title="Input micrographs for picking
+            ... )
+            "input_micrographs"
         """
         self.cs.vis.add_external_job_input(  # type: ignore
             project_uid=self.project_uid,
@@ -462,7 +705,7 @@ class ExternalJob(Job):
         type: Datatype,
         name: Optional[str] = ...,
         slots: List[Union[str, Datafield]] = ...,
-        passthrough: Union[str, Literal[False]] = ...,
+        passthrough: Optional[str] = ...,
         title: Optional[str] = None,
     ) -> str:
         ...
@@ -473,9 +716,9 @@ class ExternalJob(Job):
         type: Datatype,
         name: Optional[str] = ...,
         slots: List[Union[str, Datafield]] = ...,
-        passthrough: Union[str, Literal[False]] = ...,
+        passthrough: Optional[str] = ...,
         title: Optional[str] = None,
-        alloc: int = ...,
+        alloc: Union[int, Dataset] = ...,
     ) -> Dataset:
         ...
 
@@ -486,7 +729,7 @@ class ExternalJob(Job):
         slots: List[Union[str, Datafield]] = [],
         passthrough: Optional[str] = None,
         title: Optional[str] = None,
-        alloc: Optional[int] = None,
+        alloc: Union[int, Dataset, Literal[None]] = None,
     ) -> Union[str, Dataset]:
         """
         Add an output slot to the current job.
@@ -496,6 +739,50 @@ class ExternalJob(Job):
 
         Returns the name of the created output. If `init` is set to an integer,
         returns blank dataset initialized with the given number of items.
+
+        Args:
+            type (Datatype): cryo-EM datatype for this output, e.g., "particle"
+            name (str, optional): Output name key, e.g., "selected_particles".
+                Same as ``type`` if not specified. Defaults to None.
+            slots (list[str, Datafield], optional): List of slot expected to be
+                created for this output, such as ``location`` or ``blob``. Do
+                not specify any slots that were passed through from an input
+                unless those slots are modified in the output. Defaults to [].
+            passthrough (str, optional): Indicates that this output inherits
+                slots from input with the specified name. Defaults to False.
+            title (str, optional): Human-readable title for this input. Defaults
+                to None.
+            alloc (int, optional): If specified, returns a blank dataset with
+                the given number of rows and the specified slots allocated.
+                Defaults to None.
+
+        Returns:
+            str | Dataset: Output name or empty dataset if alloc was specified.
+
+        Examples:
+
+            Create and allocate an output for new particle picks
+
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.find_external_job("J3")
+            >>> particles_dset = job.add_output(
+            ...     type="particle",
+            ...     name="picked_particles",
+            ...     slots=["location", "pick_stats"],
+            ...     alloc=10000
+            ... )
+
+            Create an inheritied output for input micrographs
+
+            >>> job.add_output(
+            ...     type="exposures",
+            ...     output="picked_micrographs",
+            ...     passthrough="input_micrographs",
+            ...     title="Passthrough picked micrographs"
+            ... )
+            "picked_micrographs"
+
         """
         self.cs.vis.add_external_job_output(  # type: ignore
             project_uid=self.project_uid,
@@ -507,8 +794,8 @@ class ExternalJob(Job):
             title=title,
         )
         self.refresh()
-        name = self.doc["output_result_groups"][-1]["name"]
-        return name if alloc is None else self.alloc_output(name, alloc)
+        result_name = self.doc["output_result_groups"][-1]["name"]
+        return result_name if alloc is None else self.alloc_output(result_name, alloc)
 
     def connect(
         self,
@@ -523,9 +810,33 @@ class ExternalJob(Job):
         Connect the given input for this job to an output with given job UID and
         name. If this input does not exist, it will be added with the given
         slots. At least one slot must be specified if the input does not exist.
+
+        Args:
+            source_job_uid (str): Job UID to connect from, e.g., "J42"
+            source_output (str): Job output name to connect from , e.g.,
+                "particles"
+            target_input (str): Input name to connect into. Will be created if
+                not specified.
+            slots (list[str | Datafield], optional): List of slots to add to
+                created input. All if not specified. Defaults to [].
+            title (str, optional): Human readable title for created input.
+                Defaults to "".
+            desc (str, optional): Human readable description for created input.
+                Defaults to "".
+
+        Examples:
+
+            Connect J3 to CTF-corrected micrographs from J2's ``micrographs``
+            output
+
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.find_external_job("J3")
+            >>> job.connect("J2", "micrographs", "input_micrographs")
+
         """
         assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
-        status: bool = self.cs.vis.connect_external_job(  # type: ignore
+        self.cs.vis.connect_external_job(  # type: ignore
             project_uid=self.project_uid,
             source_job_uid=source_job_uid,
             source_output=source_output,
@@ -536,20 +847,83 @@ class ExternalJob(Job):
             desc=desc,
         )
         self.refresh()
-        return status
 
-    def alloc_output(self, name: str, size: int = 0):
+    def alloc_output(self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0) -> Dataset:
         """
         Allocate an empty dataset for the given output with the given name.
-        Initialize with the given number of empty rows.
+        Initialize with the given number of empty rows. The result may be
+        used with ``save_output`` with the same output name.
+
+        Args:
+            name (str): Name of dataset to allocate for
+            size (int | ArrayLike | Dataset, optional): Either number of rows in
+                resulting dataset, array of dataset ``uid`` or another dataset
+                to use for ``uid`` or array of row UIDs to initialize with
+                Defaults to 0.
+
+        Returns:
+            Dataset: Empty dataset with the given number of rows
+
+        Examples:
+
+            Allocate a dataset of size 10,000 for an output for new particle
+            picks
+
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.find_external_job("J3")
+            >>> job.alloc_output("picked_particles", 10000)
+            Dataset([  # 10000 items, 11 fields
+                ("uid": [...]),
+                ("location/micrograph_path", ["", ...]),
+                ...
+            ])
+
+            Allocate a dataset from an existing input passthrough dataset
+
+            >>> input_micrographs = job.load_input("input_micrographs")
+            >>> job.alloc_output("picked_micrographs", input_micrographs)
+            Dataset([  # same "uid" field as input_micrographs
+                ("uid": [...]),
+            ])
+
         """
-        fields = self.cs.cli.get_job_output_min_fields(self.project_uid, self.uid, name)  # type: ignore
-        fields = decode_fields(fields)
-        return Dataset.allocate(size, fields)
+        expected_fields = []
+        for result in self.doc["output_results"]:
+            if result["group_name"] != name or result["passthrough"]:
+                continue
+            prefix = result["name"]
+            for field, dtype in result["min_fields"]:
+                expected_fields.append((f"{prefix}/{field}", dtype))
+
+        if not expected_fields:
+            raise ValueError(f"No such output {name} on {self.project_uid}-{self.uid}")
+
+        if isinstance(alloc, int):
+            return Dataset.allocate(alloc, expected_fields)
+        elif isinstance(alloc, Dataset):
+            return Dataset({"uid": alloc["uid"]}).add_fields(expected_fields)
+        else:
+            return Dataset({"uid": alloc}).add_fields(expected_fields)
 
     def save_output(self, name: str, dataset: Dataset):
         """
-        Job must have status "running" for this to work
+        Save output dataset to external job.
+
+        Args:
+            name (str): Name of output on this job.
+            dataset (Dataset): Value of output with only required fields.
+
+        Examples:
+
+            Save a previously-allocated output.
+
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.find_external_job("J3")
+            >>> particles = job.alloc_output("picked_particles", 10000)
+            >>> job.save_output("picked_particles", particles)
+
         """
         url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/outputs/{name}/dataset"
         with make_request(self.cs.vis, url, data=dataset.stream()) as res:
@@ -557,17 +931,43 @@ class ExternalJob(Job):
             assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"
 
     def start(self, status: Literal["running", "waiting"] = "waiting"):
-        # Set job status to "running"
+        """
+        Set job status to "running" or "waiting"
+
+        Args:
+            status (str, optional): "running" or "waiting". Defaults to "waiting".
+        """
         assert status in {"running", "waiting"}, f"Invalid start status {status}"
         self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
 
     def stop(self, error=False):
-        # Set job status to "completed" or "failed"
+        """
+        Set job status to "completed" or "failed"
+
+        Args:
+            error (bool, optional): Job completed with errors. Defaults to False.
+        """
         status = "failed" if error else "completed"
         self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
 
     @contextmanager
     def run(self):
+        """
+        Start a job within a context manager and stop the job when the context
+        ends.
+
+        Yields:
+            ExternalJob: self.
+
+        Examples:
+
+            Job will be marked as "failed" if the contents of the block throw an
+            exception
+
+            >>> with job.run():
+            ...     job.save_output(...)
+
+        """
         error = False
         self.start("running")
         try:

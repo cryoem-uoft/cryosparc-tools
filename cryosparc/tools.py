@@ -24,6 +24,7 @@ from .command import CommandClient, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
 from .project import Project
 from .job import Job
+from .spec import AssetDetails
 from .util import bopen, padarray, trimarray
 
 
@@ -121,7 +122,7 @@ class CryoSPARC:
         Get a project by its unique ID.
 
         Args:
-            project_uid (str): The project UID
+            project_uid (str): project unique ID, e.g., "P3"
 
         Returns:
             Project: project instance
@@ -135,8 +136,8 @@ class CryoSPARC:
         Get a job by its unique project and job ID.
 
         Args:
-            project_uid (str): The project UID
-            job_uid (str): The job UID
+            project_uid (str): project unique ID, e.g., "P3"
+            job_uid (str): job unique ID, e.g., "J42"
 
         Returns:
             Job: job instance
@@ -145,22 +146,21 @@ class CryoSPARC:
         job.refresh()
         return job
 
-    def download(self, project_uid: str, path: Union[str, PurePosixPath]):
+    def download(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
         """
-        Open a file in the current project for reading. Use this method to get
-        files from a remote CryoSPARC instance whose the project directories are
-        not available on the client file system,
+        Open a file in the given project for reading. Use to get files from a
+        remote CryoSPARC instance whose the project directories are not
+        available on the client file system.
 
         Args:
             project_uid (str): Short unique ID of CryoSPARC project, e.g., "P3"
-            path (str | Path): Relative path to file in project directory
+            path_rel (str | Path): Relative path to file in project directory
 
         Yields:
             HTTPResponse: Use a context manager to read the file from the
             request body
 
         Examples:
-
             Download a job's metadata
 
             >>> cs = CryoSPARC()
@@ -168,14 +168,25 @@ class CryoSPARC:
             >>>     job_data = json.loads(res.read())
 
         """
-        data = {"project_uid": project_uid, "path_rel": str(path)}
+        data = {"project_uid": project_uid, "path_rel": str(path_rel)}
         return make_json_request(self.vis, "/get_project_file", data=data)
 
-    def download_file(self, project_uid: str, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
+    def download_file(
+        self, project_uid: str, path_rel: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]
+    ):
         """
         Download a file from the project directory to the given writeable target.
+
+        Args:
+            project_uid (str): project unique ID, e.g., "P3"
+            path_rel (str | Path): Relative path of file in project directory.
+            target (str | Path | IO): Relative local path or writeable file
+                handle to write response file into.
+
+        Returns:
+            str | Path | IO: resulting target path or file handle.
         """
-        with self.download(project_uid, path) as response:
+        with self.download(project_uid, path_rel) as response:
             with bopen(target, "wb") as f:
                 data = response.read(ONE_MIB)
                 while data:
@@ -183,8 +194,20 @@ class CryoSPARC:
                     data = response.read(ONE_MIB)
         return target
 
-    def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]):
-        with self.download(project_uid, path) as response:
+    def download_dataset(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
+        """
+        Download a .cs dataset file frmo the given relative path in the project
+        directory.
+
+        Args:
+            project_uid (str): project unique ID, e.g., "P3"
+            path_rel (str | Path): Realtive path to .cs file in project
+            directory.
+
+        Returns:
+            Dataset: Loaded dataset instance
+        """
+        with self.download(project_uid, path_rel) as response:
             size = response.headers.get("Content-Length")
             mime = response.headers.get("Content-Type")
             if mime == "application/x-cryosparc-dataset":
@@ -205,8 +228,20 @@ class CryoSPARC:
                 f.seek(0)
                 return Dataset.load(f)
 
-    def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]):
-        with self.download(project_uid, path) as response:
+    def download_mrc(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
+        """
+        Download a .mrc file from the given relative path in the project
+        directory.
+
+        Args:
+            project_uid (str): project unique ID, e.g., "P3"
+            path_rel (str | Path): Relative path to .mrc file in project
+                directory.
+
+        Returns:
+            tuple[Header, NDArray]: MRC file header and data as a numpy array
+        """
+        with self.download(project_uid, path_rel) as response:
             with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
                 data = response.read(ONE_MIB)
                 while data:
@@ -215,13 +250,26 @@ class CryoSPARC:
                 f.seek(0)
                 return mrc.read(f)  # FIXME: Optimize file reading
 
+    def list_assets(self) -> list[AssetDetails]:
+        """
+        Get a list of files available in the database for this job. Returns a
+        list with details about the assets. Each entry is a dict with a ``_id``
+        key which may be used to download the file with the ``download_asset``
+        method.
+
+        Returns:
+            list[AssetDetails]: Asset details
+        """
+        return self.cs.vis.list_job_files(project_uid=self.project_uid, job_uid=self.uid)  # type: ignore
+
     def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
         """
         Download a file from CryoSPARC's MongoDB GridFS storage.
 
         Args:
             fileid (str): GridFS file object ID
-            target (str | Path | IO): Writeable download destination path or file handle
+            target (str | Path | IO): Writeable local download destination path
+                or file handle
         """
         with make_json_request(self.vis, url="/get_job_file", data={"fileid": fileid}) as response:
             with bopen(target, "wb") as f:
@@ -230,47 +278,68 @@ class CryoSPARC:
                     f.write(data)
                     data = response.read(ONE_MIB)
 
-    def upload(self, project_uid: str, path: Union[str, PurePosixPath], file: Union[str, PurePath, IO[bytes]]):
+    def upload(
+        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]
+    ):
         """
-        Open a file from the current project for reading. Note that this
-        response is not seekable.
+        Upload the given source file to the project directory at the given
+        relative path.
+
+        Args:
+            project_uid (str): project unique ID, e.g., "P3"
+            target_path_rel (str | Path): Relative target path in project
+                directory.
+            source (str | Path | IO): Local path or file handle to upload.
         """
-        with bopen(file) as f:
+        with bopen(source) as f:
             url = f"/projects/{project_uid}/files"
-            query = {"path": path}
+            query = {"path": target_path_rel}
             with make_request(self.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
-                    f"Could not upload project {project_uid} file {path}.\n"
-                    f"Response from CryoSPARC: {res.read().decode()}"
+                    f"Could not upload project {project_uid} file {target_path_rel}.\n"
+                    f"Response from CryoSPARC ({res.status}): {res.read().decode()}"
                 )
 
     def upload_dataset(
-        self, project_uid: str, path: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT
+        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT
     ):
         """
-        Similar to upload() method, but works with in-memory datasets
+        Upload a dataset as a CS file into the project directory.
+
+        Args:
+            project_uid (str): project unique ID, e.g., "P3"
+            target_path_rel (str | Path): relative path to save dataset in
+                project directory. Should have a ``.cs`` extension.
+            dset (Dataset): dataset to save.
         """
         if len(dset) < 100:
             # Probably small enough to upload from memory
             f = BytesIO()
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, path, f)
+            return self.upload(project_uid, target_path_rel, f)
 
         # Write to temp file first
         with tempfile.TemporaryFile("w+b") as f:
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, path, f)
+            return self.upload(project_uid, target_path_rel, f)
 
-    def upload_mrc(self, project_uid: str, path: Union[str, PurePosixPath], data: "NDArray", psize: float):
+    def upload_mrc(self, project_uid: str, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
         """
-        Similar to upload() method, but works with MRC numpy arrays
+        Upload a numpy 2D or 3D array to the job directory as an MRC file.
+
+        Args:
+            project_uid (str): project unique ID, e.g., "P3"
+            target_path_rel (str | Path): filename or relative path. Should have
+                ``.mrc`` extension.
+            data (NDArray): Numpy array with MRC file data.
+            psize (float): Pixel size to include in MRC header.
         """
         with tempfile.TemporaryFile("w+b") as f:
             mrc.write(f, data, psize)
             f.seek(0)
-            return self.upload(project_uid, path, f)
+            return self.upload(project_uid, target_path_rel, f)
 
 
 def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):
@@ -278,7 +347,8 @@ def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):
     Get list of import signatures for the given path or paths.
 
     Args:
-        abs_paths (str | Iterable[str]): Absolute path or list of file paths
+        abs_paths (str | Iterable[str] | NDArray): Absolute path or list of file
+            paths.
 
     Returns:
         list[int]: Import signatures as 64-bit numpy integers
@@ -293,7 +363,23 @@ def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):
 
 def get_exposure_format(data_format: str, voxel_type: Optional[str] = None) -> str:
     """
-    Get the format for an exposure type were
+    Get the ``movie_blob/format`` or ``micrograph_blob`` format value for an
+    exposure type, where ``data_format`` is one of
+
+    - "MRC"
+    - "MRCS"
+    - "TIFF"
+    - "CMRCBZ2"
+    - "MRCBZ2"
+    - "EER"
+
+    And ``voxel_type`` (if specified) is one of
+
+    - "16 BIT FLOAT":
+    - "32 BIT FLOAT"
+    - "SIGNED 16 BIT INTEGER"
+    - "UNSIGNED 8 BIT INTEGER"
+    - "UNSIGNED 16 BIT INTEGER"
 
     Args:
         data_format (str): One of `SUPPORTED_EXPOSURE_FORMATS` such as `"TIFF"`
@@ -303,8 +389,8 @@ def get_exposure_format(data_format: str, voxel_type: Optional[str] = None) -> s
             or `MRCS`. Defaults to None.
 
     Returns:
-        str: The format string to save in a CryoSPARC exposure dataset. e.g.,
-            `"TIFF"` or `"MRC/2"`
+        str: The format string to save into the ``{prefix}/format`` field of a
+            CryoSPARC exposure dataset. e.g., `"TIFF"` or `"MRC/2"`
     """
     assert data_format in SUPPORTED_EXPOSURE_FORMATS, f"Unsupported exposure format {data_format}"
     if data_format not in {"MRC", "MRCS"}:
@@ -318,7 +404,15 @@ def get_exposure_format(data_format: str, voxel_type: Optional[str] = None) -> s
 
 def downsample(arr: "NDArray", factor: int = 2):
     """
-    Downsample a micrograph by the given factor
+    Downsample a micrograph or movie by the given factor.
+
+    Args:
+        arr (NDArray): 2D or 3D numpy array factor (int, optional): How much to
+            reduce size by. e.g., a factor of 2 would reduce a 1024px MRC to
+            512px, and a factor of 3 would reduce it to 256px. Defaults to 2.
+
+    Returns:
+        NDArray: Downsampled MRC file
     """
     assert factor >= 1, "Must bin by a factor of 1 or greater"
     arr = n.reshape(arr, (-1,) + arr.shape[-2:])
@@ -332,11 +426,20 @@ def downsample(arr: "NDArray", factor: int = 2):
     return out.reshape(shape)
 
 
-def lowpass(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, order: float = 1.0):
+def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, order: float = 1.0):
     """
-    Apply butterworth lowpass filter to the 2D or 3D array data with the given
-    pixel size (`psize_A`). `cutoff_resolution_A` should be a non-negative
+    Apply butterworth lowpass filter to the 2D array data with the given
+    pixel size (``psize_A``). ``cutoff_resolution_A`` should be a non-negative
     number specified in Angstroms.
+
+    Args:
+        arr (NDArray): 2D numpy array to apply lowpass to.
+        psize_A (float): Pixel size of array data.
+        cutoff_resolution_A (float, optional): Cutoff resolution, in Angstroms. Defaults to 0.0.
+        order (float, optional): Filter order. Defaults to 1.0.
+
+    Returns:
+        NDArray: Lowpass-filtered copy of given numpy array
     """
     assert cutoff_resolution_A > 0, "Lowpass filter amount must be non-negative"
     assert len(arr.shape) == 2 or (len(arr.shape) == 3 and arr.shape[0] == 1), (

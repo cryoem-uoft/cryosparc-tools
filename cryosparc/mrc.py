@@ -92,6 +92,12 @@ def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "NDArray"]:
     """
     Read a .mrc file at the given file into a numpy array. Returns the MRC
     header and the resulting array.
+
+    Args:
+        file (str | Path | IO): MRC file path or handle.
+
+    Returns:
+        tuple[Header, NDArray]: The MRC header and MRC data as a numpy array.
     """
     with bopen(file, "rb") as f:
         header = _read_header(f)
@@ -110,7 +116,12 @@ def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "NDArray"]:
 def write(file: Union[str, PurePath, IO[bytes]], data: "NDArray", psize: float):
     """
     Write the given ndarray data to a file. Specify a pixel size for the mrc
-    file as the last argument
+    file as the last argument.
+
+    Args:
+        file (str | Path | IO): File path or handle to write.
+        data (NDArray): 2D or 3D numpy array of MRC data.
+        psize (float): Pixel size to write into MRC.
     """
     while data.ndim < 3:
         data = n.array([data])
