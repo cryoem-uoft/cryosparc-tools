@@ -10,7 +10,7 @@ Example:
 """
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Iterable, Optional, Union
+from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Union
 import os
 import re
 import tempfile
@@ -250,7 +250,7 @@ class CryoSPARC:
                 f.seek(0)
                 return mrc.read(f)  # FIXME: Optimize file reading
 
-    def list_assets(self) -> list[AssetDetails]:
+    def list_assets(self) -> List[AssetDetails]:
         """
         Get a list of files available in the database for this job. Returns a
         list with details about the assets. Each entry is a dict with a ``_id``
