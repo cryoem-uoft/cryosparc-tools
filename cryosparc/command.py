@@ -19,8 +19,8 @@ class CommandClient:
 
     Args:
         service (str, optional): Label for CryoSPARC Command service that this
-            instance connects to and communicates with, e.g., `command_core`,
-            `command_vis` or `command_rtp`
+            instance connects to and communicates with, e.g., ``command_core``,
+            ``command_vis`` or ``command_rtp``
         host (str, optional): Domain name or IP address of CryoSPARC master.
             Defaults to "localhost".
         port (int, optional): Command server base port. Defaults to 39002.

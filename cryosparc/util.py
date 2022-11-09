@@ -160,7 +160,7 @@ class BinaryIteratorIO(BinaryIO):
 
 class AsyncBinaryIteratorIO:
     """
-    Similar to `BinaryIteratorIO` except the iterator yields bytes
+    Similar to ``BinaryIteratorIO`` except the iterator yields bytes
     asynchronously.
 
     Args:

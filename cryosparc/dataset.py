@@ -1,5 +1,5 @@
 """
-Classes and utilities for loading, saving and working with .cs dataset files
+Classes and utilities for loading, saving and working with .cs dataset files.
 """
 from functools import reduce
 from pathlib import PurePath
@@ -37,22 +37,22 @@ from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u3
 # Save format options
 NUMPY_FORMAT = 1
 """
-Numpy-array .cs file format. Same as `DEFAULT_FORMAT`.
+Numpy-array .cs file format. Same as ``DEFAULT_FORMAT``.
 """
 
 CSDAT_FORMAT = 2
 """
-Compressed stream .cs file format. Same as `NEWEST_FORMAT`.
+Compressed stream .cs file format. Same as ``NEWEST_FORMAT``.
 """
 
 DEFAULT_FORMAT = NUMPY_FORMAT
 """
-Default save .cs file format. Same as `NUMPY_FORMAT`.
+Default save .cs file format. Same as ``NUMPY_FORMAT``.
 """
 
 NEWEST_FORMAT = CSDAT_FORMAT
 """
-Newest save .cs file format. Same as `CSDAT_FORMAT`.
+Newest save .cs file format. Same as ``CSDAT_FORMAT``.
 """
 
 FORMAT_MAGIC_PREFIXES = {
@@ -66,10 +66,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with CryoSPARC .cs files.
 
-    A dataset may be initialized with `Dataset(data)` where `data` is
+    A dataset may be initialized with ``Dataset(data)`` where ``data`` is
     one of the following:
 
-    * A size of items to allocate (e.g., `42`)
+    * A size of items to allocate (e.g., 42)
     * A mapping from column names to their contents (dict or tuple list)
     * A numpy record array
 
@@ -77,9 +77,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         allocate (int | Dataset | NDArray | Mapping[str, ArrayLike], optional):
             Allocation data, as described above. Defaults to 0.
         row_class (Type[Row], optional): Class to use for row instances
-            produced by this dataset. Defaults to `Row`.
+            produced by this dataset. Defaults to Row.
 
     Examples:
+
+        Initialize a dataset
+
+        >>> dset = Dataset([
+        ...     ("uid", [1, 2, 3]),
+        ...     ("dat1", ["Hello", "World", "!"]),
+        ...     ("dat2", [3.14, 2.71, 1.61])
+        ... ])
+        >>> dset.descr()
+        [('uid', '<u8'), ('dat1', '|O'), ('dat2', '<f8')]
 
         Load a dataset from disk
 
@@ -105,7 +115,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         Args:
             size (int, optional): Number of rows to allocate. Defaults to 0.
-            fields (list[Field], optional): Initial fields, excluding `uid`. Defaults to [].
+            fields (list[Field], optional): Initial fields, excluding ``uid``.
+                Defaults to [].
 
         Returns:
             Dataset: Empty dataset
@@ -121,12 +132,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         May be called either as an instance method or an initializer to create a
         new dataset from one or more datasets.
 
-        Set `assert_same_fields=True` to enforce that datasets have identical
-        fields. Otherwise, only takes fields common to all datasets.
-
-        Set `repeat_allowed=True` to skip duplicate uid checks.
-
-        To initialize from zero or more datasets, use `Dataset.append_many`
+        To initialize from zero or more datasets, use ``Dataset.append_many``.
 
         Args:
             assert_same_fields (bool, optional): If not set or False, appends
@@ -161,12 +167,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         repeat_allowed=False,
     ):
         """
-        Similar to `Dataset.append`. If no datasets are provided, returns an
-        empty Dataset with just the `uid` field.
+        Similar to ``Dataset.append``. If no datasets are provided, returns an
+        empty Dataset with just the ``uid`` field.
 
         Args:
-            assert_same_fields (bool, optional): Same as for `append`. Defaults to False.
-            repeat_allowed (bool, optional): Same as for `append` method. Defaults to False.
+            assert_same_fields (bool, optional): Same as for ``append`` method.
+                Defaults to False.
+            repeat_allowed (bool, optional): Same as for ``append`` method.
+                Defaults to False.
 
         Returns:
             Dataset: Appended dataset
@@ -197,7 +205,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         May be called either as an instance method or an initializer to create a
         new dataset from one or more datasets:
 
-        To initialize from zero or more datasets, use `Dataset.union_many`
+        To initialize from zero or more datasets, use ``Dataset.union_many``.
 
         Args:
             assert_same_fields (bool, optional): Set to True to enforce that
@@ -233,15 +241,17 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assume_unique=False,
     ):
         """
-        Similar to `Dataset.union`. If no datasets are provided, returns an
-        empty Dataset with just the `uid` field.
+        Similar to ``Dataset.union``. If no datasets are provided, returns an
+        empty Dataset with just the ``uid`` field.
 
         Args:
-            assert_same_fields (bool, optional): Same as for `union`. Defaults to False.
-            assume_unique (bool, optional): Same as for `union`. Defaults to False.
+            assert_same_fields (bool, optional): Same as for ``union``.
+                Defaults to False.
+            assume_unique (bool, optional): Same as for ``union``.
+                Defaults to False.
 
         Returns:
-            Dataset: combined dataset, or empty dataset if none are provided
+            Dataset: combined dataset, or empty dataset if none are provided.
         """
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
@@ -311,7 +321,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         May be called either as an instance method or an initializer to create a
         new dataset from one or more datasets.
 
-        To initialize from zero or more datasets, use `Dataset.innerjoin_many`.
+        To initialize from zero or more datasets, use
+        ``Dataset.innerjoin_many``.
 
         Args:
             assert_no_drop (bool, optional): Set to True to ensure the provided
@@ -319,7 +330,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 Defaults to False.
 
         Returns:
-            Dataset: combined dataset
+            Dataset: combined dataset.
 
         Examples:
 
@@ -342,8 +353,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     @classmethod
     def innerjoin_many(cls, *datasets: "Dataset"):
         """
-        Similar to `Dataset.innerjoin`. If no datasets are provided, returns an
-        empty Dataset with just the `uid` field.
+        Similar to ``Dataset.innerjoin``. If no datasets are provided, returns an
+        empty Dataset with just the ``uid`` field.
 
         Returns:
             Dataset: combined dataset
@@ -376,8 +387,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             all_fields
         ), "Cannot innerjoin datasets with fields of the same name but different types"
 
-        # Set up smaller indexed datasets with just a `uid` and `idx#` columns
-        # to perform the innerjoin. e.g., [Dataset({'uid: [x,y,z], 'idx0':
+        # Set up smaller indexed datasets with just a "uid" and "idx#" columns
+        # to perform the innerjoin. e.g., [Dataset({'uid': [x,y,z], 'idx0':
         # [0,1,2]}), …]. This is faster than doing the innerjoin for all columns
         # and safer because we don't have to worry about not updating Python
         # string reference counts in the resulting dataset.
@@ -395,16 +406,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     @classmethod
     def common_fields(cls, *datasets: "Dataset", assert_same_fields=False) -> List[Field]:
         """
-        Get a list of fields common to all given datasets. Specify
-        `assert_same_fields=True` to enforce that all datasets have the same
-        fields.
+        Get a list of fields common to all given datasets.
 
         Args:
             assert_same_fields (bool, optional): If True, fails if datasets
                 don't all share the same fields. Defaults to False.
 
         Returns:
-            list[Field]: List of dataset fields and their data types
+            list[Field]: List of dataset fields and their data types.
         """
         if not datasets:
             return []
@@ -424,19 +433,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Read a dataset from path or file handle.
 
         If given a file handle pointing to data in the usual numpy array format
-        (i.e., created by `numpy.save()`), then the handle must be seekable.
-        This restriction does not apply when loading the newer `CSDAT_FORMAT`.
+        (i.e., created by ``numpy.save()``), then the handle must be seekable.
+        This restriction does not apply when loading the newer ``CSDAT_FORMAT``.
 
         Args:
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
-                `NUMPY_FORMAT`
+                ``NUMPY_FORMAT``
 
         Raises:
-            TypeError: If cannot determine type of dataset file
+            TypeError: If cannot determine type of dataset file.
 
         Returns:
-            Dataset: loaded dataset
+            Dataset: loaded dataset.
         """
         prefix = None
         with bopen(file, "rb") as f:
@@ -464,14 +473,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Save a dataset to the given path or I/O buffer.
 
         By default, saves as a numpy record array in the .npy format. Specify
-        `format=CSDAT_FORMAT` to save in the latest .cs file format which is
+        ``format=CSDAT_FORMAT`` to save in the latest .cs file format which is
         faster and results in a smaller file size but is not numpy-compatible.
 
         Args:
             file (str | Path | IO): Writeable file path or handle
-            format (int, optional): Must be of the constants `DEFAULT_FORMAT`,
-                `NUMPY_FORMAT` (same as `DEFAULT_FORMAT`), or `CSDAT_FORMAT`.
-                Defaults to `DEFAULT_FORMAT`.
+            format (int, optional): Must be of the constants ``DEFAULT_FORMAT``,
+                ``NUMPY_FORMAT`` (same as ``DEFAULT_FORMAT``), or
+                ``CSDAT_FORMAT``. Defaults to ``DEFAULT_FORMAT``.
 
         Raises:
             TypeError: If invalid format specified
@@ -493,8 +502,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         written to a file or buffer to be sent over the network.
 
         Buffer will have the same format as Dataset files saved with
-        `format=CSDAT_FORMAT`. Call `Dataset.load` on the resulting file/buffer
-        to retrieve the original data.
+        ``format=CSDAT_FORMAT``. Call ``Dataset.load`` on the resulting
+        file/buffer to retrieve the original data.
 
         Yields:
             bytes: Dataset file chunks
@@ -612,7 +621,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
           the given name
         - single value to broadcast for all cells
 
-        Note: Will fail if field does not already exist. Use `add_fields()`
+        Note: Will fail if field does not already exist. Use ``add_fields()``
         before assigning new fields.
 
         Args:
@@ -737,7 +746,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def prefixes(self) -> List[str]:
         """
         List of field prefixes available in this dataset, assuming fields
-        are have format `{prefix}/{field}`.
+        are have format ``{prefix}/{field}``.
 
         Returns:
             list[str]: List of prefixes
@@ -776,11 +785,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         Args:
             fields (list[str] | list[Field]): Field names or description to add.
-                If a list of names is specified, the second `dtypes` argument
+                If a list of names is specified, the second ``dtypes`` argument
                 must also be specified.
             dtypes (str | list[DTypeLike], optional): String with
                 comma-separated data type names or list of data types. Must be
-                specified if the `fields` argument is a list of strings,
+                specified if the ``fields`` argument is a list of strings,
                 Defaults to None.
 
         Returns:
@@ -833,7 +842,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
         """
         Keep only the given fields from the dataset. Provide a list of fields or
-        function that returns `True` if a given field name should be kept.
+        function that returns ``True`` if a given field name should be kept.
 
         Args:
             names (list[str] | (str) -> bool): Collection of fields to keep or

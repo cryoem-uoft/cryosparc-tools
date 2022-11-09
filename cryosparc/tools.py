@@ -2,10 +2,12 @@
 Main module exporting the ``CryoSPARC`` class for interfacing with a CryoSPARC
 instance from Python
 
-Example:
+Examples:
 
     >>> from cryosparc.tools import CryoSPARC
-    >>> cs = CryoSPARC()
+    >>> license = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    >>> cs = CryoSPARC(license=license, host="localhost", port=39000)
+    >>> project = cs.find_project("P3")
 
 """
 from io import BytesIO
@@ -65,7 +67,8 @@ class CryoSPARC:
         Load project job and micrographs
 
         >>> from cryosparc import CryoSPARC
-        >>> cs = CryoSPARC(port=39000)
+        >>> license = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        >>> cs = CryoSPARC(license=license, port=39000)
         >>> project = cs.find_project('P3')
         >>> job = project.find_job('J42')
         >>> micrographs = job.load_output('exposures')
@@ -196,7 +199,7 @@ class CryoSPARC:
 
     def download_dataset(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
         """
-        Download a .cs dataset file frmo the given relative path in the project
+        Download a .cs dataset file from the given relative path in the project
         directory.
 
         Args:
@@ -315,6 +318,8 @@ class CryoSPARC:
             target_path_rel (str | Path): relative path to save dataset in
                 project directory. Should have a ``.cs`` extension.
             dset (Dataset): dataset to save.
+            format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
+                defaults to NUMPY_FORMAT)
         """
         if len(dset) < 100:
             # Probably small enough to upload from memory
@@ -386,15 +391,16 @@ def get_exposure_format(data_format: str, voxel_type: Optional[str] = None) -> s
     - "UNSIGNED 16 BIT INTEGER"
 
     Args:
-        data_format (str): One of `SUPPORTED_EXPOSURE_FORMATS` such as `"TIFF"`
-            or `"MRC"`. The value of the `<dataFormat>` tag in an EPU XML file.
-        voxel_type (str, optional): The value of the `<voxelType>` tag in an EPU
-            file such as `"32 BIT FLOAT"`. Required when `data_format` is `MRC`
-            or `MRCS`. Defaults to None.
+        data_format (str): One of ``SUPPORTED_EXPOSURE_FORMATS`` such as
+            ``"TIFF"`` or ``"MRC"``. The value of the ``<dataFormat>`` tag in an
+            EPU XML file.
+        voxel_type (str, optional): The value of the ``<voxelType>`` tag in an
+            EPU file such as ``"32 BIT FLOAT"``. Required when ``data_format``
+            is ``MRC`` or ``MRCS``. Defaults to None.
 
     Returns:
         str: The format string to save into the ``{prefix}/format`` field of a
-            CryoSPARC exposure dataset. e.g., `"TIFF"` or `"MRC/2"`
+            CryoSPARC exposure dataset. e.g., ``"TIFF"`` or ``"MRC/2"``
     """
     assert data_format in SUPPORTED_EXPOSURE_FORMATS, f"Unsupported exposure format {data_format}"
     if data_format not in {"MRC", "MRCS"}:
@@ -439,7 +445,8 @@ def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, o
     Args:
         arr (NDArray): 2D numpy array to apply lowpass to.
         psize_A (float): Pixel size of array data.
-        cutoff_resolution_A (float, optional): Cutoff resolution, in Angstroms. Defaults to 0.0.
+        cutoff_resolution_A (float, optional): Cutoff resolution, in Angstroms.
+            Defaults to 0.0.
         order (float, optional): Filter order. Defaults to 1.0.
 
     Returns:

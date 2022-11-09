@@ -79,6 +79,8 @@ since the notebooks require an active CryoSPARC instance to run.
 See the [Run Example Notebooks](#run-example-notebooks) section for instructions
 on how to run the notebooks.
 
+Inline source documentation is compiled to HTML via [Sphinx](https://www.sphinx-doc.org/en/master/index.html) and uses [Google Style Python docstrings](https://www.sphinx-doc.org/en/master/usage/extensions/example_google.html#example-google).
+
 ### Run Example Notebooks
 
 The Jupyter notebooks in the example documentation require additional

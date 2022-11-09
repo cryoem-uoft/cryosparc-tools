@@ -17,7 +17,7 @@ class Row(Mapping):
     def __init__(self, cols: Dict[str, Column], idx: int = 0):
         self.idx = idx
         self.cols = cols
-        # note - don't keep around a ref to cols because then when `col._data`
+        # note - don't keep around a ref to cols because then when col._data
         # changes (e.g., a field is added to the dataset) the already existing
         # items will be referring to the old dataset.data!
 
@@ -72,7 +72,7 @@ class Row(Mapping):
 
 R = TypeVar("R", bound=Row)
 """
-Type variable for a `Row` subclass.
+Type variable for a ``Row`` subclass.
 """
 
 

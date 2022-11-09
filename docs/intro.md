@@ -32,26 +32,20 @@ via <abbr title="Secure Shell">SSH</abbr>.
 
 ## Installation
 
-Install `cryosparc-tools` via pip:
+Install `cryosparc-tools` from PyPI:
 
 ```sh
 pip install cryosparc-tools
 ```
 
-Or Conda:
-
-```sh
-conda install -c conda-forge cryosparc-tools
-```
-
 ## Usage
 
-Import in a Python module and connect to a CryoSPARC instance
+Import from a Python module and connect to a CryoSPARC instance
 
 ```py
 from cryosparc.tools import CryoSPARC
 
-cs = CryoSPARC(port=39000)
+cs = CryoSPARC(license='xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx', port=39000)
 assert cs.test_connection()
 ```
 
@@ -80,9 +74,12 @@ path = project.dir() / "J43" / "particles.cs"
 particles = Dataset.load(path)
 
 for particle in particles.rows:
-    shift = particle["alignments2D/shift"]
-    particle["location/center_x_frac"] += shift[0]
-    particle["location/center_y_frac"] += shift[1]
+    shift_y, shift_x = particle["alignments2D/shift"].T
+    mic_shape_y, mic_shape_x = particles["location/micrograph_shape"].T
+    new_loc_x = particles["location/center_x_frac"] * mic_shape_x - shift_x
+    new_loc_y = particles["location/center_y_frac"] * mic_shape_y - shift_y
+    particle["location/center_x_frac"] *= new_loc_x / mic_shape_x
+    particle["location/center_y_frac"] *= new_loc_y / mic_shape_y
 
 particles.save(path)
 ```

@@ -2,7 +2,7 @@ from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, List, Optional, Tuple, Union
 
 from .job import Job, ExternalJob
-from .dataset import Dataset
+from .dataset import Dataset, DEFAULT_FORMAT
 from .row import R
 from .spec import Datafield, Datatype
 
@@ -158,9 +158,9 @@ class Project:
         Save the given result dataset to the project. Specify at least the
         dataset to save and the type of data.
 
-        If `workspace_uid` or `passthrough` input is not specified, saves the
-        result to the project's newest workspace. If `passthrough` is
-        specified but `workspace_uid` is not, saves to the passthrough job's
+        If ``workspace_uid`` or ``passthrough`` input is not specified, saves the
+        result to the project's newest workspace. If ``passthrough`` is
+        specified but ``workspace_uid`` is not, saves to the passthrough job's
         newest workspace.
 
         Returns UID of the External job where the results were saved.
@@ -171,9 +171,10 @@ class Project:
 
             >>> particles = Dataset()
             >>> project.save_external_result(particles, 'particle', workspace_uid='W1')
-            "J1"
+            "J43"
 
-            Save particle locations that inherit passthrough slots from a parent job
+            Save new particle locations that inherit passthrough slots from a
+            parent job
 
             >>> particles = Dataset()
             >>> project.save_external_result(
@@ -185,7 +186,7 @@ class Project:
             ...     user='ali@example.com',
             ...     title='Re-centered particles'
             ... )
-            "J2"
+            "J44"
 
         Args:
             dataset (Dataset): Result dataset.
@@ -308,7 +309,7 @@ class Project:
         """
         return self.cs.upload(self.uid, target_path_rel, source)
 
-    def upload_dataset(self, target_path_rel: Union[str, PurePosixPath], dset: Dataset):
+    def upload_dataset(self, target_path_rel: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT):
         """
         Upload a dataset as a CS file into the project directory.
 
@@ -316,8 +317,11 @@ class Project:
             target_path_rel (str | Path): relative path to save dataset in
                 project directory. Should have a ``.cs`` extension.
             dset (Dataset): dataset to save.
+            format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
+                defaults to NUMPY_FORMAT)
+
         """
-        return self.cs.upload_dataset(self.uid, target_path_rel, dset)
+        return self.cs.upload_dataset(self.uid, target_path_rel, dset, format=format)
 
     def upload_mrc(self, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
         """

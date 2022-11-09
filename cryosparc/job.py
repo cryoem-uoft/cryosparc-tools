@@ -10,7 +10,7 @@ from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Un
 from typing_extensions import Literal
 
 from .command import make_json_request, make_request
-from .dataset import Dataset
+from .dataset import Dataset, DEFAULT_FORMAT
 from .spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
@@ -197,7 +197,7 @@ class Job:
         - A matplotlib plot
 
         If a matplotlib figure is specified, Uploads the plots in ``png`` and
-        ``pdf`` formats. Override the `formats` argument with
+        ``pdf`` formats. Override the ``formats`` argument with
         ``formats=['<format1>', '<format2>', ...]`` to save in different image
         formats.
 
@@ -361,9 +361,9 @@ class Job:
         If a binary IO object is specified, either a filename or mimetype must
         be specified.
 
-        Unlike the `upload` method which saves files to the job directory, this
-        method saves images to the database and exposes them for use in the job
-        log.
+        Unlike the ``upload`` method which saves files to the job directory,
+        this method saves images to the database and exposes them for use in the
+        job log.
 
         If specifying arbitrary binary I/O, specify either a filename or a file
         format.
@@ -500,7 +500,7 @@ class Job:
 
         return assets
 
-    def upload_dataset(self, target_path_rel: Union[str, PurePosixPath], dset: Dataset):
+    def upload_dataset(self, target_path_rel: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT):
         """
         Upload a dataset as a CS file into the job directory.
 
@@ -508,9 +508,12 @@ class Job:
             target_path_rel (str | Path): relative path to save dataset in job
                 directory. Should have a ``.cs`` extension.
             dset (Dataset): dataset to save.
+            format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
+                defaults to NUMPY_FORMAT)
+
         """
         target_path_rel = PurePosixPath(self.uid) / target_path_rel
-        return self.cs.upload_dataset(self.project_uid, target_path_rel, dset)
+        return self.cs.upload_dataset(self.project_uid, target_path_rel, dset, format=format)
 
     def upload_mrc(self, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
         """
@@ -536,16 +539,6 @@ class Job:
         """
         Launch a subprocess and write its text-based output and error to the job
         log.
-
-        Set `mute=True` to prevent forwarding the output to standard output.
-
-        Specify `checkpoint=True` to add a checkpoint to the stream log just
-        before the output begins.
-
-        Specify `checkpoint_line_pattern` as a regular expression. If a
-        given line matches the pattern, adds checkpoint to the job log _before_
-        that line is added to the log. Use this for processes with a lot of
-        structured output.
 
         Args:
             args (str | list): Process arguments to run
@@ -615,7 +608,7 @@ class ExternalJob(Job):
     an input. Its outputs must be created manually and may be configured to
     passthrough inherited input fields, just as with regular CryoSPARC jobs.
 
-    Create a new External Job with ``Project.create_external_job``.
+    Create a new External Job with `Project.create_external_job`_.
 
     Examples:
 
@@ -634,6 +627,9 @@ class ExternalJob(Job):
         ...     )
         ...     dset['movie_blob/path'] = ...  # populate dataset
         ...     job.save_output(output_name, dset)
+
+    .. _Project.create_external_job:
+        project.html#cryosparc.project.Project.create_external_job
 
     """
 
@@ -732,13 +728,8 @@ class ExternalJob(Job):
         alloc: Union[int, Dataset, Literal[None]] = None,
     ) -> Union[str, Dataset]:
         """
-        Add an output slot to the current job.
-
-        One of `type` or `passthrough` must be specified, where `passthrough` is
-        the name of an existing input (added via `add_input`).
-
-        Returns the name of the created output. If `init` is set to an integer,
-        returns blank dataset initialized with the given number of items.
+        Add an output slot to the current job. Optionally returns the
+        corresponding empty dataset if ``alloc`` is specified.
 
         Args:
             type (Datatype): cryo-EM datatype for this output, e.g., "particle"
@@ -749,7 +740,8 @@ class ExternalJob(Job):
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to [].
             passthrough (str, optional): Indicates that this output inherits
-                slots from input with the specified name. Defaults to False.
+                slots from input with the specified name. The existing input
+                must first be added with ``add_input()``. Defaults to False.
             title (str, optional): Human-readable title for this input. Defaults
                 to None.
             alloc (int, optional): If specified, returns a blank dataset with
@@ -757,7 +749,10 @@ class ExternalJob(Job):
                 Defaults to None.
 
         Returns:
-            str | Dataset: Output name or empty dataset if alloc was specified.
+            str | Dataset: Name of the created output. If ``alloc`` is
+                specified as an integer, instead returns blank dataset with the
+                given size and random UIDs. If ``alloc`` is specified as a
+                Dataset, returns blank dataset with the same UIDs.
 
         Examples:
 
@@ -827,7 +822,7 @@ class ExternalJob(Job):
         Examples:
 
             Connect J3 to CTF-corrected micrographs from J2's ``micrographs``
-            output
+            output.
 
             >>> cs = CryoSPARC()
             >>> project = cs.find_project("P3")
