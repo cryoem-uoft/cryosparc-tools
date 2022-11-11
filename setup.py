@@ -23,7 +23,7 @@ elif DEBUG:
 
 setup(
     name="cryosparc_tools",
-    version="4.0.0",
+    version="4.0.1",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["src/dataset.h"],
     package_data={"cryosparc": ["src/dataset.h", "cryosparc/core.pyx"]},
