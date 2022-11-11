@@ -1,7 +1,7 @@
 from typing import Optional
 import numpy as n
 
-from ._data import Data
+from .core import Data
 from .dtype import Field, fielddtype
 from .util import hashcache, strencodenull
 
