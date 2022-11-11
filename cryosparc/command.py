@@ -174,6 +174,9 @@ def make_request(
                 f"HTTP Error {error.code} {error.reason}; "
                 f"please check cryosparcm log {client.service} for additional information."
             )
+            if error.readable():
+                error_reason += "\nResponse from server: " + str(error.read())
+
             print(f"*** {type(client).__name__}: ({url}) {error_reason}")
             break
         except URLError as error:
