@@ -93,7 +93,7 @@ class Project:
             raise TypeError(f"Job {self.uid}-{job_uid} is not an external job")
         return job
 
-    def create_workspace(self, title: str, desc: Optional[str] = None, user: Optional[str] = None) -> str:
+    def create_workspace(self, title: str, desc: Optional[str] = None) -> str:
         """
         Create a new empty workspace in this project. At least a title must be
         provided.
@@ -101,22 +101,17 @@ class Project:
         Args:
             title (str): Title of new workspace
             desc (str, optional): Markdown text description. Defaults to None.
-            user (str, optional): Unique identifier (email, _id) for user
-                account creating this workspace. Set to project owner if not
-                specified. Defaults to None.
 
         Returns:
             str: UID of created workspace.
         """
-        user_id: str = self.cs.cli.get_user_id(user) if user else None  # type: ignore
         return self.cs.cli.create_empty_workspace(  # type: ignore
-            project_uid=self.uid, created_by_user_id=user_id, title=title, desc=desc
+            project_uid=self.uid, created_by_user_id=self.cs.user_id, title=title, desc=desc
         )
 
     def create_external_job(
         self,
         workspace_uid: Optional[str] = None,
-        user: Optional[str] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,
     ) -> ExternalJob:
@@ -126,9 +121,6 @@ class Project:
         Args:
             workspace_uid (str, optional): Workspace UID to create job in.
                 Created in latest workspace if not specified. Defaults to None.
-            user (str, optional): Unique identifier (email, _id) for user
-                account creating this job. Set to project owner if not
-                specified. Defaults to None.
             title (str, optional): Title for external job (recommended).
                 Defaults to None.
             desc (str, optional): Markdown description for external job.
@@ -138,7 +130,7 @@ class Project:
             ExternalJob: created external job instance
         """
         job_uid: str = self.cs.vis.create_external_job(  # type: ignore
-            project_uid=self.uid, workspace_uid=workspace_uid, user=user, title=title, desc=desc
+            project_uid=self.uid, workspace_uid=workspace_uid, user=self.cs.user_id, title=title, desc=desc
         )
         return self.find_external_job(job_uid)
 
@@ -150,7 +142,6 @@ class Project:
         slots: Optional[List[Union[str, Datafield]]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
         workspace_uid: Optional[str] = None,
-        user: Optional[str] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,
     ) -> str:
@@ -183,7 +174,6 @@ class Project:
             ...     name='particles',
             ...     slots=['location'],
             ...     passthrough=('J42', 'selected_particles'),
-            ...     user='ali@example.com',
             ...     title='Re-centered particles'
             ... )
             "J44"
@@ -203,8 +193,6 @@ class Project:
             workspace_uid (str, optional): Workspace UID to save results into.
                 If not specified, uses same workspace as passthrough or most
                 recent workspace. Defaults to None.
-            user (str, optional): Unique identifier (email, _id) of user account
-                saving this output. Defaults to None.
             title (str, optional): Human-readable title for this output.
                 Defaults to None.
             desc (str, optional): Markdown description for this output. Defaults
@@ -229,7 +217,7 @@ class Project:
             name=name,
             slots=slots,
             passthrough=passthrough_str,
-            user=user,
+            user=self.cs.user_id,
             title=title,
             desc=desc,
         )

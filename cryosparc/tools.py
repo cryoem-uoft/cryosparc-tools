@@ -81,15 +81,20 @@ class CryoSPARC:
 
     cli: CommandClient
     vis: CommandClient
+    user_id: str  # session user ID
 
     def __init__(
         self,
         license: str = os.getenv("CRYOSPARC_LICENSE_ID", ""),
+        email: str = os.getenv("CRYOSPARC_EMAIL", ""),
+        password: str = os.getenv("CRYOSPARC_PASSWORD", ""),
         host: str = "localhost",
         port: int = 39000,
         timeout: int = 300,
     ):
         assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified CryoSPARC license ID {license}"
+        assert email, f"Invalid or unspecified email"
+        assert password, f"Invalid or unspecified password"
 
         self.cli = CommandClient(
             service="command_core", host=host, port=port + 2, headers={"License-ID": license}, timeout=timeout
@@ -97,6 +102,7 @@ class CryoSPARC:
         self.vis = CommandClient(
             service="command_vis", host=host, port=port + 3, headers={"License-ID": license}, timeout=timeout
         )
+        self.user_id = self.cli.get_id_by_email_password(email, password)  # type: ignore
 
     def test_connection(self):
         """
