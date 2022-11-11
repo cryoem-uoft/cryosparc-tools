@@ -42,6 +42,9 @@ cdef class Data:
     def type(self, str field):
         return cdataset.dset_type(self._handle, field.encode())
 
+    def has(self, str field):
+        return self.type(field) > 0
+
     def addrows(self, int num):
         return cdataset.dset_addrows(self._handle, num)
 
@@ -52,7 +55,9 @@ cdef class Data:
         return cdataset.dset_addcol_array(self._handle, field.encode(), dtype, shape0, shape1, shape2)
 
     def getshp(self, str colkey):
-        return cdataset.dset_getshp(self._handle, colkey.encode())
+        cdef int val = cdataset.dset_getshp(self._handle, colkey.encode())
+        cdef tuple shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
+        return tuple(s for s in shape if s != 0)
 
     def getbuf(self, str colkey):
         cdef void *mem

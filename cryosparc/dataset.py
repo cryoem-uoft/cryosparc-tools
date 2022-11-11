@@ -28,8 +28,20 @@ import numpy.core.records
 if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
 
-from ._data import Data
-from .dtype import Field, decode_fields, makefield, encode_fields, fielddtype, arraydtype, safe_makefield
+from .core import Data
+from .dtype import (
+    TYPE_TO_DSET_MAP,
+    DsetType,
+    Field,
+    decode_fields,
+    get_data_field,
+    get_data_field_dtype,
+    makefield,
+    encode_fields,
+    fielddtype,
+    arraydtype,
+    safe_makefield,
+)
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
@@ -544,7 +556,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         if isinstance(allocate, Dataset):
             # Copy constructor, create copy of underlying data
-            self._data = allocate._data.copy()
+            self._data = Data(allocate._data)
             return
 
         if isinstance(allocate, Data):
@@ -598,7 +610,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         Iterate over the fields in this dataset
         """
-        return self._data.__iter__()
+        for i in range(self._data.ncol()):
+            yield self._data.key(i)
 
     def __getitem__(self, key: str) -> Column:
         """
@@ -610,7 +623,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             Column: NDArray subclass for column data access
         """
-        return Column(makefield(key, self._data[key]), self._data)
+        return Column(get_data_field(self._data, key), self._data)
 
     def __setitem__(self, key: str, val: "ArrayLike"):
         """
@@ -628,7 +641,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             key (str): Field name
             val (ArrayLike): numpy array or value to assign
         """
-        assert key in self._data, f"Cannot set non-existing dataset key {key}; use add_fields() first"
+        assert self._data.has(key), f"Cannot set non-existing dataset key {key}; use add_fields() first"
         if isinstance(val, n.ndarray):
             if val.dtype.char == "S":
                 val = n.vectorize(hashcache(bytes.decode), otypes="O")(val)
@@ -719,7 +732,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             list[Field]: Fields
         """
-        return [makefield(f, dt) for f, dt in self._data.items() if not exclude_uid or f != "uid"]
+        return [get_data_field(self._data, self._data.key(i)) for i in range(self._data.ncol())]
 
     def copy(self):
         """
@@ -741,7 +754,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             list[str]: List of field names
         """
-        return [k for k in self._data if not exclude_uid or k != "uid"]
+        keys = [self._data.key(i) for i in range(self._data.ncol())]
+        return [k for k in keys if k != "uid"] if exclude_uid else keys
 
     def prefixes(self) -> List[str]:
         """
@@ -826,16 +840,26 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         else:
             desc = fields  # type: ignore
 
-        object_fields = []
         for field in desc:
-            if field[0] not in self._data:
-                dt = self._data.addcol(field)
-                if dt == "|O":
-                    object_fields.append(field[0])
-
-        # Reset all object fields to empty string
-        for f in object_fields:
-            self[f] = ""
+            if self._data.has(field[0]):
+                continue  # already added
+            name = field[0]
+            dt = n.dtype(fielddtype(field))
+            if dt.shape:
+                assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
+                shape = [0] * 3
+                shape[0 : len(dt.shape)] = dt.shape
+                assert self._data.addcol_array(
+                    name, TYPE_TO_DSET_MAP[dt.base.type], *shape
+                ), f"Could not add {field} with dtype {dt}"
+            elif dt.char in {"O", "S", "U"}:  # all python string object types
+                assert self._data.addcol_scalar(name, DsetType.T_OBJ), f"Could not add {field} with dtype {dt}"
+                self[name] = ""  # Reset object field to empty string
+            else:
+                assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
+                assert self._data.addcol_scalar(
+                    name, TYPE_TO_DSET_MAP[dt.type]
+                ), f"Could not add {field} with dtype {dt}"
 
         return self._reset()
 
@@ -971,7 +995,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         current_fields = self.fields()
         missing_fields = [
-            makefield(new, self._data[old]) for old, new in zip(old_fields, new_fields) if new not in current_fields
+            makefield(new, get_data_field_dtype(self._data, old))
+            for old, new in zip(old_fields, new_fields)
+            if new not in current_fields
         ]
         if missing_fields:
             self.add_fields(missing_fields)
