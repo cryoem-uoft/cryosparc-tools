@@ -12,7 +12,7 @@ Examples:
 """
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Union
+from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
 import os
 import re
 import tempfile
@@ -24,9 +24,11 @@ if TYPE_CHECKING:
 from . import mrc
 from .command import CommandClient, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
+from .row import R
 from .project import Project
-from .job import Job
-from .spec import AssetDetails
+from .workspace import Workspace
+from .job import ExternalJob, Job
+from .spec import AssetDetails, Datafield, Datatype
 from .util import bopen, padarray, trimarray
 
 
@@ -83,6 +85,10 @@ class CryoSPARC:
     vis: CommandClient
     user_id: str  # session user ID
 
+    # @classmethod
+    # def set_dataset_class(cls, dataset_class: Type[Dataset]):
+    #     pass # TODO
+
     def __init__(
         self,
         license: str = os.getenv("CRYOSPARC_LICENSE_ID", ""),
@@ -93,8 +99,8 @@ class CryoSPARC:
         timeout: int = 300,
     ):
         assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified CryoSPARC license ID {license}"
-        assert email, f"Invalid or unspecified email"
-        assert password, f"Invalid or unspecified password"
+        assert email, "Invalid or unspecified email"
+        assert password, "Invalid or unspecified password"
 
         self.cli = CommandClient(
             service="command_core", host=host, port=port + 2, headers={"License-ID": license}, timeout=timeout
@@ -140,6 +146,21 @@ class CryoSPARC:
         project.refresh()
         return project
 
+    def find_workspace(self, project_uid: str, workspace_uid: str) -> Workspace:
+        """
+        Get a workspace accessor instance for the workspace in the given project
+        with the given UID. Fails with an error if workspace does not exist.
+
+        Args:
+            project_uid (str): Project unique ID, e.g,. "P3"
+            workspace_uid (str): Workspace unique ID, e.g., "W1"
+
+        Returns:
+            Workspace: accessor instance
+        """
+        workspace = Workspace(self, project_uid, workspace_uid)
+        return workspace.refresh()
+
     def find_job(self, project_uid: str, job_uid: str) -> Job:
         """
         Get a job by its unique project and job ID.
@@ -154,6 +175,164 @@ class CryoSPARC:
         job = Job(self, project_uid, job_uid)
         job.refresh()
         return job
+
+    def find_external_job(self, project_uid: str, job_uid: str) -> ExternalJob:
+        """
+        Get the External job accessor instance for an External job in this
+        project with the given UID. Fails if the job does not exist or is not an
+        external job.
+
+        Args:
+            project_uid (str): Project unique ID, e.g,. "P3"
+            job_uid (str): Job unique ID, e.g,. "J42"
+
+        Raises:
+            TypeError: If job is not an external job
+
+        Returns:
+            ExternalJob: accessor instance
+        """
+        job = ExternalJob(self, project_uid, job_uid)
+        job.refresh()
+        if job.doc["job_type"] != "snowflake":
+            raise TypeError(f"Job {project_uid}-{job_uid} is not an external job")
+        return job
+
+    def create_workspace(self, project_uid: str, title: str, desc: Optional[str] = None) -> Workspace:
+        """
+        Create a new empty workspace in the given project.
+
+        Args:
+            project_uid (str): Project UID to create in, e.g., "P3".
+            title (str): Title of new workspace.
+            desc (str, optional): Markdown text description. Defaults to None.
+
+        Returns:
+            Workspace: created workspace instance
+        """
+        workspace_uid: str = self.cs.cli.create_empty_workspace(  # type: ignore
+            project_uid=project_uid, created_by_user_id=self.user_id, title=title, desc=desc
+        )
+        return self.find_workspace(project_uid, workspace_uid)
+
+    def create_external_job(
+        self,
+        project_uid: str,
+        workspace_uid: str,
+        title: Optional[str] = None,
+        desc: Optional[str] = None,
+    ) -> ExternalJob:
+        """
+        Add a new External job to this project to save generated outputs to.
+
+        Args:
+            project_uid (str): Project UID to create in, e.g., "P3"
+            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+            title (str, optional): Title for external job (recommended).
+                Defaults to None.
+            desc (str, optional): Markdown description for external job.
+                Defaults to None.
+
+        Returns:
+            ExternalJob: created external job instance
+        """
+        job_uid: str = self.cs.vis.create_external_job(  # type: ignore
+            project_uid=project_uid, workspace_uid=workspace_uid, user=self.user_id, title=title, desc=desc
+        )
+        return self.find_external_job(project_uid, job_uid)
+
+    def save_external_result(
+        self,
+        project_uid: str,
+        workspace_uid: Optional[str],
+        dataset: Dataset[R],
+        type: Datatype,
+        name: Optional[str] = None,
+        slots: Optional[List[Union[str, Datafield]]] = None,
+        passthrough: Optional[Tuple[str, str]] = None,
+        title: Optional[str] = None,
+        desc: Optional[str] = None,
+    ) -> str:
+        """
+        Save the given result dataset to the project. Specify at least the
+        dataset to save and the type of data.
+
+        Returns UID of the External job where the results were saved.
+
+        Examples:
+
+            Save all particle data
+
+            >>> particles = Dataset()
+            >>> cs.save_external_result("P1", "W1", particles, 'particle')
+            "J43"
+
+            Save new particle locations that inherit passthrough slots from a
+            parent job
+
+            >>> particles = Dataset()
+            >>> cs.save_external_result(
+            ...     project_uid="P1",
+            ...     workspace_uid="W1",
+            ...     dataset=particles,
+            ...     type='particle',
+            ...     name='particles',
+            ...     slots=['location'],
+            ...     passthrough=('J42', 'selected_particles'),
+            ...     title='Re-centered particles'
+            ... )
+            "J44"
+
+        Args:
+            project_uid (str): Project UID to save results into.
+            workspace_uid (str | None): Workspace UID to save results into.
+                Specify ``None`` to auto-select a workspace.
+            dataset (Dataset): Result dataset.
+            type (Datatype): Type of output dataset.
+            name (str, optional): Name of output on created External job. Same
+                as type if unspecified. Defaults to None.
+            slots (list[str | Datafield], optional): List of slots expected to
+                be created for this output such as ``location`` or ``blob``. Do
+                not specify any slots that were passed through from an input
+                unless those slots are modified in the output. Defaults to None.
+            passthrough (tuple[str, str], optional): Indicates that this output
+                inherits slots from the specified output. e.g.,
+                ``("J1", "particles")``. Defaults to None.
+
+            title (str, optional): Human-readable title for this output.
+                Defaults to None.
+            desc (str, optional): Markdown description for this output. Defaults
+                to None.
+
+        Returns:
+            str: UID of created job where this output was saved
+        """
+        # Check slot names if present. If not provided, use all slots specified
+        # in the dataset prefixes.
+        prefixes = dataset.prefixes()
+        if slots is None:
+            slots = list(prefixes)
+        slot_names = {s if isinstance(s, str) else s["prefix"] for s in slots}
+        assert slot_names.intersection(prefixes) == slot_names, "Given dataset missing required slots"
+
+        passthrough_str = ".".join(passthrough) if passthrough else None
+        job_uid, output = self.cs.vis.create_external_result(  # type: ignore
+            project_uid=project_uid,
+            workspace_uid=workspace_uid,
+            type=type,
+            name=name,
+            slots=slots,
+            passthrough=passthrough_str,
+            user=self.user_id,
+            title=title,
+            desc=desc,
+        )
+
+        job = self.find_external_job(project_uid, job_uid)
+        with job.run():
+            job.save_output(output, dataset)
+
+        return job.uid
 
     def download(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
         """

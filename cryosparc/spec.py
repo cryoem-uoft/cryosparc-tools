@@ -16,9 +16,12 @@ Examples:
       "J118/J118_003_particles.cs"
     ]
 """
-from typing import Dict, List, Optional, Tuple, Union
+from abc import ABC, abstractmethod
+from typing import Dict, Generic, List, Optional, Tuple, TypeVar, Union
 from typing_extensions import Literal, TypedDict
 
+# Database document
+D = TypeVar("D", bound=TypedDict)
 
 Datatype = Literal["exposure", "particle", "template", "volume", "mask"]
 
@@ -355,6 +358,78 @@ class OutputResult(TypedDict):
     """If True, this result is passed through as-is from an associated input."""
 
 
+class ProjectLastAccessed(TypedDict, total=False):
+    """
+    Details on when a project was last accessed.
+    """
+
+    name: str
+    """User account name that accessed this project."""
+
+    accessed_at: str
+    """Last access date in ISO 8601 format."""
+
+
+class ProjectDocument(TypedDict):
+    """
+    Specification for a project document in the MongoDB database.
+    """
+
+    _id: str
+    """MongoDB ID"""
+
+    uid: str
+    """Project unique ID, e.g., "J42"."""
+
+    uid_num: int
+    """Project number, e.g., 42."""
+
+    title: str
+    """Human-readable Project title."""
+
+    description: str
+    """Human-readable project markdown description."""
+
+    project_dir: str
+    """Project directory on disk. May include unresolved shell variables."""
+
+    project_params_pdef: dict
+    """Project-level job parameter default definitions."""
+
+    owner_user_id: str
+    """Object ID of user account that created this project."""
+
+    created_at: str
+    """Project creation date in ISO 8601 format."""
+
+    deleted: bool
+    """Whether this project has been deleted from the interface."""
+
+    users_with_access: List[str]
+    """Object IDs of user accounts that may access this project."""
+
+    size: int
+    """Computed size of project on disk."""
+
+    last_accessed: ProjectLastAccessed
+    """Details about when the project was last accessed by a user account."""
+
+    archived: bool
+    """Whether this project has been marked as archived from the inteface."""
+
+    detached: bool
+    """Whether this project is detached."""
+
+    hidden: bool
+    """Whether this project is hidden."""
+
+    project_stats: dict
+    """Computed project statistics."""
+
+    generate_intermediate_results: bool
+    """Whether intermediate results should be generated on this project."""
+
+
 class JobDocument(TypedDict):
     """
     Specification for a Job document from the MongoDB database.
@@ -365,6 +440,7 @@ class JobDocument(TypedDict):
 
     uid: str
     """Job unique ID, e.g., "J42"."""
+
     uid_num: int
     """Job number, e.g., 42."""
 
@@ -453,3 +529,19 @@ class WorkspaceDocument(TypedDict):
 
     workspace_type: Literal["base", "live"]
     """Either "live" or "base". """
+
+
+# Base class for Project, Workspace and Job classes.
+class DatabaseEntity(ABC, Generic[D]):
+    _doc: Optional[D] = None
+
+    @property
+    def doc(self) -> D:
+        if not self._doc:
+            self.refresh()
+        assert self._doc, "Could not refresh database document"
+        return self._doc
+
+    @abstractmethod
+    def refresh(self):
+        return self

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import shutil
 from time import time
+from typing import Any, Dict
 import urllib.request
 import pytest
 import httpretty
@@ -26,39 +27,25 @@ class Dataset(BaseDataset[Row]):
 
 
 def request_callback_core(request, uri, response_headers):
-    procs = ["hello_world", "get_project", "get_job", "job_send_streamlog"]  # Possible methods list
     body = json.loads(request.body)
-
-    res = None
-    if body["method"] == "system.describe":
-        procs = [{"name": m} for m in procs]
-        res = {"procs": procs}
-    elif body["method"] == "hello_world":
-        res = {"hello": "world"}
-    elif body["method"] == "get_project":
-        res = {"uid": "P1", "title": "My Project"}
-    elif body["method"] == "get_project_dir_abs":
-        res = "/projects/my-project"
-    elif body["method"] == "job_send_streamlog":
-        res = None
-
+    procs = {
+        "hello_world": {"hello": "world"},
+        "get_id_by_email_password": "6372a35e821ed2b71d9fe4e3",
+        "get_project_dir_abs": "/projects/my-project",
+        "get_project": {"uid": "P1", "title": "My Project"},
+        "job_send_streamlog": None,
+    }
+    procs["system.describe"] = {"procs": [{"name": m} for m in procs]}
     response_headers["content-type"] = "application/json"
-    return [200, response_headers, json.dumps({"result": res})]
+    return [200, response_headers, json.dumps({"result": procs[body["method"]]})]
 
 
 def request_callback_vis(request, uri, response_headers):
-    procs = ["hello_world"]  # Possible methods list
     body = json.loads(request.body)
-
-    res = None
-    if body["method"] == "system.describe":
-        procs = [{"name": m} for m in procs]
-        res = {"procs": procs}
-    elif body["method"] == "hello_world":
-        res = {"hello": "world"}
-
+    procs: Dict[str, Any] = {"hello_world": {"hello": "world"}}
+    procs["system.describe"] = {"procs": [{"name": m} for m in procs]}
     response_headers["content-type"] = "application/json"
-    return [200, response_headers, json.dumps({"result": res})]
+    return [200, response_headers, json.dumps({"result": procs[body["method"]]})]
 
 
 @pytest.fixture(scope="session")
@@ -165,7 +152,7 @@ def cs():
     httpretty.enable(verbose=False, allow_net_connect=False)
     httpretty.register_uri(httpretty.POST, "http://localhost:39002/api", body=request_callback_core)  # type: ignore
     httpretty.register_uri(httpretty.POST, "http://localhost:39003/api", body=request_callback_vis)  # type: ignore
-    yield CryoSPARC(license="00000000-0000-0000-0000-000000000000")
+    yield CryoSPARC(license="00000000-0000-0000-0000-000000000000", email="test@structura.bio", password="password")
     httpretty.disable()
     httpretty.reset()
 

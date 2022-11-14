@@ -17,6 +17,7 @@ from .spec import (
     TEXT_CONTENT_TYPES,
     AssetDetails,
     AssetFormat,
+    DatabaseEntity,
     ImageFormat,
     TextFormat,
     EventLogAsset,
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
     from .tools import CryoSPARC
 
 
-class Job:
+class Job(DatabaseEntity[JobDocument]):
     """
     Accessor class to a job in CryoSPARC with ability to load inputs and
     outputs, add to job log, download job files. Should be instantiated
@@ -45,22 +46,10 @@ class Job:
         project.html#cryosparc.project.Project.find_job
     """
 
-    _doc: Optional[JobDocument] = None
-
     def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
         self.cs = cs
         self.project_uid = project_uid
         self.uid = uid
-
-    @property
-    def doc(self) -> JobDocument:
-        """
-        dict: Raw job document from CryoSPARC database.
-        """
-        if not self._doc:
-            self.refresh()
-        assert self._doc, "Could not refresh job document"
-        return self._doc
 
     def refresh(self):
         """
@@ -971,4 +960,4 @@ class ExternalJob(Job):
             error = True
             raise
         finally:
-            self.stop(error)
+            self.stop(error)  # TODO: Write Error to job log, if possible
