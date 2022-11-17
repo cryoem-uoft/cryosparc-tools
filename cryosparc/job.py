@@ -508,11 +508,11 @@ class Job(MongoController[JobDocument]):
 
         Args:
             path_rel (str | Path): Relative path to file in job directory.
-            target (str | Path | IO): Relative local path or writeable file
-                handle to write response file into.
+            target (str | Path | IO): Local file path, directory path or writeable
+                file handle to write response data.
 
         Returns:
-            str | Path | IO: the resulting target path or file handle
+            Path | IO: resulting target path or file handle.
         """
         path_rel = PurePosixPath(self.uid) / path_rel
         return self.cs.download_file(self.project_uid, path_rel, target)
@@ -563,7 +563,11 @@ class Job(MongoController[JobDocument]):
 
         Args:
             fileid (str): GridFS file object ID
-            target (str | Path | IO): Writable download destination path or file handle
+            target (str | Path | IO): Local file path, directory path or
+                writeable file handle to write response data.
+
+        Returns:
+            Path | IO: resulting target path or file handle.
         """
         return self.cs.download_asset(fileid, target)
 

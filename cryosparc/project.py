@@ -284,11 +284,11 @@ class Project(MongoController[ProjectDocument]):
 
         Args:
             path_rel (str | Path): Relative path of file in project directory.
-            target (str | Path | IO): Relative local path or writeable file
-                handle to write response file into.
+            target (str | Path | IO): Local file path, directory path or writeable
+                file handle to write response data.
 
         Returns:
-            str | Path | IO: resulting target path or file handle.
+            Path | IO: resulting target path or file handle.
         """
         return self.cs.download_file(self.uid, path_rel, target)
 

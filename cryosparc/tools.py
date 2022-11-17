@@ -11,7 +11,7 @@ Examples:
 
 """
 from io import BytesIO
-from pathlib import PurePath, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 import os
 import re
@@ -28,7 +28,16 @@ from .row import R
 from .project import Project
 from .workspace import Workspace
 from .job import ExternalJob, Job
-from .spec import AssetDetails, Datafield, Datatype, JobSection, SchedulerLane, SchedulerTarget
+from .spec import (
+    ASSET_CONTENT_TYPES,
+    ASSET_EXTENSIONS,
+    AssetDetails,
+    Datafield,
+    Datatype,
+    JobSection,
+    SchedulerLane,
+    SchedulerTarget,
+)
 from .util import bopen, padarray, trimarray
 
 
@@ -480,14 +489,18 @@ class CryoSPARC:
         Args:
             project_uid (str): project unique ID, e.g., "P3"
             path_rel (str | Path): Relative path of file in project directory.
-            target (str | Path | IO): Relative local path or writeable file
-                handle to write response file into.
+            target (str | Path | IO): Local file path, directory path or writeable
+                file handle to write response data.
 
         Returns:
-            str | Path | IO: resulting target path or file handle.
+            Path | IO: resulting target path or file handle.
         """
-        with self.download(project_uid, path_rel) as response:
-            with bopen(target, "wb") as f:
+        if isinstance(target, (str, PurePath)):
+            target = Path(target)
+            if target.is_dir():
+                target /= PurePath(path_rel).name
+        with bopen(target, "wb") as f:
+            with self.download(project_uid, path_rel) as response:
                 data = response.read(ONE_MIB)
                 while data:
                     f.write(data)
@@ -572,15 +585,28 @@ class CryoSPARC:
 
         Args:
             fileid (str): GridFS file object ID
-            target (str | Path | IO): Writeable local download destination path
-                or file handle
+            target (str | Path | IO): Local file path, directory path or
+                writeable file handle to write response data.
+
+        Returns:
+            Path | IO: resulting target path or file handle.
         """
         with make_json_request(self.vis, url="/get_job_file", data={"fileid": fileid}) as response:
+            if isinstance(target, (str, PurePath)):
+                target = Path(target)
+                if target.is_dir():
+                    # Try to get download filename and content type from
+                    # headers. If cannot be determined, defaults to "file.dat"
+                    content_type: str = response.headers.get_content_type()
+                    attachment_filename: Optional[str] = response.headers.get_filename()
+                    target /= attachment_filename or f"file.{ASSET_EXTENSIONS.get(content_type, 'dat')}"
             with bopen(target, "wb") as f:
                 data = response.read(ONE_MIB)
                 while data:
                     f.write(data)
                     data = response.read(ONE_MIB)
+
+            return target
 
     def upload(
         self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]

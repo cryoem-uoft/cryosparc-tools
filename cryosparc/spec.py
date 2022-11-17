@@ -43,7 +43,7 @@ Possible job status values.
 """
 
 # Valid plot file types
-TextFormat = Literal["txt", "csv", "json", "xml"]
+TextFormat = Literal["txt", "csv", "html", "json", "xml"]
 """
 Supported job stream log asset file text formats.
 """
@@ -61,6 +61,7 @@ Supported job stream log asset file formats.
 TextContentType = Literal[
     "text/plain",
     "text/csv",
+    "text/html",
     "application/json",
     "application/xml",
 ]
@@ -87,6 +88,7 @@ Supported job asset MIME types.
 TEXT_CONTENT_TYPES: Dict[TextFormat, TextContentType] = {
     "txt": "text/plain",
     "csv": "text/csv",
+    "html": "text/html",
     "json": "application/json",
     "xml": "application/xml",
 }
@@ -101,6 +103,7 @@ IMAGE_CONTENT_TYPES: Dict[ImageFormat, ImageContentType] = {
 }
 
 ASSET_CONTENT_TYPES: Dict[AssetFormat, AssetContentType] = {**TEXT_CONTENT_TYPES, **IMAGE_CONTENT_TYPES}  # type: ignore
+ASSET_EXTENSIONS = {v: k for k, v in ASSET_CONTENT_TYPES.items()}
 
 
 class AssetDetails(TypedDict):
@@ -758,7 +761,7 @@ class SchedulerTargetNode(BaseSchedulerTarget):
 
 class SchedulerTargetGpuNode(SchedulerTargetNode):
     """
-    node-type scheduler target that includes GPUs. Inherits from 
+    node-type scheduler target that includes GPUs. Inherits from
     BaseSchedulerTarget_ and SchedulerTargetNode_.
 
     .. _BaseSchedulerTarget:
