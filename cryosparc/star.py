@@ -613,16 +613,16 @@ def write(
 
         >>> from cryosparc import star
         >>> star.write('one.star', [
-        >>>     (123., 456.),
-        >>>     (789., 987.)
-        >>> ], labels=['rlnCoordinateX', 'rlnCoordinateY'])
+        ...     (123., 456.),
+        ...     (789., 987.)
+        ... ], labels=['rlnCoordinateX', 'rlnCoordinateY'])
 
         With numpy record array
 
         >>> arr  = np.core.records.fromrecords([
-        >>>     (123., 456.),
-        >>>     (789., 987.)
-        >>> ], names=[('rlnCoordinateX', 'f8') , ('rlnCoordinateY', 'f8')])
+        ...     (123., 456.),
+        ...     (789., 987.)
+        ... ], names=[('rlnCoordinateX', 'f8') , ('rlnCoordinateY', 'f8')])
         >>> star.write('two.star', arr)
     """
     if not isinstance(data, n.ndarray):
@@ -647,15 +647,15 @@ def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDAr
         >>> from cryosparc import star
         >>> import numpy as np
         >>> optics = np.core.records.fromrecords([
-        >>>     ('mydata', ..., 0.1, 0.1)
-        >>> ], names='rlnOpticsGroupName,...,rlnBeamTiltX,rlnBeamTiltY'])
+        ...     ('mydata', ..., 0.1, 0.1)
+        ... ], names='rlnOpticsGroupName,...,rlnBeamTiltX,rlnBeamTiltY'])
         >>> particles = np.core.records.fromrecords([
-        >>>     (123., 456.), ... (789., 987.),
-        >>> ], names='rlnCoordinateX,rlnCoordinateY')
+        ...     (123., 456.), ... (789., 987.),
+        ... ], names='rlnCoordinateX,rlnCoordinateY')
         >>> star.write('particles.star', {
-        >>>     'optics': optics,
-        >>>     'particles': particles
-        >>> })
+        ...     'optics': optics,
+        ...     'particles': particles
+        ... })
     """
     # Check that each value has labels to write
     entries = []
