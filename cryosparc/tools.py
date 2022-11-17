@@ -673,6 +673,74 @@ class CryoSPARC:
             f.seek(0)
             return self.upload(project_uid, target_path_rel, f)
 
+    def mkdir(
+        self,
+        project_uid: str,
+        target_path_rel: Union[str, PurePosixPath],
+        parents: bool = False,
+        exist_ok: bool = False,
+    ):
+        """
+        Create a directory in the given project.
+
+        Args:
+            project_uid (str): Target project directory
+            target_path_rel (str | Path): Relative path to create inside project
+                directory.
+            parents (bool, optional): If True, any missing parents are created
+                as needed. Defaults to False.
+            exist_ok (bool, optional): If True, does not raise an error for
+                existing directories. Still raises if the target path is not a
+                directory. Defaults to False.
+        """
+        self.vis.project_mkdir(  # type: ignore
+            project_uid=project_uid,
+            path_rel=target_path_rel,
+            parents=parents,
+            exist_ok=exist_ok,
+        )
+
+    def copy_to(
+        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source_path_rel: Union[str, PurePosixPath]
+    ):
+        """
+        Copy a file or folder within a project to another location within that
+        same project. Note that argument order is reversed from
+        equivalent ``cp`` command.
+
+        Args:
+            project_uid (str): Target project UID, e.g., "P3".
+            target_path_rel (str | Path): Relative path in project to copy to.
+            source_path_rel (str | Path): Relative path in project of source
+                file or folder to copy.
+        """
+        self.vis.copy_project_path_to(  # type: ignore
+            project_uid=project_uid,
+            target_path_rel=target_path_rel,
+            source_path_rel=source_path_rel,
+        )
+
+    def symlink_to(
+        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source_path_rel: Union[str, PurePosixPath]
+    ):
+        """
+        Create a symbolic link in the given project. May only create links for
+        files within the project. Note that argument order is reversed from
+        ``ln -s``.
+
+        Args:
+            project_uid (str): Target project UID, e.g., "P3".
+            target_path_rel (str | Path): Relative path in project to new
+                symlink.
+            source_path_rel (str | Path): Relative path in project to file from
+                which to create symlink.
+        """
+        self.vis.create_project_symlink(  # type: ignore
+            project_uid=project_uid,
+            target_path_rel=target_path_rel,
+            source_path_rel=source_path_rel,
+        )
+
 
 def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):
     """
