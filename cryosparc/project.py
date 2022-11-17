@@ -6,14 +6,14 @@ from .workspace import Workspace
 from .job import Job, ExternalJob
 from .dataset import Dataset, DEFAULT_FORMAT
 from .row import R
-from .spec import DatabaseEntity, Datafield, Datatype, ProjectDocument
+from .spec import MongoController, Datafield, Datatype, ProjectDocument
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
     from .tools import CryoSPARC
 
 
-class Project(DatabaseEntity[ProjectDocument]):
+class Project(MongoController[ProjectDocument]):
     """
     Accessor instance for CryoSPARC projects with ability to add workspaces, jobs
     and upload/download project files. Should be instantiated through
@@ -117,9 +117,8 @@ class Project(DatabaseEntity[ProjectDocument]):
         desc: Optional[str] = None,
     ) -> Job:
         """
-        Create a new job with the given type. Use the
-        `CryoSPARC.get_job_sections`_ method to query available job types on
-        the connected CryoSPARC instance.
+        Create a new job with the given type. Use `CryoSPARC.get_job_sections`_
+        to query available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -154,7 +153,7 @@ class Project(DatabaseEntity[ProjectDocument]):
             ...     params={"abinit_K": 3}
             ... )
 
-        .. _CryoSPARC.get_job_sections
+        .. _CryoSPARC.get_job_sections:
             tools.html#cryosparc.tools.CryoSPARC.get_job_sections
         """
         return self.cs.create_job(

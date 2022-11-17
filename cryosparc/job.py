@@ -17,7 +17,7 @@ from .spec import (
     TEXT_CONTENT_TYPES,
     AssetDetails,
     AssetFormat,
-    DatabaseEntity,
+    MongoController,
     ImageFormat,
     JobStatus,
     TextFormat,
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from .tools import CryoSPARC
 
 
-class Job(DatabaseEntity[JobDocument]):
+class Job(MongoController[JobDocument]):
     """
     Accessor class to a job in CryoSPARC with ability to load inputs and
     outputs, add to job log, download job files. Should be instantiated

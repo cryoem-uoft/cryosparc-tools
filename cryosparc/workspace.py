@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from .dataset import Dataset
 from .row import R
 from .job import Job, ExternalJob
-from .spec import DatabaseEntity, Datafield, Datatype, WorkspaceDocument
+from .spec import MongoController, Datafield, Datatype, WorkspaceDocument
 
 if TYPE_CHECKING:
     from .tools import CryoSPARC
 
 
-class Workspace(DatabaseEntity[WorkspaceDocument]):
+class Workspace(MongoController[WorkspaceDocument]):
     def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
         self.cs = cs
         self.project_uid = project_uid

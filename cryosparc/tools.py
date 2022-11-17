@@ -277,9 +277,8 @@ class CryoSPARC:
         desc: Optional[str] = None,
     ) -> Job:
         """
-        Create a new job with the given type. Use the
-        `CryoSPARC.get_job_sections`_ method to query available job types on
-        the connected CryoSPARC instance.
+        Create a new job with the given type. Use `CryoSPARC.get_job_sections`_
+        to query available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -313,7 +312,7 @@ class CryoSPARC:
             ...     params={"abinit_K": 3}
             ... )
 
-        .. _CryoSPARC.get_job_sections
+        .. _CryoSPARC.get_job_sections:
             #cryosparc.tools.CryoSPARC.get_job_sections
         """
         job_uid: str = self.cli.create_new_job(  # type: ignore

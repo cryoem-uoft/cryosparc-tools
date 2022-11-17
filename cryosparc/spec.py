@@ -1,14 +1,16 @@
 """
-Unless otherwise noted, classes defined here are ``TypedDict`` instances which
-whose attributes may be accessed with dictionary syntax.
+Type specifications for CryoSPARC database entities.
+
+Unless otherwise noted, classes defined here represent dictionary instances
+whose attributes may be accessed with dictionary key syntax.
 
 Examples:
 
     Accessing job document details
 
     >>> cs = CryoSPARC()
-    >>> job = cs.find_job("P3", "J42")
-    >>> print(job.doc["output_results"][0]["metafiles"])
+    >>> job = cs.find_job("P3", "J118")
+    >>> job.doc["output_results"][0]["metafiles"]
     [
       "J118/J118_000_particles.cs",
       "J118/J118_001_particles.cs",
@@ -403,7 +405,11 @@ class BaseParam(TypedDict):
 
 class Param(BaseParam):
     """
-    Specifies possible values for type property. Inherits from ``BaseParam``.
+    Specifies possible values for type property. Inherits from
+    BaseParam_.
+
+    .. _BaseParam:
+        #cryosparc.spec.BaseParam
     """
 
     type: Literal["number", "string", "boolean"]
@@ -412,7 +418,10 @@ class Param(BaseParam):
 
 class EnumParam(BaseParam):
     """
-    Additional Param keys available for enum params. Inherits from ``BaseParam``.
+    Additional Param keys available for enum params. Inherits from BaseParam_.
+
+    .. _BaseParam:
+        #cryosparc.spec.BaseParam
     """
 
     type: Literal["enum"]
@@ -428,7 +437,11 @@ class EnumParam(BaseParam):
 
 class PathParam(BaseParam):
     """
-    Additional Param key available for path params. Inherits from ``BaseParam``.
+    Additional Param key available for path params. Inherits Inherits from
+    BaseParam_.
+
+    .. _BaseParam:
+        #cryosparc.spec.BaseParam
     """
 
     type: Literal["path"]
@@ -721,7 +734,10 @@ class BaseSchedulerTarget(TypedDict):
 class SchedulerTargetNode(BaseSchedulerTarget):
     """
     node-type scheduler target that does not include GPUs. Inherits from
-    ``BaseSchedulerTarget``.
+    BaseSchedulerTarget_.
+
+    .. _BaseSchedulerTarget:
+        #cryosparc.spec.BaseSchedulerTarget
     """
 
     type: Literal["node"]
@@ -742,8 +758,13 @@ class SchedulerTargetNode(BaseSchedulerTarget):
 
 class SchedulerTargetGpuNode(SchedulerTargetNode):
     """
-    node-type scheduler target that includes GPUs. Inherits from
-    ``SchedulerTargetNode``.
+    node-type scheduler target that includes GPUs. Inherits from 
+    BaseSchedulerTarget_ and SchedulerTargetNode_.
+
+    .. _BaseSchedulerTarget:
+        #cryosparc.spec.BaseSchedulerTarget
+    .. _SchedulerTargetNode:
+        #cryosparc.spec.SchedulerTargetNode
     """
 
     gpus: List[Gpu]
@@ -752,7 +773,10 @@ class SchedulerTargetGpuNode(SchedulerTargetNode):
 
 class SchedulerTargetCluster(BaseSchedulerTarget):
     """
-    Cluster-type scheduler targets.
+    Cluster-type scheduler targets. Inherits from BaseSchedulerTarget_.
+
+    .. _BaseSchedulerTarget:
+        #cryosparc.spec.BaseSchedulerTarget
     """
 
     type: Literal["cluster"]
@@ -778,7 +802,9 @@ class SchedulerTargetCluster(BaseSchedulerTarget):
 
 
 SchedulerTarget = Union[SchedulerTargetNode, SchedulerTargetGpuNode, SchedulerTargetCluster]
-"""Scheduler target details."""
+"""
+Scheduler target details.
+"""
 
 
 class JobSection(TypedDict):
@@ -810,9 +836,14 @@ class JobSection(TypedDict):
     """Job type identifiers contained by this section."""
 
 
-class DatabaseEntity(ABC, Generic[D]):
+class MongoController(ABC, Generic[D]):
     """
-    Base class for Project, Workspace and Job classes.
+    Abstract base class for Project, Workspace, Job classes and any other types
+    that have underlying Mongo database documents.
+
+    Generic type argument D is a typed dictionary definition for a Mongo
+    document.
+
     :meta private:
     """
 
@@ -827,4 +858,5 @@ class DatabaseEntity(ABC, Generic[D]):
 
     @abstractmethod
     def refresh(self):
+        # Must be implemented in subclasses
         return self
