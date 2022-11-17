@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from io import BytesIO
 import json
 from pathlib import PurePath, PurePosixPath
-from time import sleep
+from time import sleep, time
 from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Union, overload
 from typing_extensions import Literal
 
@@ -19,6 +19,7 @@ from .spec import (
     AssetFormat,
     DatabaseEntity,
     ImageFormat,
+    JobStatus,
     TextFormat,
     EventLogAsset,
     Datatype,
@@ -39,6 +40,31 @@ class Job(DatabaseEntity[JobDocument]):
     outputs, add to job log, download job files. Should be instantiated
     through `CryoSPARC.find_job`_ or `Project.find_job`_.
 
+    Examples:
+
+        Find an existing job.
+
+        >>> cs = CryoSPARC()
+        >>> job = cs.find_job("P3", "J42")
+        >>> job.status
+        "building"
+
+        Queue a job.
+
+        >>> job.queue("worker_lane")
+        >>> job.status
+        "queued"
+
+        Create a 3-class ab-initio job connected to existing particles.
+
+        >>> job = cs.create_job("P3", "W1", "homo_abinit"
+        ...     connections={"particles": ("J20", "particles_selected")}
+        ...     params={"abinit_K": 3}
+        ... )
+        >>> job.queue()
+        >>> job.status
+        "queued"
+
     .. _CryoSPARC.find_job:
         tools.html#cryosparc.tools.CryoSPARC.find_job
 
@@ -50,6 +76,13 @@ class Job(DatabaseEntity[JobDocument]):
         self.cs = cs
         self.project_uid = project_uid
         self.uid = uid
+
+    @property
+    def status(self) -> JobStatus:
+        """
+        JobStatus: scheduling status.
+        """
+        return self.doc["status"]
 
     def refresh(self):
         """
@@ -70,11 +103,220 @@ class Job(DatabaseEntity[JobDocument]):
         """
         return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
 
+    def queue(self, lane: str, hostname: Optional[str] = None, gpus: List[int] = []):
+        """
+        Queue a job to a target lane. Available lanes may be queried from
+        `CryoSPARC.get_lanes`_.
+
+        Optionally specify a hostname in that lane and/or specific GPUs to use
+        for computation. Available hostnames for a given lane may be queried
+        with `CryoSPARC.get_targets`_.
+
+        Args:
+            lane (str): Configuried compute lane to queue to.
+            hostname (str, optional): Specific hostname in compute lane, if more
+                than one is available. Defaults to None.
+            gpus (list[int], optional): GPUs to queue to. If specified, must
+                have as many GPUs as required in job parameters. Leave
+                unspecified to use first available GPU(s). Defaults to [].
+
+        Examples:
+
+            Queue a job to lane named "worker":
+
+            >>> cs = CryoSPARC()
+            >>> job = cs.find_job("P3", "J42")
+            >>> job.status
+            "building"
+            >>> job.queue("worker")
+            >>> job.status
+            "queued"
+
+        .. _CryoSPARC.get_lanes:
+            tools.html#cryosparc.tools.CryoSPARC.get_lanes
+        .. _CryoSPARC.get_targets:
+            tools.html#cryosparc.tools.CryoSPARC.get_targets
+        """
+        self.cs.cli.enqueue_job(  # type: ignore
+            project_uid=self.project_uid,
+            job_uid=self.uid,
+            lane=lane,
+            user_id=self.cs.user_id,
+            hostname=hostname,
+            gpus=gpus if gpus else False,
+        )
+        self.refresh()
+
+    def kill(self):
+        """
+        Kill this job.
+        """
+        self.cs.cli.kill_job(  # type: ignore
+            project_uid=self.project_uid, job_uid=self.uid, killed_by_user_id=self.cs.user_id
+        )
+        self.refresh()
+
+    def wait_for_status(self, status: Union[JobStatus, Iterable[JobStatus]], timeout: Optional[int] = None) -> str:
+        """
+        Wait for a job's status to reach the specified value. Must be one of
+        the following:
+
+        - 'building'
+        - 'queued'
+        - 'launched'
+        - 'started'
+        - 'running'
+        - 'waiting'
+        - 'completed'
+        - 'killed'
+        - 'failed'
+
+        Args:
+            status (str | set[str]): Specific status or set of statuses to wait
+                for. If a set of statuses is specified, waits util job reaches
+                any of the specified statuses.
+            timeout (int, optional): If specified, wait at most this many
+                seconds. Once timeout is reached, returns current status.
+                Defaults to None.
+
+        Returns:
+            str: current job status
+        """
+        statuses = {status} if isinstance(status, str) else set(status)
+        tic = time()
+        self.refresh()
+        while self.status not in statuses:
+            if timeout is not None and time() - tic > timeout:
+                break
+            sleep(5)
+            self.refresh()
+        return self.status
+
+    def wait_for_done(self, error_on_incomplete: bool = False, timeout: Optional[int] = None) -> str:
+        """
+        Wait until a job reaches status "completed", "killed" or "failed".
+
+        Args:
+            error_on_incomplete (bool, optional): If True, raises an assertion
+                error when job finishes with status other than "completed" or
+                timeout is reached. Defaults to False.
+            timeout (int, optional): If specified, wait at most this many
+                seconds. Once timeout is reached, returns current status or
+                fails if ``error_on_incomplete`` is ``True``. Defaults to None.
+        """
+        status = self.wait_for_status({"completed", "killed", "failed"}, timeout=timeout)
+        assert (
+            not error_on_incomplete or status == "completed"
+        ), f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
+        return status
+
     def clear(self):
         """
-        Clear this job
+        Clear this job and put back to building status.
         """
         self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
+        self.refresh()
+
+    def set_param(self, name: str, value: Any, refresh: bool = True) -> bool:
+        """
+        Set the given param name on the current job to the given value. Only
+        works if the job is in "building" status.
+
+        Args:
+            name (str): Param name, as defined in the job document's ``params_base``.
+            value (any): Target parameter value.
+            refresh (bool, optional): Auto-refresh job document after
+                connecting. Defaults to True.
+
+        Returns:
+            bool: False if the job encountered a build error.
+
+        Examples:
+
+            Set the number of GPUs used by a supported job
+
+            >>> cs = CryoSPARC()
+            >>> job = cs.find_job("P3", "J42")
+            >>> job.set_param("compute_num_gpus", 4)
+            True
+        """
+        result: bool = self.cs.cli.job_set_param(  # type: ignore
+            project_uid=self.project_uid, job_uid=self.uid, param_name=name, param_new_value=value
+        )
+        if refresh:
+            self.refresh()
+        return result
+
+    def connect(self, source_job_uid: str, source_output: str, target_input: str, refresh: bool = True) -> bool:
+        """
+        Connect the given input for this job to an output with given job UID and
+        name.
+
+        Args:
+            source_job_uid (str): Job UID to connect from, e.g., "J42"
+            source_output (str): Job output name to connect from , e.g.,
+                "particles"
+            target_input (str): Input name to connect into. Will be created if
+                not specified.
+            refresh (bool, optional): Auto-refresh job document after
+                connecting. Defaults to True.
+
+        Returns:
+            bool: False if the job encountered a build error.
+
+        Examples:
+
+            Connect J3 to CTF-corrected micrographs from J2's ``micrographs``
+            output.
+
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.find_job("J3")
+            >>> job.connect("J2", "micrographs", "input_micrographs")
+
+        """
+        assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
+        result: bool = self.cs.cli.job_connect_group(  # type: ignore
+            project_uid=self.project_uid,
+            source_group=f"{source_job_uid}.{source_output}",
+            dest_group=f"{self.uid}.{target_input}",
+        )
+        if refresh:
+            self.refresh()
+        return result
+
+    def disconnect(self, target_input: str, connection_idx: Optional[int] = None, refresh: bool = True):
+        """
+        Clear the given job input group.
+
+        Args:
+            target_input (str): Name of input to disconnect
+            connection_idx (int, optional): Connection index to clear.
+                Set to 0 to clear the first connection, 1 for the second, etc.
+                If unspecified, clears all connections. Defaults to None.
+            refresh (bool, optional): Auto-refresh job document after
+                connecting. Defaults to True.
+        """
+        if connection_idx is None:
+            # Clear all input connections
+            input_group = first(group for group in self.doc["input_slot_groups"] if group["name"] == target_input)
+            if not input_group:
+                raise ValueError(f"Unknown input group {target_input} for job {self.project_uid}-{self.uid}")
+            for _ in input_group["connections"]:
+                self.cs.cli.job_connected_group_clear(  # type: ignore
+                    project_uid=self.project_uid,
+                    dest_group=f"{self.uid}.{target_input}",
+                    connect_idx=0,
+                )
+        else:
+            self.cs.cli.job_connected_group_clear(  # type: ignore
+                project_uid=self.project_uid,
+                dest_group=f"{self.uid}.{target_input}",
+                connect_idx=connection_idx,
+            )
+
+        if refresh:
+            self.refresh()
 
     def load_input(self, name: str, slots: Iterable[str] = []):
         """
@@ -789,6 +1031,7 @@ class ExternalJob(Job):
         slots: List[Union[str, Datafield]] = [],
         title: str = "",
         desc: str = "",
+        refresh: bool = True,
     ):
         """
         Connect the given input for this job to an output with given job UID and
@@ -807,6 +1050,8 @@ class ExternalJob(Job):
                 Defaults to "".
             desc (str, optional): Human readable description for created input.
                 Defaults to "".
+            refresh (bool, optional): Auto-refresh job document after
+                connecting. Defaults to True.
 
         Examples:
 
@@ -830,7 +1075,8 @@ class ExternalJob(Job):
             title=title,
             desc=desc,
         )
-        self.refresh()
+        if refresh:
+            self.refresh()
 
     def alloc_output(self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0) -> Dataset:
         """

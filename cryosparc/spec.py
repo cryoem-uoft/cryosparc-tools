@@ -17,13 +17,28 @@ Examples:
     ]
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 from typing_extensions import Literal, TypedDict
 
 # Database document
 D = TypeVar("D", bound=TypedDict)
 
 Datatype = Literal["exposure", "particle", "template", "volume", "mask"]
+
+JobStatus = Literal[
+    "building",
+    "queued",
+    "launched",
+    "started",
+    "running",
+    "waiting",
+    "completed",
+    "killed",
+    "failed",
+]
+"""
+Possible job status values.
+"""
 
 # Valid plot file types
 TextFormat = Literal["txt", "csv", "json", "xml"]
@@ -358,6 +373,83 @@ class OutputResult(TypedDict):
     """If True, this result is passed through as-is from an associated input."""
 
 
+class BaseParam(TypedDict):
+    """
+    Base parameter specification.
+    """
+
+    value: bool
+    """Base parameter value. Should not be changed."""
+
+    title: str
+    """Human-readable parameter title."""
+
+    desc: str
+    """Human-readable parameter description."""
+
+    order: int
+    """Parameter order in the builder list."""
+
+    section: str
+    """Parameter section identifier."""
+
+    advanced: bool
+    """True if this is an advanced parameter (hidden unlesss the "Advanced"
+    checkbox is enabled in the Job Builder"."""
+
+    hidden: bool
+    """If True, this parameter is always hidden from the interface."""
+
+
+class Param(BaseParam):
+    """
+    Specifies possible values for type property. Inherits from ``BaseParam``.
+    """
+
+    type: Literal["number", "string", "boolean"]
+    """Possible Parameter type."""
+
+
+class EnumParam(BaseParam):
+    """
+    Additional Param keys available for enum params. Inherits from ``BaseParam``.
+    """
+
+    type: Literal["enum"]
+    """Possible Parameter type."""
+
+    enum_keys: List[str]
+    """Possible enum names for display for selection. Parameter must be set to
+    one of these values."""
+
+    enum_dict: Dict[str, Any]
+    """Map from enum key names to their equivalent values."""
+
+
+class PathParam(BaseParam):
+    """
+    Additional Param key available for path params. Inherits from ``BaseParam``.
+    """
+
+    type: Literal["path"]
+
+    path_dir_allowed: bool
+    """If True, directories may be specified."""
+
+    path_file_allowed: bool
+    """If True, files may be specified."""
+
+    path_glob_allowed: bool
+    """If True, a wildcard string that refers to many files may be specified.."""
+
+
+class ParamSpec(TypedDict):
+    """Param specification. Dictionary with single ``"value"`` key."""
+
+    value: Any
+    """Value of param."""
+
+
 class ProjectLastAccessed(TypedDict, total=False):
     """
     Details on when a project was last accessed.
@@ -459,7 +551,7 @@ class JobDocument(TypedDict):
     description: str
     """Human-readable job markdown description."""
 
-    status: str
+    status: JobStatus
     """Job scheduling status, e.g., "building", "queued", "running"."""
 
     created_at: str
@@ -486,6 +578,15 @@ class JobDocument(TypedDict):
     output_results: List[OutputResult]
     """Aggregated output results specification (similar to
     ``output_result_groups`` with additional field information)."""
+
+    params_base: Dict[str, Union[Param, EnumParam, PathParam]]
+    """Job param specification and their base values. Each key represents a
+    parameter name."""
+
+    params_spec: Dict[str, ParamSpec]
+    """User-specified parameter values. Each key is a parameter value. Not all
+    keys from ``params_base`` are included here, only ones that were explicitly
+    set."""
 
     workspace_uids: List[str]
     """List of workspace UIDs this job belongs to."""
@@ -531,8 +632,190 @@ class WorkspaceDocument(TypedDict):
     """Either "live" or "base". """
 
 
-# Base class for Project, Workspace and Job classes.
+class ResourceSlots(TypedDict):
+    """
+    Listings of available resources on a worker node that may be allocated for
+    scheduling.
+    """
+
+    CPU: List[int]
+    """List of available CPU core indexes."""
+    GPU: List[int]
+    """List of available GPU indexes."""
+    RAM: List[int]
+    """List of available 8GB slots."""
+
+
+class FixedResourceSlots(TypedDict):
+    """
+    Available resource slots that only indicate presence, not the amount that
+    may be allocated. (i.e., "SSD is available or not available")
+    """
+
+    SSD: bool
+    """Whether this target thas an SSD"""
+
+
+class Gpu(TypedDict):
+    """
+    GPU details for a target.
+    """
+
+    id: int
+    """Index of GPU. Generally based on which PCI slot the GPU occupies."""
+    name: str
+    """Identifiable model name for this GPU, e.g.,"GeForce RTX 3090"."""
+    mem: int
+    """Amount of memory available on this GPU, in bytes."""
+
+
+class SchedulerLane(TypedDict):
+    """
+    Description for a CryoSPARC scheduler lane.
+    """
+
+    name: str
+    """Identifier for this lane."""
+    type: Literal["node", "cluster"]
+    """What kind of lane this is based on how on what kind of target(s) it contains."""
+    title: str
+    """Human-readable lane title."""
+    desc: str
+    """Human-readable lane description."""
+
+
+class BaseSchedulerTarget(TypedDict):
+    """
+    Properties shared by both node and cluster scheduler targets.
+    """
+
+    lane: str
+    """Lane name this target belongs to."""
+
+    name: str
+    """Identifier for this target."""
+
+    title: str
+    """Human-readable title for this target."""
+
+    desc: Optional[str]
+    """Human-readable description for this target."""
+
+    hostname: str
+    """Network machine hostname (same as name for for clusters)."""
+
+    worker_bin_path: str
+    """Path to cryosparc_worker/bin/cryosparcw executable."""
+
+    cache_path: Optional[str]
+    """Path the SSD cache scratch directory, if applicable."""
+
+    cache_reserve_mb: int  # 10G default
+    """Ensure at least this much space is free on the SSD scratch drive before
+    caching."""
+
+    cache_quota_mb: int
+    """Do not cache more than this amoun on the SSD scrath drive.."""
+
+
+class SchedulerTargetNode(BaseSchedulerTarget):
+    """
+    node-type scheduler target that does not include GPUs. Inherits from
+    ``BaseSchedulerTarget``.
+    """
+
+    type: Literal["node"]
+    """Node scheduler targets have type "node"."""
+
+    ssh_str: str
+    """Shell command used to access this node, e.g., ``ssh cryosparcuser@worker``."""
+
+    resource_slots: ResourceSlots
+    """Available compute resources."""
+
+    resource_fixed: FixedResourceSlots
+    """Available fixed resources."""
+
+    monitor_port: Optional[int]
+    """Not used."""
+
+
+class SchedulerTargetGpuNode(SchedulerTargetNode):
+    """
+    node-type scheduler target that includes GPUs. Inherits from
+    ``SchedulerTargetNode``.
+    """
+
+    gpus: List[Gpu]
+    """Details about GPUs available on this node."""
+
+
+class SchedulerTargetCluster(BaseSchedulerTarget):
+    """
+    Cluster-type scheduler targets.
+    """
+
+    type: Literal["cluster"]
+    """Cluster scheduler targets have type "cluster"."""
+
+    script_tpl: str
+    """Full cluster submission script Jinja template."""
+
+    send_cmd_tpl: str
+    """Template command to access the cluster and running commands."""
+
+    qsub_cmd_tpl: str
+    """Template command to submit jobs to the cluster."""
+
+    qstat_cmd_tpl: str
+    """Template command to check the cluster job by its ID."""
+
+    qdel_cmd_tpl: str
+    """Template command to delete cluster jobs."""
+
+    qinfo_cmd_tpl: str
+    """Template command to check cluster queue info."""
+
+
+SchedulerTarget = Union[SchedulerTargetNode, SchedulerTargetGpuNode, SchedulerTargetCluster]
+"""Scheduler target details."""
+
+
+class JobSection(TypedDict):
+    """
+    Specification of available job types of a certain category.
+
+    Example:
+
+        >>> {
+        ...     "name": "refinement",
+        ...     "title": "3D Refinement",
+        ...     "description: "...",
+        ...     "contains" : [
+        ...         "homo_refine",
+        ...         "hetero_refine",
+        ...         "nonuniform_refine",
+        ...         "homo_reconstruct"
+        ...     ]
+        ... }
+    """
+
+    name: str
+    """Section identifier."""
+    title: str
+    """Human-readable section title."""
+    description: str
+    """Human-readable section description."""
+    contains: List[str]
+    """Job type identifiers contained by this section."""
+
+
 class DatabaseEntity(ABC, Generic[D]):
+    """
+    Base class for Project, Workspace and Job classes.
+    :meta private:
+    """
+
     _doc: Optional[D] = None
 
     @property

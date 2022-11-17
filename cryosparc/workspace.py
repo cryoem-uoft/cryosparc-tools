@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from .dataset import Dataset
 from .row import R
-from .job import ExternalJob
+from .job import Job, ExternalJob
 from .spec import DatabaseEntity, Datafield, Datatype, WorkspaceDocument
 
 if TYPE_CHECKING:
@@ -24,6 +24,59 @@ class Workspace(DatabaseEntity[WorkspaceDocument]):
         """
         self._doc = self.cs.cli.get_workspace(self.project_uid, self.uid)  # type: ignore
         return self
+
+    def create_job(
+        self,
+        type: str,
+        connections: Dict[str, Tuple[str, str]] = {},
+        params: Dict[str, Any] = {},
+        title: Optional[str] = None,
+        desc: Optional[str] = None,
+    ) -> Job:
+        """
+        Create a new job with the given type. Use the
+        `CryoSPARC.get_job_sections`_ method to query available job types on
+        the connected CryoSPARC instance.
+
+        Args:
+            project_uid (str): Project UID to create job in, e.g., "P3"
+            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+            type (str): Job type identifier, e.g., "homo_abinit"
+            connections (dict[str, tuple[str, str]]): Initial input connections.
+                Each key is an input name and each value is a (job uid, output
+                name) tuple. Defaults to {}
+            params (dict[str, any], optional): Specify parameter values.
+                Defaults to {}.
+            title (str, optional): Job title. Defaults to None.
+            desc (str, optional): Job markdown description. Defaults to None.
+
+        Returns:
+            Job: created job instance. Raises error if job cannot be created.
+
+        Examples:
+
+            Create an Import Movies job.
+
+            >>> from cryosparc.tools import CryoSPARC
+            >>> cs = CryoSPARC()
+            >>> workspace = cs.find_workspace("P3", "W3")
+            >>> import_job = workspace.create_job("W1", "import_movies")
+            >>> import_job.set_param("blob_paths", "/bulk/data/t20s/*.tif")
+            True
+
+            Create a 3-class ab-initio job connected to existing particles.
+
+            >>> abinit_job = workspace.create_job("homo_abinit"
+            ...     connections={"particles": ("J20", "particles_selected")}
+            ...     params={"abinit_K": 3}
+            ... )
+
+        .. _CryoSPARC.get_job_sections
+            tools.html#cryosparc.tools.CryoSPARC.get_job_sections
+        """
+        return self.cs.create_job(
+            self.project_uid, self.uid, type, connections=connections, params=params, title=title, desc=desc
+        )
 
     def create_external_job(
         self,

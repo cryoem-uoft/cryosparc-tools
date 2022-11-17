@@ -12,7 +12,7 @@ Examples:
 """
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 import os
 import re
 import tempfile
@@ -28,12 +28,15 @@ from .row import R
 from .project import Project
 from .workspace import Workspace
 from .job import ExternalJob, Job
-from .spec import AssetDetails, Datafield, Datatype
+from .spec import AssetDetails, Datafield, Datatype, JobSection, SchedulerLane, SchedulerTarget
 from .util import bopen, padarray, trimarray
 
 
-ONE_MIB = 2**20
+ONE_MIB = 2**20  # bytes in one mebibyte
+
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
+"""Regular expression for matching CryoSPARC license IDs."""
+
 SUPPORTED_EXPOSURE_FORMATS = {
     "MRC",
     "MRCS",
@@ -49,7 +52,7 @@ Supported micrograph file formats.
 
 class CryoSPARC:
     """
-    High-level class for interfacing with a CryoSPARC instance.
+    High-level session class for interfacing with a CryoSPARC instance.
 
     Initialize with the host and base port of the running CryoSPARC instance.
     This hostname and (at minimum) ``port + 2`` and ``port + 3`` should be
@@ -64,30 +67,39 @@ class CryoSPARC:
     Attributes:
         cli (CommandClient): HTTP/JSONRPC client for ``command_core`` service (port + 2).
         vis (CommandClient): HTTP/JSONRPC client for ``command_vis`` service (port + 3).
+        user_id (str): Mongo object ID of user account performing operations for this session.
 
     Examples:
+
         Load project job and micrographs
 
-        >>> from cryosparc import CryoSPARC
+        >>> from cryosparc.tools import CryoSPARC
         >>> license = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        >>> cs = CryoSPARC(license=license, port=39000)
-        >>> project = cs.find_project('P3')
-        >>> job = project.find_job('J42')
+        >>> email = "ali@example.com"
+        >>> password = "password123"
+        >>> cs = CryoSPARC(license=license, email=email, password=password, port=39000)
+        >>> job = cs.find_job("P3", "J42")
         >>> micrographs = job.load_output('exposures')
 
         Remove corrupt exposures (assumes ``is_mic_corrupt`` function)
 
-        >>> filtered_micrographs = micrographs.query(is_mic_corrupt)
-        >>> job.save_output('micrographs', filtered_micrographs)
+        >>> filtered_micrographs = micrographs.query(
+        ...     lambda mic: is_mic_corrupt(mic["micrograph_blob/path"])
+        ... )
+        >>> cs.save_external_result(
+        ...     project_uid="P3",
+        ...     workspace_uid="W1",
+        ...     dataset=filtered_micrographs,
+        ...     type="exposure",
+        ...     name="filtered_exposures",
+        ...     passthrough=("J42", "exposures")
+        ... )
+        "J43"
     """
 
     cli: CommandClient
     vis: CommandClient
     user_id: str  # session user ID
-
-    # @classmethod
-    # def set_dataset_class(cls, dataset_class: Type[Dataset]):
-    #     pass # TODO
 
     def __init__(
         self,
@@ -108,11 +120,14 @@ class CryoSPARC:
         self.vis = CommandClient(
             service="command_vis", host=host, port=port + 3, headers={"License-ID": license}, timeout=timeout
         )
-        self.user_id = self.cli.get_id_by_email_password(email, password)  # type: ignore
+        try:
+            self.user_id = self.cli.get_id_by_email_password(email, password)  # type: ignore
+        except Exception as e:
+            raise RuntimeError("Could not complete CryoSPARC authentication with given credentials") from e
 
     def test_connection(self):
         """
-        Verify connection to CryoSPARC command services
+        Verify connection to CryoSPARC command services.
 
         Returns:
             bool: True if connection succeeded, False otherwise
@@ -131,6 +146,42 @@ class CryoSPARC:
                 return False
 
         return True
+
+    def get_lanes(self) -> List[SchedulerLane]:
+        """
+        Retrieve a list of available scheduler lanes.
+
+        Returns:
+            list[SchedulerLane]: Details about available lanes.
+        """
+        return self.cli.get_scheduler_lanes()  # type: ignore
+
+    def get_targets(self, lane: Optional[str] = None) -> List[SchedulerTarget]:
+        """
+        Retrieve a list of available scheduler targets.
+
+        Args:
+            lane (str, optional): Only get targets from this specific lane.
+                Returns all targets if not specified. Defaults to None.
+
+        Returns:
+            list[SchedulerTarget]: Details about available targets.
+        """
+        targets: List[SchedulerTarget] = self.cli.get_scheduler_targets()  # type: ignore
+        if lane is not None:
+            targets = [t for t in targets if t["lane"] == lane]
+        return targets
+
+    def get_job_sections(self) -> List[JobSection]:
+        """
+        Retrive a summary of job types available for this instance, organized
+        by category.
+
+        Returns:
+            list[JobSection]: List of job section dictionaries. Job types
+                are listed in the ``"contains"`` key in each dictionary.
+        """
+        return self.cli.get_job_sections()  # type: ignore
 
     def find_project(self, project_uid: str) -> Project:
         """
@@ -215,6 +266,68 @@ class CryoSPARC:
         )
         return self.find_workspace(project_uid, workspace_uid)
 
+    def create_job(
+        self,
+        project_uid: str,
+        workspace_uid: str,
+        type: str,
+        connections: Dict[str, Tuple[str, str]] = {},
+        params: Dict[str, Any] = {},
+        title: Optional[str] = None,
+        desc: Optional[str] = None,
+    ) -> Job:
+        """
+        Create a new job with the given type. Use the
+        `CryoSPARC.get_job_sections`_ method to query available job types on
+        the connected CryoSPARC instance.
+
+        Args:
+            project_uid (str): Project UID to create job in, e.g., "P3"
+            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+            type (str): Job type identifier, e.g., "homo_abinit"
+            connections (dict[str, tuple[str, str]]): Initial input connections.
+                Each key is an input name and each value is a (job uid, output
+                name) tuple. Defaults to {}
+            params (dict[str, any], optional): Specify parameter values.
+                Defaults to {}.
+            title (str, optional): Job title. Defaults to None.
+            desc (str, optional): Job markdown description. Defaults to None.
+
+        Returns:
+            Job: created job instance. Raises error if job cannot be created.
+
+        Examples:
+
+            Create an Import Movies job.
+
+            >>> from cryosparc.tools import CryoSPARC
+            >>> cs = CryoSPARC()
+            >>> import_job = cs.create_job("P3", "W1", "import_movies")
+            >>> import_job.set_param("blob_paths", "/bulk/data/t20s/*.tif")
+            True
+
+            Create a 3-class ab-initio job connected to existing particles.
+
+            >>> abinit_job = cs.create_job("P3", "W1", "homo_abinit"
+            ...     connections={"particles": ("J20", "particles_selected")}
+            ...     params={"abinit_K": 3}
+            ... )
+
+        .. _CryoSPARC.get_job_sections
+            #cryosparc.tools.CryoSPARC.get_job_sections
+        """
+        job_uid: str = self.cli.create_new_job(  # type: ignore
+            job_type=type, project_uid=project_uid, workspace_uid=workspace_uid, title=title, desc=desc
+        )
+        job = self.find_job(project_uid, job_uid)
+        for input_name, (parent_job, output_name) in connections.items():
+            job.connect(parent_job, output_name, input_name, refresh=False)
+        for k, v in params.items():
+            job.set_param(k, v, refresh=False)
+        if connections or params:
+            job.refresh()
+        return job
+
     def create_external_job(
         self,
         project_uid: str,
@@ -236,7 +349,7 @@ class CryoSPARC:
         Returns:
             ExternalJob: created external job instance
         """
-        job_uid: str = self.cs.vis.create_external_job(  # type: ignore
+        job_uid: str = self.vis.create_external_job(  # type: ignore
             project_uid=project_uid, workspace_uid=workspace_uid, user=self.user_id, title=title, desc=desc
         )
         return self.find_external_job(project_uid, job_uid)
