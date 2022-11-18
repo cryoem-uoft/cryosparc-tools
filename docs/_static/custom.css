@@ -1,0 +1,7 @@
+.footer-content footer.footer > p:first-child {
+    display: none; /* hide the author */
+}
+
+.cell .cell_output .output > div {
+    overflow-y: auto;
+}
