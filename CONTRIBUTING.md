@@ -14,8 +14,9 @@ Thanks for taking the time to contribute! See the [Table of Contents](#table-of-
 - [Improving The Documentation](#improving-the-documentation)
 - [Styleguides](#styleguides)
 - [Commit Messages](#commit-messages)
+- [Writing tools, libraries and add-ons](#writing-tools-libraries-and-add-ons)
 
-## I Have a Question
+## I Have a generally Question
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://tools.cryosparc.com).
 
@@ -158,11 +159,11 @@ docs: Everything related to documentation
 chore: Regular code maintenance.
 ```
 
-## Writing tools, libraries and addons
+## Writing tools, libraries and add-ons
 
 cryosparc-tools is a Python package and may be used build custom cryo-EM
-workflows, write results from an external tool back into CryoSPARC and extend
-CryoSPARC functionality.
+workflows, write results from an external tool back into CryoSPARC and generally
+extend CryoSPARC functionality.
 
 If you publish an open-source tool that uses this package to GitHub, add the `cryosparc-tools` topic to your repository so others may discover it. [Browse tagged packages here](https://github.com/topics/cryosparc-tools).
 
