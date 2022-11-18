@@ -477,6 +477,23 @@ class Job(MongoController[JobDocument]):
             project_uid=self.project_uid, job_uid=self.uid, message=text, flags=flags, imgfiles=imgfiles
         )
 
+    def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:
+        """
+        Get a list of files inside the job directory.
+
+        Args:
+            prefix (str | Path, optional): Subdirectory inside job to list.
+                Defaults to "".
+            recursive (bool, optional): If True, lists files recursively.
+                Defaults to False.
+
+        Returns:
+            list[str]: List of file paths relative to the job directory.
+        """
+        root = PurePosixPath(self.uid)
+        files = self.cs.list_files(self.project_uid, prefix=root / prefix, recursive=recursive)
+        return [str(PurePosixPath(f).relative_to(root)) for f in files]  # Strip leading "J#/"
+
     def download(self, path_rel: Union[str, PurePosixPath]):
         """
         Initiate a download request for a file inside the job's diretory

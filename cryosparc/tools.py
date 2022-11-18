@@ -29,7 +29,6 @@ from .project import Project
 from .workspace import Workspace
 from .job import ExternalJob, Job
 from .spec import (
-    ASSET_CONTENT_TYPES,
     ASSET_EXTENSIONS,
     AssetDetails,
     Datafield,
@@ -454,6 +453,28 @@ class CryoSPARC:
             job.save_output(output, dataset)
 
         return job.uid
+
+    def list_files(
+        self, project_uid: str, prefix: Union[str, PurePosixPath] = "", recursive: bool = False
+    ) -> List[str]:
+        """
+        Get a list of files inside the project directory.
+
+        Args:
+            project_uid (str): Project unique ID, e.g., "P3"
+            prefix (str | Path, optional): Subdirectory inside project to list.
+                Defaults to "".
+            recursive (bool, optional): If True, lists files recursively.
+                Defaults to False.
+
+        Returns:
+            list[str]: List of file paths relative to the project directory.
+        """
+        return self.vis.list_project_files(  # type: ignore
+            project_uid=project_uid,
+            prefix=str(prefix),
+            recursive=recursive,
+        )
 
     def download(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
         """

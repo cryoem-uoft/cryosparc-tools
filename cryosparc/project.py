@@ -263,6 +263,21 @@ class Project(MongoController[ProjectDocument]):
             desc=desc,
         )
 
+    def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:
+        """
+        Get a list of files inside the project directory.
+
+        Args:
+            prefix (str | Path, optional): Subdirectory inside project to list.
+                Defaults to "".
+            recursive (bool, optional): If True, lists files recursively.
+                Defaults to False.
+
+        Returns:
+            list[str]: List of file paths relative to the project directory.
+        """
+        return self.cs.list_files(self.uid, prefix=prefix, recursive=recursive)
+
     def download(self, path_rel: Union[str, PurePosixPath]):
         """
         Open a file in the current project for reading. Use to get files from a
