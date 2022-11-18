@@ -2,7 +2,7 @@
 # Learn more at https://jupyterbook.org/customize/config.html
 
 title: cryosparc-tools
-author: Structura Biotechnology Inc.
+author: Structura Biotechnology
 logo: logo.png
 
 # Force re-execution of notebooks on each build.
@@ -31,8 +31,15 @@ html:
   favicon: favicon.png
   use_issues_button: true
   use_repository_button: true
+  extra_footer: |
+    <p>
+      © 2022 Structura Biotechnology Inc. Toronto, Canada<br>
+      CryoSPARC and CryoSPARC Live are trademarks of Structura Biotechnology Inc.
+    </p>
 
 sphinx:
+  config:
+    html_show_copyright: false
   extra_extensions:
     - 'sphinx.ext.autodoc'
     - 'sphinx.ext.napoleon'
