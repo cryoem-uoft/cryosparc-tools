@@ -5,21 +5,21 @@
 
 Use it for the following use cases:
 
-* Programmatically read and write exposure, particle and volume data
-* Access project and job metadata
-* Extend CryoSPARC functionality with third-party software packages
+- Programmatically read and write exposure, particle and volume data
+- Access project and job metadata
+- Extend CryoSPARC functionality with third-party software packages
 
 ```{note}
 This guide documents usage of the `cryosparc-tools` Python library. For CryoSPARC installation or general CryoSPARC usage instructions, [read the official guide](https://guide.cryosparc.com).
 ```
 
-
 ## Pre-requisites
 
-* [Python >= 3.7](https://www.python.org/downloads/)
-* [CryoSPARC >= v4.0](https://cryosparc.com/download)
+- [Python >= 3.7](https://www.python.org/downloads/)
+- [CryoSPARC >= v4.1](https://cryosparc.com/download)
 
 CryoSPARC installation must be accessible via one of the following methods:
+
 - Running on the local machine
 - Running on a machine on the same network with `BASE_PORT + 2` and `BASE_PORT + 3` open for TCP connections
 - Running on a remote machine with `BASE_PORT + 2` and `BASE_PORT + 3` forwarded to the local machine
@@ -27,8 +27,6 @@ CryoSPARC installation must be accessible via one of the following methods:
 See [SSH Port Forwarding](https://guide.cryosparc.com/setup-configuration-and-management/how-to-download-install-and-configure/accessing-cryosparc#ssh-port-forwarding-on-a-nix-system)
 documentation for accessing a CryoSPARC instance on a remote machine accessible
 via <abbr title="Secure Shell">SSH</abbr>.
-
-
 
 ## Installation
 
@@ -40,20 +38,30 @@ pip install cryosparc-tools
 
 ## Usage
 
-Import from a Python module and connect to a CryoSPARC instance
+Import from a Python module and connect to a CryoSPARC instance. Include your
+CryoSPARC license ID, the network hostname of the machine hosting your CryoSPARC
+instance, the instance's base port number and your email/password login
+credentials.
 
 ```py
 from cryosparc.tools import CryoSPARC
 
-cs = CryoSPARC(license='xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx', port=39000)
-assert cs.test_connection()
+cs = CryoSPARC(
+    license='xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    hostname='localhost',
+    port=39000,
+    email='ali@example.com',
+    password='password123'
+)
 ```
 
 ```{note}
-This assumes CryoSPARC base ports +2 and +3 (e.g., 39002 and 39003) are available at `localhost` on the local machine. If CryoSPARC is on another machine on the same network, use `CryoSPARC(host="hostname", port=39000)`
+The example above assumes CryoSPARC base ports +2 and +3 (e.g., 39002 and 39003)
+are available at `localhost` on the local machine. If CryoSPARC is on another
+machine on the same network, use `CryoSPARC(host="hostname", port=39000)`
 ```
 
-Query projects, jobs and result datasets
+Query projects, jobs and result datasets:
 
 ```py
 project = cs.find_project("P3")
@@ -90,4 +98,12 @@ Browse the included examples real-life use cases for `cryosparc-tools`. Read the
 API Reference for full usage capabilities.
 
 ```{tableofcontents}
+
 ```
+
+## Contributing
+
+For questions, bug reports, suggestions or source code contributions, please
+[read the contribution guide](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CONTRIBUTING.md).
+
+If you publish an open-source tool that uses this package to GitHub, add the `cryosparc-tools` topic to your repository so others may discover it. [Browse tagged packages here](https://github.com/topics/cryosparc-tools).

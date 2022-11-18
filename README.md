@@ -1,12 +1,13 @@
 # cryosparc-tools
 
-Toolkit for interfacing with CryoSPARC
+Toolkit for interfacing with CryoSPARC. Read the documentation at
+[tools.cryosparc.com](https://tools.cryosparc.com)
 
 ## Development
 
 ### Prerequisites
 
-- Git LFS
+- Git and Git LFS
 - Python >= 3.7
 - Miniconda3
 - C compiler such as GCC or Clang
@@ -38,7 +39,7 @@ Recompile native modules after making changes to C code:
 make
 ```
 
-### Build Packages for Publishing
+## Build Packages for Publishing
 
 Install build dependencies
 
@@ -55,7 +56,7 @@ python -m build
 Packages for the current architecture and python version are added to the
 `dist/` directory.
 
-### Build Documentation
+## Build Documentation
 
 Documentation is located in the `docs` directory and is powered by [Jupyter Book](https://jupyterbook.org/en/stable/intro.html).
 
@@ -81,7 +82,7 @@ on how to run the notebooks.
 
 Inline source documentation is compiled to HTML via [Sphinx](https://www.sphinx-doc.org/en/master/index.html) and uses [Google Style Python docstrings](https://www.sphinx-doc.org/en/master/usage/extensions/example_google.html#example-google).
 
-### Run Example Notebooks
+## Run Example Notebooks
 
 The Jupyter notebooks in the example documentation require additional
 dependencies to execute, including the following system configuration:
