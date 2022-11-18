@@ -6,7 +6,15 @@ Examples:
 
     >>> from cryosparc.tools import CryoSPARC
     >>> license = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    >>> cs = CryoSPARC(license=license, host="localhost", port=39000)
+    >>> email = "ali@example.com"
+    >>> password = "password123"
+    >>> cs = CryoSPARC(
+    ...     license=license,
+    ...     email=email,
+    ...     password=password,
+    ...     host="localhost",
+    ...     base_port=39000
+    ... )
     >>> project = cs.find_project("P3")
 
 """
@@ -115,7 +123,7 @@ class CryoSPARC:
         email: str = os.getenv("CRYOSPARC_EMAIL", ""),
         password: str = os.getenv("CRYOSPARC_PASSWORD", ""),
         host: str = "localhost",
-        port: int = 39000,
+        base_port: int = 39000,
         timeout: int = 300,
     ):
         assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified CryoSPARC license ID {license}"
@@ -123,10 +131,10 @@ class CryoSPARC:
         assert password, "Invalid or unspecified password"
 
         self.cli = CommandClient(
-            service="command_core", host=host, port=port + 2, headers={"License-ID": license}, timeout=timeout
+            service="command_core", host=host, port=base_port + 2, headers={"License-ID": license}, timeout=timeout
         )
         self.vis = CommandClient(
-            service="command_vis", host=host, port=port + 3, headers={"License-ID": license}, timeout=timeout
+            service="command_vis", host=host, port=base_port + 3, headers={"License-ID": license}, timeout=timeout
         )
         try:
             self.user_id = self.cli.get_id_by_email_password(email, password)  # type: ignore

@@ -247,17 +247,17 @@ class Job(MongoController[JobDocument]):
             self.refresh()
         return result
 
-    def connect(self, source_job_uid: str, source_output: str, target_input: str, refresh: bool = True) -> bool:
+    def connect(self, target_input: str, source_job_uid: str, source_output: str, refresh: bool = True) -> bool:
         """
         Connect the given input for this job to an output with given job UID and
         name.
 
         Args:
+            target_input (str): Input name to connect into. Will be created if
+                not specified.
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
-            target_input (str): Input name to connect into. Will be created if
-                not specified.
             refresh (bool, optional): Auto-refresh job document after
                 connecting. Defaults to True.
 
@@ -1108,9 +1108,9 @@ class ExternalJob(Job):
 
     def connect(
         self,
+        target_input: str,
         source_job_uid: str,
         source_output: str,
-        target_input: str,
         slots: List[Union[str, Datafield]] = [],
         title: str = "",
         desc: str = "",
@@ -1122,11 +1122,11 @@ class ExternalJob(Job):
         slots. At least one slot must be specified if the input does not exist.
 
         Args:
+            target_input (str): Input name to connect into. Will be created if
+                does not already exist.
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
-            target_input (str): Input name to connect into. Will be created if
-                not specified.
             slots (list[str | Datafield], optional): List of slots to add to
                 created input. All if not specified. Defaults to [].
             title (str, optional): Human readable title for created input.

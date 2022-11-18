@@ -1,3 +1,7 @@
+"""
+Provides classes and functions for communicating with CryoSPARC's command
+servers. Generally should not be used directly.
+"""
 from contextlib import contextmanager
 import json
 import uuid

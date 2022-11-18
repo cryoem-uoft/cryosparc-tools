@@ -159,9 +159,11 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Examples:
 
             As an instance method
+
             >>> dset = d1.append(d2, d3)
 
             As a class method
+
             >>> dset = Dataset.append(d1, d2, d3)
 
         """
@@ -223,7 +225,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             assert_same_fields (bool, optional): Set to True to enforce that
                 datasets have identical fields. Otherwise, result only includes
                 fields common to all datasets. Defaults to False.
-            assume_unique (bool, optional): Set to True to to assume that each
+            assume_unique (bool, optional): Set to True to assume that each
                 input dataset's UIDs are unique (though there may be common UIDs
                 between datasets). Defaults to False.
 
@@ -299,8 +301,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         Args:
             assert_same_fields (bool, optional): If True, fails if not all given
-            datasets have the same fields. Otherwise result only includes common
-            fields. Defaults to False.
+                datasets have the same fields. Otherwise result only includes
+                common fields. Defaults to False.
 
         Returns:
             Dataset: combined dataset
@@ -1004,8 +1006,6 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         for old, new in zip(old_fields, new_fields):
             self[new] = self[old]
 
-        return self._reset()
-
     def reassign_uids(self):
         """
         Reset all values of the uid column to new unique random values.
@@ -1133,7 +1133,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Get a subset of data with only the matching list of row indexes.
 
         Args:
-            indexes (list[int] | NDArray[int]): collection of indexes to keep
+            indexes (list[int] | NDArray[int]): collection of indexes to keep.
 
         Returns:
             Dataset: subset with matching row indexes
