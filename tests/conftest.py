@@ -31,6 +31,7 @@ def request_callback_core(request, uri, response_headers):
     procs = {
         "hello_world": {"hello": "world"},
         "get_id_by_email_password": "6372a35e821ed2b71d9fe4e3",
+        "get_job": {"uid": "J1", "project_uid": "P1", "job_type": "homo_abinit"},
         "get_project_dir_abs": "/projects/my-project",
         "get_project": {"uid": "P1", "title": "My Project"},
         "job_send_streamlog": None,
