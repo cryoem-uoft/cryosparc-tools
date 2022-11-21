@@ -60,8 +60,8 @@ from cryosparc.tools import CryoSPARC
 
 cs = CryoSPARC(
     license="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    hostname="localhost",
-    port=39000,
+    host="localhost",
+    base_port=39000,
     email="ali@example.com",
     password="password123"
 )

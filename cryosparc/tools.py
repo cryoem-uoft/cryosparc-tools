@@ -71,13 +71,13 @@ class CryoSPARC:
     High-level session class for interfacing with a CryoSPARC instance.
 
     Initialize with the host and base port of the running CryoSPARC instance.
-    This hostname and (at minimum) ``port + 2`` and ``port + 3`` should be
+    This host and (at minimum) ``port + 2`` and ``port + 3`` should be
     accessible on the network.
 
     Args:
         license (str, optional): CryoSPARC license key. Defaults to ``os.getenv("CRYOSPARC_LICENSE_ID")``.
         host (str, optional): Hostname or IP address running CryoSPARC master. Defaults to "localhost".
-        port (int, optional): CryoSPARC base port number. Defaults to 39000.
+        base_port (int, optional): CryoSPARC services base port number. Defaults to 39000.
         timeout (int, optional): Timeout error for HTTP requests to CryoSPARC command services. Defaults to 300.
 
     Attributes:
@@ -93,7 +93,7 @@ class CryoSPARC:
         >>> license = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         >>> email = "ali@example.com"
         >>> password = "password123"
-        >>> cs = CryoSPARC(license=license, email=email, password=password, port=39000)
+        >>> cs = CryoSPARC(license=license, email=email, password=password, base_port=39000)
         >>> job = cs.find_job("P3", "J42")
         >>> micrographs = job.load_output('exposures')
 

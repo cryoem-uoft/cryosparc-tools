@@ -1,6 +1,6 @@
 [project]
 name = "cryosparc-tools"
-version = "4.0.1"
+version = "4.0.2"
 description = "Toolkit for interfacing with CryoSPARC"
 authors = [
     { name = "Structura Biotechnology Inc.", email = "info@structura.bio"}
