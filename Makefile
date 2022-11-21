@@ -1,10 +1,11 @@
-# Mock target for cryosparc.core whose extension we don't know
-TARGET=cryosparc_tools.egg-info/PKG-INFO
+# Actual target is a .so file with a dynamically-determined name, but this is
+# close enough
+TARGET=cryosparc/core.c
 
 all: $(TARGET)
 
 $(TARGET): src/*.c src/*.h cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.toml
-	python -m setup develop
+	python -m setup build_ext -i
 
 clean:
 	rm -f cryosparc/*.so
