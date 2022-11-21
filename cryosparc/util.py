@@ -13,6 +13,7 @@ from typing import (
     Iterator,
     Optional,
     Sequence,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -39,7 +40,22 @@ Binary file read or write open modes.
 T = TypeVar("T")
 K = TypeVar("K")
 V = TypeVar("V")
+E = TypeVar("E")  # error
 INT = TypeVar("INT", bound=n.integer, covariant=True)
+
+Result = Union[Tuple[T, Literal[None]], Tuple[Literal[None], E]]
+"""
+Use as the return type for functions that may return either a value or an
+error.
+
+Example:
+
+    >>> def safe_divide(x: float, y: float) -> Result[int, str]:
+    ...     if y == 0:
+    ...         return None, "divide by zero detected"
+    ...     else:
+    ...         return x / y, None
+"""
 
 
 class hashcache(Dict[K, V], Generic[K, V]):
