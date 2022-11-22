@@ -12,9 +12,11 @@ class Row(Mapping):
     dataset module.
     """
 
-    __slots__ = ("idx", "cols")  # Specifying this speeds up allocation of many rows
+    __slots__ = ("idx", "cols", "__dict__")  # Specifying this speeds up allocation of many rows
+    idx: int
+    cols: Dict[str, Column]
 
-    def __init__(self, cols: Dict[str, Column], idx: int = 0):
+    def __init__(self, cols: Dict[str, Column], idx: int):
         self.idx = idx
         self.cols = cols
         # note - don't keep around a ref to cols because then when col._data
