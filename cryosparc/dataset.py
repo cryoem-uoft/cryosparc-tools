@@ -920,6 +920,21 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         """
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes), copy=copy)
 
+    def filter_prefix(self, keep_prefix: str, copy: bool = False):
+        """
+        Similar to ``filter_prefixes`` but for a single prefix.
+
+        Args:
+            keep_prefix (str): Prefix to keep
+            copy (bool, optional): If True, return a copy if the dataset rather
+                than mutate. Defaults to False.
+
+        Returns:
+            Dataset: current dataset or copy with filtered prefix
+
+        """
+        return self.filter_prefixes([keep_prefix], copy=copy)
+
     def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
         """
         Remove the given field names from the dataset. Provide a list of fields
@@ -959,6 +974,21 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         result = type(self)([(f if f == "uid" else fm(f), self[f]) for f in self])
         return result if copy else self._reset(result._data)
+
+    def rename_field(self, current_name: str, new_name: str, copy: bool = False):
+        """
+        Change name of a dataset field based on the given mapping.
+
+        Args:
+            current_name (str): Old field name.
+            new_name (str): New field name.
+            copy (bool, optional): If True, return a copy of the dataset rather
+                than mutate. Defaults to False.
+
+        Returns:
+            Dataset: current dataset or copy with fields renamed
+        """
+        return self.rename_fields({current_name: new_name}, copy=copy)
 
     def rename_prefix(self, old_prefix: str, new_prefix: str, copy: bool = False):
         """

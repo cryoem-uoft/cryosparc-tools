@@ -19,7 +19,7 @@ class Row(Mapping):
         self.cols = cols
         # note - don't keep around a ref to cols because then when col._data
         # changes (e.g., a field is added to the dataset) the already existing
-        # items will be referring to the old dataset.data!
+        # items will be referring to the old dataset._data!
 
     def __array__(self, dtype=None):
         # Prevent numpy from attempting to turn row to array of strings
