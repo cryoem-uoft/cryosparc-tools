@@ -1,5 +1,26 @@
 """
-Classes and utilities for loading, saving and working with .cs dataset files.
+Classes and utilities for loading, saving and working with .cs Dataset files.
+
+A `Dataset` is `everything`: particles, volumes, micrographs, etc.
+
+A `Result` is a dataset + field names + other info.
+
+Datasets are lightweight: multiple can be used at any time, like one per
+micrograph in picking
+
+The only required field is ``uid``. This field is automatically added to every
+new dataset.
+
+Datasets are created in on the following ways:
+- allocated empty with a specific size and field definitions
+- from a previous dataset source that already has ``uid``s (file, record array)
+- by appending datasets to each other or joining on ``uid``
+
+Dataset supports:
+- adding new rows (via appending)
+- adding new fields
+- joining fields from another dataset on UID
+
 """
 from functools import reduce
 from pathlib import PurePath
@@ -21,7 +42,7 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
+from typing_extensions import Literal, SupportsIndex
 import numpy as n
 import numpy.core.records
 
@@ -548,6 +569,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             Data,
             Mapping[str, "ArrayLike"],
             List[Tuple[str, "ArrayLike"]],
+            Literal[None],
         ] = 0,
         row_class: Type[R] = Row,
     ):
@@ -568,8 +590,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         self._data = Data()
         populate: List[Tuple[Field, n.ndarray]] = []
-        if isinstance(allocate, (int, n.integer)):
-            populate = [(("uid", "<u8"), generate_uids(allocate))]
+        if allocate is None:  # Same as zero
+            populate = [(("uid", "<u8"), n.ndarray(0, dtype=n.uint64))]
+        elif isinstance(allocate, (int, n.integer)):
+            populate = [(("uid", "<u8"), generate_uids(allocate or 0))]
         elif isinstance(allocate, n.ndarray):  # record array
             for field in allocate.dtype.descr:
                 assert field[0], f"Cannot initialize with record array of dtype {allocate.dtype}"
@@ -613,19 +637,37 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Iterate over the fields in this dataset
         """
         for i in range(self._data.ncol()):
-            yield self._data.key(i)
+            key: str = self._data.key(i)
+            yield key
 
+    @overload
+    def __getitem__(self, key: SupportsIndex) -> R:
+        ...
+
+    @overload
+    def __getitem__(self, key: slice) -> List[R]:
+        ...
+
+    @overload
     def __getitem__(self, key: str) -> Column:
+        ...
+
+    def __getitem__(self, key: Union[SupportsIndex, slice, str]) -> Union[R, List[R], Column]:
         """
-        Get either a specific field in the dataset.
+        Get either a specific field in the dataset or a specific row or slice of
+        rows.
 
         Args:
-            key (str): Field name
+            key (int | slice | str): Field name or index access
 
         Returns:
-            Column: NDArray subclass for column data access
+            Row | List[Row] | Column: Either single row, slice of rows or numpy
+                array subclass representing a column.
         """
-        return Column(get_data_field(self._data, key), self._data)
+        if isinstance(key, str):
+            return Column(get_data_field(self._data, key), self._data)
+        else:
+            return self.rows()[key]
 
     def __setitem__(self, key: str, val: "ArrayLike"):
         """
@@ -657,6 +699,18 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             key (str): Field to remove from dataset
         """
         self.drop_fields([key])
+
+    def __contains__(self, key: str) -> bool:
+        """
+        Use the ``in`` operator to check if the given field exists in dataset.
+
+        Args:
+            key (str): Field name
+
+        Returns:
+            bool: True if exists, False otherwise.
+        """
+        return self._data.has(key)
 
     def __eq__(self, other: object):
         """

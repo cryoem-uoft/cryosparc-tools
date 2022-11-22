@@ -63,7 +63,7 @@ class Row(Mapping):
         result = f"{type(self).__name__}(["
         for k in self:
             val = self[k]
-            result += f"\n    ('{k}', [{val if isinstance(val, n.ndarray) else repr(val)}]),"
+            result += f"\n    ('{k}', {val if isinstance(val, n.ndarray) else repr(val)}),"
         return result + "\n])"
 
     def _ipython_key_completions_(self):
