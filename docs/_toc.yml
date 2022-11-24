@@ -16,6 +16,7 @@ parts:
   chapters:
   - file: api/index
     sections:
+    - file: api/cryosparc
     - file: api/tools
     - file: api/project
     - file: api/job
