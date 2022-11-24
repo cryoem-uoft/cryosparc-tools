@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #define DATASET_IMPLEMENTATION
-#include "dataset.h"
+#include <cryosparc-tools/dataset.h>
 #include <math.h>
 
 char * randstr(void) {

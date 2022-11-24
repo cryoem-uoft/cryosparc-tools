@@ -65,3 +65,4 @@ ipython_config.py
 # Other
 .ruff_cache
 cryosparc/*.c
+*.dSYM

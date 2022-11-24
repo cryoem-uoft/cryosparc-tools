@@ -1,5 +1,6 @@
 """
 Classes and utilities for loading, saving and working with .cs Dataset files.
+A pure-C interface to dataset handles is also available.
 
 A `Dataset` is `everything`: particles, volumes, micrographs, etc.
 
@@ -13,7 +14,7 @@ new dataset.
 
 Datasets are created in on the following ways:
 - allocated empty with a specific size and field definitions
-- from a previous dataset source that already has ``uid``s (file, record array)
+- from a previous dataset source that already has uids (file, record array)
 - by appending datasets to each other or joining on ``uid``
 
 Dataset supports:
@@ -1336,6 +1337,16 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             offset += other_len
 
         return result
+
+    def handle(self) -> int:
+        """
+        Numeric dataset handle for working with the dataset via C APIs
+
+        Returns:
+            int: Dataset handle that may be used with methods defined in
+                `<cryosparc-tools/dataset.h>`
+        """
+        return self._data.handle()
 
     def __repr__(self) -> str:
         size = len(self)

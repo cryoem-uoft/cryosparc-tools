@@ -4,12 +4,12 @@ TARGET=cryosparc/core.c
 
 all: $(TARGET)
 
-$(TARGET): src/*.c src/*.h cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.toml
+$(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.toml
 	python -m setup build_ext -i
 
 clean:
 	rm -f cryosparc/*.so
-	rm -f cryosparc/*.c
+	rm -f cryosparc/core.c
 	rm -rf build
 	rm -rf dist
 	rm -rf *.egg-info

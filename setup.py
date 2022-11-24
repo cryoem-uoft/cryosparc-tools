@@ -23,21 +23,20 @@ elif DEBUG:
 
 setup(
     name="cryosparc_tools",
-    version="4.0.2",
+    version="4.0.3",
     description="Toolkit for interfacing with CryoSPARC",
-    headers=["src/dataset.h"],
-    package_data={"cryosparc": ["src/dataset.h", "cryosparc/core.pyx"]},
+    headers=["cryosparc/include/cryosparc-tools/dataset.h"],
     ext_modules=cythonize(
         Extension(
             name="cryosparc.core",
-            sources=["src/pywrapper_dataset.c", "cryosparc/core.pyx"],
-            include_dirs=["src/"],
+            sources=["cryosparc/dataset.c", "cryosparc/core.pyx"],
+            include_dirs=["cryosparc/include/"],
             libraries=libraries,
             define_macros=define_macros,
             undef_macros=undef_macros,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
-            depends=["src/dataset.h"],
+            depends=["cryosparc/include/cryosparc-tools/dataset.h", "cryosparc/dataset.pxd"],
         ),
         gdb_debug=DEBUG,
     ),

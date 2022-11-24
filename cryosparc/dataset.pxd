@@ -1,6 +1,6 @@
 ctypedef Py_ssize_t Dset
 
-cdef extern from "dataset.h":
+cdef extern from "cryosparc-tools/dataset.h":
 
     Dset dset_new() nogil
     Dset dset_copy(Dset dset) nogil

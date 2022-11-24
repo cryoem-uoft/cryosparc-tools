@@ -1,5 +1,4 @@
-include src/*.h
-include src/*.c
-include cryosparc/*.c
-include cryosparc/*.pyx
-include cryosparc/*.pxd
+include cryosparc/core.pyx
+include cryosparc/dataset.c
+include cryosparc/dataset.pxd
+include cryosparc/include/cryosparc-tools/dataset.h
