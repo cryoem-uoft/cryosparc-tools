@@ -38,6 +38,7 @@ setup(
             extra_link_args=extra_link_args,
             depends=["cryosparc/include/cryosparc-tools/dataset.h", "cryosparc/dataset.pxd"],
         ),
+        language_level=3,
         gdb_debug=DEBUG,
     ),
 )

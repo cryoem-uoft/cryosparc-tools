@@ -1,4 +1,4 @@
-cimport dataset
+from . cimport dataset
 from cython.view cimport array
 
 cdef class Data:
