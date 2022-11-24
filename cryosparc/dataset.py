@@ -1165,10 +1165,21 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         Examples:
 
+            With a query dictionary
+
             >>> dset.query({
             ...     'uid': [123456789, 987654321],
             ...     'micrograph_blob/path': '/path/to/exposure.mrc'
             ... })
+            Dataset(...)
+
+            With a function (not recommended)
+
+            >>> dset.query(
+            ...     lambda row:
+            ...         row['uid'] in [123456789, 987654321] and
+            ...         row['micrograph_blob/path'] == '/path/to/exposure.mrc'
+            ... )
             Dataset(...)
 
         """
