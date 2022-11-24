@@ -1210,19 +1210,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: subset with only matching rows
         """
-        return self.indexes([row.idx for row in rows])
+        return self.take([row.idx for row in rows])
 
-    def indexes(self, indexes: Union[List[int], "NDArray"]):
+    def take(self, indices: Union[List[int], "NDArray"]):
         """
-        Get a subset of data with only the matching list of row indexes.
+        Get a subset of data with only the matching list of row indices.
 
         Args:
-            indexes (list[int] | NDArray[int]): collection of indexes to keep.
+            indices (list[int] | NDArray[int]): collection of indices to keep.
 
         Returns:
-            Dataset: subset with matching row indexes
+            Dataset: subset with matching row indices
         """
-        return type(self)([(f, self[f][indexes]) for f in self])
+        return type(self)([(f, self[f][indices]) for f in self])
 
     def mask(self, mask: Union[List[bool], "NDArray"]):
         """
@@ -1281,7 +1281,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             curr.append(idx)
             idxs[val] = curr
 
-        return {val: self.indexes(idx) for val, idx in idxs.items()}
+        return {val: self.take(idx) for val, idx in idxs.items()}
 
     def replace(self, query: Dict[str, "ArrayLike"], *others: "Dataset", assume_disjoint=False, assume_unique=False):
         """

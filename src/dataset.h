@@ -1108,7 +1108,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 
 	if (!(d = handle_lookup(dset, "dset_innerjoin", &generation, &idx))) return UINT64_MAX;
 
-	// Indeces i corresponds to R indexes, j to S indexes, k to the result dataset
+	// Indeces i corresponds to R indices, j to S indices, k to the result dataset
 	for (uint64_t i = 0, k = 0, j = 0; i < ds_r->nrow; i++) {
 		if (!ht64_find(&idx_lookup, keydata_r[i], &j)) {
 			continue; // not in dataset, don't populate it

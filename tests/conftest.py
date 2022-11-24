@@ -23,7 +23,7 @@ class Dataset(BaseDataset[Row]):
     def shuffle(self):
         idxs = n.arange(len(self))
         default_rng().shuffle(idxs)
-        return self.indexes(idxs)
+        return self.take(idxs)
 
 
 def request_callback_core(request, uri, response_headers):

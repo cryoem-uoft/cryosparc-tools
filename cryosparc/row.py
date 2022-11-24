@@ -103,7 +103,7 @@ class Spool(List[R], Generic[R]):
 
     def __init__(self, items: Iterable[R], rng: "Optional[n.random.Generator]" = None):
         super().__init__(items)
-        self.indexes = None
+        self.indices = None
         self.random = rng or self.DEFAULT_RNG
 
     def set_random(self, rng: "n.random.Generator"):
@@ -263,9 +263,9 @@ class Spool(List[R], Generic[R]):
             random (bool, optional): Randomize spooling order. Defaults to True.
         """
         if random:
-            self.indexes = self.random.permutation(len(self))
+            self.indices = self.random.permutation(len(self))
         else:
-            self.indexes = n.arange(len(self))
+            self.indices = n.arange(len(self))
         self.spool_index = 0
 
     def spool(self, num: int, peek: bool = False):
@@ -283,15 +283,15 @@ class Spool(List[R], Generic[R]):
         Returns:
             list[R]: list of selected spool elements
         """
-        if self.indexes is None:
+        if self.indices is None:
             self.setup_spooling()
-        assert self.indexes is not None
+        assert self.indices is not None
         if num >= len(self):  # asking for too many
             return [self[i] for i in range(len(self))]  # just return self, no random order.
-        current_indices = n.arange(self.spool_index, self.spool_index + num) % len(self.indexes)
+        current_indices = n.arange(self.spool_index, self.spool_index + num) % len(self.indices)
         if not peek:
-            self.spool_index = (self.spool_index + num) % len(self.indexes)
-        return [self[self.indexes[i]] for i in current_indices]
+            self.spool_index = (self.spool_index + num) % len(self.indices)
+        return [self[self.indices[i]] for i in current_indices]
 
     def make_batches(self, num: int = 200):
         """

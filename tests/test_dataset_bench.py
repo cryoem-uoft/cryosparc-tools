@@ -109,7 +109,7 @@ def test_get_items_to_dict(benchmark, dset: Dataset, fields):
         dset._rows = None
         items = dset.rows()
         first = items[0]
-        d = first.to_dict()
+        d = dict(first)
         assert set(d.keys()) == {f[0] for f in fields}
         assert any(d.values())
 
@@ -292,14 +292,8 @@ def test_innerjoin_many(benchmark, dset: Dataset):
     assert new_dset == expected
 
 
-def test_filter(benchmark, dset: Dataset):
-    # FIXME: This is redundant because of subset_idxs
-    new_dset = benchmark(dset.indexes, list(range(0, 1_500_000, 2)))  # Even entries up to 1.5 million
-    assert len(new_dset) == 750_000
-
-
 def test_subset_idxs(benchmark, dset: Dataset):
-    new_dset = benchmark(dset.indexes, list(range(0, 1_500_000, 2)))  # Even entries up to 1.5 million
+    new_dset = benchmark(dset.take, list(range(0, 1_500_000, 2)))  # Even entries up to 1.5 million
     assert len(new_dset) == 750_000
 
 

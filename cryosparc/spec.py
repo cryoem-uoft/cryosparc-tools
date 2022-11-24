@@ -655,9 +655,9 @@ class ResourceSlots(TypedDict):
     """
 
     CPU: List[int]
-    """List of available CPU core indexes."""
+    """List of available CPU core indices."""
     GPU: List[int]
-    """List of available GPU indexes."""
+    """List of available GPU indices."""
     RAM: List[int]
     """List of available 8GB slots."""
 
