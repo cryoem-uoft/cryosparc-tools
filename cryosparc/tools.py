@@ -729,8 +729,8 @@ class CryoSPARC:
             exist_ok=exist_ok,
         )
 
-    def copy_to(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source_path_rel: Union[str, PurePosixPath]
+    def cp(
+        self, project_uid: str, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]
     ):
         """
         Copy a file or folder within a project to another location within that
@@ -739,18 +739,18 @@ class CryoSPARC:
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
-            target_path_rel (str | Path): Relative path in project to copy to.
             source_path_rel (str | Path): Relative path in project of source
                 file or folder to copy.
+            target_path_rel (str | Path): Relative path in project to copy to.
         """
-        self.vis.copy_project_path_to(  # type: ignore
+        self.vis.project_cp(  # type: ignore
             project_uid=project_uid,
-            target_path_rel=target_path_rel,
             source_path_rel=source_path_rel,
+            target_path_rel=target_path_rel,
         )
 
-    def symlink_to(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source_path_rel: Union[str, PurePosixPath]
+    def symlink(
+        self, project_uid: str, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]
     ):
         """
         Create a symbolic link in the given project. May only create links for
@@ -759,15 +759,15 @@ class CryoSPARC:
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
-            target_path_rel (str | Path): Relative path in project to new
-                symlink.
             source_path_rel (str | Path): Relative path in project to file from
                 which to create symlink.
+            target_path_rel (str | Path): Relative path in project to new
+                symlink.
         """
-        self.vis.create_project_symlink(  # type: ignore
+        self.vis.project_symlink(  # type: ignore
             project_uid=project_uid,
-            target_path_rel=target_path_rel,
             source_path_rel=source_path_rel,
+            target_path_rel=target_path_rel,
         )
 
 

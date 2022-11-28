@@ -806,24 +806,24 @@ class Job(MongoController[JobDocument]):
             exist_ok=exist_ok,
         )
 
-    def copy_to(self, target_path_rel: Union[str, PurePosixPath], source_path_rel: Union[str, PurePosixPath]):
+    def cp(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
         """
         Copy a file or folder within a project to another location within that
         same project. Note that argument order is reversed from
         equivalent ``cp`` command.
 
         Args:
-            target_path_rel (str | Path): Relative path in project to copy to.
             source_path_rel (str | Path): Relative path in project of source
                 file or folder to copy.
+            target_path_rel (str | Path): Relative path in project to copy to.
         """
-        self.cs.copy_to(  # type: ignore
+        self.cs.cp(
             project_uid=self.project_uid,
-            target_path_rel=PurePosixPath(self.uid) / target_path_rel,
             source_path_rel=PurePosixPath(self.uid) / source_path_rel,
+            target_path_rel=PurePosixPath(self.uid) / target_path_rel,
         )
 
-    def symlink_to(self, target_path_rel: Union[str, PurePosixPath], source_path_rel: Union[str, PurePosixPath]):
+    def symlink(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
         """
         Create a symbolic link in the given project. May only create links for
         files within the project. Note that argument order is reversed from
@@ -831,15 +831,15 @@ class Job(MongoController[JobDocument]):
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
-            target_path_rel (str | Path): Relative path in project to new
-                symlink.
             source_path_rel (str | Path): Relative path in project to file from
                 which to create symlink.
+            target_path_rel (str | Path): Relative path in project to new
+                symlink.
         """
-        self.cs.symlink_to(  # type: ignore
+        self.cs.symlink(
             project_uid=self.project_uid,
-            target_path_rel=PurePosixPath(self.uid) / target_path_rel,
             source_path_rel=PurePosixPath(self.uid) / source_path_rel,
+            target_path_rel=PurePosixPath(self.uid) / target_path_rel,
         )
 
     def subprocess(
