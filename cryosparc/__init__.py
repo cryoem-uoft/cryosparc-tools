@@ -1,5 +1,6 @@
 __version__ = "4.0.3"
 
+
 def get_include():
     """
     Get the include directory for the ``<cryosparc-tools/dataset.h>`` header
@@ -9,4 +10,5 @@ def get_include():
         str: Include path for C compilers.
     """
     from pathlib import Path
+
     return str(Path(__file__).parent / "include")
