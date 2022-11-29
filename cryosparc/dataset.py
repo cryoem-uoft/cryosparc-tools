@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 
 from .core import Data
 from .dtype import (
+    NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
     DsetType,
@@ -499,7 +500,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 cols = {}
                 for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
-                    buffer = snappy.uncompress(f.read(colsize))
+                    buffer = f.read(colsize)
+                    if field[0] in header["compressed_fields"]:
+                        buffer = snappy.uncompress(buffer)
                     cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
                 return cls(cols)
 
@@ -553,14 +556,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
-        header = encode_dataset_header(DatasetHeader(dtype=descr, compression="snap"))
+        compressed_fields = [col for col in cols if col not in NEVER_COMPRESS_FIELDS]
+        header = encode_dataset_header(
+            DatasetHeader(dtype=descr, compression="snap", compressed_fields=compressed_fields)
+        )
         yield u32bytesle(len(header))
         yield header
 
-        for arr in arrays:
-            compressed: bytes = snappy.compress(arr.data)
-            yield u32bytesle(len(compressed))
-            yield compressed
+        for f, arr in zip(cols, arrays):
+            if f in NEVER_COMPRESS_FIELDS:
+                fielddata = arr.data.tobytes()
+            else:
+                fielddata: bytes = snappy.compress(arr.data)
+            yield u32bytesle(len(fielddata))
+            yield fielddata
 
     def __init__(
         self,

@@ -45,6 +45,7 @@ class DatasetHeader(TypedDict):
 
     dtype: List[Field]
     compression: Literal["snap"]
+    compressed_fields: List[str]
 
 
 class DsetType(int, Enum):
@@ -95,6 +96,10 @@ TYPE_TO_DSET_MAP = {
         object: DsetType.T_OBJ,
     },
 }
+
+# Set of dataset fields that should not be compressed when saving in
+# NEWEST_FORMAT
+NEVER_COMPRESS_FIELDS = {"uid"}
 
 
 def makefield(name: str, dtype: "DTypeLike") -> Field:
@@ -148,14 +153,18 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         assert isinstance(header, dict), f"Incorrect decoded header type (expected dict, got {type(header)})"
         assert "dtype" in header and isinstance(
             header["dtype"], list
-        ), 'Dataset header "dtype" key missing or incorrect type'
+        ), 'Dataset header "dtype" key missing or has incorrect type'
         assert (
             "compression" in header and header["compression"] == "snap"
-        ), 'Dataset header "compression" key missing or incorrect type'
+        ), 'Dataset header "compression" key missing or has incorrect type'
+        assert (
+            "compressed_fields" and header or isinstance(header["compressed_fields"], list)
+        ), 'Dataset header "compressed_fields" key missing or has incorrect type'
 
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
-        compression = header["compression"]
+        compression: Literal["snap"] = header["compression"]
+        compressed_fields: List[str] = header["compressed_fields"]
 
-        return DatasetHeader(dtype=dtype, compression=compression)
+        return DatasetHeader(dtype=dtype, compression=compression, compressed_fields=compressed_fields)
     except Exception as e:
         raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e
