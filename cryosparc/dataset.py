@@ -53,13 +53,14 @@ if TYPE_CHECKING:
 from .core import Data
 from .dtype import (
     TYPE_TO_DSET_MAP,
+    DatasetHeader,
     DsetType,
     Field,
-    decode_fields,
+    decode_dataset_header,
     get_data_field,
     get_data_field_dtype,
     makefield,
-    encode_fields,
+    encode_dataset_header,
     fielddtype,
     arraydtype,
     safe_makefield,
@@ -494,9 +495,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 import snappy
 
                 headersize = u32intle(f.read(4))
-                dtype = decode_fields(f.read(headersize))
+                header = decode_dataset_header(f.read(headersize))
                 cols = {}
-                for field in dtype:
+                for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
                     buffer = snappy.uncompress(f.read(colsize))
                     cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
@@ -552,7 +553,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
-        header = encode_fields(descr)
+        header = encode_dataset_header(DatasetHeader(dtype=descr, compression="snap"))
         yield u32bytesle(len(header))
         yield header
 

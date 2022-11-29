@@ -4,6 +4,7 @@ Utilities and type definitions for working with dataset fields and column types.
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
 import json
+from typing_extensions import Literal, TypedDict
 import numpy as n
 
 if TYPE_CHECKING:
@@ -35,6 +36,15 @@ Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
     - ("coords", "3f4")
     - ("coords", "<f4", (3,))
 """
+
+
+class DatasetHeader(TypedDict):
+    """
+    Dataset header description when saving in CSDAT format.
+    """
+
+    dtype: List[Field]
+    compression: Literal["snap"]
 
 
 class DsetType(int, Enum):
@@ -128,13 +138,24 @@ def get_data_field_dtype(data: "Data", field: str) -> "DTypeLike":
     return (dt.str, shape) if shape else dt.str
 
 
-def encode_fields(fields: List[Field]) -> bytes:
+def encode_dataset_header(fields: DatasetHeader) -> bytes:
     return json.dumps(fields).encode()
 
 
-def decode_fields(data: Union[bytes, list]) -> List[Field]:
+def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
     try:
-        fields = json.loads(data) if isinstance(data, bytes) else data
-        return [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in fields]
-    except Exception:
-        raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}")
+        header = json.loads(data) if isinstance(data, bytes) else data
+        assert isinstance(header, dict), f"Incorrect decoded header type (expected dict, got {type(header)})"
+        assert "dtype" in header and isinstance(
+            header["dtype"], list
+        ), 'Dataset header "dtype" key missing or incorrect type'
+        assert (
+            "compression" in header and header["compression"] == "snap"
+        ), 'Dataset header "compression" key missing or incorrect type'
+
+        dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
+        compression = header["compression"]
+
+        return DatasetHeader(dtype=dtype, compression=compression)
+    except Exception as e:
+        raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e
