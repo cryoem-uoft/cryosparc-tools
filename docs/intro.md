@@ -114,10 +114,6 @@ API Reference for full usage capabilities.
 
 ```
 
-## Changelog
-
-[View the full changelog on GitHub](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md).
-
 ## Contributing
 
 For questions, bug reports, suggestions or source code contributions, please
