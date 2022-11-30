@@ -858,7 +858,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         self,
         fields: Union[List[str], List[Field]],
         dtypes: Union[str, List["DTypeLike"], Literal[None]] = None,
-    ) -> "Dataset[R]":
+    ):
         """
         Adds the given fields to the dataset. If a field with the same name
         already exists, that field will not be added (even if types don't

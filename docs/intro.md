@@ -2,6 +2,8 @@
 
 **cryosparc-tools** is an open-source Python library that enables scripting access to the [CryoSPARC](https://cryosparc.com) <abbr title="cryo-electron microscopy">cryo-EM</abbr> software package.
 
+![CryoSPARC Architecture with cryosparc-tools](_static/cryosparc-tools-architecture.png)
+
 Use it for the following use cases:
 
 - Programmatically read and write exposure, particle and volume data
