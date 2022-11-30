@@ -120,3 +120,7 @@ For questions, bug reports, suggestions or source code contributions, please
 [read the contribution guide](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CONTRIBUTING.md).
 
 If you publish an open-source tool that uses this package to GitHub, add the `cryosparc-tools` topic to your repository so others may discover it. [Browse tagged packages here](https://github.com/topics/cryosparc-tools).
+
+## License
+
+cryosparc-tools is licensed under the BSD-3-Clause. [View full license text](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE).

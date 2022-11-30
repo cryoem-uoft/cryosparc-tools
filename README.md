@@ -135,3 +135,7 @@ CRYOSPARC_LICENSE_ID="xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx" jupyter notebook
 ```
 
 Find examples in `docs/examples` directory
+
+## License
+
+cryosparc-tools is licensed under the BSD-3-Clause.

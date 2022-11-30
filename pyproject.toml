@@ -2,10 +2,23 @@
 name = "cryosparc-tools"
 version = "4.0.3"
 description = "Toolkit for interfacing with CryoSPARC"
+readme = "README.md"
+requires-python = ">=3.7"
 authors = [
     { name = "Structura Biotechnology Inc.", email = "info@structura.bio"}
 ]
-requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries",
+]
 dependencies = [
     "numpy ~= 1.15",
     "python-snappy ~= 0.6",
@@ -40,6 +53,15 @@ examples = [
     "cryolo[c11]",
     "notebook",
 ]
+
+[project.urls]
+Homepage = "https://tools.cryosparc.com"
+Documentation = "https://tools.cryosparc.com"
+Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
+Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
+
+[license]
+file = "LICENSE"
 
 [tool.setuptools]
 packages = ["cryosparc"]
