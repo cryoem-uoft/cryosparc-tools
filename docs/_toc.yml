@@ -29,3 +29,4 @@ parts:
     - file: api/mrc
     - file: api/star
     - file: api/command
+  - file: CHANGELOG
