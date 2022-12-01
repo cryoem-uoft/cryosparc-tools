@@ -347,7 +347,7 @@ class Job(MongoController[JobDocument]):
                 raise TypeError(f"Unable to load dataset for job {self.project_uid}-{self.uid} input {name}")
             return Dataset.load(response)
 
-    def load_output(self, name: str, slots: Iterable[str] = []):
+    def load_output(self, name: str, slots: Iterable[str] = [], version: Union[int, Literal["F"]] = "F"):
         """
         Load the dataset for the job's output with the given name.
 
@@ -356,6 +356,10 @@ class Job(MongoController[JobDocument]):
             slots (list[str], optional): List of specific slots to load,
                 such as ``movie_blob`` or ``locations``, or all slots if
                 not specified (including passthrough). Defaults to [].
+            version (int | Literal["F"], optional): Specific output version to
+                load. Use this to load the output at different stages of
+                processing. Leave unspecified to load final verion. Defaults to
+                "F"
 
         Raises:
             TypeError: If job does not have any results for the given output
@@ -365,6 +369,7 @@ class Job(MongoController[JobDocument]):
         """
         job = self.doc
         slots = set(slots)
+        version = -1 if version == "F" else version
         results = [
             result
             for result in job["output_results"]
@@ -373,7 +378,7 @@ class Job(MongoController[JobDocument]):
         if not results:
             raise TypeError(f"Job {self.project_uid}-{self.uid} does not have any results for output {name}")
 
-        metafiles = set().union(*(r["metafiles"] for r in results))
+        metafiles = set(r["metafiles"][0 if r["passthrough"] else version] for r in results)
         datasets = [self.cs.download_dataset(self.project_uid, f) for f in metafiles]
         return Dataset.innerjoin(*datasets)
 
