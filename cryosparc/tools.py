@@ -71,14 +71,22 @@ class CryoSPARC:
     High-level session class for interfacing with a CryoSPARC instance.
 
     Initialize with the host and base port of the running CryoSPARC instance.
-    This host and (at minimum) ``port + 2`` and ``port + 3`` should be
+    This host and (at minimum) ``base_port + 2`` and ``base_port + 3`` should be
     accessible on the network.
 
     Args:
-        license (str, optional): CryoSPARC license key. Defaults to ``os.getenv("CRYOSPARC_LICENSE_ID")``.
-        host (str, optional): Hostname or IP address running CryoSPARC master. Defaults to "localhost".
-        base_port (int, optional): CryoSPARC services base port number. Defaults to 39000.
-        timeout (int, optional): Timeout error for HTTP requests to CryoSPARC command services. Defaults to 300.
+        license (str, optional): CryoSPARC license key. Defaults to
+            ``os.getenv("CRYOSPARC_LICENSE_ID")``.
+        host (str, optional): Hostname or IP address running CryoSPARC master.
+            Defaults to ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost")``.
+        base_port (int, optional): CryoSPARC services base port number. Defaults
+            to ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", 39000)``.
+        email (str, optional): CryoSPARC user account email address. Defaults
+            to ``os.getenv("CRYOSPARC_EMAIL")``.
+        password (str, optional): CryoSPARC user account password address.
+            Defaults to ``os.getenv("CRYOSPARC_PASSWORD")``.
+        timeout (int, optional): Timeout error for HTTP requests to CryoSPARC
+            command services. Defaults to 300.
 
     Attributes:
         cli (CommandClient): HTTP/JSONRPC client for ``command_core`` service (port + 2).
@@ -90,10 +98,12 @@ class CryoSPARC:
         Load project job and micrographs
 
         >>> from cryosparc.tools import CryoSPARC
-        >>> license = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        >>> email = "ali@example.com"
-        >>> password = "password123"
-        >>> cs = CryoSPARC(license=license, email=email, password=password, base_port=39000)
+        >>> cs = CryoSPARC(
+        ...     license="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        ...     email="ali@example.com",
+        ...     password="password123",
+        ...     base_port=39000
+        ... )
         >>> job = cs.find_job("P3", "J42")
         >>> micrographs = job.load_output('exposures')
 
@@ -120,10 +130,10 @@ class CryoSPARC:
     def __init__(
         self,
         license: str = os.getenv("CRYOSPARC_LICENSE_ID", ""),
+        host: str = os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost"),
+        base_port: int = int(os.getenv("CRYOSPARC_BASE_PORT", 39000)),
         email: str = os.getenv("CRYOSPARC_EMAIL", ""),
         password: str = os.getenv("CRYOSPARC_PASSWORD", ""),
-        host: str = "localhost",
-        base_port: int = 39000,
         timeout: int = 300,
     ):
         assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified CryoSPARC license ID {license}"

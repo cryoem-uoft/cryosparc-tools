@@ -17,6 +17,7 @@ This guide documents usage of the `cryosparc-tools` Python library. For CryoSPAR
 
 ## Pre-requisites
 
+- Modern Linux, macOS or Windows operating system
 - [Python ≥ 3.7](https://www.python.org/downloads/)
 - [CryoSPARC ≥ v4.1](https://cryosparc.com/download)
 
