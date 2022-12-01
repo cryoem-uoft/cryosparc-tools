@@ -41,8 +41,8 @@ class Column(n.ndarray):
 
     """
 
-    __slots__ = ("_data",)
-    _data: Optional[Data]
+    __slots__ = ("_dataset",)
+    _dataset: Optional[Data]
 
     def __new__(cls, field: Field, data: Data):
         dtype = n.dtype(fielddtype(field))
@@ -55,7 +55,7 @@ class Column(n.ndarray):
         # columns are cleaned up. No need to transfer this data during
         # __array_finalize__ because this NDColumn instance will be kept as
         # the base
-        obj._data = data
+        obj._dataset = data
 
         return obj
 
