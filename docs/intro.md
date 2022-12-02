@@ -105,9 +105,9 @@ for particle in particles.rows:
 particles.save(path)
 ```
 
-## Running the Example Notebooks
+## Running the Examples
 
-The example notebooks require additional dependencies to run. Use
+The example Jupyter notebooks require additional dependencies to run. Use
 [conda](https://www.anaconda.com/products/distribution) to create a new Python
 environment with the required dependencies. Here the environment is named
 `cryosparc-tools-example` but any name may be substituted:

@@ -1059,13 +1059,15 @@ class ExternalJob(Job):
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to [].
             passthrough (str, optional): Indicates that this output inherits
-                slots from input with the specified name. The existing input
+                slots from an existing input with the specified name. The input
                 must first be added with ``add_input()``. Defaults to False.
             title (str, optional): Human-readable title for this input. Defaults
                 to None.
-            alloc (int, optional): If specified, returns a blank dataset with
-                the given number of rows and the specified slots allocated.
-                Defaults to None.
+            alloc (int | Dataset, optional): If specified, pre-allocate and
+                return a dataset with the requested slots. Specify an integer
+                to allocate a specific number of rows. Specify a Dataset from
+                which to inherit unique row IDs (useful when adding passthrough
+                outputs). Defaults to None.
 
         Returns:
             str | Dataset: Name of the created output. If ``alloc`` is
@@ -1091,7 +1093,7 @@ class ExternalJob(Job):
 
             >>> job.add_output(
             ...     type="exposures",
-            ...     output="picked_micrographs",
+            ...     name="picked_micrographs",
             ...     passthrough="input_micrographs",
             ...     title="Passthrough picked micrographs"
             ... )
@@ -1173,11 +1175,12 @@ class ExternalJob(Job):
         used with ``save_output`` with the same output name.
 
         Args:
-            name (str): Name of dataset to allocate for
-            size (int | ArrayLike | Dataset, optional): Either number of rows in
-                resulting dataset, array of dataset ``uid`` or another dataset
-                to use for ``uid`` or array of row UIDs to initialize with
-                Defaults to 0.
+            name (str): Name of job output to allocate
+            size (int | ArrayLike | Dataset, optional): Specify as one of the
+                following: (A) integer to allocate a specific number of rows,
+                (B) a numpy array of numbers to use for UIDs in the allocated
+                dataset or (C) a dataset from which to inherit unique row IDs
+                (useful  for allocating passthrough outputs). Defaults to 0.
 
         Returns:
             Dataset: Empty dataset with the given number of rows
