@@ -17,7 +17,6 @@ This guide documents usage of the `cryosparc-tools` Python library. For CryoSPAR
 
 ## Pre-requisites
 
-- Modern Linux, macOS or Windows operating system
 - [Python ≥ 3.7](https://www.python.org/downloads/)
 - [CryoSPARC ≥ v4.1](https://cryosparc.com/download)
 
@@ -105,6 +104,36 @@ for particle in particles.rows:
 
 particles.save(path)
 ```
+
+## Running the Example Notebooks
+
+The example notebooks require additional dependencies to run. Use
+[conda](https://www.anaconda.com/products/distribution) to create a new Python
+environment with the required dependencies. Here the environment is named
+`cryosparc-tools-example` but any name may be substituted:
+
+```sh
+conda create -n cryosparc-tools-example -c conda-forge python=3 numpy==1.18.5
+conda activate cryosparc-tools-example
+pip install matplotlib">=3.4,<3.5" pandas==1.1.4 cryosparc-tools
+```
+
+For speed, these do not include the dependencies for the crYOLO example
+notebook. Optionally install crYOLO with these commands:
+
+```sh
+conda install -c conda-forge pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme
+pip install nvidia-pyindex
+pip install "cryolo[c11]"
+```
+
+Install Jupyter with this command:
+
+```sh
+pip install notebook
+```
+
+Example notebooks ran on Ubuntu Linux with x86-64 bit architecture.
 
 ## Next Steps
 
