@@ -75,8 +75,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
       - name: Install cibuildwheel
-        run: pip install cibuildwheel
+        run: pip install build cibuildwheel cython wheel
+      - name: Build sdist
+        run: python -m build --sdist --no-isolation --skip-dependency-check --outdir dist
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist
         env:
