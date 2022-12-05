@@ -80,8 +80,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist
         env:
-          CIBW_BUILD: "*-macosx_x86_64 *-macosx_universal2 *-macosx_arm64 *-win_amd64 *-win_arm64 *-manylinux_x86_64 *-manylinux_aarch64"
-          CIBW_SKIP: cp36-*
+          CIBW_SKIP: cp36-* pp*-win* pp*-macosx*
       - uses: actions/upload-artifact@v3
         with:
           name: wheels
