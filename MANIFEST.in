@@ -1,0 +1,4 @@
+include cryosparc/core.pyx
+include cryosparc/dataset.c
+include cryosparc/dataset.pxd
+include cryosparc/include/cryosparc-tools/dataset.h

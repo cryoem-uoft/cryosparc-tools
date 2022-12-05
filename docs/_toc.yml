@@ -1,0 +1,32 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: intro
+parts:
+- caption: Examples
+  numbered: True
+  chapters:
+  - file: examples/recenter-particles
+  - file: examples/cryolo
+  - file: examples/hi-res-2d-classes
+  - file: examples/magnification
+  - file: examples/xml-exposure-groups
+- caption: API Reference
+  chapters:
+  - file: api/index
+    sections:
+    - file: api/cryosparc
+    - file: api/tools
+    - file: api/project
+    - file: api/job
+    - file: api/dataset
+    - file: api/column
+    - file: api/row
+    - file: api/dtype
+    - file: api/spec
+    - file: api/util
+    - file: api/mrc
+    - file: api/star
+    - file: api/command
+  - file: CHANGELOG

@@ -1,11 +1,5 @@
-import pytest
-from cryosparc.command import CommandClient
+from cryosparc.tools import CryoSPARC
 
 
-@pytest.fixture
-def cli(command_core):
-    return CommandClient()
-
-
-def test_hello(cli):
-    assert cli.hello_world() == {"hello": "world"}
+def test_hello(cs: CryoSPARC):
+    assert cs.cli.hello_world() == {"hello": "world"}  # type: ignore

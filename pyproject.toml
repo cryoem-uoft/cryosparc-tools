@@ -1,22 +1,81 @@
-[tool.poetry]
+[project]
 name = "cryosparc-tools"
-version = "0.1.0"
-description = "Toolkit for interfacing with cryoSPARC"
-authors = ["Structura Biotechnology Inc. <info@structura.bio>"]
-packages = [
-    { include = "cryosparc" }
+version = "0.0.1"
+description = "Toolkit for interfacing with CryoSPARC"
+readme = "README.md"
+requires-python = ">=3.7"
+authors = [
+    { name = "Structura Biotechnology Inc.", email = "info@structura.bio"}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "numpy ~= 1.15",
+    "python-snappy ~= 0.6",
+    "typing-extensions >= 3.7",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.7"
-numpy = ">=1.20,<2"
-typing-extensions = ">=3.7"
+[project.optional-dependencies]
+dev = [
+    "build",
+    "black",
+    "cython",
+    "httpretty",
+    "pyright",
+    "pytest-benchmark",
+    "pytest-xdist[psutil]",
+    "pytest",
+    "ruff",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "^5.2"
-black = "^22.3.0"
-httpretty = "^1.1.4"
+build = [
+    "build",
+    "autodocsumm",
+    "cython",
+    "jupyter-book",
+]
+
+examples = [
+    "pandas == 1.1.4",
+    "matplotlib >=3.4<3.5",
+    "numpy >=1.18<1.19",
+    "black[jupyter]",
+    "cryolo[c11]",
+    "notebook",
+]
+
+[project.urls]
+Homepage = "https://tools.cryosparc.com"
+Documentation = "https://tools.cryosparc.com"
+Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
+Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
+
+[license]
+file = "LICENSE"
+
+[tool.setuptools]
+packages = ["cryosparc"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools", "cython"]
+build-backend = "setuptools.build_meta"
+
+[tool.pyright]
+include = ["cryosparc", "tests", "setup.py"]
+
+[tool.black]
+line-length = 120
+
+[tool.ruff]
+line-length = 120
+exclude = ["docs", ".venv*"]
