@@ -8,7 +8,7 @@ from typing_extensions import Literal, TypedDict
 import numpy as n
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, DTypeLike  # type: ignore
+    from numpy.typing import NDArray, DTypeLike
     from .core import Data
 
 Shape = Tuple[int, ...]

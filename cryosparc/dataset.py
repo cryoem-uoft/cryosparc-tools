@@ -48,7 +48,7 @@ import numpy as n
 import numpy.core.records
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
+    from numpy.typing import NDArray, ArrayLike, DTypeLike
 
 from .core import Data
 from .dtype import (

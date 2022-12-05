@@ -287,7 +287,7 @@ class CryoSPARC:
         Returns:
             Workspace: created workspace instance
         """
-        workspace_uid: str = self.cs.cli.create_empty_workspace(  # type: ignore
+        workspace_uid: str = self.cli.create_empty_workspace(  # type: ignore
             project_uid=project_uid, created_by_user_id=self.user_id, title=title, desc=desc
         )
         return self.find_workspace(project_uid, workspace_uid)
@@ -454,7 +454,7 @@ class CryoSPARC:
         assert slot_names.intersection(prefixes) == slot_names, "Given dataset missing required slots"
 
         passthrough_str = ".".join(passthrough) if passthrough else None
-        job_uid, output = self.cs.vis.create_external_result(  # type: ignore
+        job_uid, output = self.vis.create_external_result(  # type: ignore
             project_uid=project_uid,
             workspace_uid=workspace_uid,
             type=type,
