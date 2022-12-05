@@ -21,7 +21,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install --editable .[dev]
+      - name: Lint with black and ruff
+        run: |
+          black --check .
+          ruff .
+      - name: Type check with Pyright
+        run: pyright
+      - name: Build sdist
+        run: python -m build --sdist --no-isolation --skip-dependency-check --outdir dist
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
+
   test:
+    needs: [lint]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -39,29 +66,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
           cache-dependency-path: "pyproject.toml"
-      - name: Cache Build
-        id: cache-build
-        uses: actions/cache@v3
-        with:
-          path: build
-          key: build-${{ matrix.os }}-${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel
           python -m pip install --editable .[dev]
-      - name: Lint with black and ruff
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10' }}
-        run: |
-          black --check .
-          ruff .
-      - name: Type check with Pyright
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10' }}
-        run: pyright
       - name: Downgrade numpy
         if: ${{ matrix.python-version == '3.7' }}
         run: |
           # test with older numpy version to ensure compatibility
-          pip install numpy==1.15
+          python -m pip install numpy==1.15
       - name: Test with pytest
         run: |
           pytest -v --benchmark-disable -n auto
@@ -71,6 +84,7 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/')"
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: true
       matrix:
         os: ["ubuntu-20.04", "macos-11", "windows-2019"]
     steps:
@@ -99,12 +113,10 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
-      - name: Install deps
-        run: pip install --upgrade build cython twine wheel
-      - name: Build sdist
-        run: python -m build --sdist --no-isolation --skip-dependency-check --outdir dist
       - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: twine upload --skip-existing *
+        run: |
+          python -m pip install --upgrade twine
+          twine upload --skip-existing *
