@@ -1351,9 +1351,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
     def handle(self) -> int:
         """
         Numeric dataset handle for working with the dataset via C APIs
+        (documentation is not yet available).
 
         Returns:
-            int: Dataset handle that may be used with methods defined in
+            int: Dataset handle that may be used with C API defined in
                 `<cryosparc-tools/dataset.h>`
         """
         return self._data.handle()

@@ -8,17 +8,20 @@ from .util import hashcache, strencodenull
 
 class Column(n.ndarray):
     """
-    Dataset column that inherits form the native numpy array interface.
+    Dataset column that inherits from the native numpy array interface.
 
     Note:
         Storing a column instance outside of a dataset prevents the whole
-        dataset from getting garbage collected (unless a copy gets made).
+        dataset from getting garbage collected. Create a copy of its contents
+        to prevent this, e.g., ``np.array(dset['ctf/phase_shift_rad']))``.
 
     Note:
-        If new fields are added to the the dataset, a column instance may no
-        longer be valid and must be retrieved again from ``dataset[colname]``.
+        If new fields are added to the original dataset, a column instance may
+        no longer be valid and must be retrieved again from
+        ``dataset[fieldname]``.
 
     Examples:
+
         Storing column instances
 
         >>> dset = Dataset.allocate(1000, [('col1', 'f4'), ('col2', 'f4'), ('col3', 'f4')])
