@@ -76,7 +76,11 @@ jobs:
       - uses: actions/checkout@v3
       - uses: pypa/cibuildwheel@v2.11.2
         env:
-          CIBW_SKIP: cp36-* pp*-win* pp*-macosx* *_i686 *-win32
+          CIBW_SKIP: cp36-* pp*-win* pp*-macosx*
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_MACOS: "x86_64 universal2"
+          CIBW_ARCHS_WINDOWS: "AMD64 ARM64"
+
         with:
           output-dir: dist
       - uses: actions/upload-artifact@v3
