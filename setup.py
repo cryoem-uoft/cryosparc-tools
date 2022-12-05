@@ -23,7 +23,7 @@ elif DEBUG:
 
 setup(
     name="cryosparc_tools",
-    version="0.0.2",
+    version="0.0.3",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["cryosparc/include/cryosparc-tools/dataset.h"],
     ext_modules=cythonize(
