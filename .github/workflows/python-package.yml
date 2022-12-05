@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel
-          python -m pip install --editable --no-build-isolation .[dev]
+          python -m pip install --editable .[dev]
       - name: Lint with black and ruff
         run: |
           black --check .
