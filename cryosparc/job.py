@@ -212,7 +212,7 @@ class Job(MongoController[JobDocument]):
 
     def clear(self):
         """
-        Clear this job and put back to building status.
+        Clear this job and reset to building status.
         """
         self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
         self.refresh()
