@@ -16,9 +16,9 @@ class CommandClient:
     Class for communicating with CryoSPARC's ``command_core`` and
     ``command_vis`` HTTP services.
 
-    Upon initialization, retrieves a list of available JSONRPC_ endpoints and
-    creates corresponding instance methods for each one. Reference of available
-    methods for the ``command_core`` service (a.k.a. "cli") is  available in the
+    Upon initialization, gets a list of available JSONRPC_ endpoints and creates
+    corresponding instance methods for each one. Reference of available methods
+    for the ``command_core`` service (a.k.a. "cli") is  available in the
     `CryoSPARC Guide`_.
 
     Args:

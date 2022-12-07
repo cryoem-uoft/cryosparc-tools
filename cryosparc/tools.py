@@ -175,7 +175,7 @@ class CryoSPARC:
 
     def get_lanes(self) -> List[SchedulerLane]:
         """
-        Retrieve a list of available scheduler lanes.
+        Get a list of available scheduler lanes.
 
         Returns:
             list[SchedulerLane]: Details about available lanes.
@@ -184,7 +184,7 @@ class CryoSPARC:
 
     def get_targets(self, lane: Optional[str] = None) -> List[SchedulerTarget]:
         """
-        Retrieve a list of available scheduler targets.
+        Get a list of available scheduler targets.
 
         Args:
             lane (str, optional): Only get targets from this specific lane.
@@ -200,8 +200,8 @@ class CryoSPARC:
 
     def get_job_sections(self) -> List[JobSection]:
         """
-        Retrive a summary of job types available for this instance, organized
-        by category.
+        Get a summary of job types available for this instance, organized by
+        category.
 
         Returns:
             list[JobSection]: List of job section dictionaries. Job types
