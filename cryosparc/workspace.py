@@ -10,6 +10,18 @@ if TYPE_CHECKING:
 
 
 class Workspace(MongoController[WorkspaceDocument]):
+    """
+    Accessor class to a workspace in CryoSPARC with ability create jobs and save
+    results. Should be instantiated through `CryoSPARC.find_workspace`_ or
+    `Project.find_workspace`_.
+
+    .. _CryoSPARC.find_workspace:
+        tools.html#cryosparc.tools.CryoSPARC.find_workspace
+
+    .. _Project.find_workspace:
+        project.html#cryosparc.project.Project.find_workspace
+    """
+
     def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
         self.cs = cs
         self.project_uid = project_uid
