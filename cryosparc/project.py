@@ -229,6 +229,21 @@ class Project(MongoController[ProjectDocument]):
             ... )
             "J44"
 
+            Save a result with multiple slots of the same type.
+
+            >>> project.save_external_result(
+            ...     workspace_uid="P1",
+            ...     dataset=particles,
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "J45"
+
         Args:
             workspace_uid (str | None): Workspace UID to save results into.
                 Specify ``None`` to auto-select a workspace.

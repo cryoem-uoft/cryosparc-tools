@@ -406,7 +406,7 @@ class CryoSPARC:
             "J43"
 
             Save new particle locations that inherit passthrough slots from a
-            parent job
+            parent job.
 
             >>> particles = Dataset()
             >>> cs.save_external_result(
@@ -420,6 +420,22 @@ class CryoSPARC:
             ...     title='Re-centered particles'
             ... )
             "J44"
+
+            Save a result with multiple slots of the same type.
+
+            >>> cs.save_external_result(
+            ...     project_uid="P1",
+            ...     workspace_uid="P1",
+            ...     dataset=particles,
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "J45"
 
         Args:
             project_uid (str): Project UID to save results into.

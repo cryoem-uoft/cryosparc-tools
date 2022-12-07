@@ -130,6 +130,42 @@ class Workspace(MongoController[WorkspaceDocument]):
 
         Returns:
             str: UID of created job where this output was saved.
+
+        Examples:
+
+            Save all particle data
+
+            >>> particles = Dataset()
+            >>> workspace.save_external_result(particles, 'particle')
+            "J43"
+
+            Save new particle locations that inherit passthrough slots from a
+            parent job
+
+            >>> particles = Dataset()
+            >>> workspace.save_external_result(
+            ...     dataset=particles,
+            ...     type='particle',
+            ...     name='particles',
+            ...     slots=['location'],
+            ...     passthrough=('J42', 'selected_particles'),
+            ...     title='Re-centered particles'
+            ... )
+            "J44"
+
+            Save a result with multiple slots of the same type.
+
+            >>> workspace.save_external_result(
+            ...     dataset=particles,
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "J45"
         """
         return self.cs.save_external_result(
             self.project_uid,

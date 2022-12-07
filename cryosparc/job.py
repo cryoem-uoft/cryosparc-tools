@@ -1099,6 +1099,18 @@ class ExternalJob(Job):
             ... )
             "picked_micrographs"
 
+            Create an output with multiple slots of the same type
+
+            >>> job.add_output(
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "particle_alignments"
         """
         self.cs.vis.add_external_job_output(  # type: ignore
             project_uid=self.project_uid,
