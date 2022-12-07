@@ -217,6 +217,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: Appended dataset
         """
+        if not datasets:
+            return cls()
+
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
             assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
@@ -790,7 +793,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def descr(self, exclude_uid=False) -> List[Field]:
         """
-        Retrive the numpy-compatible description for dataset fields.
+        Get numpy-compatible description for dataset fields.
 
         Args:
             exclude_uid (bool, optional): If True, uid field will not be
@@ -812,7 +815,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def fields(self, exclude_uid=False) -> List[str]:
         """
-        Retrieve a list of field names available in this dataset.
+        Get a list of field names available in this dataset.
 
         Args:
             exclude_uid (bool, optional): If True, uid field will not be

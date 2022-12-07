@@ -259,19 +259,9 @@ def test_innerjoin_smaller():
     )
 
 
-# FIXME: Is this required?
-"""
-def test_combine_queries():
-    assert Dataset.combine_queries([
-        {},
-        {'uid': 123},
-        {'uid': [456, 789]},
-        {'uid': 987, 'location/micrograph_uid': n.array([654])},
-        {'location/micrograph_path': '/path/to/mic0.mrc'},
-        {'location/micrograph_path': n.array(['/path/to/mic1.mrc'], dtype='O')},
-    ]) == {
-        'uid': {123, 456, 789, 987},
-        'location/micrograph_uid': {654},
-        'location/micrograph_path': {'/path/to/mic0.mrc', '/path/to/mic1.mrc'}
-    }
-"""
+def test_append_many_empty():
+    assert len(Dataset.append_many().rows()) == 0
+
+
+def test_union_many_empty():
+    assert len(Dataset.union_many().rows()) == 0
