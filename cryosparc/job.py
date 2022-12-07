@@ -1012,7 +1012,7 @@ class ExternalJob(Job):
             title=title,
         )
         self.refresh()
-        return self.doc["output_result_groups"][-1]["name"]
+        return self.doc["input_slot_groups"][-1]["name"]
 
     @overload
     def add_output(
