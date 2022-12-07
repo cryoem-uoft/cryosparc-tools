@@ -19,6 +19,7 @@ parts:
     - file: api/cryosparc
     - file: api/tools
     - file: api/project
+    - file: api/workspace
     - file: api/job
     - file: api/dataset
     - file: api/column

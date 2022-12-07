@@ -193,7 +193,7 @@ class Datafield(TypedDict):
 
     required: bool
     """whether this field must necessarily exist in a corresponding
-    input/output"""
+    input/output. Assumed to be ``True`` if not specified"""
 
 
 class InputSlot(TypedDict):
