@@ -1,8 +1,29 @@
 from . cimport dataset
 from cython.view cimport array
+from cpython.ref cimport PyObject
+
+
+# Mirror of equivalent C-datatype enumeration
+cpdef enum DsetType:
+    T_F32 = 1
+    T_F64 = 2
+    T_C32 = 3
+    T_C64 = 4
+    T_I8 = 5
+    T_I16 = 6
+    T_I32 = 7
+    T_I64 = 8
+    T_U8 = 9
+    T_U16 = 10
+    T_U32 = 11
+    T_U64 = 12
+    T_STR = 13
+    T_OBJ = 14
+
 
 cdef class Data:
     cdef dataset.Dset _handle
+    cdef dict _strcache
 
     def __cinit__(self, other = None):
         cdef Data othr
@@ -19,6 +40,8 @@ cdef class Data:
 
         if self._handle == 0:
             raise MemoryError()
+
+        self._strcache = dict()
 
     def __dealloc__(self):
         if self._handle:
@@ -71,6 +94,63 @@ cdef class Data:
             return 0
         else:
             return <unsigned char [:size]> mem
+
+    def getstr(self, str colkey, Py_ssize_t index):
+        return dataset.dset_getstr(self._handle, colkey.encode(), index)  # returns bytes
+
+    def tocstrs(self, str colkey):
+        # Convert Python strings to C strings in the given object column
+        cdef bytes colkey_b = colkey.encode()
+        cdef const char *colkey_c = colkey_b
+        cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
+        cdef Py_ssize_t nrow = dataset.dset_nrow(self._handle)
+        cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
+        cdef str pybytes
+
+        if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey_c, T_STR):
+            return False
+
+        for i in range(nrow):
+            pybytes = <str> (pycol[i])
+            pycol[i] = NULL  # so string is not deallocated
+            dataset.dset_setstr(self._handle, colkey_c, i, pybytes.encode())
+
+        return True
+
+    def topystrs(self, str colkey):
+        # Convert C strings to Python strings in the given column
+        cdef bytes colkey_b = colkey.encode()
+        cdef const char *colkey_c = colkey_b
+        cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
+        cdef Py_ssize_t nrow = dataset.dset_nrow(self._handle)
+        cdef Py_ssize_t *pycol = <Py_ssize_t *> dataset.dset_get(self._handle, colkey_c)
+        cdef void **pystrcol = <void **> pycol
+        cdef dict strcache = dict()
+        cdef char *cstr
+        cdef bytes cbytes
+        cdef str pystr
+
+        if prevtype != T_STR:
+            return False
+
+        # Save computed strcache to prevent string handles from getting garbage
+        # collected (since no other Python reference to them is kept)
+        self._strcache[colkey] = strcache
+
+        for i in range(nrow):
+            if pycol[i] in strcache:
+                pystr = strcache[pycol[i]]
+            else:
+                cbytes = dataset.dset_getstr(self._handle, colkey_c, i)
+                pystr = cbytes.decode()
+                strcache[pycol[i]] = pystr
+
+            pystrcol[i] = <void *> pystr
+
+        if not dataset.dset_changecol(self._handle, colkey_c, T_OBJ):
+            return False
+
+        return True
 
     def defrag(self, bint realloc_smaller):
         return dataset.dset_defrag(self._handle, realloc_smaller)

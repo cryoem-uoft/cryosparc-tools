@@ -68,6 +68,7 @@ uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 int        dset_addrows       (uint64_t dset, uint32_t num);
 int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
 int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
+int        dset_changecol     (uint64_t dset, const char * key, int type);
 
 int        dset_defrag (uint64_t dset, int realloc_smaller);
 void       dset_dumptxt (uint64_t dset);
@@ -1212,6 +1213,8 @@ int dset_type (uint64_t dset, const char * colkey)
 
 void *dset_get (uint64_t dset, const char * colkey)
 {
+	// Caution: T_STR columns cannot be used directly, actual strings must be
+	// retrieved through dset_getstr
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
 	const ds_column *c  = column_lookup(d, colkey);
 	char * ptr = (char *) d;
@@ -1219,8 +1222,8 @@ void *dset_get (uint64_t dset, const char * colkey)
 	if(!(d && c)) return 0;
 
 	if (abs_i8(c->type) == T_STR) {
-		nonfatal("dset_get: column '%s' is a string", colkey);
-		return 0;
+		nonfatal("dset_get: column '%s' has type string, items cannot be used directly", colkey);
+		// return 0;
 	}
 
 	return ptr + d->arrheap_start + c->offset;
@@ -1313,6 +1316,30 @@ int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, in
 	return 1;
 }
 
+// Change the type of the given column. Type must be compatible in size
+// NOTE: This is unsafe! Does not cast existing values to expected values
+int dset_changecol (uint64_t dset, const char *key, int type) {
+	if (!tcheck(type)) {
+		nonfatal("invalid column data type: %i", type);
+		return 0;
+	}
+
+	const ds        *d  = handle_lookup(dset, key, 0, 0);
+	ds_column *c  = column_lookup(d, key);
+
+	if (!(d && c)) return 0;
+
+	int8_t current_size = abs_i8(type_size[c->type]);
+	int8_t proposed_size = abs_i8(type_size[type]);
+
+	if (current_size != proposed_size) {
+		nonfatal("cannot change column with type %i to incompatible type %i", c->type, type);
+		return 0;
+	}
+
+	c->type = type;
+	return 1;
+}
 
 int dset_addrows (uint64_t dset, uint32_t num) {
 	uint64_t idx; 

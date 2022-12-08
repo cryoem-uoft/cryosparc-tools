@@ -50,12 +50,11 @@ import numpy.core.records
 if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike
 
-from .core import Data
+from .core import Data, DsetType
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
-    DsetType,
     Field,
     decode_dataset_header,
     get_data_field,
@@ -1350,6 +1349,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             offset += other_len
 
         return result
+
+    def to_cstrs(self, copy: bool = False):
+        dset = self.copy() if copy else self
+        for k in dset:
+            if dset._data.type(k) == DsetType.T_OBJ:
+                assert dset._data.tocstrs(k), f"Could not convert column {k} to C strings"
+        return dset
+
+    def to_pystrs(self, copy: bool = False):
+        dset = self.copy() if copy else self
+        for k in dset:
+            if dset._data.type(k) == DsetType.T_STR:
+                assert dset._data.topystrs(k), f"Could not convert column {k} to Python strings"
+        return dset
 
     def handle(self) -> int:
         """
