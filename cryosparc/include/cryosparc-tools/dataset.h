@@ -1221,11 +1221,6 @@ void *dset_get (uint64_t dset, const char * colkey)
 
 	if(!(d && c)) return 0;
 
-	if (abs_i8(c->type) == T_STR) {
-		nonfatal("dset_get: column '%s' has type string, items cannot be used directly", colkey);
-		// return 0;
-	}
-
 	return ptr + d->arrheap_start + c->offset;
 }
 
@@ -1324,7 +1319,7 @@ int dset_changecol (uint64_t dset, const char *key, int type) {
 		return 0;
 	}
 
-	const ds        *d  = handle_lookup(dset, key, 0, 0);
+	const ds  *d  = handle_lookup(dset, key, 0, 0);
 	ds_column *c  = column_lookup(d, key);
 
 	if (!(d && c)) return 0;
