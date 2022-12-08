@@ -1,4 +1,5 @@
 from io import BytesIO
+import os
 import pytest
 import numpy as n
 import cryosparc.dataset as ds
@@ -402,11 +403,12 @@ def test_from_streaming_bytes(benchmark, big_dset: Dataset):
     assert len(result) == len(big_dset)
 
 
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="Too slow at the moment")
 def test_to_cstrs(benchmark, dset: Dataset):
     result: Dataset = benchmark(dset.to_cstrs, copy=True)
     assert result['ctf/type'].dtype.type == n.uint64
 
-
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="Too slow at the moment")
 def test_to_pystrs(benchmark, dset_cstrs: Dataset):
-    result: Dataset = benchmark(dset.to_pystrs, copy=True)
+    result: Dataset = benchmark(dset_cstrs.to_pystrs, copy=True)
     assert result['ctf/type'].dtype.type == n.object_
