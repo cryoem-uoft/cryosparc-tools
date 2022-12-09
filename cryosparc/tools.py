@@ -674,7 +674,8 @@ class CryoSPARC:
             project_uid (str): project unique ID, e.g., "P3"
             target_path_rel (str | Path): Relative target path in project
                 directory.
-            source (str | Path | IO): Local path or file handle to upload.
+            source (str | Path | IO): Local path or file handle to upload. May
+                also specified as raw bytes.
         """
         with bopen(source) as f:
             url = f"/projects/{project_uid}/files"
