@@ -175,28 +175,28 @@ def test_append_union(benchmark, big_dset: Dataset, dset: Dataset):
 
 
 def test_append_many(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr())
+    empty = Dataset.allocate(0)
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.append, dset, empty, other)
     assert len(new_dset) == len(big_dset) * 2
 
 
 def test_append_many_union(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr())
+    empty = Dataset.allocate(0)
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.union, dset, dset, empty, other)
     assert len(new_dset) == len(big_dset) * 2
 
 
 def test_append_many_union_repeat_allowed(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr())
+    empty = Dataset.allocate(0)
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.append, dset, dset, empty, other, repeat_allowed=True)
     assert len(new_dset) == len(big_dset) * 3
 
 
 def test_append_many_simple(benchmark, big_dset, dset: Dataset):
-    empty = Dataset.allocate(0, dset.descr())
+    empty = Dataset.allocate(0)
     other = dset.copy().reassign_uids()
     new_dset = benchmark(Dataset.append, dset, empty, other, assert_same_fields=True)
     assert len(new_dset) == len(big_dset) * 2

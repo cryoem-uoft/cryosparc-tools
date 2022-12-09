@@ -216,6 +216,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: Appended dataset
         """
+        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         if not datasets:
             return cls()
 
@@ -293,6 +294,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: combined dataset, or empty dataset if none are provided.
         """
+        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
         keep_uids = n.array([], dtype=n.uint64)
@@ -1327,6 +1329,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             Dataset: subset with rows matching query removed and other datasets
                 appended at the end
         """
+        others = tuple(d for d in others if len(d) > 0)  # skip empty datasets
         keep_fields = self.common_fields(self, *others, assert_same_fields=True)
         others_len = sum(len(o) for o in others)
         keep_mask = n.ones(len(self), dtype=bool)
