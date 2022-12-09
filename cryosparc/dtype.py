@@ -115,8 +115,8 @@ def get_data_field(data: Data, field: str) -> Field:
 
 def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
     t = data.type(field)
-    if t not in DSET_TO_TYPE_MAP:
-        raise KeyError(f"Unknown dset field type {t}")
+    if t == 0 or t not in DSET_TO_TYPE_MAP:
+        raise KeyError(f"Unknown dataset field {field} or field type {t}")
     dt = n.dtype(DSET_TO_TYPE_MAP[t])
     shape = data.getshp(field)
     return (dt.str, shape) if shape else dt.str
