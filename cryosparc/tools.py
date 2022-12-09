@@ -45,7 +45,7 @@ from .spec import (
     SchedulerLane,
     SchedulerTarget,
 )
-from .util import bopen, padarray, trimarray
+from .util import bopen, noopcontext, padarray, trimarray
 
 
 ONE_MIB = 2**20  # bytes in one mebibyte
@@ -664,7 +664,7 @@ class CryoSPARC:
             return target
 
     def upload(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]
+        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]
     ):
         """
         Upload the given source file to the project directory at the given
@@ -674,10 +674,10 @@ class CryoSPARC:
             project_uid (str): project unique ID, e.g., "P3"
             target_path_rel (str | Path): Relative target path in project
                 directory.
-            source (str | Path | IO): Local path or file handle to upload. May
-                also specified as raw bytes.
+            source (str | bytes | Path | IO): Local path or file handle to
+                upload. May also specified as raw bytes.
         """
-        with bopen(source) as f:
+        with open(source, "rb") if isinstance(source, (str, PurePath)) else noopcontext(source) as f:
             url = f"/projects/{project_uid}/files"
             query = {"path": target_path_rel}
             with make_request(self.vis, url=url, query=query, data=f) as res:

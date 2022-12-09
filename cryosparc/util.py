@@ -8,7 +8,9 @@ from typing import (
     AsyncIterator,
     BinaryIO,
     Callable,
+    ContextManager,
     Dict,
+    Generator,
     Generic,
     Iterator,
     Optional,
@@ -17,6 +19,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 from typing_extensions import Literal
 import numpy as n
@@ -349,6 +352,30 @@ def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
             yield f
     else:
         yield file
+
+
+@overload
+def noopcontext() -> ContextManager[None]:
+    ...
+
+
+@overload
+def noopcontext(x: T) -> ContextManager[T]:
+    ...
+
+
+@contextmanager
+def noopcontext(x: Optional[T] = None) -> Generator[Optional[T], None, None]:
+    """
+    Context manager that yields the given argument without modification.
+
+    Args:
+        x (T, optional): Anything. Defaults to None.
+
+    Yields:
+        T: the given argument
+    """
+    yield x
 
 
 def padarray(arr: "NDArray", dim: Optional[int] = None, val: n.number = n.float32(0)):

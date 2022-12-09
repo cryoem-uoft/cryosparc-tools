@@ -594,13 +594,14 @@ class Job(MongoController[JobDocument]):
         """
         return self.cs.download_asset(fileid, target)
 
-    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]):
+    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]):
         """
         Upload the given file to the job directory at the given path.
 
         Args:
             target_path_rel (str | Path): Relative target path in job directory
-            source (str | Path | IO): Local path or file handle to upload
+            source (str | bytes | Path | IO): Local path or file handle to
+                upload. May also specified as raw bytes.
         """
         target_path_rel = PurePosixPath(self.uid) / target_path_rel
         return self.cs.upload(self.project_uid, target_path_rel, source)
