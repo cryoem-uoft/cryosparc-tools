@@ -1240,13 +1240,15 @@ class ExternalJob(Job):
         else:
             return Dataset({"uid": alloc}).add_fields(expected_fields)
 
-    def save_output(self, name: str, dataset: Dataset):
+    def save_output(self, name: str, dataset: Dataset, refresh: bool = True):
         """
         Save output dataset to external job.
 
         Args:
             name (str): Name of output on this job.
             dataset (Dataset): Value of output with only required fields.
+            refresh (bool, Optional): Auto-refresh job document after saving.
+                Defaults to True
 
         Examples:
 
@@ -1263,6 +1265,8 @@ class ExternalJob(Job):
         with make_request(self.cs.vis, url=url, data=dataset.stream()) as res:
             result = res.read().decode()
             assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"
+        if refresh:
+            self.refresh()
 
     def start(self, status: Literal["running", "waiting"] = "waiting"):
         """
@@ -1288,6 +1292,7 @@ class ExternalJob(Job):
         """
         status = "failed" if error else "completed"
         self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
+        self.refresh()
 
     @contextmanager
     def run(self):
@@ -1309,6 +1314,7 @@ class ExternalJob(Job):
         """
         error = False
         self.start("running")
+        self.refresh()
         try:
             yield self
         except Exception:
@@ -1316,3 +1322,4 @@ class ExternalJob(Job):
             raise
         finally:
             self.stop(error)  # TODO: Write Error to job log, if possible
+            self.refresh()
