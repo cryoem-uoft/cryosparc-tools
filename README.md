@@ -88,7 +88,8 @@ The Jupyter notebooks in the example documentation require additional
 dependencies to execute, including the following system configuration:
 
 - Nvidia GPU and driver
-- CryoSPARC running at `localhost:39000`
+- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed
+- CryoSPARC running at `localhost:40000` or `cryoem5:40000` (can alias `cryoem5` to localhost)
 
 Clean previous build artefacts:
 
@@ -96,42 +97,33 @@ Clean previous build artefacts:
 make clean
 ```
 
-Install additional dependencies to conda environment before running `pip`:
+Install dependencies into a new conda environment:
 
 ```sh
-conda create -n tools -c conda-forge \
-   python=3.8 \
-   cudatoolkit=11.6 \
-   cudnn=8.3 \
-   libtiff \
-   notebook \
-   pyqt=5 \
-   wxPython=4.1.1 \
-   adwaita-icon-theme
-conda activate tools
-```
-
-Install notebook dependencies with `pip`.
-
-```sh
+conda create -n cryosparc-tools-example -c conda-forge \
+    python=3 numpy==1.18.5 \
+    pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme
+conda activate cryosparc-tools-example
 pip install -U pip
-pip install nvidia-pyindex
+pip install nvidia-pyindex matplotlib">=3.4,<3.5" pandas==1.1.4 notebook
+pip install "cryolo[c11]"
+pip install -e ".[build]"
 ```
 
-Install example deps and rebuild
+Run the notebook server with the following environment variables:
 
-```sh
-pip install -e ".[examples]"
-make
-```
+- `CRYOSPARC_LICENSE_ID` with Structura-issued CryoSPARC license
+- `CRYOSPARC_EMAIL` with a CryoSPARC user account email
+- `CRYOSPARC_PASSWORD` with a CryoSPARC user account password
 
-Run the notebook server with the `CRYOSPARC_LICENSE_ID` environment variable
-containing a CryoSPARC License, open in the browser. You may also need to
-include `LD_LIBRARY_PATH` which includes the location of CUDA Toolkit and cuDNN
-runtime libraries (e.g., `~/miniconda3/envs/tools/lib`).
+You may also need to include `LD_LIBRARY_PATH` which includes the location of
+CUDA Toolkit and cuDNN runtime libraries (e.g., `~/miniconda3/envs/tools/lib/python3.8/site-packages/nvidia/*/lib`).
 
 ```
-CRYOSPARC_LICENSE_ID="xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx" jupyter notebook
+CRYOSPARC_LICENSE_ID="xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+CRYOSPARC_EMAIL="ali@example.com" \
+CRYOSPARC_PASSWORD="password123" \
+jupyter notebook
 ```
 
 Find examples in `docs/examples` directory
