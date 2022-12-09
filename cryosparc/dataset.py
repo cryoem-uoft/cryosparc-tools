@@ -50,12 +50,11 @@ import numpy.core.records
 if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike
 
-from .core import Data
+from .core import Data, DsetType
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
-    DsetType,
     Field,
     decode_dataset_header,
     get_data_field,
@@ -1350,6 +1349,46 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             offset += other_len
 
         return result
+
+    def to_cstrs(self, copy: bool = False):
+        """
+        Convert all Python string columns to C strings. Resulting dataset fields
+        that previously had dtype ``np.object_`` (or ``T_OBJ`` internally) will get
+        type ``np.uint64`` and may be accessed as via the dataset C API.
+
+        Note: This operation takes a long time for large datasets.
+
+        Args:
+            copy (bool, optional): If True, returns a modified copy of the
+                dataset instead of mutation. Defaults to False.
+
+        Returns:
+            Dataset: same dataset or copy if specified.
+        """
+        dset = self.copy() if copy else self
+        for k in dset:
+            if dset._data.type(k) == DsetType.T_OBJ:
+                assert dset._data.tocstrs(k), f"Could not convert column {k} to C strings"
+        return dset
+
+    def to_pystrs(self, copy: bool = False):
+        """
+        Convert all C string columns to Python strings. Resulting dataset fields
+        that previously had dtype ``np.uint64`` (and ``T_STR`` internally) will
+        get type ``np.object_``.
+
+        Args:
+            copy (bool, optional): If True, returns a modified copy of the
+                dataset instead of mutation. Defaults to False.
+
+        Returns:
+            Dataset: same dataset or copy if specified.
+        """
+        dset = self.copy() if copy else self
+        for k in dset:
+            if dset._data.type(k) == DsetType.T_STR:
+                assert dset._data.topystrs(k), f"Could not convert column {k} to Python strings"
+        return dset
 
     def handle(self) -> int:
         """
