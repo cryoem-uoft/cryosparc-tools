@@ -751,7 +751,7 @@ class CryoSPARC:
         """
         self.vis.project_mkdir(  # type: ignore
             project_uid=project_uid,
-            path_rel=target_path_rel,
+            path_rel=str(target_path_rel),
             parents=parents,
             exist_ok=exist_ok,
         )
@@ -772,8 +772,8 @@ class CryoSPARC:
         """
         self.vis.project_cp(  # type: ignore
             project_uid=project_uid,
-            source_path_rel=source_path_rel,
-            target_path_rel=target_path_rel,
+            source_path_rel=str(source_path_rel),
+            target_path_rel=str(target_path_rel),
         )
 
     def symlink(
@@ -793,8 +793,8 @@ class CryoSPARC:
         """
         self.vis.project_symlink(  # type: ignore
             project_uid=project_uid,
-            source_path_rel=source_path_rel,
-            target_path_rel=target_path_rel,
+            source_path_rel=str(source_path_rel),
+            target_path_rel=str(target_path_rel),
         )
 
 
