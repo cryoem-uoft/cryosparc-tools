@@ -1272,7 +1272,12 @@ class ExternalJob(Job):
             status (str, optional): "running" or "waiting". Defaults to "waiting".
         """
         assert status in {"running", "waiting"}, f"Invalid start status {status}"
-        self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
+        assert self.doc["status"] not in {
+            "running",
+            "waiting",
+        }, f"Job {self.project_uid}-{self.uid} is already in running status"
+        self.cs.cli.run_external_job(self.project_uid, self.uid, status)  # type: ignore
+        self.refresh()
 
     def stop(self, error=False):
         """
