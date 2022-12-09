@@ -9,6 +9,8 @@ parts:
   chapters:
   - file: examples/recenter-particles
   - file: examples/cryolo
+  - file: examples/3dflex-custom-latent-trajectory
+  - file: examples/3dflex-custom-mesh-rigidity-weights
   - file: examples/hi-res-2d-classes
   - file: examples/magnification
   - file: examples/xml-exposure-groups
