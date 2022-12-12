@@ -15,6 +15,8 @@ Use it for the following use cases:
 This guide documents usage of the `cryosparc-tools` Python library. For CryoSPARC installation or general CryoSPARC usage instructions, [read the official guide](https://guide.cryosparc.com).
 ```
 
+Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-tools).
+
 ## Pre-requisites
 
 - [Python ≥ 3.7, ≤ 3.10](https://www.python.org/downloads/) (3.11 support is experimental)

@@ -32,4 +32,11 @@ parts:
     - file: api/mrc
     - file: api/star
     - file: api/command
-  - file: CHANGELOG
+- caption: Links
+  chapters:
+  - url: https://github.com/cryoem-uoft/cryosparc-tools
+    title: GitHub Repository
+  - url: https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md
+    title: Changelog
+  - url: https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE
+    title: License
