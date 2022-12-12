@@ -1,5 +1,8 @@
 # cryosparc-tools
 
+[![PyPI](https://badgen.net/pypi/v/cryosparc-tools)](https://pypi.org/project/cryosparc-tools/)
+[![Python package](https://github.com/cryoem-uoft/cryosparc-tools/actions/workflows/python-package.yml/badge.svg?branch=main)](https://github.com/cryoem-uoft/cryosparc-tools/actions/workflows/python-package.yml)
+
 Toolkit for interfacing with CryoSPARC. Read the documentation at
 [tools.cryosparc.com](https://tools.cryosparc.com)
 
