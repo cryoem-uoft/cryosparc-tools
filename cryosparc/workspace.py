@@ -83,7 +83,7 @@ class Workspace(MongoController[WorkspaceDocument]):
             ...     params={"abinit_K": 3}
             ... )
 
-        .. _CryoSPARC.get_job_sections
+        .. _CryoSPARC.get_job_sections:
             tools.html#cryosparc.tools.CryoSPARC.get_job_sections
         """
         return self.cs.create_job(
