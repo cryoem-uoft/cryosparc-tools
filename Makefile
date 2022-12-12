@@ -14,19 +14,8 @@ $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*
 	python -m setup build_ext -i
 
 # -----------------------------------------------------------------------------
-#    Vercel deployment related targets
+#    Vercel deployment-related targets
 # -----------------------------------------------------------------------------
-
-.venv/bin/python:
-	$(PYTHON) -m venv .venv
-
-.venv/bin/jupyter-book: .venv/bin/python
-	.venv/bin/python -m pip install -U pip
-	.venv/bin/python -m pip install -e ".[build]"
-
-verceldeps:
-	yum update -y
-	yum install bzip2-devel libffi-devel openssl-devel sqlite-devel -y
 
 Python-$(PYTHON_VERSION).tgz:
 	curl -L https://www.python.org/ftp/python/$(PYTHON_VERSION)/Python-$(PYTHON_VERSION).tgz -o Python-$(PYTHON_VERSION).tgz
@@ -39,11 +28,25 @@ python: Python-$(PYTHON_VERSION)
 	make -C Python-$(PYTHON_VERSION)
 	make -C Python-$(PYTHON_VERSION) altinstall
 
+.venv/bin/python:
+	$(PYTHON) -m venv .venv
+
+.venv/bin/pip: .venv/bin/python
+	.venv/bin/python -m pip install -U pip
+
+.venv/bin/jupyter-book: .venv/bin/pip
+	.venv/bin/pip install -e ".[build]"
+
+verceldeps:
+	yum update -y
+	yum install bzip2-devel libffi-devel openssl-devel sqlite-devel -y
+
 vercelinstall: verceldeps python .venv/bin/python
 	echo "Install complete"
 
 vercelbuild: .venv/bin/jupyter-book
 	.venv/bin/jupyter-book build docs
+
 
 # -----------------------------------------------------------------------------
 #    Cleanup
