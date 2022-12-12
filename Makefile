@@ -37,6 +37,9 @@ python: Python-$(PYTHON_VERSION)
 .venv/bin/jupyter-book: .venv/bin/pip
 	.venv/bin/pip install -e ".[build]"
 
+.vercel:
+	mkdir -p .vercel
+
 verceldeps:
 	yum update -y
 	yum install bzip2-devel libffi-devel openssl-devel sqlite-devel -y
@@ -44,9 +47,10 @@ verceldeps:
 vercelinstall: verceldeps python .venv/bin/python
 	echo "Install complete"
 
-vercelbuild: .venv/bin/jupyter-book
+vercelbuild: .vercel .venv/bin/jupyter-book
 	.venv/bin/jupyter-book build docs
-
+	rm -rf .vercel/output && cp -R docs/_build/html .vercel/output
+	echo '{"version":3,"cache":[".venv/**","build/**","docs/_build/**","Python-*.tgz","Python-*/**"]}' > .vercel/output/config.json
 
 # -----------------------------------------------------------------------------
 #    Cleanup
