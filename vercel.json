@@ -1,0 +1,6 @@
+{
+    "framework": null,
+    "installCommand": "make vercelinstall",
+    "buildCommand": "make vercelbuild",
+    "outputDirectory": "docs/_build/html"
+}

@@ -1,0 +1,10 @@
+{
+    "version": 3,
+    "cache": [
+        ".venv/**",
+        "build/**",
+        "docs/_build/**",
+        "Python-*.tgz",
+        "Python-*/**"
+    ]
+}
