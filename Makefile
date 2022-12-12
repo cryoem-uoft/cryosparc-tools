@@ -35,7 +35,7 @@ Python-$(PYTHON_VERSION): Python-$(PYTHON_VERSION).tgz
 	tar -xzf Python-${PYTHON_VERSION}.tgz
 
 python: Python-$(PYTHON_VERSION)
-cd Python-$(PYTHON_VERSION) && ./configure && cd .. || cd ..
+	cd Python-$(PYTHON_VERSION) && ./configure && cd .. || cd ..
 	make -C Python-$(PYTHON_VERSION)
 	make -C Python-$(PYTHON_VERSION) altinstall
 
