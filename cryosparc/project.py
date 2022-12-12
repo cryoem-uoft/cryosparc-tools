@@ -229,6 +229,21 @@ class Project(MongoController[ProjectDocument]):
             ... )
             "J44"
 
+            Save a result with multiple slots of the same type.
+
+            >>> project.save_external_result(
+            ...     workspace_uid="P1",
+            ...     dataset=particles,
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "J45"
+
         Args:
             workspace_uid (str | None): Workspace UID to save results into.
                 Specify ``None`` to auto-select a workspace.
@@ -335,7 +350,7 @@ class Project(MongoController[ProjectDocument]):
         """
         return self.cs.download_mrc(self.uid, path_rel)
 
-    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]):
+    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]):
         """
         Upload the given file to the project directory at the given relative
         path.
@@ -343,7 +358,8 @@ class Project(MongoController[ProjectDocument]):
         Args:
             target_path_rel (str | Path): Relative target path in project
                 directory.
-            source (str | Path | IO): Local path or file handle to upload.
+            source (str | bytes | Path | IO): Local path or file handle to
+                upload. May also specified as raw bytes.
         """
         return self.cs.upload(self.uid, target_path_rel, source)
 

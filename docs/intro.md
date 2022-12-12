@@ -1,6 +1,6 @@
 # Getting Started
 
-**cryosparc-tools** is an open-source Python library that enables scripting access to the [CryoSPARC](https://cryosparc.com) <abbr title="cryo-electron microscopy">cryo-EM</abbr> software package.
+**cryosparc-tools** is an open-source Python library that enables scripting access to the [CryoSPARC](https://cryosparc.com) <abbr title="Cryogenic-electron microscopy">cryo-EM</abbr> software package.
 
 ![CryoSPARC Architecture with cryosparc-tools](_static/cryosparc-tools-architecture.png)
 
@@ -17,7 +17,7 @@ This guide documents usage of the `cryosparc-tools` Python library. For CryoSPAR
 
 ## Pre-requisites
 
-- [Python ≥ 3.7](https://www.python.org/downloads/)
+- [Python ≥ 3.7, ≤ 3.10](https://www.python.org/downloads/) (3.11 support is experimental)
 - [CryoSPARC ≥ v4.1](https://cryosparc.com/download)
 
 CryoSPARC installation must be accessible via one of the following methods:
@@ -46,8 +46,10 @@ release version. i.e., if the CryoSPARC version is vX.Y.Z, use the latest vX.Y
 tools package. The Z component does not need to match.
 
 For example, if you are running CryoSPARC v4.1.2, install cryosparc-tools with
-`pip install cryosparc-tools~=4.1`. If you later update to CryoSPARC v4.2.0 or
-v5.0.0, re-install the corresponding tools package with `pip install cryosparc-tools~=4.2` or `pip install cryosparc-tools~=5.0` respectively.
+`pip install "cryosparc-tools>=4.1,<4.2"`. If you later update to CryoSPARC
+v4.2.0 or v5.0.0, re-install the corresponding tools package with
+`pip install cryosparc-tools>=4.2,<4.3` or
+`pip install cryosparc-tools>=5.0,<5.1` respectively.
 ```
 
 ## Usage
@@ -94,13 +96,12 @@ from cryosparc.dataset import Dataset
 path = project.dir() / "J43" / "particles.cs"
 particles = Dataset.load(path)
 
-for particle in particles.rows:
-    shift_y, shift_x = particle["alignments2D/shift"].T
-    mic_shape_y, mic_shape_x = particles["location/micrograph_shape"].T
-    new_loc_x = particles["location/center_x_frac"] * mic_shape_x - shift_x
-    new_loc_y = particles["location/center_y_frac"] * mic_shape_y - shift_y
-    particle["location/center_x_frac"] *= new_loc_x / mic_shape_x
-    particle["location/center_y_frac"] *= new_loc_y / mic_shape_y
+shift_y, shift_x = particles["alignments2D/shift"].T
+mic_shape_y, mic_shape_x = particles["location/micrograph_shape"].T
+new_loc_x = particles["location/center_x_frac"] * mic_shape_x - shift_x
+new_loc_y = particles["location/center_y_frac"] * mic_shape_y - shift_y
+particles["location/center_x_frac"] *= new_loc_x / mic_shape_x
+particles["location/center_y_frac"] *= new_loc_y / mic_shape_y
 
 particles.save(path)
 ```
@@ -149,8 +150,11 @@ API Reference for full usage capabilities.
 For questions, bug reports, suggestions or source code contributions, please
 [read the contribution guide](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CONTRIBUTING.md).
 
-If you publish an open-source tool that uses this package to GitHub, add the `cryosparc-tools` topic to your repository so others may discover it. [Browse tagged packages here](https://github.com/topics/cryosparc-tools).
+If you publish an open-source tool that uses this package to GitHub, add the
+`cryosparc-tools` topic to your repository so others may discover it.
+[Browse tagged packages here](https://github.com/topics/cryosparc-tools).
 
 ## License
 
-cryosparc-tools is licensed under the BSD-3-Clause. [View full license text](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE).
+cryosparc-tools is licensed under the BSD-3-Clause.
+[View full license text](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE).

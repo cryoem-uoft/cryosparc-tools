@@ -48,14 +48,13 @@ import numpy as n
 import numpy.core.records
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike  # type: ignore
+    from numpy.typing import NDArray, ArrayLike, DTypeLike
 
-from .core import Data
+from .core import Data, DsetType
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
-    DsetType,
     Field,
     decode_dataset_header,
     get_data_field,
@@ -217,6 +216,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: Appended dataset
         """
+        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return cls()
+
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
             assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
@@ -291,6 +294,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: combined dataset, or empty dataset if none are provided.
         """
+        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
         keep_uids = n.array([], dtype=n.uint64)
@@ -790,7 +794,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def descr(self, exclude_uid=False) -> List[Field]:
         """
-        Retrive the numpy-compatible description for dataset fields.
+        Get numpy-compatible description for dataset fields.
 
         Args:
             exclude_uid (bool, optional): If True, uid field will not be
@@ -812,7 +816,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     def fields(self, exclude_uid=False) -> List[str]:
         """
-        Retrieve a list of field names available in this dataset.
+        Get a list of field names available in this dataset.
 
         Args:
             exclude_uid (bool, optional): If True, uid field will not be
@@ -1325,6 +1329,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             Dataset: subset with rows matching query removed and other datasets
                 appended at the end
         """
+        others = tuple(d for d in others if len(d) > 0)  # skip empty datasets
         keep_fields = self.common_fields(self, *others, assert_same_fields=True)
         others_len = sum(len(o) for o in others)
         keep_mask = n.ones(len(self), dtype=bool)
@@ -1347,6 +1352,46 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             offset += other_len
 
         return result
+
+    def to_cstrs(self, copy: bool = False):
+        """
+        Convert all Python string columns to C strings. Resulting dataset fields
+        that previously had dtype ``np.object_`` (or ``T_OBJ`` internally) will get
+        type ``np.uint64`` and may be accessed as via the dataset C API.
+
+        Note: This operation takes a long time for large datasets.
+
+        Args:
+            copy (bool, optional): If True, returns a modified copy of the
+                dataset instead of mutation. Defaults to False.
+
+        Returns:
+            Dataset: same dataset or copy if specified.
+        """
+        dset = self.copy() if copy else self
+        for k in dset:
+            if dset._data.type(k) == DsetType.T_OBJ:
+                assert dset._data.tocstrs(k), f"Could not convert column {k} to C strings"
+        return dset
+
+    def to_pystrs(self, copy: bool = False):
+        """
+        Convert all C string columns to Python strings. Resulting dataset fields
+        that previously had dtype ``np.uint64`` (and ``T_STR`` internally) will
+        get type ``np.object_``.
+
+        Args:
+            copy (bool, optional): If True, returns a modified copy of the
+                dataset instead of mutation. Defaults to False.
+
+        Returns:
+            Dataset: same dataset or copy if specified.
+        """
+        dset = self.copy() if copy else self
+        for k in dset:
+            if dset._data.type(k) == DsetType.T_STR:
+                assert dset._data.topystrs(k), f"Could not convert column {k} to Python strings"
+        return dset
 
     def handle(self) -> int:
         """

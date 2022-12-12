@@ -1,15 +1,15 @@
 """
 Utilities and type definitions for working with dataset fields and column types.
 """
-from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
 import json
 from typing_extensions import Literal, TypedDict
 import numpy as n
 
+from .core import Data, DsetType
+
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, DTypeLike  # type: ignore
-    from .core import Data
+    from numpy.typing import NDArray, DTypeLike
 
 Shape = Tuple[int, ...]
 """A numpy shape tuple from ndarray.shape"""
@@ -48,27 +48,6 @@ class DatasetHeader(TypedDict):
     compressed_fields: List[str]
 
 
-class DsetType(int, Enum):
-    """
-    Mirror of equivalent C-datatype enumeration
-    """
-
-    T_F32 = 1
-    T_F64 = 2
-    T_C32 = 3
-    T_C64 = 4
-    T_I8 = 5
-    T_I16 = 6
-    T_I32 = 7
-    T_I64 = 8
-    T_U8 = 9
-    T_U16 = 10
-    T_U32 = 11
-    T_U64 = 12
-    T_STR = 13
-    T_OBJ = 14
-
-
 DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
     DsetType.T_F32: n.float32,
     DsetType.T_F64: n.float64,
@@ -81,8 +60,8 @@ DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
     DsetType.T_U8: n.uint8,
     DsetType.T_U16: n.uint16,
     DsetType.T_U32: n.uint32,
+    DsetType.T_STR: n.uint64,  # Note: Prefer T_OBJ when working in Python
     DsetType.T_U64: n.uint64,
-    DsetType.T_STR: n.object0,  # Note: Prefer T_OBJ instead
     DsetType.T_OBJ: n.object0,
 }
 
@@ -130,15 +109,15 @@ def dtypestr(dtype: "DTypeLike") -> str:
         return dt.str
 
 
-def get_data_field(data: "Data", field: str) -> Field:
+def get_data_field(data: Data, field: str) -> Field:
     return makefield(field, get_data_field_dtype(data, field))
 
 
-def get_data_field_dtype(data: "Data", field: str) -> "DTypeLike":
+def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
     t = data.type(field)
-    if t not in DSET_TO_TYPE_MAP:
-        raise KeyError(f"Unknown dset field type {t}")
-    dt = n.dtype(DSET_TO_TYPE_MAP[DsetType(t)])
+    if t == 0 or t not in DSET_TO_TYPE_MAP:
+        raise KeyError(f"Unknown dataset field {field} or field type {t}")
+    dt = n.dtype(DSET_TO_TYPE_MAP[t])
     shape = data.getshp(field)
     return (dt.str, shape) if shape else dt.str
 

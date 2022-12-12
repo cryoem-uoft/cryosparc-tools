@@ -68,9 +68,11 @@ uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 int        dset_addrows       (uint64_t dset, uint32_t num);
 int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
 int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
+int        dset_changecol     (uint64_t dset, const char * key, int type);
 
 int        dset_defrag (uint64_t dset, int realloc_smaller);
 void       dset_dumptxt (uint64_t dset);
+void *     dset_dump (uint64_t dset);
 
 #endif
 /*
@@ -227,11 +229,11 @@ typedef struct {
 typedef struct {
 
 	uint8_t    magic[6];
+	uint64_t   total_sz; // total allocated memory size
 	uint32_t   ccol;  // reserved capacity for columns
 	uint32_t   ncol;  // actual number of columns
 	uint64_t   crow;  // reserved capacity for rows
 	uint64_t   nrow;  // actual number of rows
-	uint64_t   total_sz; // total allocated memory size
 	uint64_t   arrheap_start; // offset where column data begins
 	uint64_t   strheap_start; // offset where string (and other data structure) heap begins
 	uint64_t   strheap_sz; // 
@@ -375,6 +377,10 @@ dset_new_(size_t newsize, ds **allocation)
 	module_init();
 	lock();
 
+	ds_slot *s;
+	uint64_t gen;
+	void *mem;
+
 	// see if we can find an existing empty slot
 	uint64_t i = 0;
 	for (i = 0; i < ds_module.nslots; i++) {
@@ -389,17 +395,17 @@ dset_new_(size_t newsize, ds **allocation)
 		goto out_of_memory;
 
 
-	ds_slot *s = &ds_module.slots[i];
+	s = &ds_module.slots[i];
 
-	void * mem = DSREALLOC(0, newsize);
+	mem = DSREALLOC(0, newsize);
 	if (!mem) goto out_of_memory;
 
-	*allocation = mem;
-	s->memory   = mem;
+	*allocation = (ds *) mem;
+	s->memory   = (ds *) mem;
 	unlock();
 
 	memset(s->memory, 0, newsize);
-	uint64_t gen = ++s->generation;
+	gen = ++s->generation;
 
 	return i | (gen << SHIFT_GEN);
 	 
@@ -950,6 +956,14 @@ uint64_t dset_new(void) {
 		.strheap_sz    = 1, // the null string is the string with index zero.
 	};
 
+	// 0x94 CSDAT
+	d->magic[0] = 0x94;
+	d->magic[1] = 0x43;
+	d->magic[2] = 0x53;
+	d->magic[3] = 0x44;
+	d->magic[4] = 0x41;
+	d->magic[5] = 0x54;
+
 	return handle;
 }
 
@@ -995,6 +1009,8 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	ds *ds_r, *ds_s;
 	ds_column *keycol_r, *keycol_s;
 	ds_ht64 idx_lookup; idx_lookup.ht = 0;
+	uint64_t *keydata_r, *keydata_s;
+	uint32_t nrow = 0;
 
 	// Look up the two datasets and columns to join
 	if (!(ds_r = handle_lookup(dset_r, "dset_innerjoin", &generation_r, &idx_r))) return UINT64_MAX;
@@ -1078,8 +1094,8 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	}
 
 	// Get the data for each column to join
-	uint64_t *keydata_r = dset_get(dset_r, key);
-	uint64_t *keydata_s = dset_get(dset_s, key);
+	keydata_r = dset_get(dset_r, key);
+	keydata_s = dset_get(dset_s, key);
 
 	// Create a hash table of values which store the index of each column value
 	// in dataset S
@@ -1094,7 +1110,6 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// Determine resulting number of rows in joined dataset. Note that entries
 	// in dataset R that share the same value will not be de-duplicated and only
 	// the highest index matching row in dataset S will be used.
-	uint32_t nrow = 0;
 	for (uint64_t i = 0; i < ds_r->nrow; i++) {
 		if (ht64_has(&idx_lookup, keydata_r[i])) nrow++;
 	}
@@ -1212,16 +1227,13 @@ int dset_type (uint64_t dset, const char * colkey)
 
 void *dset_get (uint64_t dset, const char * colkey)
 {
+	// Caution: T_STR columns cannot be used directly, actual strings must be
+	// retrieved through dset_getstr
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
 	const ds_column *c  = column_lookup(d, colkey);
 	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
-
-	if (abs_i8(c->type) == T_STR) {
-		nonfatal("dset_get: column '%s' is a string", colkey);
-		return 0;
-	}
 
 	return ptr + d->arrheap_start + c->offset;
 }
@@ -1313,6 +1325,30 @@ int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, in
 	return 1;
 }
 
+// Change the type of the given column. Type must be compatible in size
+// NOTE: This is unsafe! Does not cast existing values to expected values
+int dset_changecol (uint64_t dset, const char *key, int type) {
+	if (!tcheck(type)) {
+		nonfatal("invalid column data type: %i", type);
+		return 0;
+	}
+
+	const ds  *d  = handle_lookup(dset, key, 0, 0);
+	ds_column *c  = column_lookup(d, key);
+
+	if (!(d && c)) return 0;
+
+	int8_t current_size = abs_i8(type_size[c->type]);
+	int8_t proposed_size = abs_i8(type_size[type]);
+
+	if (current_size != proposed_size) {
+		nonfatal("cannot change column with type %i to incompatible type %i", c->type, type);
+		return 0;
+	}
+
+	c->type = type;
+	return 1;
+}
 
 int dset_addrows (uint64_t dset, uint32_t num) {
 	uint64_t idx; 
@@ -1532,6 +1568,10 @@ void dset_dumptxt (uint64_t dset) {
 		fputc('\n',stdout);
 	}
 
+}
+
+void *dset_dump(uint64_t dset) {
+	return (void *) handle_lookup(dset, "dset_dump", 0, 0);
 }
 
 #endif

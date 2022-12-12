@@ -45,7 +45,7 @@ from .spec import (
     SchedulerLane,
     SchedulerTarget,
 )
-from .util import bopen, padarray, trimarray
+from .util import bopen, noopcontext, padarray, trimarray
 
 
 ONE_MIB = 2**20  # bytes in one mebibyte
@@ -175,7 +175,7 @@ class CryoSPARC:
 
     def get_lanes(self) -> List[SchedulerLane]:
         """
-        Retrieve a list of available scheduler lanes.
+        Get a list of available scheduler lanes.
 
         Returns:
             list[SchedulerLane]: Details about available lanes.
@@ -184,7 +184,7 @@ class CryoSPARC:
 
     def get_targets(self, lane: Optional[str] = None) -> List[SchedulerTarget]:
         """
-        Retrieve a list of available scheduler targets.
+        Get a list of available scheduler targets.
 
         Args:
             lane (str, optional): Only get targets from this specific lane.
@@ -200,8 +200,8 @@ class CryoSPARC:
 
     def get_job_sections(self) -> List[JobSection]:
         """
-        Retrive a summary of job types available for this instance, organized
-        by category.
+        Get a summary of job types available for this instance, organized by
+        category.
 
         Returns:
             list[JobSection]: List of job section dictionaries. Job types
@@ -287,7 +287,7 @@ class CryoSPARC:
         Returns:
             Workspace: created workspace instance
         """
-        workspace_uid: str = self.cs.cli.create_empty_workspace(  # type: ignore
+        workspace_uid: str = self.cli.create_empty_workspace(  # type: ignore
             project_uid=project_uid, created_by_user_id=self.user_id, title=title, desc=desc
         )
         return self.find_workspace(project_uid, workspace_uid)
@@ -406,7 +406,7 @@ class CryoSPARC:
             "J43"
 
             Save new particle locations that inherit passthrough slots from a
-            parent job
+            parent job.
 
             >>> particles = Dataset()
             >>> cs.save_external_result(
@@ -420,6 +420,22 @@ class CryoSPARC:
             ...     title='Re-centered particles'
             ... )
             "J44"
+
+            Save a result with multiple slots of the same type.
+
+            >>> cs.save_external_result(
+            ...     project_uid="P1",
+            ...     workspace_uid="P1",
+            ...     dataset=particles,
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "J45"
 
         Args:
             project_uid (str): Project UID to save results into.
@@ -454,7 +470,7 @@ class CryoSPARC:
         assert slot_names.intersection(prefixes) == slot_names, "Given dataset missing required slots"
 
         passthrough_str = ".".join(passthrough) if passthrough else None
-        job_uid, output = self.cs.vis.create_external_result(  # type: ignore
+        job_uid, output = self.vis.create_external_result(  # type: ignore
             project_uid=project_uid,
             workspace_uid=workspace_uid,
             type=type,
@@ -648,7 +664,7 @@ class CryoSPARC:
             return target
 
     def upload(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]
+        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]
     ):
         """
         Upload the given source file to the project directory at the given
@@ -658,9 +674,10 @@ class CryoSPARC:
             project_uid (str): project unique ID, e.g., "P3"
             target_path_rel (str | Path): Relative target path in project
                 directory.
-            source (str | Path | IO): Local path or file handle to upload.
+            source (str | bytes | Path | IO): Local path or file handle to
+                upload. May also specified as raw bytes.
         """
-        with bopen(source) as f:
+        with open(source, "rb") if isinstance(source, (str, PurePath)) else noopcontext(source) as f:
             url = f"/projects/{project_uid}/files"
             query = {"path": target_path_rel}
             with make_request(self.vis, url=url, query=query, data=f) as res:
@@ -734,7 +751,7 @@ class CryoSPARC:
         """
         self.vis.project_mkdir(  # type: ignore
             project_uid=project_uid,
-            path_rel=target_path_rel,
+            path_rel=str(target_path_rel),
             parents=parents,
             exist_ok=exist_ok,
         )
@@ -755,8 +772,8 @@ class CryoSPARC:
         """
         self.vis.project_cp(  # type: ignore
             project_uid=project_uid,
-            source_path_rel=source_path_rel,
-            target_path_rel=target_path_rel,
+            source_path_rel=str(source_path_rel),
+            target_path_rel=str(target_path_rel),
         )
 
     def symlink(
@@ -776,8 +793,8 @@ class CryoSPARC:
         """
         self.vis.project_symlink(  # type: ignore
             project_uid=project_uid,
-            source_path_rel=source_path_rel,
-            target_path_rel=target_path_rel,
+            source_path_rel=str(source_path_rel),
+            target_path_rel=str(target_path_rel),
         )
 
 

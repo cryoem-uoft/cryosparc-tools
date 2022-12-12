@@ -275,7 +275,7 @@ class Spool(List[R], Generic[R]):
         num elements.
 
         Args:
-            num (int): Number of elements to retrive from the spool.
+            num (int): Number of elements to get from the spool.
             peek (bool, optional): If True, does not advance internal spool
                 index. Will return the same elements on the next ``spool()``
                 call. Defaults to False.

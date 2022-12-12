@@ -10,6 +10,18 @@ if TYPE_CHECKING:
 
 
 class Workspace(MongoController[WorkspaceDocument]):
+    """
+    Accessor class to a workspace in CryoSPARC with ability create jobs and save
+    results. Should be instantiated through `CryoSPARC.find_workspace`_ or
+    `Project.find_workspace`_.
+
+    .. _CryoSPARC.find_workspace:
+        tools.html#cryosparc.tools.CryoSPARC.find_workspace
+
+    .. _Project.find_workspace:
+        project.html#cryosparc.project.Project.find_workspace
+    """
+
     def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
         self.cs = cs
         self.project_uid = project_uid
@@ -71,7 +83,7 @@ class Workspace(MongoController[WorkspaceDocument]):
             ...     params={"abinit_K": 3}
             ... )
 
-        .. _CryoSPARC.get_job_sections
+        .. _CryoSPARC.get_job_sections:
             tools.html#cryosparc.tools.CryoSPARC.get_job_sections
         """
         return self.cs.create_job(
@@ -130,6 +142,42 @@ class Workspace(MongoController[WorkspaceDocument]):
 
         Returns:
             str: UID of created job where this output was saved.
+
+        Examples:
+
+            Save all particle data
+
+            >>> particles = Dataset()
+            >>> workspace.save_external_result(particles, 'particle')
+            "J43"
+
+            Save new particle locations that inherit passthrough slots from a
+            parent job
+
+            >>> particles = Dataset()
+            >>> workspace.save_external_result(
+            ...     dataset=particles,
+            ...     type='particle',
+            ...     name='particles',
+            ...     slots=['location'],
+            ...     passthrough=('J42', 'selected_particles'),
+            ...     title='Re-centered particles'
+            ... )
+            "J44"
+
+            Save a result with multiple slots of the same type.
+
+            >>> workspace.save_external_result(
+            ...     dataset=particles,
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "J45"
         """
         return self.cs.save_external_result(
             self.project_uid,

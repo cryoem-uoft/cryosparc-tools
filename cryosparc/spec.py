@@ -25,7 +25,12 @@ from typing_extensions import Literal, TypedDict
 # Database document
 D = TypeVar("D", bound=TypedDict)
 
-Datatype = Literal["exposure", "particle", "template", "volume", "mask"]
+
+Datatype = Literal[
+    "exposure", "particle", "template", "volume", "mask", "ml_model", "symmetry_candidate", "flex_mesh", "flex_model"
+]
+"""Supported data types for job inputs and outputs."""
+
 
 JobStatus = Literal[
     "building",
@@ -188,7 +193,7 @@ class Datafield(TypedDict):
 
     required: bool
     """whether this field must necessarily exist in a corresponding
-    input/output"""
+    input/output. Assumed to be ``True`` if not specified"""
 
 
 class InputSlot(TypedDict):

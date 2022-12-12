@@ -39,7 +39,7 @@ class Column(n.ndarray):
         >>> dset.add_fields([('col2', 'f4'), ('col3', 'f4')])
         >>> np.sum(col)  # DANGER!! May result in invalid access
         >>> col = dset['col1']
-        >>> np.sum(col)  # Re-retrieved from dataset, now valid
+        >>> np.sum(col)  # Retrieved from dataset, now valid
         0
 
     """

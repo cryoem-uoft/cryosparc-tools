@@ -212,7 +212,7 @@ class Job(MongoController[JobDocument]):
 
     def clear(self):
         """
-        Clear this job and put back to building status.
+        Clear this job and reset to building status.
         """
         self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
         self.refresh()
@@ -594,13 +594,14 @@ class Job(MongoController[JobDocument]):
         """
         return self.cs.download_asset(fileid, target)
 
-    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, PurePath, IO[bytes]]):
+    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]):
         """
         Upload the given file to the job directory at the given path.
 
         Args:
             target_path_rel (str | Path): Relative target path in job directory
-            source (str | Path | IO): Local path or file handle to upload
+            source (str | bytes | Path | IO): Local path or file handle to
+                upload. May also specified as raw bytes.
         """
         target_path_rel = PurePosixPath(self.uid) / target_path_rel
         return self.cs.upload(self.project_uid, target_path_rel, source)
@@ -1012,7 +1013,7 @@ class ExternalJob(Job):
             title=title,
         )
         self.refresh()
-        return self.doc["output_result_groups"][-1]["name"]
+        return self.doc["input_slot_groups"][-1]["name"]
 
     @overload
     def add_output(
@@ -1099,6 +1100,18 @@ class ExternalJob(Job):
             ... )
             "picked_micrographs"
 
+            Create an output with multiple slots of the same type
+
+            >>> job.add_output(
+            ...     type="particle",
+            ...     name="particle_alignments",
+            ...     slots=[
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
+            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...     ]
+            ... )
+            "particle_alignments"
         """
         self.cs.vis.add_external_job_output(  # type: ignore
             project_uid=self.project_uid,
@@ -1227,13 +1240,15 @@ class ExternalJob(Job):
         else:
             return Dataset({"uid": alloc}).add_fields(expected_fields)
 
-    def save_output(self, name: str, dataset: Dataset):
+    def save_output(self, name: str, dataset: Dataset, refresh: bool = True):
         """
         Save output dataset to external job.
 
         Args:
             name (str): Name of output on this job.
             dataset (Dataset): Value of output with only required fields.
+            refresh (bool, Optional): Auto-refresh job document after saving.
+                Defaults to True
 
         Examples:
 
@@ -1250,6 +1265,8 @@ class ExternalJob(Job):
         with make_request(self.cs.vis, url=url, data=dataset.stream()) as res:
             result = res.read().decode()
             assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"
+        if refresh:
+            self.refresh()
 
     def start(self, status: Literal["running", "waiting"] = "waiting"):
         """
@@ -1259,7 +1276,12 @@ class ExternalJob(Job):
             status (str, optional): "running" or "waiting". Defaults to "waiting".
         """
         assert status in {"running", "waiting"}, f"Invalid start status {status}"
-        self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
+        assert self.doc["status"] not in {
+            "running",
+            "waiting",
+        }, f"Job {self.project_uid}-{self.uid} is already in running status"
+        self.cs.cli.run_external_job(self.project_uid, self.uid, status)  # type: ignore
+        self.refresh()
 
     def stop(self, error=False):
         """
@@ -1270,6 +1292,7 @@ class ExternalJob(Job):
         """
         status = "failed" if error else "completed"
         self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
+        self.refresh()
 
     @contextmanager
     def run(self):
@@ -1291,6 +1314,7 @@ class ExternalJob(Job):
         """
         error = False
         self.start("running")
+        self.refresh()
         try:
             yield self
         except Exception:
@@ -1298,3 +1322,4 @@ class ExternalJob(Job):
             raise
         finally:
             self.stop(error)  # TODO: Write Error to job log, if possible
+            self.refresh()

@@ -1,6 +1,6 @@
 [project]
 name = "cryosparc-tools"
-version = "0.0.2"
+version = "4.1.0"
 description = "Toolkit for interfacing with CryoSPARC"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -40,18 +40,10 @@ dev = [
 
 build = [
     "build",
+    "black[jupyter]",
     "autodocsumm",
     "cython",
     "jupyter-book",
-]
-
-examples = [
-    "pandas == 1.1.4",
-    "matplotlib >=3.4<3.5",
-    "numpy >=1.18<1.19",
-    "black[jupyter]",
-    "cryolo[c11]",
-    "notebook",
 ]
 
 [project.urls]
