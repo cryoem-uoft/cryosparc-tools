@@ -64,5 +64,7 @@ ipython_config.py
 
 # Other
 .ruff_cache
+.vercel
 cryosparc/core.c
 *.dSYM
+Python-*

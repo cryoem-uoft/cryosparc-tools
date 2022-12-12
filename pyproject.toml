@@ -40,7 +40,6 @@ dev = [
 
 build = [
     "build",
-    "black[jupyter]",
     "autodocsumm",
     "cython",
     "jupyter-book",
