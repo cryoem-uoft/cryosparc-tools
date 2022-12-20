@@ -62,7 +62,7 @@ DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
     DsetType.T_U32: n.uint32,
     DsetType.T_STR: n.uint64,  # Note: Prefer T_OBJ when working in Python
     DsetType.T_U64: n.uint64,
-    DsetType.T_OBJ: n.object0,
+    DsetType.T_OBJ: n.object_,
 }
 
 TYPE_TO_DSET_MAP = {
