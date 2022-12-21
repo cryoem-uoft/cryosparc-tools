@@ -363,7 +363,7 @@ moreslots (void) {
 }
 
 #define SHIFT_GEN (64-15)
-#define MASK_IDX  (0xffffffffffffffff >> SHIFT_GEN)
+#define MASK_IDX  (0xffffffffffffffff >> 15)
 
 static inline uint64_t
 roundup(uint64_t value, uint64_t to)
