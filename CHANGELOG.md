@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.1.1
+
+- Use correct numpy object type for newer versions of Numpy
+- Fix limit on number of active datasets
+- Use correct C types in Cython header definition
+
 ## v4.1.0
 
 - Initial release

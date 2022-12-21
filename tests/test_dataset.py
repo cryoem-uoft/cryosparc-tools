@@ -265,3 +265,13 @@ def test_append_many_empty():
 
 def test_union_many_empty():
     assert len(Dataset.union_many().rows()) == 0
+
+
+def test_allocate_many():
+    # Checks for logic issues when allocating a lot of datasets
+    for _ in range(3):
+        allocated = []
+        for _ in range(33_000):
+            allocated.append(Dataset(1))
+        assert len(allocated) == 33_000
+        del allocated
