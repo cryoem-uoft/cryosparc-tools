@@ -175,7 +175,7 @@ class CryoSPARC:
             else:
                 print(f"Connection FAILED to CryoSPARC command_vis at {self.vis._url}")
                 return False
-        
+
         with make_request(self.rtp, method="get") as response:
             if response.read():
                 print(f"Connection succeeded to CryoSPARC command_rtp at {self.rtp._url}")

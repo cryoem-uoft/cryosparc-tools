@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 
 class CommandClient:
     """
-    Class for communicating with CryoSPARC's ``command_core``, 
+    Class for communicating with CryoSPARC's ``command_core``,
     ``command_vis`` and ``command_rtp`` HTTP services.
 
     Upon initialization, gets a list of available JSONRPC_ endpoints and creates
