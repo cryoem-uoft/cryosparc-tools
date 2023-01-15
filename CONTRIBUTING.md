@@ -16,7 +16,7 @@ Thanks for taking the time to contribute! See the [Table of Contents](#table-of-
 - [Commit Messages](#commit-messages)
 - [Writing tools, libraries and add-ons](#writing-tools-libraries-and-add-ons)
 
-## I Have a generally Question
+## I Have a General Question
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://tools.cryosparc.com).
 
@@ -30,7 +30,7 @@ If you still have a question and need clarification, we recommend the following:
 
 Structura will address the issue as soon as possible.
 
-## I Want To Contribute
+## I Want to Contribute
 
 > ### Legal Notice <!-- omit in toc -->
 >
