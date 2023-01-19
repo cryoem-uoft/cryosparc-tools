@@ -272,7 +272,7 @@ class Job(MongoController[JobDocument]):
             >>> cs = CryoSPARC()
             >>> project = cs.find_project("P3")
             >>> job = project.find_job("J3")
-            >>> job.connect("J2", "micrographs", "input_micrographs")
+            >>> job.connect("input_micrographs", "J2", "micrographs")
 
         """
         assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
