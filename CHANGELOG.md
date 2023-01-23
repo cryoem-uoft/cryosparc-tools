@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.1.2
+
+- Preliminary access to CryoSPARC Live via CryoSPARC.rtp command client
+- Documenation fixes
+
 ## v4.1.1
 
 - Use correct numpy object type for newer versions of Numpy
