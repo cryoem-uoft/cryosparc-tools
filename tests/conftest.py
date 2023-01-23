@@ -153,6 +153,7 @@ def cs():
     httpretty.enable(verbose=False, allow_net_connect=False)
     httpretty.register_uri(httpretty.POST, "http://localhost:39002/api", body=request_callback_core)  # type: ignore
     httpretty.register_uri(httpretty.POST, "http://localhost:39003/api", body=request_callback_vis)  # type: ignore
+    httpretty.register_uri(httpretty.POST, "http://localhost:39005/api", body=request_callback_vis)  # type: ignore
     yield CryoSPARC(license="00000000-0000-0000-0000-000000000000", email="test@structura.bio", password="password")
     httpretty.disable()
     httpretty.reset()
