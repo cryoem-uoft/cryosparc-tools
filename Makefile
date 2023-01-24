@@ -1,6 +1,6 @@
-# Actual target is a .so file with a dynamically-determined name, but this is
-# close enough
-TARGET=cryosparc/core.c
+TARGET=cryosparc/core.cpython-38-x86_64-linux-gnu.so  # for CryoSPARC
+
+# For vercel build
 PYTHON=python3.9
 PYTHON_VERSION=3.9.16
 
