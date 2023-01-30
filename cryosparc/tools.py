@@ -354,7 +354,12 @@ class CryoSPARC:
             #cryosparc.tools.CryoSPARC.get_job_sections
         """
         job_uid: str = self.cli.create_new_job(  # type: ignore
-            job_type=type, project_uid=project_uid, workspace_uid=workspace_uid, title=title, desc=desc
+            job_type=type,
+            project_uid=project_uid,
+            workspace_uid=workspace_uid,
+            created_by_user_id=self.user_id,
+            title=title,
+            desc=desc,
         )
         job = self.find_job(project_uid, job_uid)
         for input_name, (parent_job, output_name) in connections.items():
