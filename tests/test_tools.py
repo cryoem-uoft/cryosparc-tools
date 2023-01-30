@@ -1,16 +1,19 @@
 import httpretty
-from cryosparc.project import Project
 from cryosparc.tools import CryoSPARC
+from cryosparc.project import Project
+from cryosparc.job import Job
 
 
 def test_create_job_basic(cs: CryoSPARC, project: Project):
     job = cs.create_job(project.uid, "W1", "homo_abinit")
-    assert job
+    assert isinstance(job, Job)
+    assert job.uid == "J1"
 
-    request = httpretty.latest_requests()[-1]  # last two requests are "subprocess completed" log lines
-    body = request.parsed_body
-    assert body["method"] == "create_new_job"
-    assert body["params"] == {
+    latest_requests = httpretty.latest_requests()
+    create_job_request = latest_requests[-3]
+    get_job_request = latest_requests[-1]
+    assert create_job_request.parsed_body["method"] == "create_new_job"
+    assert create_job_request.parsed_body["params"] == {
         "job_type": "homo_abinit",
         "project_uid": project.uid,
         "workspace_uid": "W1",
@@ -18,3 +21,5 @@ def test_create_job_basic(cs: CryoSPARC, project: Project):
         "title": None,
         "desc": None,
     }
+    assert get_job_request.parsed_body["method"] == "get_job"
+    assert get_job_request.parsed_body["params"] == ["P1", "J1"]
