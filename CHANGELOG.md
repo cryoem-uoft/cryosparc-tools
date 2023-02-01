@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.2.0
+
+- Support for CryoSPARC v4.2
+
 ## v4.1.3
 
 - Fix error when creating a job with `CryoSPARC.create_job`
