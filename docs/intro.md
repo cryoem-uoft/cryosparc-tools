@@ -48,7 +48,7 @@ release version. i.e., if the CryoSPARC version is vX.Y.Z, use the latest vX.Y
 tools package. The Z component does not need to match.
 
 For example, if you are running CryoSPARC v4.1.2, install cryosparc-tools with
-`pip install cryosparc-tools~=4.1.0` (equivalent to `pip install "cryosparc-tools>=4.1.0,<4.2").
+`pip install cryosparc-tools~=4.1.0` (equivalent to `pip install "cryosparc-tools>=4.1.0,<4.2"`).
 If you later update to CryoSPARC v4.2.0 or v5.0.0, re-install the corresponding
 tools package with `pip install cryosparc-tools~=4.2.0` or
 `pip install cryosparc-tools~=5.0.0` respectively.
