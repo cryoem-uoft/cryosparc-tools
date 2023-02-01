@@ -362,8 +362,9 @@ moreslots (void) {
 	}
 }
 
-#define SHIFT_GEN (64-15)
-#define MASK_IDX  (0xffffffffffffffff >> 15)
+#define SHIFT_GEN (64-16)
+#define MASK_IDX  (0xffffffffffffffff >> 16)
+#define MAX_GEN   UINT16_MAX
 
 static inline uint64_t
 roundup(uint64_t value, uint64_t to)
@@ -405,6 +406,10 @@ dset_new_(size_t newsize, ds **allocation)
 	unlock();
 
 	memset(s->memory, 0, newsize);
+	if (s->generation >= MAX_GEN) {
+		// Generation limit reached, trigger overflow so that handle != 0
+		s->generation = 0;
+	}
 	gen = ++s->generation;
 
 	return i | (gen << SHIFT_GEN);

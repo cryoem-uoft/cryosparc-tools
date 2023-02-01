@@ -13,6 +13,7 @@ from cryosparc.tools import CryoSPARC
 from cryosparc.dataset import Dataset as BaseDataset, Row
 from cryosparc.util import default_rng
 
+
 # Always use this class for testing to ensure Dataset#items property is never
 # used internally. Downstream CryoSPARC relies on this.
 class Dataset(BaseDataset[Row]):
@@ -31,10 +32,20 @@ def request_callback_core(request, uri, response_headers):
     procs = {
         "hello_world": {"hello": "world"},
         "get_id_by_email_password": "6372a35e821ed2b71d9fe4e3",
-        "get_job": {"uid": "J1", "project_uid": "P1", "job_type": "homo_abinit"},
+        "get_job": {
+            "uid": "J1",
+            "project_uid": "P1",
+            "job_type": "homo_abinit",
+            "title": "New Job",
+            "description": "",
+            "created_by_user_id": "6372a35e821ed2b71d9fe4e3",
+        },
         "get_project_dir_abs": "/projects/my-project",
         "get_project": {"uid": "P1", "title": "My Project"},
+        "create_new_job": "J1",
         "job_send_streamlog": None,
+        "job_connect_group": True,
+        "job_set_param": True,
     }
     procs["system.describe"] = {"procs": [{"name": m} for m in procs]}
     response_headers["content-type"] = "application/json"

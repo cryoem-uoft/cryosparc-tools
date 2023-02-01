@@ -417,8 +417,7 @@ class Project(MongoController[ProjectDocument]):
     def cp(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
         """
         Copy a file or folder within a project to another location within that
-        same project. Note that argument order is reversed from
-        equivalent ``cp`` command.
+        same project.
 
         Args:
             source_path_rel (str | Path): Relative path in project of source
@@ -434,15 +433,14 @@ class Project(MongoController[ProjectDocument]):
     def symlink(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
         """
         Create a symbolic link in the given project. May only create links for
-        files within the project. Note that argument order is reversed from
-        ``ln -s``.
+        files within the project.
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
-            target_path_rel (str | Path): Relative path in project to new
-                symlink.
             source_path_rel (str | Path): Relative path in project to file from
                 which to create symlink.
+            target_path_rel (str | Path): Relative path in project to new
+                symlink.
         """
         self.cs.symlink(
             project_uid=self.uid,

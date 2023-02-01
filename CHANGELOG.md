@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.1.3
+
+- Fix error when creating a job with `CryoSPARC.create_job`
+- Fix Dataset allocation error due to slot generation overflow
+- Docs minor fixes
+
 ## v4.1.2
 
 - Preliminary access to CryoSPARC Live via CryoSPARC.rtp command client
