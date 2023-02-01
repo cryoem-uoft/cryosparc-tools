@@ -778,8 +778,7 @@ class CryoSPARC:
     ):
         """
         Copy a file or folder within a project to another location within that
-        same project. Note that argument order is reversed from
-        equivalent ``cp`` command.
+        same project.
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
@@ -798,8 +797,7 @@ class CryoSPARC:
     ):
         """
         Create a symbolic link in the given project. May only create links for
-        files within the project. Note that argument order is reversed from
-        ``ln -s``.
+        files within the project.
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
