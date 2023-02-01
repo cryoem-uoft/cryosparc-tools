@@ -354,11 +354,16 @@ class CryoSPARC:
             #cryosparc.tools.CryoSPARC.get_job_sections
         """
         job_uid: str = self.cli.create_new_job(  # type: ignore
-            job_type=type, project_uid=project_uid, workspace_uid=workspace_uid, title=title, desc=desc
+            job_type=type,
+            project_uid=project_uid,
+            workspace_uid=workspace_uid,
+            created_by_user_id=self.user_id,
+            title=title,
+            desc=desc,
         )
         job = self.find_job(project_uid, job_uid)
         for input_name, (parent_job, output_name) in connections.items():
-            job.connect(parent_job, output_name, input_name, refresh=False)
+            job.connect(input_name, parent_job, output_name, refresh=False)
         for k, v in params.items():
             job.set_param(k, v, refresh=False)
         if connections or params:
@@ -773,8 +778,7 @@ class CryoSPARC:
     ):
         """
         Copy a file or folder within a project to another location within that
-        same project. Note that argument order is reversed from
-        equivalent ``cp`` command.
+        same project.
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
@@ -793,8 +797,7 @@ class CryoSPARC:
     ):
         """
         Create a symbolic link in the given project. May only create links for
-        files within the project. Note that argument order is reversed from
-        ``ln -s``.
+        files within the project.
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
