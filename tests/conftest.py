@@ -44,6 +44,8 @@ def request_callback_core(request, uri, response_headers):
         "get_project": {"uid": "P1", "title": "My Project"},
         "create_new_job": "J1",
         "job_send_streamlog": None,
+        "job_connect_group": True,
+        "job_set_param": True
     }
     procs["system.describe"] = {"procs": [{"name": m} for m in procs]}
     response_headers["content-type"] = "application/json"

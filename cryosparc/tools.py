@@ -363,7 +363,7 @@ class CryoSPARC:
         )
         job = self.find_job(project_uid, job_uid)
         for input_name, (parent_job, output_name) in connections.items():
-            job.connect(parent_job, output_name, input_name, refresh=False)
+            job.connect(input_name, parent_job, output_name, refresh=False)
         for k, v in params.items():
             job.set_param(k, v, refresh=False)
         if connections or params:
