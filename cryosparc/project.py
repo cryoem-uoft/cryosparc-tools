@@ -19,8 +19,17 @@ class Project(MongoController[ProjectDocument]):
     and upload/download project files. Should be instantiated through
     `CryoSPARC.find_project`_.
 
+    Attributes:
+        uid (str): Project unique ID, e.g., "P3"
+        doc (ProjectDocument): All project data from the CryoSPARC database.
+            Database contents may change over time, use the `refresh`_ method
+            to update.
+
     .. _CryoSPARC.find_project:
         tools.html#cryosparc.tools.CryoSPARC.find_project
+
+    .. _refresh:
+        #cryosparc.project.Project.refresh
     """
 
     def __init__(self, cs: "CryoSPARC", uid: str) -> None:
