@@ -85,7 +85,7 @@ ImageContentType = Literal[
 Supported job image asset MIME types.
 """
 
-AssetContentType = Union[TextContentType, ImageContentType]
+AssetContentType = Union[TextContentType, ImageContentType, Literal["application/octet-stream"]]
 """
 Supported job asset MIME types.
 """
