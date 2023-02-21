@@ -1,14 +1,18 @@
 """Stream processing utilities
 """
-from abc import ABC, abstractmethod
 from pathlib import PurePath
-from typing import IO, Any, AsyncGenerator, AsyncIterator, BinaryIO, Generator, Iterator, Optional, Union
+from typing import IO, Any, AsyncGenerator, AsyncIterator, BinaryIO, Generator, Iterator, Optional, Protocol, Union
+from typing_extensions import Self
 
+
+class AsyncBinaryIO(Protocol):
+    async def read(self, n: Optional[int] = None) -> bytes:
+        ...
 
 class BinaryIteratorIO(BinaryIO):
     """Read through a iterator that yields bytes as if it was a file"""
 
-    def __init__(self, iter: Iterator[bytes]):
+    def __init__(self, iter: Union[Iterator[bytes], Generator[bytes, Any, Any]]):
         self._iter = iter
         self._left = b""
 
@@ -46,10 +50,10 @@ class BinaryIteratorIO(BinaryIO):
         return b"".join(l)
 
 
-class AsyncBinaryIteratorIO(BinaryIO):
+class AsyncBinaryIteratorIO(AsyncBinaryIO):
     """Similar to BinaryIteratorIO except the iterator yields bytes asynchronously"""
 
-    def __init__(self, iter: Union[AsyncIterator[bytes], AsyncGenerator[bytes, None]]):
+    def __init__(self, iter: Union[AsyncIterator[bytes], AsyncGenerator[bytes, Any]]):
         self._iter = iter
         self._left = b""
 
@@ -87,7 +91,7 @@ class AsyncBinaryIteratorIO(BinaryIO):
         return b"".join(l)
 
 
-class Streamable(ABC):
+class Streamable(Protocol):
     @classmethod
     def mimetype(cls) -> str:
         """
@@ -109,8 +113,7 @@ class Streamable(ABC):
         }
 
     @classmethod
-    @abstractmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]]) -> Any:
+    def load(cls, file: Union[str, PurePath, IO[bytes]]) -> Self:
         """
         The given stream param must at least implement an async read method
         """
@@ -121,8 +124,7 @@ class Streamable(ABC):
         return cls.load(BinaryIteratorIO(source))
 
     @classmethod
-    @abstractmethod
-    async def from_async_stream(cls, stream: Any) -> "Streamable":
+    async def from_async_stream(cls, stream: AsyncBinaryIO) -> Self:
         """
         Asynchronously load from the given binary stream. The given stream
         parameter must at least have ``async read(n: int | None) -> bytes`` method.
@@ -133,7 +135,6 @@ class Streamable(ABC):
     async def from_async_iterator(cls, iterator: Union[AsyncIterator[bytes], AsyncGenerator[bytes, None]]):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator))
 
-    @abstractmethod
     def stream(self) -> Generator[bytes, None, None]:
         ...
 
