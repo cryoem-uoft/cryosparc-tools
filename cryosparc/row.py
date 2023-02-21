@@ -293,17 +293,22 @@ class Spool(List[R], Generic[R]):
             self.spool_index = (self.spool_index + num) % len(self.indices)
         return [self[self.indices[i]] for i in current_indices]
 
-    def make_batches(self, num: int = 200):
+    def make_batches(self, num: int = 200, drop_last: bool = False):
         """
         Get a list of lists, each one a consecutive list of ``num`` images.
 
         Args:
             num (int, optional): Size of each batch. Defaults to 200.
+            drop_last (bool, optional): If True, drop the last batch (which may not be the same size as the others)
 
         Returns:
             list[list[R]]: Split batches
         """
-        return [self[idx : idx + num] for idx in n.arange(0, len(self), num)]
+        batches = [self[idx: idx + num] for idx in n.arange(0, len(self), num)]
+        if drop_last:
+            batches = batches[:-1]
+        return batches
+
 
     def __str__(self):
         s = f"{type(self).__name__} object with {len(self)} items."
