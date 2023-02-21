@@ -66,7 +66,7 @@ from .dtype import (
     arraydtype,
     safe_makefield,
 )
-from .stream import Streamable
+from .stream import AsyncBinaryIO, Streamable
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
@@ -515,7 +515,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
 
     @classmethod
-    async def from_async_stream(cls, stream: Any):
+    async def from_async_stream(cls, stream: AsyncBinaryIO):
         import snappy
 
         headersize = u32intle(await stream.read(4))
