@@ -108,7 +108,7 @@ conda create -n cryosparc-tools-example -c conda-forge \
     pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme
 conda activate cryosparc-tools-example
 pip install -U pip
-pip install nvidia-pyindex matplotlib">=3.4,<3.5" pandas==1.1.4 notebook
+pip install nvidia-pyindex matplotlib~=3.4.0 pandas==1.1.4 notebook
 pip install "cryolo[c11]"
 pip install -e ".[build]"
 ```
@@ -133,4 +133,4 @@ Find examples in `docs/examples` directory
 
 ## License
 
-cryosparc-tools is licensed under the BSD-3-Clause.
+cryosparc-tools is licensed under the BSD-3-Clause license.

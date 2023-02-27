@@ -15,11 +15,21 @@ class Workspace(MongoController[WorkspaceDocument]):
     results. Should be instantiated through `CryoSPARC.find_workspace`_ or
     `Project.find_workspace`_.
 
+    Attributes:
+        uid (str): Workspace unique ID, e.g., "W42"
+        project_uid (str): Project unique ID, e.g., "P3"
+        doc (WorkspaceDocument): All workspace data from the CryoSPARC database.
+            Database contents may change over time, use the `refresh`_ method
+            to update.
+
     .. _CryoSPARC.find_workspace:
         tools.html#cryosparc.tools.CryoSPARC.find_workspace
 
     .. _Project.find_workspace:
         project.html#cryosparc.project.Project.find_workspace
+
+    .. _refresh:
+        #cryosparc.workspace.Workspace.refresh
     """
 
     def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:

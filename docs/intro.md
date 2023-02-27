@@ -48,10 +48,10 @@ release version. i.e., if the CryoSPARC version is vX.Y.Z, use the latest vX.Y
 tools package. The Z component does not need to match.
 
 For example, if you are running CryoSPARC v4.1.2, install cryosparc-tools with
-`pip install "cryosparc-tools>=4.1,<4.2"`. If you later update to CryoSPARC
-v4.2.0 or v5.0.0, re-install the corresponding tools package with
-`pip install cryosparc-tools>=4.2,<4.3` or
-`pip install cryosparc-tools>=5.0,<5.1` respectively.
+`pip install cryosparc-tools~=4.1.0` (equivalent to `pip install "cryosparc-tools>=4.1.0,<4.2"`).
+If you later update to CryoSPARC v4.2.0 or v5.0.0, re-install the corresponding
+tools package with `pip install cryosparc-tools~=4.2.0` or
+`pip install cryosparc-tools~=5.0.0` respectively.
 ```
 
 ## Usage
@@ -118,7 +118,7 @@ environment with the required dependencies. Here the environment is named
 ```sh
 conda create -n cryosparc-tools-example -c conda-forge python=3 numpy==1.18.5
 conda activate cryosparc-tools-example
-pip install matplotlib">=3.4,<3.5" pandas==1.1.4 cryosparc-tools
+pip install matplotlib~=3.4.0 pandas==1.1.4 cryosparc-tools
 ```
 
 For speed, these do not include the dependencies for the crYOLO example
@@ -158,5 +158,5 @@ If you publish an open-source tool that uses this package to GitHub, add the
 
 ## License
 
-cryosparc-tools is licensed under the BSD-3-Clause.
+cryosparc-tools is licensed under the BSD-3-Clause license.
 [View full license text](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE).
