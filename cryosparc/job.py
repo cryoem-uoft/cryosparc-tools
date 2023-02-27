@@ -40,6 +40,12 @@ class Job(MongoController[JobDocument]):
     outputs, add to job log, download job files. Should be instantiated
     through `CryoSPARC.find_job`_ or `Project.find_job`_.
 
+    Attributes:
+        uid (str): Job unique ID, e.g., "J42"
+        project_uid (str): Project unique ID, e.g., "P3"
+        doc (JobDocument): All job data from the CryoSPARC database. Database
+            contents may change over time, use the `refresh`_ method to update.
+
     Examples:
 
         Find an existing job.
@@ -70,6 +76,9 @@ class Job(MongoController[JobDocument]):
 
     .. _Project.find_job:
         project.html#cryosparc.project.Project.find_job
+
+    .. _refresh:
+        #cryosparc.job.Job.refresh
     """
 
     def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
@@ -926,7 +935,14 @@ class ExternalJob(Job):
     an input. Its outputs must be created manually and may be configured to
     passthrough inherited input fields, just as with regular CryoSPARC jobs.
 
-    Create a new External Job with `Project.create_external_job`_.
+    Create a new External Job with `Project.create_external_job`_. ExternalJob
+    is a subclass of `Job`_ and inherits all its methods.
+
+    Attributes:
+        uid (str): Job unique ID, e.g., "J42"
+        project_uid (str): Project unique ID, e.g., "P3"
+        doc (JobDocument): All job data from the CryoSPARC database. Database
+            contents may change over time, use the `refresh`_ method to update.
 
     Examples:
 
@@ -946,9 +962,14 @@ class ExternalJob(Job):
         ...     dset['movie_blob/path'] = ...  # populate dataset
         ...     job.save_output(output_name, dset)
 
+    .. _Job:
+        #cryosparc.job.Job
+
+    .. _refresh:
+        #cryosparc.job.Job.refresh
+
     .. _Project.create_external_job:
         project.html#cryosparc.project.Project.create_external_job
-
     """
 
     def add_input(

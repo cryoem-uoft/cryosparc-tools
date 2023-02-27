@@ -33,7 +33,7 @@ html:
   use_repository_button: true
   extra_footer: |
     <p>
-      © 2022 Structura Biotechnology Inc. Toronto, Canada<br>
+      © 2023 Structura Biotechnology Inc. Toronto, Canada<br>
       CryoSPARC and CryoSPARC Live are trademarks of Structura Biotechnology Inc.
     </p>
 
