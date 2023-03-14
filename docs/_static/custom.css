@@ -5,3 +5,7 @@
 .cell .cell_output .output > div {
     overflow-y: auto;
 }
+
+.bd-sidebar-primary {
+    overflow-x: hidden;
+}
