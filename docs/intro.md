@@ -25,8 +25,8 @@ Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-to
 CryoSPARC installation must be accessible via one of the following methods:
 
 - Running on the local machine
-- Running on a machine on the same network with `BASE_PORT + 2` and `BASE_PORT + 3` open for TCP connections
-- Running on a remote machine with `BASE_PORT + 2` and `BASE_PORT + 3` forwarded to the local machine
+- Running on a machine on the same network with `BASE_PORT + 2`, `BASE_PORT + 3` and `BASE_PORT + 5` open for TCP connections
+- Running on a remote machine with `BASE_PORT + 2`, `BASE_PORT + 3` and `BASE_PORT + 5` forwarded to the local machine
 
 See [SSH Port Forwarding](https://guide.cryosparc.com/setup-configuration-and-management/how-to-download-install-and-configure/accessing-cryosparc#ssh-port-forwarding-on-a-nix-system)
 documentation for accessing a CryoSPARC instance on a remote machine accessible
@@ -73,7 +73,7 @@ cs = CryoSPARC(
 )
 ```
 
-This assumes CryoSPARC base ports +2 and +3 (e.g., 39002 and 39003) are
+This assumes CryoSPARC base ports +2, +3 and +5 (e.g., 39002, 39003 and 39005) are
 available at `localhost` on the local machine. If CryoSPARC is on another
 machine on the same network with a different host, say "hostname", use
 `host="hostname"`.
