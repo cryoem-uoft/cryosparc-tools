@@ -48,7 +48,7 @@ from .spec import (
 from .util import bopen, noopcontext, padarray, trimarray
 
 
-ONE_MIB = 2**20  # bytes in one mebibyte
+ONE_MIB = 2 ** 20  # bytes in one mebibyte
 
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 """Regular expression for matching CryoSPARC license IDs."""
@@ -371,11 +371,7 @@ class CryoSPARC:
         return job
 
     def create_external_job(
-        self,
-        project_uid: str,
-        workspace_uid: str,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        self, project_uid: str, workspace_uid: str, title: Optional[str] = None, desc: Optional[str] = None,
     ) -> ExternalJob:
         """
         Add a new External job to this project to save generated outputs to.
@@ -522,9 +518,7 @@ class CryoSPARC:
             list[str]: List of file paths relative to the project directory.
         """
         return self.vis.list_project_files(  # type: ignore
-            project_uid=project_uid,
-            prefix=str(prefix),
-            recursive=recursive,
+            project_uid=project_uid, prefix=str(prefix), recursive=recursive,
         )
 
     def download(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
@@ -767,10 +761,7 @@ class CryoSPARC:
                 directory. Defaults to False.
         """
         self.vis.project_mkdir(  # type: ignore
-            project_uid=project_uid,
-            path_rel=str(target_path_rel),
-            parents=parents,
-            exist_ok=exist_ok,
+            project_uid=project_uid, path_rel=str(target_path_rel), parents=parents, exist_ok=exist_ok,
         )
 
     def cp(
@@ -787,9 +778,7 @@ class CryoSPARC:
             target_path_rel (str | Path): Relative path in project to copy to.
         """
         self.vis.project_cp(  # type: ignore
-            project_uid=project_uid,
-            source_path_rel=str(source_path_rel),
-            target_path_rel=str(target_path_rel),
+            project_uid=project_uid, source_path_rel=str(source_path_rel), target_path_rel=str(target_path_rel),
         )
 
     def symlink(
@@ -807,9 +796,7 @@ class CryoSPARC:
                 symlink.
         """
         self.vis.project_symlink(  # type: ignore
-            project_uid=project_uid,
-            source_path_rel=str(source_path_rel),
-            target_path_rel=str(target_path_rel),
+            project_uid=project_uid, source_path_rel=str(source_path_rel), target_path_rel=str(target_path_rel),
         )
 
 
@@ -925,7 +912,7 @@ def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, o
         arr = padarray(arr, val=n.mean(arr))
 
     radwn = (psize_A * arr.shape[-1]) / cutoff_resolution_A
-    inverse_cutoff_wn2 = 1.0 / radwn**2
+    inverse_cutoff_wn2 = 1.0 / radwn ** 2
 
     farr = n.fft.rfft2(arr)
     ny, nx = farr.shape

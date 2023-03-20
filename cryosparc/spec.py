@@ -33,15 +33,7 @@ Datatype = Literal[
 
 
 JobStatus = Literal[
-    "building",
-    "queued",
-    "launched",
-    "started",
-    "running",
-    "waiting",
-    "completed",
-    "killed",
-    "failed",
+    "building", "queued", "launched", "started", "running", "waiting", "completed", "killed", "failed",
 ]
 """
 Possible job status values.
@@ -64,22 +56,14 @@ Supported job stream log asset file formats.
 """
 
 TextContentType = Literal[
-    "text/plain",
-    "text/csv",
-    "text/html",
-    "application/json",
-    "application/xml",
+    "text/plain", "text/csv", "text/html", "application/json", "application/xml",
 ]
 """
 Supported job stream log text asset MIME types.
 """
 
 ImageContentType = Literal[
-    "application/pdf",
-    "image/gif",
-    "image/jpeg",
-    "image/png",
-    "image/svg+xml",
+    "application/pdf", "image/gif", "image/jpeg", "image/png", "image/svg+xml",
 ]
 """
 Supported job image asset MIME types.

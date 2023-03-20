@@ -588,10 +588,7 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
 
 
 def write(
-    file: Union[str, PurePath, IO[str]],
-    data: Any,
-    name: str = "",
-    labels: Optional[List[str]] = None,
+    file: Union[str, PurePath, IO[str]], data: Any, name: str = "", labels: Optional[List[str]] = None,
 ):
     """
     Write a star file with a single "data\\_" block. Data may be provided as

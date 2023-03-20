@@ -90,10 +90,7 @@ def test_write():
     result = StringIO()
     star.write(
         result,
-        data=[
-            (123.0, 456.0, "particles.mrc", "mic.mrc", 1),
-            (789.0, 123.0, "particles.mrc", "mic.mrc", 0),
-        ],
+        data=[(123.0, 456.0, "particles.mrc", "mic.mrc", 1), (789.0, 123.0, "particles.mrc", "mic.mrc", 0),],
         labels=[
             "rlnCoordinateX",
             "rlnCoordinateY",

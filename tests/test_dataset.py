@@ -61,21 +61,13 @@ def test_empty_data_constructor():
 
 def test_invalid_data_fields():
     # This is ok actually
-    assert Dataset(
-        [
-            ("uid", n.array([1, 2, 3])),
-            ("dat", ["Hello", "World", "!"]),
-        ]
-    )
+    assert Dataset([("uid", n.array([1, 2, 3])), ("dat", ["Hello", "World", "!"]),])
 
 
 def test_uneven_data_fields():
     with pytest.raises(AssertionError):
         Dataset(
-            [
-                ("uid", n.array([1, 2, 3])),
-                ("dat", n.array(["Hello", "World"])),
-            ]
+            [("uid", n.array([1, 2, 3])), ("dat", n.array(["Hello", "World"])),]
         )
 
 
@@ -182,14 +174,7 @@ def test_from_data_none():
 
 
 def test_streaming_bytes():
-    dset = Dataset.allocate(
-        4,
-        fields=[
-            ("field1", "u8"),
-            ("field2", "f4"),
-            ("field3", "O"),
-        ],
-    )
+    dset = Dataset.allocate(4, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O"),],)
     dset["field1"] = 42
     dset["field2"] = n.array([3.14, 2.73, 1.62, 3.14], dtype="f8")
     dset["field3"][:] = n.array(["Hello", "World", "!", "!"])
@@ -206,12 +191,7 @@ def test_streaming_bytes():
 def test_pickle_unpickle():
     import pickle
 
-    dset = Dataset(
-        [
-            ("uid", n.array([1, 2, 3])),
-            ("dat", n.array(["Hello", "World", "!"])),
-        ]
-    )
+    dset = Dataset([("uid", n.array([1, 2, 3])), ("dat", n.array(["Hello", "World", "!"])),])
     pickled = pickle.dumps(dset, protocol=pickle.HIGHEST_PROTOCOL)
     del dset  # calls data destructor to clear dset memory
 
@@ -238,11 +218,7 @@ def test_innerjoin_bigger():
     d2 = Dataset([("uid", [0, 1, 2, 3, 4]), ("dat2", ["(", "Hello", "World", "!", ")"])])
 
     assert d1.innerjoin(d2) == Dataset(
-        [
-            ("uid", [1, 2, 3]),
-            ("dat1", ["Hello", "World", "!"]),
-            ("dat2", ["Hello", "World", "!"]),
-        ]
+        [("uid", [1, 2, 3]), ("dat1", ["Hello", "World", "!"]), ("dat2", ["Hello", "World", "!"]),]
     )
 
 
@@ -250,13 +226,7 @@ def test_innerjoin_smaller():
     d1 = Dataset([("uid", [1, 2, 3]), ("dat1", ["Hello", "World", "!"])])
     d2 = Dataset([("uid", [3, 1]), ("dat2", ["Hello", "World"])])
 
-    assert d1.innerjoin(d2) == Dataset(
-        [
-            ("uid", [1, 3]),
-            ("dat1", ["Hello", "!"]),
-            ("dat2", ["World", "Hello"]),
-        ]
-    )
+    assert d1.innerjoin(d2) == Dataset([("uid", [1, 3]), ("dat1", ["Hello", "!"]), ("dat2", ["World", "Hello"]),])
 
 
 def test_append_many_empty():
