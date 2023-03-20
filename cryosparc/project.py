@@ -170,7 +170,10 @@ class Project(MongoController[ProjectDocument]):
         )
 
     def create_external_job(
-        self, workspace_uid: str, title: Optional[str] = None, desc: Optional[str] = None,
+        self,
+        workspace_uid: str,
+        title: Optional[str] = None,
+        desc: Optional[str] = None,
     ) -> ExternalJob:
         """
         Add a new External job to this project to save generated outputs to.
@@ -396,7 +399,10 @@ class Project(MongoController[ProjectDocument]):
         return self.cs.upload_mrc(self.uid, target_path_rel, data, psize)
 
     def mkdir(
-        self, target_path_rel: Union[str, PurePosixPath], parents: bool = False, exist_ok: bool = False,
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """
         Create a directory in the given project.
@@ -411,7 +417,10 @@ class Project(MongoController[ProjectDocument]):
                 directory. Defaults to False.
         """
         self.cs.mkdir(
-            project_uid=self.uid, target_path_rel=target_path_rel, parents=parents, exist_ok=exist_ok,
+            project_uid=self.uid,
+            target_path_rel=target_path_rel,
+            parents=parents,
+            exist_ok=exist_ok,
         )
 
     def cp(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
@@ -425,7 +434,9 @@ class Project(MongoController[ProjectDocument]):
             target_path_rel (str | Path): Relative path in project to copy to.
         """
         self.cs.cp(
-            project_uid=self.uid, source_path_rel=source_path_rel, target_path_rel=target_path_rel,
+            project_uid=self.uid,
+            source_path_rel=source_path_rel,
+            target_path_rel=target_path_rel,
         )
 
     def symlink(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
@@ -441,5 +452,7 @@ class Project(MongoController[ProjectDocument]):
                 symlink.
         """
         self.cs.symlink(
-            project_uid=self.uid, source_path_rel=source_path_rel, target_path_rel=target_path_rel,
+            project_uid=self.uid,
+            source_path_rel=source_path_rel,
+            target_path_rel=target_path_rel,
         )

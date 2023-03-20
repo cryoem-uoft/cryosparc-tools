@@ -100,7 +100,11 @@ class Workspace(MongoController[WorkspaceDocument]):
             self.project_uid, self.uid, type, connections=connections, params=params, title=title, desc=desc
         )
 
-    def create_external_job(self, title: Optional[str] = None, desc: Optional[str] = None,) -> ExternalJob:
+    def create_external_job(
+        self,
+        title: Optional[str] = None,
+        desc: Optional[str] = None,
+    ) -> ExternalJob:
         """
         Add a new External job to this workspace to save generated outputs to.
 

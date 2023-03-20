@@ -313,11 +313,15 @@ class Job(MongoController[JobDocument]):
                 raise ValueError(f"Unknown input group {target_input} for job {self.project_uid}-{self.uid}")
             for _ in input_group["connections"]:
                 self.cs.cli.job_connected_group_clear(  # type: ignore
-                    project_uid=self.project_uid, dest_group=f"{self.uid}.{target_input}", connect_idx=0,
+                    project_uid=self.project_uid,
+                    dest_group=f"{self.uid}.{target_input}",
+                    connect_idx=0,
                 )
         else:
             self.cs.cli.job_connected_group_clear(  # type: ignore
-                project_uid=self.project_uid, dest_group=f"{self.uid}.{target_input}", connect_idx=connection_idx,
+                project_uid=self.project_uid,
+                dest_group=f"{self.uid}.{target_input}",
+                connect_idx=connection_idx,
             )
 
         if refresh:
@@ -793,7 +797,10 @@ class Job(MongoController[JobDocument]):
         return self.cs.upload_mrc(self.project_uid, target_path_rel, data, psize)
 
     def mkdir(
-        self, target_path_rel: Union[str, PurePosixPath], parents: bool = False, exist_ok: bool = False,
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """
         Create a directory in the given job.

@@ -198,7 +198,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     def append_many(
-        cls, *datasets: "Dataset", assert_same_fields=False, repeat_allowed=False,
+        cls,
+        *datasets: "Dataset",
+        assert_same_fields=False,
+        repeat_allowed=False,
     ):
         """
         Similar to ``Dataset.append``. If no datasets are provided, returns an
@@ -273,7 +276,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     def union_many(
-        cls, *datasets: "Dataset", assert_same_fields=False, assume_unique=False,
+        cls,
+        *datasets: "Dataset",
+        assert_same_fields=False,
+        assume_unique=False,
     ):
         """
         Similar to ``Dataset.union``. If no datasets are provided, returns an
@@ -853,7 +859,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         ...
 
     def add_fields(
-        self, fields: Union[List[str], List[Field]], dtypes: Union[str, List["DTypeLike"], Literal[None]] = None,
+        self,
+        fields: Union[List[str], List[Field]],
+        dtypes: Union[str, List["DTypeLike"], Literal[None]] = None,
     ):
         """
         Adds the given fields to the dataset. If a field with the same name
@@ -1443,4 +1451,4 @@ def generate_uids(num: int = 0):
     Returns:
         NDArray: Numpy array of random unsigned 64-bit integers
     """
-    return random_integers(default_rng(), low=0, high=2 ** 64, size=num, dtype=n.uint64)
+    return random_integers(default_rng(), low=0, high=2**64, size=num, dtype=n.uint64)
