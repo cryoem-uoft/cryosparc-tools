@@ -28,8 +28,8 @@ class Dataset(BaseDataset[Row]):
         return self.take(idxs)
 
 
+# fmt: off
 T20S_PARTICLES = Dataset(
-    # fmt: off
     fromrecords([
         (  531905114944910449, 'J30/extract/012951868257382468663_14sep05c_00024sq_00004hl_00002es.frames_patch_aligned_doseweighted_particles.mrc', 176, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 16400.2  , 16232.468,  4.6313896, 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),
         ( 1832753233363106142, 'J30/extract/012756078269171603280_14sep05c_c_00003gr_00014sq_00005hl_00005es.frames_patch_aligned_doseweighted_particles.mrc', 210, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 13942.286, 13810.533,  4.695857 , 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),
@@ -43,12 +43,9 @@ T20S_PARTICLES = Dataset(
         (13864605955862944880, 'J30/extract/008578565574161745010_14sep05c_c_00003gr_00014sq_00006hl_00003es.frames_patch_aligned_doseweighted_particles.mrc',  92, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 18994.4  , 18768.04 , -1.5461981, 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.)],
         dtype=[('uid', '<u8'), ('blob/path', 'O'), ('blob/idx', '<u4'), ('blob/shape', '<u4', (2,)), ('blob/psize_A', '<f4'), ('blob/sign', '<f4'), ('blob/import_sig', '<u8'), ('ctf/type', 'O'), ('ctf/exp_group_id', '<u4'), ('ctf/accel_kv', '<f4'), ('ctf/cs_mm', '<f4'), ('ctf/amp_contrast', '<f4'), ('ctf/df1_A', '<f4'), ('ctf/df2_A', '<f4'), ('ctf/df_angle_rad', '<f4'), ('ctf/phase_shift_rad', '<f4'), ('ctf/scale', '<f4'), ('ctf/scale_const', '<f4'), ('ctf/shift_A', '<f4', (2,)), ('ctf/tilt_A', '<f4', (2,)), ('ctf/trefoil_A', '<f4', (2,)), ('ctf/tetra_A', '<f4', (4,)), ('ctf/anisomag', '<f4', (4,)), ('ctf/bfactor', '<f4')]
     )
-    # fmt: on
 )
 
-
 T20S_PARTICLES_PASSTHROUGH = Dataset(
-    # fmt: off
     fromrecords([
         (  531905114944910449, 12951868257382468663, 0, 'J14/motioncorrected/012951868257382468663_14sep05c_00024sq_00004hl_00002es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.22586207, 0.10166667, 100.),
         ( 1832753233363106142, 12756078269171603280, 0, 'J14/motioncorrected/012756078269171603280_14sep05c_c_00003gr_00014sq_00005hl_00005es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.08965518, 0.52166665, 100.),
@@ -62,8 +59,8 @@ T20S_PARTICLES_PASSTHROUGH = Dataset(
         (13864605955862944880,  8578565574161745010, 0, 'J14/motioncorrected/008578565574161745010_14sep05c_c_00003gr_00014sq_00006hl_00003es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.0862069 , 0.29333332, 100.)],
         dtype=[('uid', '<u8'), ('location/micrograph_uid', '<u8'), ('location/exp_group_id', '<u4'), ('location/micrograph_path', 'O'), ('location/micrograph_shape', '<u4', (2,)), ('location/center_x_frac', '<f4'), ('location/center_y_frac', '<f4'), ('location/min_dist_A', '<f4')]
     )
-    # fmt: on
 )
+# fmt: on
 
 
 def request_callback_core(request, uri, response_headers):
@@ -373,7 +370,11 @@ def cs():
     httpretty.enable(verbose=False, allow_net_connect=False)
     httpretty.register_uri(httpretty.POST, "http://localhost:39002/api", body=request_callback_core)  # type: ignore
     httpretty.register_uri(httpretty.POST, "http://localhost:39003/api", body=request_callback_vis)  # type: ignore
-    httpretty.register_uri(httpretty.POST, "http://localhost:39003/get_project_file", body=request_callback_vis_get_project_file)  # type: ignore
+    httpretty.register_uri(
+        httpretty.POST,
+        "http://localhost:39003/get_project_file",
+        body=request_callback_vis_get_project_file,  # type: ignore
+    )
     httpretty.register_uri(httpretty.POST, "http://localhost:39005/api", body=request_callback_rtp)  # type: ignore
     yield CryoSPARC(license="00000000-0000-0000-0000-000000000000", email="test@structura.bio", password="password")
     httpretty.disable()
