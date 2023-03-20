@@ -43,8 +43,33 @@ T20S_PARTICLES = Dataset(
         ( 9881411471502859237, 'J30/extract/012756078269171603280_14sep05c_c_00003gr_00014sq_00005hl_00005es.frames_patch_aligned_doseweighted_particles.mrc', 177, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 13765.75 , 13633.997,  4.695857 , 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),  # noqa
         (13075914070757904223, 'J30/extract/003729228794286345575_14sep05c_c_00003gr_00014sq_00008hl_00005es.frames_patch_aligned_doseweighted_particles.mrc', 446, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 18536.885, 18341.818,  4.678856 , 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),  # noqa
         (13385778774240615983, 'J30/extract/011450458613449160526_14sep05c_c_00003gr_00014sq_00010hl_00002es.frames_patch_aligned_doseweighted_particles.mrc',  22, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 17423.697, 17225.484, -1.5046247, 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),  # noqa
-        (13864605955862944880, 'J30/extract/008578565574161745010_14sep05c_c_00003gr_00014sq_00006hl_00003es.frames_patch_aligned_doseweighted_particles.mrc',  92, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 18994.4  , 18768.04 , -1.5461981, 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.)],  # noqa
-        dtype=[('uid', '<u8'), ('blob/path', 'O'), ('blob/idx', '<u4'), ('blob/shape', '<u4', (2,)), ('blob/psize_A', '<f4'), ('blob/sign', '<f4'), ('blob/import_sig', '<u8'), ('ctf/type', 'O'), ('ctf/exp_group_id', '<u4'), ('ctf/accel_kv', '<f4'), ('ctf/cs_mm', '<f4'), ('ctf/amp_contrast', '<f4'), ('ctf/df1_A', '<f4'), ('ctf/df2_A', '<f4'), ('ctf/df_angle_rad', '<f4'), ('ctf/phase_shift_rad', '<f4'), ('ctf/scale', '<f4'), ('ctf/scale_const', '<f4'), ('ctf/shift_A', '<f4', (2,)), ('ctf/tilt_A', '<f4', (2,)), ('ctf/trefoil_A', '<f4', (2,)), ('ctf/tetra_A', '<f4', (4,)), ('ctf/anisomag', '<f4', (4,)), ('ctf/bfactor', '<f4')]  # noqa
+        (13864605955862944880, 'J30/extract/008578565574161745010_14sep05c_c_00003gr_00014sq_00006hl_00003es.frames_patch_aligned_doseweighted_particles.mrc',  92, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 18994.4  , 18768.04 , -1.5461981, 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),  # noqa
+    ], dtype=[  # type: ignore
+            ('uid', '<u8'),
+            ('blob/path', 'O'),
+            ('blob/idx', '<u4'),
+            ('blob/shape', '<u4', (2,)),
+            ('blob/psize_A', '<f4'),
+            ('blob/sign', '<f4'),
+            ('blob/import_sig', '<u8'),
+            ('ctf/type', 'O'),
+            ('ctf/exp_group_id', '<u4'),
+            ('ctf/accel_kv', '<f4'),
+            ('ctf/cs_mm', '<f4'),
+            ('ctf/amp_contrast', '<f4'),
+            ('ctf/df1_A', '<f4'),
+            ('ctf/df2_A', '<f4'),
+            ('ctf/df_angle_rad', '<f4'),
+            ('ctf/phase_shift_rad', '<f4'),
+            ('ctf/scale', '<f4'),
+            ('ctf/scale_const', '<f4'),
+            ('ctf/shift_A', '<f4', (2,)),
+            ('ctf/tilt_A', '<f4', (2,)),
+            ('ctf/trefoil_A', '<f4', (2,)),
+            ('ctf/tetra_A', '<f4', (4,)),
+            ('ctf/anisomag', '<f4', (4,)),
+            ('ctf/bfactor', '<f4')
+        ]
     )
 )
 
@@ -59,9 +84,17 @@ T20S_PARTICLES_PASSTHROUGH = Dataset(
         ( 9881411471502859237, 12756078269171603280, 0, 'J14/motioncorrected/012756078269171603280_14sep05c_c_00003gr_00014sq_00005hl_00005es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.19137931, 0.84833336, 100.),  # noqa
         (13075914070757904223,  3729228794286345575, 0, 'J14/motioncorrected/003729228794286345575_14sep05c_c_00003gr_00014sq_00008hl_00005es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.8413793 , 0.105     , 100.),  # noqa
         (13385778774240615983, 11450458613449160526, 0, 'J14/motioncorrected/011450458613449160526_14sep05c_c_00003gr_00014sq_00010hl_00002es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.7413793 , 0.34      , 100.),  # noqa
-        (13864605955862944880,  8578565574161745010, 0, 'J14/motioncorrected/008578565574161745010_14sep05c_c_00003gr_00014sq_00006hl_00003es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.0862069 , 0.29333332, 100.)],  # noqa
-        dtype=[('uid', '<u8'), ('location/micrograph_uid', '<u8'), ('location/exp_group_id', '<u4'), ('location/micrograph_path', 'O'), ('location/micrograph_shape', '<u4', (2,)), ('location/center_x_frac', '<f4'), ('location/center_y_frac', '<f4'), ('location/min_dist_A', '<f4')]  # noqa
-    )
+        (13864605955862944880,  8578565574161745010, 0, 'J14/motioncorrected/008578565574161745010_14sep05c_c_00003gr_00014sq_00006hl_00003es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.0862069 , 0.29333332, 100.),  # noqa
+    ], dtype=[  # type: ignore
+            ('uid', '<u8'),
+            ('location/micrograph_uid', '<u8'),
+            ('location/exp_group_id', '<u4'),
+            ('location/micrograph_path', 'O'),
+            ('location/micrograph_shape', '<u4', (2,)),
+            ('location/center_x_frac', '<f4'),
+            ('location/center_y_frac', '<f4'),
+            ('location/min_dist_A', '<f4')
+    ])
 )
 # fmt: on
 
