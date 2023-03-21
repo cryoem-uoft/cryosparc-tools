@@ -354,7 +354,7 @@ class CryoSPARC:
             #cryosparc.tools.CryoSPARC.get_job_sections
         """
         conn = {k: (v if isinstance(v, list) else [v]) for k, v in connections.items()}
-        conn = {k: ['.'.join(i) for i in v] for k, v in conn.items()}
+        conn = {k: [".".join(i) for i in v] for k, v in conn.items()}
         job_uid: str = self.cli.make_job(  # type: ignore
             job_type=type,
             project_uid=project_uid,
@@ -363,7 +363,7 @@ class CryoSPARC:
             title=title,
             desc=desc,
             params=params,
-            input_group_connects=conn
+            input_group_connects=conn,
         )
         return self.find_job(project_uid, job_uid)
 
