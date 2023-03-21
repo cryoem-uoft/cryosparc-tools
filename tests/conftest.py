@@ -42,7 +42,7 @@ def request_callback_core(request, uri, response_headers):
         },
         "get_project_dir_abs": "/projects/my-project",
         "get_project": {"uid": "P1", "title": "My Project"},
-        "create_new_job": "J1",
+        "make_job": "J1",
         "job_send_streamlog": None,
         "job_connect_group": True,
         "job_set_param": True,
