@@ -50,7 +50,7 @@ class Workspace(MongoController[WorkspaceDocument]):
     def create_job(
         self,
         type: str,
-        connections: Dict[str, Tuple[str, str]] = {},
+        connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
         title: Optional[str] = None,
         desc: Optional[str] = None,
@@ -64,9 +64,9 @@ class Workspace(MongoController[WorkspaceDocument]):
             project_uid (str): Project UID to create job in, e.g., "P3"
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             type (str): Job type identifier, e.g., "homo_abinit"
-            connections (dict[str, tuple[str, str]]): Initial input connections.
-                Each key is an input name and each value is a (job uid, output
-                name) tuple. Defaults to {}
+            connections (dict[str, tuple[str, str] | list[tuple[str, str]]]):
+                Initial input connections. Each key is an input name and each
+                value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
             title (str, optional): Job title. Defaults to None.
