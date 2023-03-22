@@ -384,6 +384,10 @@ class Job(MongoController[JobDocument]):
             for result in job["output_results"]
             if result["group_name"] == name and (not slots or result["name"] in slots)
         ]
+        if not slots:
+            # Requested all slots, but auto-filter results with no provided meta
+            # files
+            results = [result for result in results if result["metafiles"]]
         if not results:
             raise TypeError(f"Job {self.project_uid}-{self.uid} does not have any results for output {name}")
 

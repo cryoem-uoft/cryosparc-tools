@@ -12,15 +12,19 @@ def job(project: Project):
 
 
 def test_load_output_all_slots(job: Job):
+    output = job.load_output("particles_class_0")
+    assert set(output.prefixes()) == {"location", "blob", "ctf"}
+
+
+def test_load_output_some_missing_slots(job: Job):
     with pytest.raises(
         ValueError,
         match=(
             "Cannot load output particles_class_0 slot pick_stats because "
             "output does not have an associated dataset file. "
-            "Please exclude this output from the requested slots."
         ),
     ):
-        job.load_output("particles_class_0")
+        job.load_output("particles_class_0", slots=["blob", "pick_stats"])
 
 
 def test_load_output_some_slots(job: Job, t20s_particles, t20s_particles_passthrough):
