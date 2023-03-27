@@ -384,10 +384,28 @@ class Job(MongoController[JobDocument]):
             for result in job["output_results"]
             if result["group_name"] == name and (not slots or result["name"] in slots)
         ]
+        if not slots:
+            # Requested all slots, but auto-filter results with no provided meta
+            # files
+            results = [result for result in results if result["metafiles"]]
         if not results:
             raise TypeError(f"Job {self.project_uid}-{self.uid} does not have any results for output {name}")
 
-        metafiles = set(r["metafiles"][0 if r["passthrough"] else version] for r in results)
+        metafiles = []
+        for r in results:
+            if r["metafiles"]:
+                metafile = r["metafiles"][0 if r["passthrough"] else version]
+                if metafile not in metafiles:
+                    metafiles.append(metafile)
+            else:
+                raise ValueError(
+                    (
+                        f"Cannot load output {name} slot {r['name']} because "
+                        "output does not have an associated dataset file. "
+                        "Please exclude this output from the requested slots."
+                    )
+                )
+
         datasets = [self.cs.download_dataset(self.project_uid, f) for f in metafiles]
         return Dataset.innerjoin(*datasets)
 
