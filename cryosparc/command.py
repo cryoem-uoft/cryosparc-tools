@@ -4,6 +4,7 @@ servers. Generally should not be used directly.
 """
 from contextlib import contextmanager
 import json
+import socket
 import uuid
 from typing import Optional, Type
 from urllib.request import urlopen, Request
@@ -165,7 +166,7 @@ def make_request(
             with urlopen(request, timeout=client._timeout) as response:
                 yield response
                 return
-        except TimeoutError:
+        except (TimeoutError, socket.timeout):
             error_reason = "Timeout Error"
             print(
                 f"*** {type(client).__name__}: command ({url}) "
