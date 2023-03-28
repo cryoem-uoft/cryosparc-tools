@@ -230,7 +230,7 @@ class Job(MongoController[JobDocument]):
                 JSON-encodable.
             timeout (int, optional): Maximum time to wait for the action to
                 complete, in seconds. Defaults to 10.
-            refresh (bool, optional): If True, defresh the job document after
+            refresh (bool, optional): If True, refresh the job document after
                 posting. Defaults to False.
         """
         result: Any = self.cs.cli.interactive_post(  # type: ignore
