@@ -219,6 +219,27 @@ class Job(MongoController[JobDocument]):
         ), f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
         return status
 
+    def interact(self, action: str, body: Any = {}, timeout: int = 10, refresh: bool = False) -> Any:
+        """
+        Call an interactive action on a waiting interactive job. The possible
+        actions and expected body depends on the job type.
+
+        Args:
+            action (str): Interactive endpoint to call.
+            body (any): Body parameters for the interactive endpoint. Must be
+                JSON-encodable.
+            timeout (int, optional): Maximum time to wait for the action to
+                complete, in seconds. Defaults to 10.
+            refresh (bool, optional): If True, refresh the job document after
+                posting. Defaults to False.
+        """
+        result: Any = self.cs.cli.interactive_post(  # type: ignore
+            project_uid=self.project_uid, job_uid=self.uid, endpoint=action, body=body, timeout=timeout
+        )
+        if refresh:
+            self.refresh()
+        return result
+
     def clear(self):
         """
         Clear this job and reset to building status.

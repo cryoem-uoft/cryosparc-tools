@@ -309,7 +309,7 @@ class CryoSPARC:
         project_uid: str,
         workspace_uid: str,
         type: str,
-        connections: Dict[str, Tuple[str, str]] = {},
+        connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
         title: Optional[str] = None,
         desc: Optional[str] = None,
@@ -322,9 +322,9 @@ class CryoSPARC:
             project_uid (str): Project UID to create job in, e.g., "P3"
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             type (str): Job type identifier, e.g., "homo_abinit"
-            connections (dict[str, tuple[str, str]]): Initial input connections.
-                Each key is an input name and each value is a (job uid, output
-                name) tuple. Defaults to {}
+            connections (dict[str, tuple[str, str] | list[tuple[str, str]]]):
+                Initial input connections. Each key is an input name and each
+                value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
             title (str, optional): Job title. Defaults to None.
@@ -353,22 +353,19 @@ class CryoSPARC:
         .. _CryoSPARC.get_job_sections:
             #cryosparc.tools.CryoSPARC.get_job_sections
         """
-        job_uid: str = self.cli.create_new_job(  # type: ignore
+        conn = {k: (v if isinstance(v, list) else [v]) for k, v in connections.items()}
+        conn = {k: [".".join(i) for i in v] for k, v in conn.items()}
+        job_uid: str = self.cli.make_job(  # type: ignore
             job_type=type,
             project_uid=project_uid,
             workspace_uid=workspace_uid,
-            created_by_user_id=self.user_id,
+            user_id=self.user_id,
             title=title,
             desc=desc,
+            params=params,
+            input_group_connects=conn,
         )
-        job = self.find_job(project_uid, job_uid)
-        for input_name, (parent_job, output_name) in connections.items():
-            job.connect(input_name, parent_job, output_name, refresh=False)
-        for k, v in params.items():
-            job.set_param(k, v, refresh=False)
-        if connections or params:
-            job.refresh()
-        return job
+        return self.find_job(project_uid, job_uid)
 
     def create_external_job(
         self,
