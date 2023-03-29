@@ -69,7 +69,7 @@ class CommandClient:
 
     service: str
 
-    class Error(BaseException):
+    class Error(Exception):
         def __init__(self, parent: "CommandClient", reason: str, *args: object, url: str = "") -> None:
             msg = f"*** {type(parent).__name__}: ({url}) {reason}"
             super().__init__(msg, *args)
