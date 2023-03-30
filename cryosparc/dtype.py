@@ -43,6 +43,7 @@ class DatasetHeader(TypedDict):
     Dataset header description when saving in CSDAT format.
     """
 
+    length: int
     dtype: List[Field]
     compression: Literal["snap"]
     compressed_fields: List[str]

@@ -1,0 +1,3 @@
+[submodule "cryosparc/include/snappy"]
+	path = cryosparc/include/snappy
+	url = https://github.com/andikleen/snappy-c.git

@@ -33,6 +33,7 @@ from typing import (
     Collection,
     Dict,
     Generic,
+    Iterable,
     List,
     Mapping,
     MutableMapping,
@@ -49,8 +50,9 @@ import numpy.core.records
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike
+    from . import core
 
-from .core import Data, DsetType
+from .core import Data, DsetType, Snappy
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
@@ -540,7 +542,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self):
+    def stream(self) -> Iterable[Union[bytes, memoryview, "core.MemoryView"]]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -552,7 +554,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Yields:
             bytes: Dataset file chunks
         """
-        import snappy
+        snappy = Snappy()
 
         cols = self.cols()
         arrays = [cols[c].to_fixed() for c in cols]
@@ -562,17 +564,19 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         compressed_fields = [col for col in cols if col not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
-            DatasetHeader(dtype=descr, compression="snap", compressed_fields=compressed_fields)
+            DatasetHeader(length=len(self), dtype=descr, compression="snap", compressed_fields=compressed_fields)
         )
         yield u32bytesle(len(header))
         yield header
 
         for f, arr in zip(cols, arrays):
+            fielddatalen = arr.size * arr.itemsize
             if f in NEVER_COMPRESS_FIELDS:
-                fielddata = arr.data.tobytes()
+                fielddata = arr.data
             else:
-                fielddata: bytes = snappy.compress(arr.data)
-            yield u32bytesle(len(fielddata))
+                fielddata: "core.MemoryView" = snappy.compress_to_internal_buf(arr.ctypes.data, fielddatalen).memview
+                fielddatalen = len(fielddata)
+            yield u32bytesle(fielddatalen)
             yield fielddata
 
     def __init__(
