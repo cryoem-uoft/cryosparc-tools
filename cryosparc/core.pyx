@@ -1,7 +1,8 @@
 from . cimport snappy
 from . cimport dataset
-from cpython.ref cimport PyObject
+from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
+import sys
 
 # Mirror of equivalent C-datatype enumeration
 cpdef enum DsetType:
@@ -49,7 +50,7 @@ cdef class Snappy:
         cdef size_t sz = source_len
         return snappy.snappy_max_compressed_length(sz)
 
-    def compress(self, data):
+    def compress(self, bytes data):
         # Allocate and return a bytes object with the compressed data.
         cdef const char *uncompressed = data
         cdef int uncompressed_len = len(data)
@@ -78,7 +79,7 @@ cdef class Snappy:
         finally:
             PyMem_Free(compressed)
 
-    def compress_to_internal_buf(self, data):
+    def compress_to_internal_buf(self, size_t data_ptr, size_t data_len):
         # Use when multiple compression calls are required. to minimize total
         # number of allocations.
         #
@@ -87,18 +88,16 @@ cdef class Snappy:
         # instance is garbage collected).
         #
         # Returns array memoryview with compressed data
-        cdef const char *uncompressed = data
-        cdef size_t uncompressed_len = len(data)
-
-        cdef int max_compressed_len = self.max_compressed_length(<int> uncompressed_len)
+        cdef const char *data = <const char *> data_ptr
+        cdef int max_compressed_len = self.max_compressed_length(data_len)
         self._ensure_buf(max_compressed_len)
         cdef size_t compressed_len
 
          # Call compress. Write final length into compressed_len
         cdef int error = snappy.snappy_compress(
             &self.env,
-            uncompressed,
-            uncompressed_len,
+            data,
+            <size_t> data_len,
             self.buf,
             &compressed_len
         )
@@ -119,7 +118,6 @@ cdef class Snappy:
 
 cdef class Data:
     cdef dataset.Dset _handle
-    cdef dict _strcache
 
     def __cinit__(self, other = None):
         cdef Data othr
@@ -128,6 +126,7 @@ cdef class Data:
             # copy constructor
             othr = <Data> other
             self._handle = dataset.dset_copy(othr._handle)
+            other._increfs()
         elif other:
             # Initialize with a numeric handle
             self._handle = <dataset.Dset> other
@@ -137,14 +136,53 @@ cdef class Data:
         if self._handle == 0:
             raise MemoryError()
 
-        self._strcache = dict()
-
     def __dealloc__(self):
-        if self._handle:
-            dataset.dset_del(self._handle)
+        cdef int nrow
+        cdef int coltype
+        cdef char *colkey
+        cdef PyObject **mem
+        cdef size_t size
+        cdef size_t itemsize
+        if not self._handle:
+            return
+
+        self._decrefs()
+        dataset.dset_del(self._handle)
+
+    def _increfs(self):
+        # Increment reference counts for all Python object fields.
+        # Call this after making a copy of this dataset.
+        nrow = dataset.dset_nrow(self._handle)
+        for i in xrange(dataset.dset_ncol(self._handle)):
+            with nogil:
+                colkey = dataset.dset_key(self._handle, i)
+                coltype = dataset.dset_type(self._handle, colkey)
+                if coltype != DsetType.T_OBJ:
+                    continue
+                mem = <PyObject **> (dataset.dset_get(self._handle, colkey))
+
+            for j in xrange(nrow):
+                Py_XINCREF(mem[j])
+
+    def _decrefs(self):
+        # Decrement reference counts for all Python object fields.
+        # Call this after destroying this dataset.
+        nrow = dataset.dset_nrow(self._handle)
+        for i in xrange(dataset.dset_ncol(self._handle)):
+            with nogil:
+                colkey = dataset.dset_key(self._handle, i)
+                coltype = dataset.dset_type(self._handle, colkey)
+                if coltype != DsetType.T_OBJ:
+                    continue
+                mem = <PyObject **> (dataset.dset_get(self._handle, colkey))
+
+            for j in xrange(nrow):
+                Py_XDECREF(mem[j])
 
     def innerjoin(self, str key, Data other):
-        return type(self)(dataset.dset_innerjoin(key.encode(), self._handle, other._handle))
+        cdef Data data = Data(dataset.dset_innerjoin(key.encode(), self._handle, other._handle))
+        data._increfs()
+        return data
 
     def totalsz(self):
         return dataset.dset_totalsz(self._handle)
@@ -180,7 +218,7 @@ cdef class Data:
 
     def getbuf(self, str colkey):
         cdef void *mem
-        cdef Py_ssize_t size
+        cdef size_t size
         cdef bytes colkey_b = colkey.encode()
         cdef const char *colkey_c = colkey_b
         with nogil:
@@ -191,7 +229,7 @@ cdef class Data:
         else:
             return <unsigned char [:size]> mem
 
-    def getstr(self, str colkey, Py_ssize_t index):
+    def getstr(self, str colkey, size_t index):
         return dataset.dset_getstr(self._handle, colkey.encode(), index)  # returns bytes
 
     def tocstrs(self, str colkey):
@@ -199,17 +237,20 @@ cdef class Data:
         cdef bytes colkey_b = colkey.encode()
         cdef const char *colkey_c = colkey_b
         cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
-        cdef Py_ssize_t nrow = dataset.dset_nrow(self._handle)
+        cdef size_t nrow = dataset.dset_nrow(self._handle)
         cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
-        cdef str pybytes
+        cdef str pystr
+        cdef bytes pybytes
 
         if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey_c, T_STR):
             return False
 
         for i in range(nrow):
-            pybytes = <str> (pycol[i])
-            pycol[i] = NULL  # so string is not deallocated
-            dataset.dset_setstr(self._handle, colkey_c, i, pybytes.encode())
+            pystr = <str> pycol[i]
+            pybytes = pystr.encode()
+            Py_XDECREF(pycol[i])  # so string is deallocated
+            pycol[i] = NULL  # so that strfree not attempted
+            dataset.dset_setstr(self._handle, colkey_c, i, pystr.encode(), len(pybytes))
 
         return True
 
@@ -218,9 +259,9 @@ cdef class Data:
         cdef bytes colkey_b = colkey.encode()
         cdef const char *colkey_c = colkey_b
         cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
-        cdef Py_ssize_t nrow = dataset.dset_nrow(self._handle)
-        cdef Py_ssize_t *pycol = <Py_ssize_t *> dataset.dset_get(self._handle, colkey_c)
-        cdef void **pystrcol = <void **> pycol
+        cdef size_t nrow = dataset.dset_nrow(self._handle)
+        cdef size_t *pycol = <size_t *> dataset.dset_get(self._handle, colkey_c)
+        cdef PyObject **pystrcol = <PyObject **> pycol
         cdef dict strcache = dict()
         cdef char *cstr
         cdef bytes cbytes
@@ -228,10 +269,6 @@ cdef class Data:
 
         if prevtype != T_STR:
             return False
-
-        # Save computed strcache to prevent string handles from getting garbage
-        # collected (since no other Python reference to them is kept)
-        self._strcache[colkey] = strcache
 
         for i in range(nrow):
             if pycol[i] in strcache:
@@ -241,7 +278,8 @@ cdef class Data:
                 pystr = cbytes.decode()
                 strcache[pycol[i]] = pystr
 
-            pystrcol[i] = <void *> pystr
+            pystrcol[i] = <PyObject *> pystr
+            Py_XINCREF(<PyObject *> pystr)
 
         if not dataset.dset_changecol(self._handle, colkey_c, T_OBJ):
             return False

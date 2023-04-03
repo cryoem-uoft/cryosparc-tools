@@ -61,7 +61,7 @@ const char* dset_key    (uint64_t dset, uint64_t index);
 int         dset_type   (uint64_t dset, const char * colkey);
 void *      dset_get    (uint64_t dset, const char * colkey);
 uint64_t    dset_getsz  (uint64_t dset, const char * colkey);
-int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
+int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value, size_t length);
 const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
 uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 
@@ -266,6 +266,7 @@ typedef struct {
 typedef struct {
 
 	ds         *memory;
+	// ds_ht64    ht;  // hash table for fast string lookups 
 	uint16_t   generation;
 
 } ds_slot;
@@ -799,9 +800,9 @@ static int ht64_insert(ds_ht64 *t, const uint64_t key, const uint64_t val) {
 
 
 static uint64_t
-stralloc(ds **d, uint64_t idx, const char * str)
+stralloc(ds **d, uint64_t idx, const char * str, size_t len)
 {
-	const size_t sz = 1 + strlen(str);
+	const size_t sz = 1 + len;
 	char * base = (char*)*d;
 
 	// do we already have this string?
@@ -854,8 +855,7 @@ static void
 strfree (uint64_t oldstr, ds *d)
 {
 	// TODO: This should check that no one else is using this string before freeing it
-	if (!oldstr) return;
-	char * strheap = ((char *)d) + d->strheap_start;
+	char *strheap = ((char *)d) + d->strheap_start;
 	char * s = strheap + oldstr;
 	int64_t sz = 1 + strlen(s);
 	memmove(s, s+sz, (strheap+d->strheap_sz) - (s+sz));
@@ -873,12 +873,15 @@ getstr(ds *d, ds_column *c, uint64_t index) {
 // Set string helper that returns dataset pointer with string assigned (may be
 // the same dataset pointer or different if required reallocation)
 static ds *
-setstr (ds *d, ds_column *c, uint64_t index, const char *value) {
+setstr (ds *d, ds_column *c, uint64_t index, const char *value, size_t length) {
 	uint64_t idx;
 	char *ptr = (char *) d;
 	uint64_t *handles = ptr + d->arrheap_start + c->offset;
-	strfree(handles[index], d);
-	uint64_t newstr = stralloc(&d, idx, value);
+	uint64_t handle = handles[index];
+	if (handle > 0 && handle < d->strheap_sz) {
+		strfree(handles[index], d);
+	}
+	uint64_t newstr = stralloc(&d, idx, value, length);
 	if (!d) return 0; // Could not allocate string
 
 	handles[index] = newstr;
@@ -935,7 +938,7 @@ copystr(
 	ds *src_ds, ds_column *src_col, uint64_t src_idx
 ) {
 	char *str = getstr(src_ds, src_col, src_idx);
-	return setstr(dst_ds, dst_col, dst_idx, str);
+	return setstr(dst_ds, dst_col, dst_idx, str, strlen(str));
 }
 
 /*
@@ -1317,7 +1320,7 @@ int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, in
 	if (col.type < 0) {
 		// key is long, so allocate a string for it	
 
-		uint64_t newstr = stralloc(&d, idx, key);
+		uint64_t newstr = stralloc(&d, idx, key, strlen(key));
 		if (!d) return 0;
 		col.longkey    = newstr;
 
@@ -1465,7 +1468,7 @@ const char *dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 }
 
 
-int dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value)
+int dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char *value, size_t length)
 {
 	uint64_t idx;
 
@@ -1484,7 +1487,7 @@ int dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char 
 		return 0;
 	}
 
-	return setstr(d, c, index, value) ? 1 : 0;
+	return setstr(d, c, index, value, length) ? 1 : 0;
 }
 
 static char* 

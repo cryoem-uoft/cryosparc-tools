@@ -15,7 +15,7 @@ cdef extern from "cryosparc-tools/dataset.h":
     int dset_type(Dset dset, const char *colkey) nogil
     void *dset_get(Dset dset, const char *colkey) nogil
     uint64_t dset_getsz(Dset dset, const char *colkey) nogil
-    bint dset_setstr(Dset dset, const char *colkey, uint64_t index, const char *value) nogil
+    bint dset_setstr(Dset dset, const char *colkey, uint64_t index, const char *value, size_t length) nogil
     const char *dset_getstr(Dset dset, const char *colkey, uint64_t index) nogil
     uint32_t dset_getshp(Dset dset, const char *colkey) nogil
 
