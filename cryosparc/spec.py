@@ -539,8 +539,8 @@ class ProjectDocument(TypedDict):
     project_stats: dict
     """Computed project statistics."""
 
-    generate_intermediate_results: bool
-    """Whether intermediate results should be generated on this project."""
+    generate_intermediate_results_settings: dict
+    """Project settings for generating intermediate results for specific job types."""
 
 
 class JobDocument(TypedDict):
