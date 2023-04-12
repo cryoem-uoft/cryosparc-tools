@@ -126,14 +126,14 @@ class CommandClient:
 
 @contextmanager
 def make_request(
-    client: CommandClient, method: str = "post", url: str = "", query: dict = {}, data=None, headers: dict = {}
+    client: CommandClient, method: str = "POST", url: str = "", query: dict = {}, data=None, headers: dict = {}
 ):
     """
     Create a raw HTTP request/response context with the given command client.
 
     Args:
         client (CommandClient): command client instance
-        method (str, optional): HTTP method. Defaults to "post".
+        method (str, optional): HTTP method. Defaults to "POST".
         url (str, optional): URL to append to the client's initialized URL. Defaults to "".
         query (dict, optional): Query string parameters. Defaults to {}.
         data (any, optional): Request body data. Usually in binary. Defaults to None.
