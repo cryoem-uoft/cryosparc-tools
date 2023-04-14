@@ -5,6 +5,7 @@ cdef extern from "cryosparc-tools/dataset.h":
 
     Dset dset_new() nogil
     Dset dset_copy(Dset dset) nogil
+    bint dset_reserve(Dset dset, uint64_t size) nogil
     Dset dset_innerjoin(const char *key, Dset dset_r, Dset dset_s) nogil
     void dset_del(Dset dset) nogil
 
@@ -23,6 +24,16 @@ cdef extern from "cryosparc-tools/dataset.h":
     bint dset_addcol_scalar(Dset dset, const char *key, int type) nogil
     bint dset_addcol_array(Dset dset, const char *key, int type, int shape0, int shape1, int shape2) nogil
     bint dset_changecol(Dset dset, const char *key, int type) nogil
-    bint dset_defrag(Dset dset, bint realloc_smaller) nogil
 
-    void dset_dumptxt(Dset dset) nogil
+    bint dset_defrag(Dset dset, bint realloc_smaller) nogil
+    void *dset_dump(Dset dset) nogil
+    void dset_dumptxt(Dset dset, bint dump_data) nogil
+
+    uint64_t dset_headersz() nogil
+    uint64_t dset_columndescrsz(Dset dset) nogil
+    uint64_t dset_arrayheapsz(Dset dset) nogil
+    uint64_t dset_strheapsz(Dset dset) nogil
+    void *dset_columndescr(Dset dset) nogil
+    void *dset_arrayheap (Dset dset) nogil
+    char *dset_strheap(Dset dset) nogil
+    bint dset_stralloc(Dset dset, const char *value, size_t length, uint64_t *index) nogil

@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray, ArrayLike, DTypeLike
     from . import core
 
-from .core import Data, DsetType, Snappy
+from .core import Data, DsetType, Strappy
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
@@ -554,7 +554,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Yields:
             bytes: Dataset file chunks
         """
-        snappy = Snappy()
+        strappy = Strappy(self._data)
 
         cols = self.cols()
         arrays = [cols[c].to_fixed() for c in cols]
@@ -570,11 +570,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         yield header
 
         for f, arr in zip(cols, arrays):
-            fielddatalen = arr.size * arr.itemsize
             if f in NEVER_COMPRESS_FIELDS:
                 fielddata = arr.data
+                fielddatalen = arr.size * arr.itemsize
+            elif arr.dtype.type == numpy.bytes_:
+                fielddata: "core.MemoryView" = strappy.compress_numpy(arr).memview
+                fielddatalen = len(fielddata)
             else:
-                fielddata: "core.MemoryView" = snappy.compress_to_internal_buf(arr.ctypes.data, fielddatalen).memview
+                fielddata: "core.MemoryView" = strappy.compress_col(f).memview
                 fielddatalen = len(fielddata)
             yield u32bytesle(fielddatalen)
             yield fielddata

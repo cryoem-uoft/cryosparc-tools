@@ -1,5 +1,6 @@
 from . cimport snappy
 from . cimport dataset
+from libc.stdint cimport uint64_t
 from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 import sys
@@ -20,100 +21,6 @@ cpdef enum DsetType:
     T_U64 = 12
     T_STR = 13
     T_OBJ = 14
-
-
-cdef class Snappy:
-    cdef snappy.snappy_env env
-    cdef char *buf  # internal compression buffer
-    cdef size_t buflen
-
-    def __cinit__(self):
-        if snappy.snappy_init_env(&self.env) != 0:
-            raise MemoryError()
-        self.buf = NULL
-        self.buflen = 0
-
-    def __dealloc__(self):
-        snappy.snappy_free_env(&self.env)
-        if self.buf != NULL:
-            PyMem_Free(self.buf)
-            self.buf = NULL
-
-    def _ensure_buf(self, int min_len):
-        cdef size_t sz = min_len
-        if self.buflen < sz:
-            self.buf = <char *> PyMem_Realloc(<void *> self.buf, sz)
-            self.buflen = sz
-        return <int> self.buflen
-
-    def max_compressed_length(self, int source_len):
-        cdef size_t sz = source_len
-        return snappy.snappy_max_compressed_length(sz)
-
-    def compress(self, bytes data):
-        # Allocate and return a bytes object with the compressed data.
-        cdef const char *uncompressed = data
-        cdef int uncompressed_len = len(data)
-
-        # Allocate a bytes object with the compressed length
-        cdef int error
-        cdef size_t compressed_len
-        cdef size_t max_compressed_len = self.max_compressed_length(uncompressed_len)
-        cdef char *compressed = <char *> PyMem_Malloc(max_compressed_len)
-        if not compressed:
-            raise MemoryError()
-
-        # Call compress. Write final length into compressed_len
-        try:
-            error = snappy.snappy_compress(
-                &self.env,
-                uncompressed,
-                <size_t> uncompressed_len,
-                compressed,
-                &compressed_len
-            )
-            if error != 0:
-                raise MemoryError()  # could not compress
-
-            return compressed[:compressed_len]
-        finally:
-            PyMem_Free(compressed)
-
-    def compress_to_internal_buf(self, size_t data_ptr, size_t data_len):
-        # Use when multiple compression calls are required. to minimize total
-        # number of allocations.
-        #
-        # Overwrites (and potentially re-allocates) internal buffer each time
-        # it's called so only the latest return value is valid memory (until the
-        # instance is garbage collected).
-        #
-        # Returns array memoryview with compressed data
-        cdef const char *data = <const char *> data_ptr
-        cdef int max_compressed_len = self.max_compressed_length(data_len)
-        self._ensure_buf(max_compressed_len)
-        cdef size_t compressed_len
-
-         # Call compress. Write final length into compressed_len
-        cdef int error = snappy.snappy_compress(
-            &self.env,
-            data,
-            <size_t> data_len,
-            self.buf,
-            &compressed_len
-        )
-        if error != 0:
-            raise MemoryError()  # could not compress
-
-        return <char [:compressed_len]> self.buf
-
-    def uncompressed_length(self, bytes data):
-        cdef size_t result
-        cdef size_t sz = len(data)
-        cdef const char *start = data
-        if snappy.snappy_uncompressed_length(start, sz, &result):
-            return result
-        else:
-            return -1  # an error occured
 
 
 cdef class Data:
@@ -250,7 +157,7 @@ cdef class Data:
             pybytes = pystr.encode()
             Py_XDECREF(pycol[i])  # so string is deallocated
             pycol[i] = NULL  # so that strfree not attempted
-            dataset.dset_setstr(self._handle, colkey_c, i, pystr.encode(), len(pybytes))
+            dataset.dset_setstr(self._handle, colkey_c, i, pybytes, len(pybytes))
 
         return True
 
@@ -286,11 +193,145 @@ cdef class Data:
 
         return True
 
+    def stralloc(self, str val):
+        cdef uint64_t idx
+        cdef bytes pybytes = val.encode()
+        if not dataset.dset_stralloc(self.data._handle, pybytes, len(pybytes), &idx):
+            raise MemoryError()
+        return idx
+
+    def dump(self):
+        cdef void *mem
+        cdef size_t size
+        with nogil:
+            mem = dataset.dset_dump(self._handle)
+            size = dataset.dset_totalsz(self._handle)
+        return <unsigned char [:size]> mem
+
+    def dumpheader(self):
+        return self.dump()[:dataset.dset_headersz()]
+
+    def dumpcolumndescr(self):
+        cdef void *mem
+        cdef size_t size
+        with nogil:
+            mem = dataset.dset_columndescr(self._handle)
+            size = dataset.dset_columndescrsz(self._handle)
+        return <unsigned char [:size]> mem
+
+    def dumpstrheap(self):
+        cdef void *mem
+        cdef size_t size
+        with nogil:
+            mem = dataset.dset_strheap(self._handle)
+            size = dataset.dset_strheapsz(self._handle)
+        return <unsigned char [:size]> mem
+
     def defrag(self, bint realloc_smaller):
         return dataset.dset_defrag(self._handle, realloc_smaller)
 
-    def dumptxt(self):
-        dataset.dset_dumptxt(self._handle)
+    def dumptxt(self, bint dump_data = 0):
+        dataset.dset_dumptxt(self._handle, dump_data)
 
     def handle(self):
         return self._handle
+
+
+cdef class Strappy:
+    # Helper class for initializing a dataset from a compressed stream
+    # or generating a compressed stream for that dataset.
+    cdef Data data
+    cdef snappy.snappy_env env
+    cdef char *buf  # internal compression buffer
+    cdef size_t bufsz
+    cdef uint64_t *aux  # internal string index array
+    cdef size_t auxsz
+
+    def __cinit__(self, Data data):
+        if snappy.snappy_init_env(&self.env) != 0:
+            raise MemoryError()
+        self.data = data
+        self.buf = NULL
+        self.bufsz = 0
+        self.aux = NULL
+        self.auxsz = 0
+
+    def __dealloc__(self):
+        snappy.snappy_free_env(&self.env)
+        if self.buf != NULL:
+            PyMem_Free(self.buf)
+            self.buf = NULL
+
+    def _ensure_buf(self, int min_len):
+        cdef size_t sz = min_len
+        if self.bufsz < sz:
+            self.buf = <char *> PyMem_Realloc(<void *> self.buf, sz)
+            self.bufsz = sz
+        return <int> self.bufsz
+
+    def _ensure_aux(self, int min_sz):
+        cdef size_t sz = min_sz
+        if self.auxsz < sz:
+            self.aux = <uint64_t *> PyMem_Realloc(<void *> self.aux, sz)
+            self.auxsz = sz
+        return <int> self.auxsz
+
+    def compress_col(self, str col):
+        # Use when multiple compression calls are required to minimize total
+        # number of allocations.
+        #
+        # Overwrites (and potentially re-allocates) internal buffer each time
+        # it's called so only the latest return value is valid memory (until the
+        # instance is garbage collected).
+        #
+        # If the column is has type T_OBJ, allocates each python string as
+        # a C string in the string heap and compresses the resulting array of
+        # indexes into the C string. Once this method is called on all string
+        # columns, the result of compress_strheap is also required
+        #
+        # Returns array memoryview with compressed data
+        cdef int coltype = self.data.type(col)
+
+        if coltype == 0:
+            return 0  # invalid column
+
+        cdef PyObject **pycol
+        cdef unsigned char [:] data = self.data.getbuf(col)
+        cdef size_t sz = data.size
+        if coltype == T_OBJ:
+            # Convert to C strings and compress index array instead
+            self._ensure_aux(sz)
+            pycol = <PyObject **> &data[0]
+
+            for i in range(data.size / sizeof(uint64_t)):
+                self.aux[i] = self.data.stralloc(<str> pycol[i])
+
+            data = <unsigned char [:sz]> (<unsigned char *> self.aux)
+
+        return self.compress(data)
+
+    def compress_numpy(self, arr):
+        cdef size_t sz = arr.size * arr.itemsize
+        cdef size_t data_ptr = arr.ctypes.data
+        cdef void *data = <void *> data_ptr
+        return self.compress(<unsigned char [:sz]> data)
+
+    def compress(self, unsigned char [:] data):
+        cdef size_t sz = data.size
+        cdef size_t compressed_sz
+        cdef int max_compressed_sz = snappy.snappy_max_compressed_length(sz)
+
+        self._ensure_buf(max_compressed_sz)
+
+         # Call compress. Write final length into compressed_len
+        cdef int error = snappy.snappy_compress(
+            &self.env,
+            <const char *> &data[0],
+            sz,
+            self.buf,
+            &compressed_sz
+        )
+        if error != 0:
+            raise MemoryError()  # could not compress
+
+        return <char [:compressed_sz]> self.buf

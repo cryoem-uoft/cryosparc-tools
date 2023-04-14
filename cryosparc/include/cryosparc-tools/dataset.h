@@ -52,6 +52,7 @@ enum dset_type {
 uint64_t  dset_new (void);
 void      dset_del (uint64_t dset);
 uint64_t  dset_copy (uint64_t dset);
+int       dset_reserve (uint64_t dset, uint64_t size);
 uint64_t  dset_innerjoin (const char *key, uint64_t dset_r, uint64_t dset_s);
 
 uint64_t    dset_totalsz(uint64_t dset);
@@ -74,7 +75,17 @@ int        dset_defrag (uint64_t dset, int realloc_smaller);
 void       dset_dumptxt (uint64_t dset, int dump_data);
 void *     dset_dump (uint64_t dset);
 
+uint64_t   dset_headersz ();
+uint64_t   dset_columndescrsz (uint64_t dset);
+uint64_t   dset_arrayheapsz (uint64_t dset);
+uint64_t   dset_strheapsz (uint64_t dset);
+void *     dset_columndescr (uint64_t dset);
+void *     dset_arrayheap (uint64_t dset);
+char *     dset_strheap (uint64_t dset);
+int        dset_stralloc (uint64_t dset, const char *value, size_t length, uint64_t *index);
+
 #endif
+
 /*
 ===============================================================================
 
@@ -1054,6 +1065,16 @@ uint64_t dset_copy(uint64_t dset)
 	return newhandle;
 }
 
+// Ensure at least the given size amount of memory is available for the dataset
+int dset_reserve(uint64_t dset, uint64_t size) {
+	uint64_t dsetidx;
+	ds *d = handle_lookup(dset, "det_reserve", 0, dsetidx);
+	if (d->total_sz <= size) {
+		return 1;
+	}
+	return more_memory(dsetidx, size - d->total_sz) != 0;
+}
+
 // Compute the inner join of two Datasets R and S by matching values in the
 // column with the given key. Currently only 64-bit columns (e.g., T_U64) with
 // zero shape may be specified as keys.
@@ -1670,6 +1691,53 @@ void dset_dumptxt (uint64_t dset, int dump_data) {
 
 void *dset_dump(uint64_t dset) {
 	return (void *) handle_lookup(dset, "dset_dump", 0, 0);
+}
+
+// Returns constant compile-time size of dataset struct
+uint64_t dset_headersz() {
+	return sizeof(ds);
+}
+
+uint64_t dset_columndescrsz(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_columndescrsz", 0, 0);
+	return d->ccol * sizeof(ds_column);
+}
+
+uint64_t dset_arrayheapsz(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_arrayheapsz", 0, 0);
+	return d->strheap_start - d->arrheap_start;
+}
+
+uint64_t dset_strheapsz(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_strheapsz", 0, 0);
+	return d->strheap_sz;
+}
+
+// Returns pointer to column description
+void *dset_columndescr(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_columndescr", 0, 0);
+	return (void *) ((char *) d + sizeof(ds));
+}
+
+// Returns pointer to array heap
+void *dset_arrayheap(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_arrayheap", 0, 0);
+	return (void *) ((char *) d + d->arrheap_start);
+}
+
+// Returns pointer to first item in the string heap
+char *dset_strheap(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_strheap", 0, 0);
+	return (char *) d + d->strheap_start;
+}
+
+// Raw string allocation for the dataset without assigning to any column
+// Returns 1 if given index was successfully assigned a value. Should not
+// normally be used.
+int dset_stralloc(uint64_t dset, const char *value, size_t length, uint64_t *index) {
+	uint64_t dsetidx;
+	ds *d = handle_lookup(dset, "dset_stralloc", 0, &dsetidx);
+	return stralloc(dsetidx, value, length, index) != 0;
 }
 
 #endif
