@@ -499,18 +499,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 indata = n.load(f, allow_pickle=False)
                 return cls(indata)
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-                import snappy
-
                 headersize = u32intle(f.read(4))
                 header = decode_dataset_header(f.read(headersize))
-                cols = {}
+                final_dtype = [(f[0], "|O") if "|S" in f[1] else f for f in header["dtype"]]
+                dset = None
+                strappy = Strappy()
                 for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
                     buffer = f.read(colsize)
                     if field[0] in header["compressed_fields"]:
-                        buffer = snappy.uncompress(buffer)
-                    cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
-                return cls(cols)
+                        buffer = strappy.decompress(buffer).memview
+                    arr = n.frombuffer(buffer, dtype=fielddtype(field))
+                    dset = cls.allocate(len(arr), final_dtype) if dset is None else dset
+                    dset[field[0]] = arr
+                return dset
 
         raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
 
@@ -564,7 +566,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         compressed_fields = [col for col in cols if col not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
-            DatasetHeader(length=len(self), dtype=descr, compression="snap", compressed_fields=compressed_fields)
+            DatasetHeader(dtype=descr, compression="snap", compressed_fields=compressed_fields)
         )
         yield u32bytesle(len(header))
         yield header

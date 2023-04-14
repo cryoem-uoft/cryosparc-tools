@@ -247,7 +247,7 @@ cdef class Strappy:
     cdef uint64_t *aux  # internal string index array
     cdef size_t auxsz
 
-    def __cinit__(self, Data data):
+    def __cinit__(self, Data data = None):
         if snappy.snappy_init_env(&self.env) != 0:
             raise MemoryError()
         self.data = data
@@ -312,9 +312,9 @@ cdef class Strappy:
 
     def compress_numpy(self, arr):
         cdef size_t sz = arr.size * arr.itemsize
-        cdef size_t data_ptr = arr.ctypes.data
-        cdef void *data = <void *> data_ptr
-        return self.compress(<unsigned char [:sz]> data)
+        cdef size_t arr_ptr_val = arr.ctypes.data
+        cdef void *arr_ptr = <void *> arr_ptr_val
+        return self.compress(<unsigned char [:sz]> arr_ptr)
 
     def compress(self, unsigned char [:] data):
         cdef size_t sz = data.size
@@ -335,3 +335,20 @@ cdef class Strappy:
             raise MemoryError()  # could not compress
 
         return <char [:compressed_sz]> self.buf
+
+    def decompress_numpy(self, bytes data, arr):
+        cdef size_t arr_ptr_val = arr.ctypes.data
+        return self.decompress(data, <char *> arr_ptr_val)
+
+    def decompress(self, bytes data, char *uncompressed = NULL):
+        cdef const char *compressed = data
+        cdef size_t compressed_sz = len(data)
+        cdef size_t uncompressed_sz
+        if not snappy.snappy_uncompressed_length(compressed, compressed_sz, &uncompressed_sz):
+            raise MemoryError()
+        if uncompressed == NULL:
+            self._ensure_buf(uncompressed_sz)
+            uncompressed = self.buf
+
+        cdef int error = snappy.snappy_uncompress(compressed, compressed_sz, uncompressed)
+        return <char [:uncompressed_sz]> uncompressed
