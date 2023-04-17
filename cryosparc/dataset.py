@@ -162,6 +162,50 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dset.add_fields(fields)
         return dset
 
+    def extend(self, *others, repeat_allowed=False):
+        """
+        Add the given dataset(s) to the end of the current dataset. Other
+        datasets must have at least the same fields of the current dataset.
+
+        Args:
+            repeat_allowed (bool, optional): If True, does not fail when there
+                are duplicate UIDs. Defaults to False.
+
+        Returns:
+            Dataset: current dataset with others appended
+
+        Examples:
+
+            >>> len(d1), len(d2), len(d3)
+            (42, 3, 5)
+            >>> d1.extend(d2, d3)
+            Dataset(...)
+            >>> len(d1)
+            50
+        """
+        datasets = tuple(d for d in others if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return self
+
+        if not repeat_allowed:
+            all_uids = n.concatenate([dset["uid"] for dset in datasets])
+            assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
+
+        extra_size = sum(len(d) for d in datasets)
+        keep_fields = self.common_fields(self, *datasets)
+        assert (
+            keep_fields == self.descr()
+        ), f"Cannot extend dataset, others missing fields {set(self.descr()) - set(keep_fields)}"
+        startidx = len(self)
+        self._data.addrows(extra_size)
+        for dset in datasets:
+            num = len(dset)
+            for key, *_ in keep_fields:
+                self[key][startidx : startidx + num] = dset[key]
+            startidx += num
+
+        return self
+
     def append(self, *others: "Dataset", assert_same_fields=False, repeat_allowed=False):
         """
         Concatenate many datasets together into one new one.
