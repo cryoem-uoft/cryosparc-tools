@@ -1138,8 +1138,8 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		nonfatal("dset_innerjoin: input dataset does not contain %s column", key);
 		return UINT64_MAX;
 	}
-	if (keycol_r->type != keycol_s->type) {
-		nonfatal("dset_innerjoin: input %s column types do match (%d, %d)", key, keycol_r->type, keycol_s->type);
+	if (abs_i8(keycol_r->type) != abs_i8(keycol_s->type)) {
+		nonfatal("dset_innerjoin: input %s column types do match (%d, %d)", key, abs_i8(keycol_r->type), abs_i8(keycol_s->type));
 		return UINT64_MAX;
 	}
 	if (keycol_r->shape[0] != 0 || keycol_s->shape[0] != 0) {
@@ -1147,9 +1147,9 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		return UINT64_MAX;
 	}
 
-	if (keycol_r->type != T_U64 && keycol_r->type != T_I64 && keycol_r->type != T_F64 && keycol_r->type != T_C32) {
+	if (abs_i8(keycol_r->type) != T_U64 && abs_i8(keycol_r->type) != T_I64 && abs_i8(keycol_r->type) != T_F64 && abs_i8(keycol_r->type) != T_C32) {
 		// TODO: Allow innerjoining any type (or least numeric types)
-		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-64bit type %d", key, keycol_r->type);
+		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-64bit type %d", key, abs_i8(keycol_r->type));
 		return UINT64_MAX;
 	}
 
@@ -1177,7 +1177,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 			// with correct type details
 			col = column_lookup(ds_r, colkey, &colidx);
 			if (!dset_addcol_array(
-				dset, colkey, col->type,
+				dset, colkey, abs_i8(col->type),
 				col->shape[0], col->shape[1], col->shape[2]
 			)) {
 				nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
@@ -1185,7 +1185,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 			}
 			src_coldata[nrcol].col = colidx;
 			src_coldata[nrcol].itemsize = type_size[abs_i8(col->type)] * stride(col);
-			src_coldata[nrcol].is_str = col->type == T_STR;
+			src_coldata[nrcol].is_str = abs_i8(col->type) == T_STR;
 			nrcol++;
 		} // otherwise defer to dataset S for this column
 	}
@@ -1198,7 +1198,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		}
 		col = column_lookup(ds_s, colkey, &colidx);
 		if (!dset_addcol_array(
-			dset, colkey, col->type,
+			dset, colkey, abs_i8(col->type),
 			col->shape[0], col->shape[1], col->shape[2]
 		)) {
 			nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
@@ -1206,7 +1206,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		}
 		src_coldata[nrcol + nscol].col = colidx;
 		src_coldata[nrcol + nscol].itemsize = type_size[abs_i8(col->type)] * stride(col);
-		src_coldata[nrcol + nscol].is_str = col->type == T_STR;
+		src_coldata[nrcol + nscol].is_str = abs_i8(col->type) == T_STR;
 		nscol++;
 	}
 
@@ -1364,28 +1364,8 @@ uint64_t dset_getsz(uint64_t dset, const char * colkey)
 
 	if(!(d && c)) return 0;
 
-	return d->nrow * abs_i8(type_size[c->type]) * stride(c);
+	return d->nrow * type_size[abs_i8(c->type)] * stride(c);
 }
-
-// Get the data for the ith column
-void *dset_geti(uint64_t dset, uint32_t i) {
-	const ds *d  = handle_lookup(dset, "dset_iget", 0, 0);
-	char * ptr = (char *) d;
-	if (!d || i >= d->ncol) return 0;
-
-	return ptr + d->arrheap_start + d->columns[i].offset;
-}
-
-// Get the size of the ith column
-uint64_t dset_getisz(uint64_t dset, uint32_t i) {
-	const ds *d  = handle_lookup(dset, "dset_igetsz", 0, 0);
-	char * ptr = (char *) d;
-	if (!d || i >= d->ncol) return 0;
-
-	const ds_column *c = &d->columns[i];
-	return d->nrow * abs_i8(type_size[c->type]) * stride(c);
-}
-
 
 uint32_t dset_getshp (uint64_t dset, const char * colkey)
 {
@@ -1490,15 +1470,15 @@ int dset_changecol (uint64_t dset, const char *key, int type) {
 
 	if (!(d && c)) return 0;
 
-	int8_t current_size = abs_i8(type_size[c->type]);
-	int8_t proposed_size = abs_i8(type_size[type]);
+	int8_t current_size = type_size[abs_i8(c->type)];
+	int8_t proposed_size = type_size[type];
 
 	if (current_size != proposed_size) {
-		nonfatal("cannot change column with type %i to incompatible type %i", c->type, type);
+		nonfatal("cannot change column with type %i to incompatible type %i", abs_i8(c->type), type);
 		return 0;
 	}
 
-	c->type = type;
+	c->type = c->type < 0 ? -type : type;
 	return 1;
 }
 
