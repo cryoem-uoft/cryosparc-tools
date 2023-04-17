@@ -236,8 +236,12 @@ cdef class Data:
 
 
 cdef class Strappy:
-    # Helper class for initializing a dataset from a compressed stream
-    # or generating a compressed stream for that dataset.
+    # Helper class for initializing a dataset from a compressed stream or
+    # generating a compressed stream for that dataset.
+    #
+    # WARNING: Methods here recycle result buffers to minimize allocations. If
+    # results are not consumed prior to future calls to this class, the contents
+    # will be overwritten.
     cdef Data data
     cdef snappy.snappy_env env
     cdef char *buf  # internal compression buffer
@@ -288,6 +292,33 @@ cdef class Strappy:
                 if coltype == T_OBJ:
                     dataset.dset_changecol(handle, colkey, T_STR)
 
+    def stralloc_col(self, str col):
+        # Allocate C strings for every Python string in the given object column
+        # Returns 0 if the column does not have object type.
+        cdef int coltype = self.data.type(col)
+        if coltype != T_OBJ:
+            return 0  # invalid column
+
+        cdef PyObject **pycol
+        cdef unsigned char [:] data = self.data.getbuf(col)
+        cdef size_t sz = data.size
+
+        # Convert to C strings and compress index array instead
+        self._ensure_aux(sz)
+        pycol = <PyObject **> &data[0]
+
+        cdef uint64_t idx
+        cdef str pystr
+        cdef bytes pybytes
+        for i in xrange(sz // sizeof(uint64_t)):
+            pystr = <str> pycol[i]
+            pybytes = pystr.encode()
+            if not dataset.dset_stralloc(self.data._handle, pybytes, len(pybytes), &idx):
+                raise MemoryError()
+            self.aux[i] = idx
+
+        return <unsigned char [:sz]> (<unsigned char *> self.aux)
+
     def compress_col(self, str col):
         # Use when multiple compression calls are required to minimize total
         # number of allocations.
@@ -298,8 +329,7 @@ cdef class Strappy:
         #
         # If the column is has type T_OBJ, allocates each python string as
         # a C string in the string heap and compresses the resulting array of
-        # indexes into the C string. Once this method is called on all string
-        # columns, the result of compress_strheap is also required
+        # indexes into the C string.
         #
         # Returns array memoryview with compressed data
         cdef int coltype = self.data.type(col)

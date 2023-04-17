@@ -550,16 +550,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
                 headersize = u32intle(f.read(4))
                 header = decode_dataset_header(f.read(headersize))
-                dset = cls.allocate(header["length"], header["dtype"])
+
+                # Calling addrows separately to minimizes column-based
+                # allocations, improves performance by ~20%
+                dset = cls.allocate(0, header["dtype"])
                 data = dset._data
+                data.addrows(header["length"])
                 strappy = Strappy(data)
                 for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
                     buffer = f.read(colsize)
                     if field[0] in header["compressed_fields"]:
-                        buffer = strappy.decompress_col(field[0], buffer)
+                        strappy.decompress_col(field[0], buffer)
                     else:
-                        dset[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
+                        data.getbuf(field[0])[:] = buffer
 
                 # Read in the string heap (rest of stream)
                 # NOTE: There will be a bug here for long column keys that are
@@ -599,12 +603,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 n.save(f, outdata, allow_pickle=False)
         elif format == CSDAT_FORMAT:
             with bopen(file, "wb") as f:
-                for chunk in self.stream():
+                for chunk in self.stream(compression="snap"):
                     f.write(chunk)
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self) -> Iterable[Union[bytes, memoryview, "core.MemoryView"]]:
+    def stream(self, compression: Literal["snap", None] = None) -> Iterable[Union[bytes, memoryview, "core.MemoryView"]]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -621,20 +625,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
-        compressed_fields = [f for f in self if f not in NEVER_COMPRESS_FIELDS]
+        compressed_fields = [f for f in self if compression and f not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
-            DatasetHeader(length=len(self), dtype=self.descr(), compression="snap", compressed_fields=compressed_fields)
+            DatasetHeader(length=len(self), dtype=self.descr(), compression=compression, compressed_fields=compressed_fields)
         )
         yield u32bytesle(len(header))
         yield header
 
         for f in self:
             fielddata: "core.MemoryView"
-            if f in NEVER_COMPRESS_FIELDS:
-                fielddata = data.getbuf(f)
-            else:
+            if f in compressed_fields:
                 # obj columns added to strheap and loaded as indexes
                 fielddata = strappy.compress_col(f)
+            else:
+                fielddata = strappy.stralloc_col(f) or data.getbuf(f)
             yield u32bytesle(len(fielddata))
             yield fielddata.memview
 
@@ -963,7 +967,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 ('uid', [14727850622008419978 309606388100339041 15935837513913527085]),
                 ('foo', [0 0 0]),
                 ('bar', [[0. 0.] [0. 0.] [0. 0.]]),
-                ('baz', ["", "", ",]),
+                ('baz', ["" "" ""]),
             ])
         """
         if len(fields) == 0:

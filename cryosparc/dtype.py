@@ -45,7 +45,7 @@ class DatasetHeader(TypedDict):
 
     length: int
     dtype: List[Field]
-    compression: Literal["snap"]
+    compression: Literal["snap", None]
     compressed_fields: List[str]
 
 
@@ -138,7 +138,7 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
             header["dtype"], list
         ), 'Dataset header "dtype" key missing or has incorrect type'
         assert (
-            "compression" in header and header["compression"] == "snap"
+            "compression" in header and header["compression"] in {None, "snap"}
         ), 'Dataset header "compression" key missing or has incorrect type'
         assert (
             "compressed_fields" and header or isinstance(header["compressed_fields"], list)
