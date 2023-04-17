@@ -21,7 +21,6 @@ classifiers = [
 ]
 dependencies = [
     "numpy ~= 1.15",
-    "python-snappy ~= 0.6",
     "typing-extensions >= 3.7",
 ]
 
