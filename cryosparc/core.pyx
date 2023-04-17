@@ -5,6 +5,7 @@ from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 import sys
 
+
 # Mirror of equivalent C-datatype enumeration
 cpdef enum DsetType:
     T_F32 = 1
@@ -86,6 +87,10 @@ cdef class Data:
             for j in xrange(nrow):
                 Py_XDECREF(mem[j])
 
+    def reserve(self, int size):
+        if not dataset.dset_reserve(self._handle, <uint64_t> size):
+            raise MemoryError()
+
     def innerjoin(self, str key, Data other):
         cdef Data data = Data(dataset.dset_innerjoin(key.encode(), self._handle, other._handle))
         data._increfs()
@@ -152,7 +157,7 @@ cdef class Data:
         if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey_c, T_STR):
             return False
 
-        for i in range(nrow):
+        for i in xrange(nrow):
             pystr = <str> pycol[i]
             pybytes = pystr.encode()
             Py_XDECREF(pycol[i])  # so string is deallocated
@@ -177,7 +182,7 @@ cdef class Data:
         if prevtype != T_STR:
             return False
 
-        for i in range(nrow):
+        for i in xrange(nrow):
             if pycol[i] in strcache:
                 pystr = strcache[pycol[i]]
             else:
@@ -196,7 +201,7 @@ cdef class Data:
     def stralloc(self, str val):
         cdef uint64_t idx
         cdef bytes pybytes = val.encode()
-        if not dataset.dset_stralloc(self.data._handle, pybytes, len(pybytes), &idx):
+        if not dataset.dset_stralloc(self._handle, pybytes, len(pybytes), &idx):
             raise MemoryError()
         return idx
 
@@ -208,17 +213,6 @@ cdef class Data:
             size = dataset.dset_totalsz(self._handle)
         return <unsigned char [:size]> mem
 
-    def dumpheader(self):
-        return self.dump()[:dataset.dset_headersz()]
-
-    def dumpcolumndescr(self):
-        cdef void *mem
-        cdef size_t size
-        with nogil:
-            mem = dataset.dset_columndescr(self._handle)
-            size = dataset.dset_columndescrsz(self._handle)
-        return <unsigned char [:size]> mem
-
     def dumpstrheap(self):
         cdef void *mem
         cdef size_t size
@@ -226,6 +220,10 @@ cdef class Data:
             mem = dataset.dset_strheap(self._handle)
             size = dataset.dset_strheapsz(self._handle)
         return <unsigned char [:size]> mem
+
+    def setstrheap(self, bytes heap):
+        if not dataset.dset_setstrheap(self._handle, <const char *> heap, len(heap)):
+            raise MemoryError()
 
     def defrag(self, bint realloc_smaller):
         return dataset.dset_defrag(self._handle, realloc_smaller)
@@ -243,8 +241,8 @@ cdef class Strappy:
     cdef Data data
     cdef snappy.snappy_env env
     cdef char *buf  # internal compression buffer
-    cdef size_t bufsz
     cdef uint64_t *aux  # internal string index array
+    cdef size_t bufsz
     cdef size_t auxsz
 
     def __cinit__(self, Data data = None):
@@ -252,8 +250,8 @@ cdef class Strappy:
             raise MemoryError()
         self.data = data
         self.buf = NULL
-        self.bufsz = 0
         self.aux = NULL
+        self.bufsz = 0
         self.auxsz = 0
 
     def __dealloc__(self):
@@ -275,6 +273,20 @@ cdef class Strappy:
             self.aux = <uint64_t *> PyMem_Realloc(<void *> self.aux, sz)
             self.auxsz = sz
         return <int> self.auxsz
+
+    def cast_objs_to_strs(self):
+        # change all T_OBJ column types to T_STR (underlying data unaffected)
+        cdef dataset.Dset handle = self.data._handle
+        cdef int ncol = self.data.ncol()
+        cdef int coltype
+        cdef const char *colkey
+
+        with nogil:
+            for i in xrange(ncol):
+                colkey = dataset.dset_key(handle, i)
+                coltype = dataset.dset_type(handle, colkey)
+                if coltype == T_OBJ:
+                    dataset.dset_changecol(handle, colkey, T_STR)
 
     def compress_col(self, str col):
         # Use when multiple compression calls are required to minimize total
@@ -303,7 +315,7 @@ cdef class Strappy:
             self._ensure_aux(sz)
             pycol = <PyObject **> &data[0]
 
-            for i in range(data.size / sizeof(uint64_t)):
+            for i in xrange(sz // sizeof(uint64_t)):
                 self.aux[i] = self.data.stralloc(<str> pycol[i])
 
             data = <unsigned char [:sz]> (<unsigned char *> self.aux)
@@ -323,7 +335,7 @@ cdef class Strappy:
 
         self._ensure_buf(max_compressed_sz)
 
-         # Call compress. Write final length into compressed_len
+         # Call compress. Write final length into compressed_sz
         cdef int error = snappy.snappy_compress(
             &self.env,
             <const char *> &data[0],
@@ -336,13 +348,27 @@ cdef class Strappy:
 
         return <char [:compressed_sz]> self.buf
 
+    def decompress_col(self, str col, bytes data):
+        cdef void *mem
+        cdef size_t size
+        cdef bytes colkey_b = col.encode()
+        cdef const char *colkey_c = colkey_b
+        with nogil:
+            mem = dataset.dset_get(self.data._handle, colkey_c)
+            size = dataset.dset_getsz(self.data._handle, colkey_c)
+        if mem == NULL:
+            raise ValueError(f"Invalid column {col}")
+        else:
+            return self.decompress(data, <size_t> mem)
+
     def decompress_numpy(self, bytes data, arr):
         cdef size_t arr_ptr_val = arr.ctypes.data
-        return self.decompress(data, <char *> arr_ptr_val)
+        return self.decompress(data, arr_ptr_val)
 
-    def decompress(self, bytes data, char *uncompressed = NULL):
+    def decompress(self, bytes data, size_t outptr = 0):
         cdef const char *compressed = data
         cdef size_t compressed_sz = len(data)
+        cdef char *uncompressed = <char *> outptr
         cdef size_t uncompressed_sz
         if not snappy.snappy_uncompressed_length(compressed, compressed_sz, &uncompressed_sz):
             raise MemoryError()
@@ -351,4 +377,7 @@ cdef class Strappy:
             uncompressed = self.buf
 
         cdef int error = snappy.snappy_uncompress(compressed, compressed_sz, uncompressed)
+        if error != 0:
+            raise MemoryError()
+
         return <char [:uncompressed_sz]> uncompressed

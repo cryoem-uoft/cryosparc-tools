@@ -75,13 +75,9 @@ int        dset_defrag (uint64_t dset, int realloc_smaller);
 void       dset_dumptxt (uint64_t dset, int dump_data);
 void *     dset_dump (uint64_t dset);
 
-uint64_t   dset_headersz ();
-uint64_t   dset_columndescrsz (uint64_t dset);
-uint64_t   dset_arrayheapsz (uint64_t dset);
 uint64_t   dset_strheapsz (uint64_t dset);
-void *     dset_columndescr (uint64_t dset);
-void *     dset_arrayheap (uint64_t dset);
 char *     dset_strheap (uint64_t dset);
+int        dset_setstrheap (uint64_t dset, const char *heap, size_t length);
 int        dset_stralloc (uint64_t dset, const char *value, size_t length, uint64_t *index);
 
 #endif
@@ -787,9 +783,30 @@ static int ht64_realloc(ds_ht64 *t, uint32_t sz) {
 	return 0;
 }
 
+// Total number of bytes used by the hash table's `ht` memory field
+static inline size_t ht64_memsize(ds_ht64 *t) {
+	return sizeof(ds_ht64_row) * (1 << t->exp);
+}
+
+// Make hash table dst into an exact copy of src
+static void ht64_copy(ds_ht64 *dst, ds_ht64 *src) {
+	if (dst->exp != src->exp) {
+		uint32_t sz = (1 << (uint32_t) (src->exp) - 1) - 1; // half of capacity - 1
+		ht64_realloc(dst, sz);
+	}
+	memcpy(dst->ht, src->ht, ht64_memsize(dst));
+	dst->len = src->len;
+	dst->exp = src->exp;
+}
+
 // Note that this wipes the existing contents of the hash table
 static inline int ht64_double_capacity(ds_ht64 *t) {
 	return ht64_realloc(t, (1 << (uint32_t) t->exp) - 1);
+}
+
+static inline int ht64_clear(ds_ht64 *t) {
+	memset(t->ht, -1, ht64_memsize(t));
+	t->len = 0;
 }
 
 static void ht64_del(ds_ht64 *t) {
@@ -926,7 +943,7 @@ stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
 	if (d->total_sz - d->strheap_start < d->strheap_sz + sz) {
 		slot->memory = d = more_strheap(dsetidx, sz);
 		if (!d) return 0;
-		}
+	}
 
 	*index = *htidx = d->strheap_sz;
 	d->nstr += 1;
@@ -1035,8 +1052,8 @@ uint64_t dset_new(void) {
 		.strheap_sz    = 1, // the null string is the string with index zero.
 	};
 
-	// 0x94 CSDAT
-	d->magic[0] = 0x94;
+	// 0x95 CSDAT
+	d->magic[0] = 0x95;
 	d->magic[1] = 0x43;
 	d->magic[2] = 0x53;
 	d->magic[3] = 0x44;
@@ -1058,9 +1075,12 @@ uint64_t dset_copy(uint64_t dset)
 
 	ds* newds = 0;
 	uint64_t newhandle = dset_new_(oldds->total_sz, &newds);
+	uint64_t newidx = MASK_IDX & newhandle;
 
-	if (newhandle != UINT64_MAX)
+	if (newhandle != UINT64_MAX) {
 		memcpy(newds,oldds,oldds->total_sz);
+		ht64_copy(&ds_module.slots[newidx].ht, &ds_module.slots[idx].ht);
+	}
 
 	return newhandle;
 }
@@ -1339,6 +1359,26 @@ uint64_t dset_getsz(uint64_t dset, const char * colkey)
 
 	return d->nrow * abs_i8(type_size[c->type]) * stride(c);
 }
+
+// Get the data for the ith column
+void *dset_geti(uint64_t dset, uint32_t i) {
+	const ds *d  = handle_lookup(dset, "dset_iget", 0, 0);
+	char * ptr = (char *) d;
+	if (!d || i >= d->ncol) return 0;
+
+	return ptr + d->arrheap_start + d->columns[i].offset;
+}
+
+// Get the size of the ith column
+uint64_t dset_getisz(uint64_t dset, uint32_t i) {
+	const ds *d  = handle_lookup(dset, "dset_igetsz", 0, 0);
+	char * ptr = (char *) d;
+	if (!d || i >= d->ncol) return 0;
+
+	const ds_column *c = &d->columns[i];
+	return d->nrow * abs_i8(type_size[c->type]) * stride(c);
+}
+
 
 uint32_t dset_getshp (uint64_t dset, const char * colkey)
 {
@@ -1693,42 +1733,38 @@ void *dset_dump(uint64_t dset) {
 	return (void *) handle_lookup(dset, "dset_dump", 0, 0);
 }
 
-// Returns constant compile-time size of dataset struct
-uint64_t dset_headersz() {
-	return sizeof(ds);
-}
-
-uint64_t dset_columndescrsz(uint64_t dset) {
-	ds *d = handle_lookup(dset, "dset_columndescrsz", 0, 0);
-	return d->ccol * sizeof(ds_column);
-}
-
-uint64_t dset_arrayheapsz(uint64_t dset) {
-	ds *d = handle_lookup(dset, "dset_arrayheapsz", 0, 0);
-	return d->strheap_start - d->arrheap_start;
-}
-
 uint64_t dset_strheapsz(uint64_t dset) {
 	ds *d = handle_lookup(dset, "dset_strheapsz", 0, 0);
 	return d->strheap_sz;
-}
-
-// Returns pointer to column description
-void *dset_columndescr(uint64_t dset) {
-	ds *d = handle_lookup(dset, "dset_columndescr", 0, 0);
-	return (void *) ((char *) d + sizeof(ds));
-}
-
-// Returns pointer to array heap
-void *dset_arrayheap(uint64_t dset) {
-	ds *d = handle_lookup(dset, "dset_arrayheap", 0, 0);
-	return (void *) ((char *) d + d->arrheap_start);
 }
 
 // Returns pointer to first item in the string heap
 char *dset_strheap(uint64_t dset) {
 	ds *d = handle_lookup(dset, "dset_strheap", 0, 0);
 	return (char *) d + d->strheap_start;
+}
+
+int dset_setstrheap(uint64_t dset, const char *heap, size_t size) {
+	uint64_t dsetidx;
+	ds *d = handle_lookup(dset, "dset_setstrheap", 0, &dsetidx);
+	ds_slot *slot = &ds_module.slots[dsetidx];
+
+	// erase current strings
+	d->nstr = 0;
+	d->strheap_sz = 0;
+	ht64_clear(&slot->ht);
+
+	char *s = heap;
+	size_t len;
+	uint64_t idx;
+	while (d && s < heap + size) {
+		len = strlen(s);
+		d = stralloc(dsetidx, s, len, &idx);
+		if (!d) return 0;
+		s += len + 1;
+	}
+
+	return d != 0;
 }
 
 // Raw string allocation for the dataset without assigning to any column

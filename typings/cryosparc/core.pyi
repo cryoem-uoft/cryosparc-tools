@@ -7,7 +7,6 @@ from numpy.typing import NDArray
 
 __all__ = ["DsetType", "Strappy", "Data"]
 
-
 class MemoryView:  # Note: Supports buffer protocol.
     base: "Array"
     size: int
@@ -24,18 +23,14 @@ class MemoryView:  # Note: Supports buffer protocol.
     def is_c_contig(self) -> bool: ...
     def is_f_contig(self) -> bool: ...
 
-
 class Array:
     memview: MemoryView
-
 
 class DsetType(int, Enum):
     pass
 
-
 class Data:
     pass
-
 
 class Strappy:
     def __init__(self, data: Data) -> None: ...

@@ -94,7 +94,7 @@ Newest save .cs file format. Same as ``CSDAT_FORMAT``.
 
 FORMAT_MAGIC_PREFIXES = {
     NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
-    CSDAT_FORMAT: b"\x94CSDAT",  # .csl binary format
+    CSDAT_FORMAT: b"\x94CSDAT",  # .csl compressed stream format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
@@ -501,17 +501,27 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
                 headersize = u32intle(f.read(4))
                 header = decode_dataset_header(f.read(headersize))
-                final_dtype = [(f[0], "|O") if "|S" in f[1] else f for f in header["dtype"]]
-                dset = None
-                strappy = Strappy()
+                dset = cls.allocate(header["length"], header["dtype"])
+                data = dset._data
+                strappy = Strappy(data)
                 for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
                     buffer = f.read(colsize)
                     if field[0] in header["compressed_fields"]:
-                        buffer = strappy.decompress(buffer).memview
-                    arr = n.frombuffer(buffer, dtype=fielddtype(field))
-                    dset = cls.allocate(len(arr), final_dtype) if dset is None else dset
-                    dset[field[0]] = arr
+                        buffer = strappy.decompress_col(field[0], buffer)
+                    else:
+                        dset[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
+
+                # Read in the string heap (rest of stream)
+                # NOTE: There will be a bug here for long column keys that are
+                # added when there's already an allocated string in a T_STR
+                # column in the saved dataset
+                heap = f.read()
+                data.setstrheap(heap)
+
+                # Convert C strings to Python strings
+                strappy.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+                dset.to_pystrs()
                 return dset
 
         raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
@@ -556,33 +566,30 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         Yields:
             bytes: Dataset file chunks
         """
-        strappy = Strappy(self._data)
-
-        cols = self.cols()
-        arrays = [cols[c].to_fixed() for c in cols]
-        descr = [makefield(f, arraydtype(a)) for f, a in zip(cols, arrays)]
+        data = self._data
+        strappy = Strappy(data)
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
-        compressed_fields = [col for col in cols if col not in NEVER_COMPRESS_FIELDS]
+        compressed_fields = [f for f in self if f not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
-            DatasetHeader(dtype=descr, compression="snap", compressed_fields=compressed_fields)
+            DatasetHeader(length=len(self), dtype=self.descr(), compression="snap", compressed_fields=compressed_fields)
         )
         yield u32bytesle(len(header))
         yield header
 
-        for f, arr in zip(cols, arrays):
+        for f in self:
+            fielddata: "core.MemoryView"
             if f in NEVER_COMPRESS_FIELDS:
-                fielddata = arr.data
-                fielddatalen = arr.size * arr.itemsize
-            elif arr.dtype.type == numpy.bytes_:
-                fielddata: "core.MemoryView" = strappy.compress_numpy(arr).memview
-                fielddatalen = len(fielddata)
+                fielddata = data.getbuf(f)
             else:
-                fielddata: "core.MemoryView" = strappy.compress_col(f).memview
-                fielddatalen = len(fielddata)
-            yield u32bytesle(fielddatalen)
-            yield fielddata
+                # obj columns added to strheap and loaded as indexes
+                fielddata = strappy.compress_col(f)
+            yield u32bytesle(len(fielddata))
+            yield fielddata.memview
+
+        heap = data.dumpstrheap()
+        yield heap.memview
 
     def __init__(
         self,
