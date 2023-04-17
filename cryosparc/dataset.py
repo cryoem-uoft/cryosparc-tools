@@ -516,7 +516,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         return [f for f in datasets[0].descr() if f in fields]
 
     @classmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]]):
+    def load(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
         """
         Read a dataset from path or file handle.
 
@@ -528,6 +528,8 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
+            cstrs (bool): If True, load internal string columns as C strings
+                instead of Python strings. Defaults to False.
 
         Raises:
             TypeError: If cannot determine type of dataset file.
@@ -541,7 +543,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
                 f.seek(0)
                 indata = n.load(f, allow_pickle=False)
-                return cls(indata)
+                dset = cls(indata)
+                if cstrs:
+                    dset.to_cstrs()
+                return dset
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
                 headersize = u32intle(f.read(4))
                 header = decode_dataset_header(f.read(headersize))
@@ -559,13 +564,14 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 # Read in the string heap (rest of stream)
                 # NOTE: There will be a bug here for long column keys that are
                 # added when there's already an allocated string in a T_STR
-                # column in the saved dataset
+                # column in the saved dataset (should be rare).
                 heap = f.read()
                 data.setstrheap(heap)
 
                 # Convert C strings to Python strings
                 strappy.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
-                dset.to_pystrs()
+                if not cstrs:
+                    dset.to_pystrs()
                 return dset
 
         raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
