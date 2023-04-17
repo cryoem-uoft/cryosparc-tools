@@ -901,8 +901,15 @@ static int ht64_intern_raw(ds_ht64 *t, uint64_t hash, uint64_t **target) {
 // index param. Returns dataset pointer.
 static ds *
 stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
+
 	ds_slot *slot = &ds_module.slots[dsetidx];
 	ds *d = slot->memory;
+
+	if (len == 0) { // empty string
+		*index = 0;
+		return d;
+	}
+
 	size_t sz = 1 + len;
 
 	char *base = (char *) d;
@@ -1453,7 +1460,8 @@ int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, in
 	if (col.type < 0) {
 		// key is long, so allocate a string for it
 
-		uint64_t newstr = stralloc(&d, idx, key, ksz - 1);
+		uint64_t newstr;
+		d = stralloc(idx, key, ksz - 1, &newstr);
 		if (!d) {
 			nonfatal("could not allocate more string space (adding column %s)", key);
 			return 0;
@@ -1751,10 +1759,10 @@ int dset_setstrheap(uint64_t dset, const char *heap, size_t size) {
 
 	// erase current strings
 	d->nstr = 0;
-	d->strheap_sz = 0;
+	d->strheap_sz = 1; // 1 for null string
 	ht64_clear(&slot->ht);
 
-	char *s = heap;
+	char *s = heap + 1; // assume null string already set
 	size_t len;
 	uint64_t idx;
 	while (d && s < heap + size) {
