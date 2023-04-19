@@ -137,9 +137,10 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         assert "dtype" in header and isinstance(
             header["dtype"], list
         ), 'Dataset header "dtype" key missing or has incorrect type'
-        assert (
-            "compression" in header and header["compression"] in {None, "snap"}
-        ), 'Dataset header "compression" key missing or has incorrect type'
+        assert "compression" in header and header["compression"] in {
+            None,
+            "snap",
+        }, 'Dataset header "compression" key missing or has incorrect type'
         assert (
             "compressed_fields" and header or isinstance(header["compressed_fields"], list)
         ), 'Dataset header "compressed_fields" key missing or has incorrect type'

@@ -48,10 +48,6 @@ from typing_extensions import Literal, SupportsIndex
 import numpy as n
 import numpy.core.records
 
-if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike
-    from . import core
-
 from .core import Data, DsetType, Strappy
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
@@ -70,6 +66,11 @@ from .dtype import (
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray, ArrayLike, DTypeLike
+    from .core import MemoryView
+
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -608,7 +609,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["snap", None] = None) -> Iterable[Union[bytes, memoryview, "core.MemoryView"]]:
+    def stream(self, compression: Literal["snap", None] = None) -> Iterable[Union[bytes, memoryview, "MemoryView"]]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -627,13 +628,15 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
 
         compressed_fields = [f for f in self if compression and f not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
-            DatasetHeader(length=len(self), dtype=self.descr(), compression=compression, compressed_fields=compressed_fields)
+            DatasetHeader(
+                length=len(self), dtype=self.descr(), compression=compression, compressed_fields=compressed_fields
+            )
         )
         yield u32bytesle(len(header))
         yield header
 
         for f in self:
-            fielddata: "core.MemoryView"
+            fielddata: "MemoryView"
             if f in compressed_fields:
                 # obj columns added to strheap and loaded as indexes
                 fielddata = strappy.compress_col(f)
@@ -642,8 +645,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             yield u32bytesle(len(fielddata))
             yield fielddata.memview
 
-        heap = data.dumpstrheap()
-        yield heap.memview
+        yield data.dumpstrheap()
 
     def __init__(
         self,
