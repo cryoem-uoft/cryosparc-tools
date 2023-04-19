@@ -19,7 +19,7 @@ Toolkit for interfacing with CryoSPARC. Read the documentation at
 
 1. Clone this repository
    ```sh
-   git clone https://github.com/cryoem-uoft/cryosparc-tools.git
+   git clone --recursive https://github.com/cryoem-uoft/cryosparc-tools.git
    cd cryosparc-tools
    git lfs pull
    ```
