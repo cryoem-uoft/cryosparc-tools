@@ -11,6 +11,7 @@ extra_link_args = []
 
 if sys.platform == "win32":
     extra_compile_args += ["/std:c11"]
+    define_macros += [("__WIN32__",)]
 else:
     libraries.append("pthread")
 
