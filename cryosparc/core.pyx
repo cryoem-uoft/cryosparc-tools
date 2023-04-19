@@ -2,8 +2,7 @@ from . cimport snappy
 from . cimport dataset
 from libc.stdint cimport uint64_t
 from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
-from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
-import sys
+from cpython.mem cimport PyMem_Realloc, PyMem_Free
 
 
 # Mirror of equivalent C-datatype enumeration
@@ -34,7 +33,7 @@ cdef class Data:
             # copy constructor
             othr = <Data> other
             self._handle = dataset.dset_copy(othr._handle)
-            other._increfs()
+            othr._increfs()
         elif other:
             # Initialize with a numeric handle
             self._handle = <dataset.Dset> other
@@ -203,7 +202,7 @@ cdef class Data:
         cdef bytes pybytes = val.encode()
         if not dataset.dset_stralloc(self._handle, pybytes, len(pybytes), &idx):
             raise MemoryError()
-        return idx
+        return <int> idx
 
     def dump(self):
         cdef void *mem
@@ -263,6 +262,9 @@ cdef class Strappy:
         if self.buf != NULL:
             PyMem_Free(self.buf)
             self.buf = NULL
+        if self.aux != NULL:
+            PyMem_Free(self.aux)
+            self.aux = NULL
 
     def _ensure_buf(self, int min_len):
         cdef size_t sz = min_len
