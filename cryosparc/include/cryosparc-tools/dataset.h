@@ -241,7 +241,6 @@ typedef struct {
 	uint32_t   ncol;  // actual number of columns
 	uint64_t   crow;  // reserved capacity for rows
 	uint64_t   nrow;  // actual number of rows
-	uint64_t   nstr;  // number of strings in string heap
 	uint64_t   arrheap_start; // offset where column data begins
 	uint64_t   strheap_start; // offset where string (and other data structure) heap begins
 	uint64_t   strheap_sz; //
@@ -953,7 +952,6 @@ stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
 	}
 
 	*index = *htidx = d->strheap_sz;
-	d->nstr += 1;
 	d->strheap_sz += sz;
 
 	memcpy(base + d->strheap_start + (*index), str, sz);
@@ -1654,8 +1652,7 @@ void dset_dumptxt (uint64_t dset, int dump_data) {
 		"\trows (actual)          %"PRIu64"\n"
 		"\trows (capacity)        %"PRIu64"\n"
 		"\tcols (actual)          %"PRIu32"\n"
-		"\tcols (capacity)        %"PRIu32"\n"
-		"\tstrs (actual)          %"PRIu32"\n\n"
+		"\tcols (capacity)        %"PRIu32"\n\n"
 		"\tnrealloc:              %"PRIu32"\n"
 		"\tnreassign_arroffsets:  %"PRIu32"\n"
 		"\tnshift_strhandles:     %"PRIu32"\n"
@@ -1669,7 +1666,6 @@ void dset_dumptxt (uint64_t dset, int dump_data) {
 		d->total_sz,
 		d->nrow, d->crow,
 		d->ncol, d->ccol,
-		d->nstr,
 		slot->stats.nrealloc,
 		slot->stats.nreassign_arroffsets,
 		slot->stats.nshift_strhandles,
@@ -1738,11 +1734,10 @@ int dset_setstrheap(uint64_t dset, const char *heap, size_t size) {
 	ds_slot *slot = &ds_module.slots[dsetidx];
 
 	// erase current strings
-	d->nstr = 0;
-	d->strheap_sz = 1; // 1 for null string
+	d->strheap_sz = 1; // 1 for empty string
 	ht64_clear(&slot->ht);
 
-	char *s = heap + 1; // assume null string already set
+	char *s = heap;
 	size_t len;
 	uint64_t idx;
 	while (d && s < heap + size) {
