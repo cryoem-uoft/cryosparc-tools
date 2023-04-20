@@ -86,10 +86,6 @@ cdef class Data:
             for j in xrange(nrow):
                 Py_XDECREF(mem[j])
 
-    def reserve(self, int size):
-        if not dataset.dset_reserve(self._handle, <uint64_t> size):
-            raise MemoryError()
-
     def innerjoin(self, str key, Data other):
         cdef Data data = Data(dataset.dset_innerjoin(key.encode(), self._handle, other._handle))
         data._increfs()

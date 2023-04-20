@@ -52,7 +52,6 @@ enum dset_type {
 uint64_t  dset_new (void);
 void      dset_del (uint64_t dset);
 uint64_t  dset_copy (uint64_t dset);
-int       dset_reserve (uint64_t dset, uint64_t size);
 uint64_t  dset_innerjoin (const char *key, uint64_t dset_r, uint64_t dset_s);
 
 uint64_t    dset_totalsz(uint64_t dset);
@@ -627,7 +626,7 @@ more_strheap (uint64_t dsetidx, uint64_t nbytes_more) {
 
 		char * ptr = (char *) d;
 		char * move_src = ptr + d->strheap_start;
-		char * move_dst = move_dst - nbytes_more;
+		char * move_dst = move_src - nbytes_more;
 
 		memmove (move_dst, move_src, d->strheap_sz);
 		memset  (move_dst + d->strheap_sz, 0, d->strheap_sz);
@@ -803,7 +802,7 @@ static inline int ht64_double_capacity(ds_ht64 *t) {
 	return ht64_realloc(t, (1 << (uint32_t) t->exp) - 1);
 }
 
-static inline int ht64_clear(ds_ht64 *t) {
+static inline void ht64_clear(ds_ht64 *t) {
 	memset(t->ht, -1, ht64_memsize(t));
 	t->len = 0;
 }
@@ -1090,15 +1089,6 @@ uint64_t dset_copy(uint64_t dset)
 	return newhandle;
 }
 
-// Ensure at least the given size amount of memory is available for the dataset
-int dset_reserve(uint64_t dset, uint64_t size) {
-	uint64_t dsetidx;
-	ds *d = handle_lookup(dset, "det_reserve", 0, dsetidx);
-	if (d->total_sz <= size) {
-		return 1;
-	}
-	return more_memory(dsetidx, size - d->total_sz) != 0;
-}
 
 // Compute the inner join of two Datasets R and S by matching values in the
 // column with the given key. Currently only 64-bit columns (e.g., T_U64) with

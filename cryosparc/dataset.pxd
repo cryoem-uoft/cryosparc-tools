@@ -5,7 +5,6 @@ cdef extern from "cryosparc-tools/dataset.h":
 
     Dset dset_new() nogil
     Dset dset_copy(Dset dset) nogil
-    bint dset_reserve(Dset dset, uint64_t size) nogil
     Dset dset_innerjoin(const char *key, Dset dset_r, Dset dset_s) nogil
     void dset_del(Dset dset) nogil
 
