@@ -1,8 +1,10 @@
-from . cimport snappy
 from . cimport dataset
+from . cimport lz4
 from libc.stdint cimport uint64_t
 from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 from cpython.mem cimport PyMem_Realloc, PyMem_Free
+
+cdef int LZ4_ACCELERATION = 1000
 
 
 # Mirror of equivalent C-datatype enumeration
@@ -238,15 +240,12 @@ cdef class Stream:
     # results are not consumed prior to future calls to this class, the contents
     # will be overwritten.
     cdef Data data
-    cdef snappy.snappy_env env
     cdef char *buf  # internal compression buffer
     cdef uint64_t *aux  # internal string index array
     cdef size_t bufsz
     cdef size_t auxsz
 
     def __cinit__(self, Data data = None):
-        if snappy.snappy_init_env(&self.env) != 0:
-            raise MemoryError()
         self.data = data
         self.buf = NULL
         self.aux = NULL
@@ -254,7 +253,6 @@ cdef class Stream:
         self.auxsz = 0
 
     def __dealloc__(self):
-        snappy.snappy_free_env(&self.env)
         if self.buf != NULL:
             PyMem_Free(self.buf)
             self.buf = NULL
@@ -357,24 +355,23 @@ cdef class Stream:
         return self.compress(<unsigned char [:sz]> arr_ptr)
 
     def compress(self, unsigned char [:] data):
-        cdef size_t sz = data.size
-        cdef size_t compressed_sz
-        cdef int max_compressed_sz = snappy.snappy_max_compressed_length(sz)
+        cdef int sz = data.size
+        cdef int max_compressed_sz = lz4.LZ4_compressBound(sz)
 
         self._ensure_buf(max_compressed_sz)
 
          # Call compress. Write final length into compressed_sz
-        cdef int error = snappy.snappy_compress(
-            &self.env,
+        cdef int compressed_sz = lz4.LZ4_compress_fast(
             <const char *> &data[0],
-            sz,
             self.buf,
-            &compressed_sz
+            sz,
+            max_compressed_sz,
+            LZ4_ACCELERATION
         )
-        if error != 0:
-            raise MemoryError()  # could not compress
+        if compressed_sz > 0:
+            return <char [:compressed_sz]> self.buf
 
-        return <char [:compressed_sz]> self.buf
+        raise ValueError(f"Could not compress (error {compressed_sz})")
 
     def decompress_col(self, str col, bytes data):
         cdef void *mem
@@ -387,25 +384,28 @@ cdef class Stream:
         if mem == NULL:
             raise ValueError(f"Invalid column {col}")
         else:
-            return self.decompress(data, <size_t> mem)
+            return self.decompress(data, <size_t> mem, size)
 
     def decompress_numpy(self, bytes data, arr):
-        cdef size_t arr_ptr_val = arr.ctypes.data
-        return self.decompress(data, arr_ptr_val)
+        cdef size_t dstptr = arr.ctypes.data
+        cdef int size = arr.size
+        cdef int itemsize = arr.itemsize
+        return self.decompress(data, dstptr, size * itemsize)
 
-    def decompress(self, bytes data, size_t outptr = 0):
+    def decompress(self, bytes data, size_t dstptr = 0, int dstsz = 0):
         cdef const char *compressed = data
-        cdef size_t compressed_sz = len(data)
-        cdef char *uncompressed = <char *> outptr
-        cdef size_t uncompressed_sz
-        if not snappy.snappy_uncompressed_length(compressed, compressed_sz, &uncompressed_sz):
-            raise MemoryError()
-        if outptr == 0:
-            self._ensure_buf(uncompressed_sz)
+        cdef int compressed_sz = len(data)
+        cdef char *uncompressed = <char *> dstptr
+        if dstsz <= 0:
+            raise ValueError("Decompression buffer size must be > 0")
+
+        if dstptr == 0:
+            self._ensure_buf(dstsz)
             uncompressed = self.buf
 
-        cdef int error = snappy.snappy_uncompress(compressed, compressed_sz, uncompressed)
-        if error != 0:
-            raise MemoryError()
+        cdef int uncompressed_sz = lz4.LZ4_decompress_safe(compressed, uncompressed, compressed_sz, dstsz)
+        if uncompressed_sz >= 0:
+            return <char [:uncompressed_sz]> uncompressed
 
-        return <char [:uncompressed_sz]> uncompressed
+        raise ValueError(f"Could not decompress (error {uncompressed_sz})")
+

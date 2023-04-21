@@ -1,3 +1,6 @@
 [submodule "cryosparc/include/snappy"]
 	path = cryosparc/include/snappy
 	url = https://github.com/nfrasser/snappy-c.git
+[submodule "cryosparc/include/lz4"]
+	path = cryosparc/include/lz4
+	url = https://github.com/lz4/lz4.git

@@ -1,9 +1,8 @@
 include cryosparc/core.pyx
 include cryosparc/dataset.c
 include cryosparc/dataset.pxd
-include cryosparc/snappy.pxd
+include cryosparc/lz4.pxd
 include cryosparc/include/cryosparc-tools/dataset.h
-include cryosparc/include/snappy/compat.h
-include cryosparc/include/snappy/snappy.h
-include cryosparc/include/snappy/snappy.c
-include cryosparc/include/snappy/LICENSE
+include cryosparc/include/lz4/lib/lz4.h
+include cryosparc/include/lz4/lib/lz4.c
+include cryosparc/include/lz4/lib/LICENSE

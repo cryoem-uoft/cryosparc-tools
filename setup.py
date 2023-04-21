@@ -30,7 +30,7 @@ setup(
     ext_modules=cythonize(
         Extension(
             name="cryosparc.core",
-            sources=["cryosparc/include/snappy/snappy.c", "cryosparc/dataset.c", "cryosparc/core.pyx"],
+            sources=["cryosparc/include/lz4/lib/lz4.c", "cryosparc/dataset.c", "cryosparc/core.pyx"],
             include_dirs=["cryosparc/include/"],
             libraries=libraries,
             define_macros=define_macros,
@@ -38,10 +38,9 @@ setup(
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
             depends=[
-                "cryosparc/include/snappy/compat.h",
-                "cryosparc/include/snappy/snappy.h",
+                "cryosparc/include/lz4/lib/lz4.h",
                 "cryosparc/include/cryosparc-tools/dataset.h",
-                "cryosparc/snappy.pxd",
+                "cryosparc/lz4.pxd",
                 "cryosparc/dataset.pxd",
             ],
         ),

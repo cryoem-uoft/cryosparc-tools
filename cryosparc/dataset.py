@@ -645,7 +645,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             yield u32bytesle(len(fielddata))
             yield fielddata.memview
 
-        yield data.dumpstrheap()
+        yield data.dumpstrheap().memview
 
     def __init__(
         self,
@@ -708,9 +708,10 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             populate.insert(0, (("uid", "<u8"), generate_uids(nrows)))
 
         self.add_fields([entry[0] for entry in populate])
-        self._data.addrows(nrows)
-        for field, data in populate:
-            self[field[0]] = data
+        if nrows > 0:
+            self._data.addrows(nrows)
+            for field, data in populate:
+                self[field[0]] = data
 
     def __len__(self):
         """
