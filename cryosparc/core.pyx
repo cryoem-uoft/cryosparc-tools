@@ -230,7 +230,7 @@ cdef class Data:
         return self._handle
 
 
-cdef class Strappy:
+cdef class Stream:
     # Helper class for initializing a dataset from a compressed stream or
     # generating a compressed stream for that dataset.
     #
@@ -400,7 +400,7 @@ cdef class Strappy:
         cdef size_t uncompressed_sz
         if not snappy.snappy_uncompressed_length(compressed, compressed_sz, &uncompressed_sz):
             raise MemoryError()
-        if uncompressed == NULL:
+        if outptr == 0:
             self._ensure_buf(uncompressed_sz)
             uncompressed = self.buf
 

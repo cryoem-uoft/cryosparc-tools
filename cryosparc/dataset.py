@@ -48,7 +48,7 @@ from typing_extensions import Literal, SupportsIndex
 import numpy as n
 import numpy.core.records
 
-from .core import Data, DsetType, Strappy
+from .core import Data, DsetType, Stream
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
@@ -557,12 +557,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 dset = cls.allocate(0, header["dtype"])
                 data = dset._data
                 data.addrows(header["length"])
-                strappy = Strappy(data)
+                stream = Stream(data)
                 for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
                     buffer = f.read(colsize)
                     if field[0] in header["compressed_fields"]:
-                        strappy.decompress_col(field[0], buffer)
+                        stream.decompress_col(field[0], buffer)
                     else:
                         data.getbuf(field[0])[:] = buffer
 
@@ -574,7 +574,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 data.setstrheap(heap)
 
                 # Convert C strings to Python strings
-                strappy.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+                stream.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
                 if not cstrs:
                     dset.to_pystrs()
                 return dset
@@ -622,7 +622,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             bytes: Dataset file chunks
         """
         data = self._data
-        strappy = Strappy(data)
+        stream = Stream(data)
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
@@ -639,9 +639,9 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             fielddata: "MemoryView"
             if f in compressed_fields:
                 # obj columns added to strheap and loaded as indexes
-                fielddata = strappy.compress_col(f)
+                fielddata = stream.compress_col(f)
             else:
-                fielddata = strappy.stralloc_col(f) or data.getbuf(f)
+                fielddata = stream.stralloc_col(f) or data.getbuf(f)
             yield u32bytesle(len(fielddata))
             yield fielddata.memview
 
