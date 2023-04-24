@@ -112,7 +112,12 @@ cdef class Data:
         return self.type(field) > 0
 
     def addrows(self, int num):
-        return dataset.dset_addrows(self._handle, num)
+        if not dataset.dset_addrows(self._handle, num):
+            raise MemoryError()
+
+    def reserverows(self, int num):
+        if not dataset.dset_reserverows(self._handle, num):
+            raise MemoryError()
 
     def addcol_scalar(self, str field, int dtype):
         return dataset.dset_addcol_scalar(self._handle, field.encode(), dtype)

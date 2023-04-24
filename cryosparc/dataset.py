@@ -272,13 +272,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         size = sum(len(d) for d in datasets)
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
-        result = cls.allocate(size, keep_fields)
-        startidx = 0
-        for dset in datasets:
-            num = len(dset)
-            for key, *_ in keep_fields:
-                result[key][startidx : startidx + num] = dset[key]
-            startidx += num
+        result = cls.allocate(0, keep_fields)
+        result._data.reserverows(size)
+        result._data.extend([d._data for d in datasets])
 
         return result
 

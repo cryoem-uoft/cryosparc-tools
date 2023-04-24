@@ -66,6 +66,7 @@ const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
 uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 
 int        dset_addrows       (uint64_t dset, uint32_t num);
+int        dset_reserverows   (uint64_t dset, uint32_t num);
 int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
 int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
 int        dset_changecol     (uint64_t dset, const char * key, int type);
@@ -1472,16 +1473,24 @@ int dset_changecol (uint64_t dset, const char *key, int type) {
 }
 
 int dset_addrows (uint64_t dset, uint32_t num) {
-	uint64_t idx;
-
-	ds *d = handle_lookup(dset, "dset_addrows", 0, &idx);
+	ds *d = handle_lookup(dset, "dset_addrows", 0, 0);
 	if (!d) return 0;
 
-	if (d->nrow + num < d->crow) {
-		// we already have enough space reserved, so no big deal.
+	if (d->nrow + num < d->crow || dset_reserverows(dset, num)) {
+		// we have space reserved
+		d = handle_lookup(dset, "dset_addrows", 0, 0);
+		if (!d) return 0;
 		d->nrow += num;
 		return 1;
+	} else {
+		return 0;
 	}
+}
+
+int dset_reserverows (uint64_t dset, uint32_t num) {
+	uint64_t idx;
+	ds *d = handle_lookup(dset, "dset_reserverows", 0, &idx);
+	if (!d) return 0;
 
 	// compute the minimum required array heap size for the new row count
 	uint64_t req_arrheap_sz = 0;
@@ -1520,7 +1529,6 @@ int dset_addrows (uint64_t dset, uint32_t num) {
 	reassign_arrayoffsets(idx, new_crow);
 
 	d->crow  = new_crow;
-	d->nrow += num;
 	return 1;
 }
 
