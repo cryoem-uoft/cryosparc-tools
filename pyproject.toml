@@ -65,6 +65,7 @@ include = ["cryosparc", "tests", "setup.py"]
 
 [tool.black]
 line-length = 120
+extend-exclude = ["cryosparc/include/**/*.py"]
 
 [tool.ruff]
 line-length = 120

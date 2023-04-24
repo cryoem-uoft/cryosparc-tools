@@ -192,16 +192,20 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
             assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
 
+        required_fields = self.descr()
+        common_fields = self.common_fields(self, *others)
+        assert set(common_fields) == set(required_fields), (
+            "Cannot extend, some datasets are missing required target fields. "
+            f"Required fields: {required_fields}. "
+            f"Missing fields: {set(required_fields).difference(common_fields)}"
+        )
+
         extra_size = sum(len(d) for d in datasets)
-        keep_fields = self.common_fields(self, *datasets)
-        assert (
-            keep_fields == self.descr()
-        ), f"Cannot extend dataset, others missing fields {set(self.descr()) - set(keep_fields)}"
         startidx = len(self)
         self._data.addrows(extra_size)
         for dset in datasets:
             num = len(dset)
-            for key, *_ in keep_fields:
+            for key, *_ in required_fields:
                 self[key][startidx : startidx + num] = dset[key]
             startidx += num
 
