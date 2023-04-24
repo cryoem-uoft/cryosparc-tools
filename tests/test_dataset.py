@@ -261,6 +261,19 @@ def test_innerjoin_smaller():
     )
 
 
+def test_append():
+    dat = "dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat"
+    d1 = Dataset([("uid", [1, 2, 3]), (dat, ["Hello", "World", "!"])])
+    d2 = Dataset([("uid", [4, 5]), (dat, ["Goodbye", "World"])])
+
+    assert d1.append(d2) == Dataset(
+        [
+            ("uid", [1, 2, 3, 4, 5]),
+            (dat, ["Hello", "World", "!", "Goodbye", "World"]),
+        ]
+    )
+
+
 def test_append_many_empty():
     assert len(Dataset.append_many().rows()) == 0
 
