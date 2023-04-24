@@ -282,6 +282,32 @@ def test_append_replace_many_query(benchmark, big_dset: Dataset, dset: Dataset):
     assert len(new_dset) == len(big_dset) + len(other1) + len(other2) - 1191 - 1210
 
 
+def test_append_50k(benchmark, big_dset: Dataset):
+    subset_uids = n.array(big_dset["uid"][50_000:100_000])
+    subset = big_dset.slice(50_000, 100_000).reassign_uids()
+
+    target = benchmark(big_dset.append, subset, repeat_allowed=True)
+
+    assert len(target) == len(big_dset) + len(subset)
+    target["uid"][len(big_dset) :] = subset_uids
+    assert target.slice(len(big_dset)) == big_dset.slice(50_000, 100_000)
+
+
+def test_extend_50k(benchmark, big_dset: Dataset):
+    subset_uids = n.array(big_dset["uid"][50_000:100_000])
+    subset = big_dset.slice(50_000, 100_000).reassign_uids()
+
+    def extend():
+        target = big_dset.copy()
+        return target.extend(subset, repeat_allowed=True)
+
+    target = benchmark(extend)
+
+    assert len(target) == len(big_dset) + len(subset)
+    target["uid"][len(big_dset) :] = subset_uids
+    assert target.slice(len(big_dset)) == big_dset.slice(50_000, 100_000)
+
+
 def test_innerjoin_two(benchmark, dset: Dataset):
     other = dset.slice(500000, 1500000)
     expected = other

@@ -200,16 +200,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             f"Required fields: {required_fields}. "
             f"Missing fields: {set(required_fields).difference(common_fields)}"
         )
-
-        extra_size = sum(len(d) for d in datasets)
-        startidx = len(self)
-        self._data.addrows(extra_size)
-        for dset in datasets:
-            num = len(dset)
-            for key, *_ in required_fields:
-                self[key][startidx : startidx + num] = dset[key]
-            startidx += num
-
+        self._data.extend([d._data for d in others])
         return self
 
     def append(self, *others: "Dataset", assert_same_fields=False, repeat_allowed=False):

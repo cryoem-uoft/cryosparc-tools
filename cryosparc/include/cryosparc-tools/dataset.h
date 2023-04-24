@@ -69,6 +69,7 @@ int        dset_addrows       (uint64_t dset, uint32_t num);
 int        dset_addcol_scalar (uint64_t dset, const char * key, int type);
 int        dset_addcol_array  (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2);
 int        dset_changecol     (uint64_t dset, const char * key, int type);
+int        dset_extend        (uint64_t dset, uint64_t *others, uint32_t numothers);
 
 int        dset_defrag (uint64_t dset, int realloc_smaller);
 void       dset_dumptxt (uint64_t dset, int dump_data);
@@ -536,7 +537,7 @@ stride (const ds_column *c)
 	return s;
 }
 
-static const char *
+static inline const char *
 getkey(const ds *d, const ds_column *c)
 {
 	char * ptr = (char *)d;
@@ -545,7 +546,7 @@ getkey(const ds *d, const ds_column *c)
 }
 
 static ds_column *
-column_lookup(ds * d, const char *colkey, size_t *idx)
+column_lookup(ds * d, const char *colkey, uint64_t *idx)
 {
 	if(!d) return 0;
 
@@ -1147,7 +1148,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// Populate fields from the first dataset R. Declare a stack-allocated
 	// dynamic array of structs which memoize the required column data
 	ds_column *col;
-	size_t colidx;
+	uint64_t colidx;
 	char *colkey;
 
 	// Cache source column details (try to use stack version if possible)
@@ -1523,7 +1524,88 @@ int dset_addrows (uint64_t dset, uint32_t num) {
 	return 1;
 }
 
+int dset_extend(uint64_t dset, uint64_t *others, uint32_t numothers) {
+	uint64_t idx;
+	ds *d = handle_lookup(dset, "dset_extend", 0, &idx);
+	if (!d) return 0;
 
+	ds *other;
+	ds_column *col, *othercol;
+	const char *colkey;
+	uint64_t newrows = 0;
+
+	// Check that all required columns exist and match types
+	// Compute number of new rows to add
+	for (uint32_t i = 0; i < numothers; i++) {
+		// verify that each dataset has the right column
+		other = handle_lookup(others[i], "dset_extend", 0, 0);
+		if (!other) {
+			nonfatal("dset_extend: invalid handle %" PRIu64, others[i]);
+			return 0;
+		}
+		if (other->nrow == 0) continue;
+
+		for (uint32_t c = 0; c < d->ncol; c++) {
+			col = &d->columns[c];
+			colkey = getkey(d, col);
+			othercol = column_lookup(other, colkey, 0);
+			if (!othercol || col->type != othercol->type ||
+				col->shape[0] != othercol->shape[0] ||
+				col->shape[1] != othercol->shape[1] ||
+				col->shape[2] != othercol->shape[2]
+			) {
+				nonfatal("dset_extend: cannot find matching column %s in other dset %" PRIu32, colkey, i);
+				return 0;
+			}
+		}
+
+		newrows += other->nrow;
+	}
+
+	// Where to start filling in
+	uint64_t offset = d->nrow;
+
+	if (!dset_addrows(dset, newrows)) {
+		nonfatal("dset_extend: cannot add rows to dataset %" PRIu64, dset);
+		return 0;
+	}
+	d = ds_module.slots[idx].memory; // get new memory, in case it moved
+
+	// Copy memory from each dataset
+	char *ptr = (char *) d, *otherptr, *colptr, *othercolptr;
+	uint64_t otheridx, othercolidx;
+	size_t cellsz;
+
+	for (uint32_t i = 0; i < numothers; i++) {
+		other = handle_lookup(others[i], "dset_extend", 0, &otheridx);
+		otherptr = (char *) other;
+		if (other->nrow == 0) continue;
+
+		for (uint32_t c = 0; c < d->ncol; c++) {
+			col = &d->columns[c];
+			colkey = getkey(d, col);
+			othercol = column_lookup(other, colkey, &othercolidx);
+
+			// Straight memory copy
+			if (abs_i8(col->type) != T_STR) {
+				colptr = ptr + d->arrheap_start + col->offset;
+				othercolptr = otherptr + other->arrheap_start + othercol->offset;
+				cellsz = type_size[abs_i8(col->type)] * stride(col);
+				memcpy(colptr + (cellsz * offset), othercolptr, cellsz * other->nrow);
+				continue;
+			}
+
+			// String copy
+			for (uint64_t j = 0; j < other->nrow; j++) {
+				d = copystr(idx, c, offset + j, otheridx, othercolidx, j);
+				if (!d) return 0; // out of memory
+			}
+		}
+		offset += other->nrow;
+	}
+
+	return 1;
+}
 
 int dset_defrag (uint64_t dset, int realloc_smaller)
 {

@@ -2,7 +2,7 @@ from . cimport dataset
 from . cimport lz4
 from libc.stdint cimport uint64_t
 from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
-from cpython.mem cimport PyMem_Realloc, PyMem_Free
+from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 cdef int LZ4_ACCELERATION = 1000
 
@@ -119,6 +119,28 @@ cdef class Data:
 
     def addcol_array(self, str field, int dtype, int shape0, int shape1, int shape2):
         return dataset.dset_addcol_array(self._handle, field.encode(), dtype, shape0, shape1, shape2)
+
+    def extend(self, list others):
+        cdef Data other
+        cdef dataset.Dset othersarr[256]
+        cdef dataset.Dset *othersptr = &othersarr[0]
+        cdef int numothers = len(others)
+        if numothers > 256:
+            othersptr = <dataset.Dset *> PyMem_Malloc(sizeof(dataset.Dset) * numothers)
+        try:
+            for i in xrange(numothers):
+                other = others[i]
+                othersptr[i] = other._handle
+
+            if not dataset.dset_extend(self._handle, othersptr, numothers):
+                raise MemoryError()
+
+            for i in xrange(numothers):
+                other = others[i]
+                other._increfs()
+        finally:
+            if othersptr != &othersarr[0]:
+                PyMem_Free(othersptr)
 
     def getshp(self, str colkey):
         cdef int val = dataset.dset_getshp(self._handle, colkey.encode())
