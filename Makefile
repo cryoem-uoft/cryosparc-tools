@@ -1,4 +1,4 @@
-TARGET=cryosparc/core.cpython-38-x86_64-linux-gnu.so  # for CryoSPARC
+TARGET=cryosparc/core.cpython-310-x86_64-linux-gnu.so  # for CryoSPARC
 
 # For vercel build
 PYTHON=python3.9
