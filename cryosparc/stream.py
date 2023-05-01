@@ -46,21 +46,21 @@ class BinaryIteratorIO(BinaryIO):
         return ret
 
     def read(self, n: Optional[int] = None):
-        l = []
+        out = []
         if n is None or n < 0:
             while True:
                 m = self._read1()
                 if not m:
                     break
-                l.append(m)
+                out.append(m)
         else:
             while n > 0:
                 m = self._read1(n)
                 if not m:
                     break
                 n -= len(m)
-                l.append(m)
-        return b"".join(l)
+                out.append(m)
+        return b"".join(out)
 
 
 class AsyncBinaryIteratorIO(AsyncBinaryIO):
@@ -87,21 +87,21 @@ class AsyncBinaryIteratorIO(AsyncBinaryIO):
         return ret
 
     async def read(self, n: Optional[int] = None):
-        l = []
+        out = []
         if n is None or n < 0:
             while True:
                 m = self._read1()
                 if not m:
                     break
-                l.append(m)
+                out.append(m)
         else:
             while n > 0:
                 m = await self._read1(n)
                 if not m:
                     break
                 n -= len(m)
-                l.append(m)
-        return b"".join(l)
+                out.append(m)
+        return b"".join(out)
 
 
 class Streamable(ABC):

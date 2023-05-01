@@ -27,7 +27,16 @@ D = TypeVar("D", bound=TypedDict)
 
 
 Datatype = Literal[
-    "exposure", "particle", "template", "volume", "mask", "ml_model", "symmetry_candidate", "flex_mesh", "flex_model"
+    "exposure",
+    "particle",
+    "template",
+    "volume",
+    "mask",
+    "live",
+    "ml_model",
+    "symmetry_candidate",
+    "flex_mesh",
+    "flex_model",
 ]
 """Supported data types for job inputs and outputs."""
 
