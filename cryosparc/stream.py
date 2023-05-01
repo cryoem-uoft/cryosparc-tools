@@ -11,10 +11,9 @@ from typing import (
     Generator,
     Iterator,
     Optional,
-    Protocol,
     Union,
 )
-from typing_extensions import Self
+from typing_extensions import Protocol, Self
 
 
 class AsyncBinaryIO(Protocol):
