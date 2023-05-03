@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
+    TYPE_CHECKING,
     IO,
     Any,
     AsyncGenerator,
@@ -13,7 +14,10 @@ from typing import (
     Optional,
     Union,
 )
-from typing_extensions import Protocol, Self
+from typing_extensions import Protocol
+
+if TYPE_CHECKING:
+    from typing_extensions import Self  # not present in typing-extensions=3.7
 
 
 class AsyncBinaryIO(Protocol):
@@ -125,7 +129,7 @@ class Streamable(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]]) -> Self:
+    def load(cls, file: Union[str, PurePath, IO[bytes]]) -> "Self":
         """
         The given stream param must at least implement an async read method
         """
@@ -137,7 +141,7 @@ class Streamable(ABC):
 
     @classmethod
     @abstractmethod
-    async def from_async_stream(cls, stream: AsyncBinaryIO) -> Self:
+    async def from_async_stream(cls, stream: AsyncBinaryIO) -> "Self":
         """
         Asynchronously load from the given binary stream. The given stream
         parameter must at least have ``async read(n: int | None) -> bytes`` method.
