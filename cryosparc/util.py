@@ -110,7 +110,17 @@ class hashcache(Dict[K, V], Generic[K, V]):
         return new
 
 
+@overload
 def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
+    ...
+
+
+@overload
+def first(it: Union[Iterator[V], Sequence[V]], default: V) -> V:
+    ...
+
+
+def first(it: Union[Iterator[V], Sequence[V]], default: Optional[V] = None) -> Optional[V]:
     """
     Get the first item from the given iterator. Returns None if the iterator is
     empty.
@@ -124,7 +134,7 @@ def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
     try:
         return it[0] if isinstance(it, Sequence) else next(it)
     except (StopIteration, IndexError):
-        return None
+        return default
 
 
 def u32bytesle(x: int) -> bytes:
