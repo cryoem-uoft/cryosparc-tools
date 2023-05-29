@@ -71,4 +71,4 @@ extend-exclude = """
 
 [tool.ruff]
 line-length = 120
-exclude = ["docs", ".venv*"]
+exclude = ["docs", ".venv*", "cryosparc/include"]
