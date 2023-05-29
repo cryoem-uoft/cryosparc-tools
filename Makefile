@@ -1,9 +1,5 @@
 TARGET=cryosparc/core.cpython-310-x86_64-linux-gnu.so  # for CryoSPARC
 
-# For vercel build
-PYTHON=python3.9
-PYTHON_VERSION=3.9.16
-
 all: $(TARGET)
 
 # -----------------------------------------------------------------------------
@@ -17,22 +13,11 @@ $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*
 #    Vercel deployment-related targets
 # -----------------------------------------------------------------------------
 
-Python-$(PYTHON_VERSION).tgz:
-	curl -L https://www.python.org/ftp/python/$(PYTHON_VERSION)/Python-$(PYTHON_VERSION).tgz -o Python-$(PYTHON_VERSION).tgz
-
-Python-$(PYTHON_VERSION): Python-$(PYTHON_VERSION).tgz
-	tar -xzf Python-${PYTHON_VERSION}.tgz
-
-python: Python-$(PYTHON_VERSION)
-	cd Python-$(PYTHON_VERSION) && ./configure && cd .. || cd ..
-	make -C Python-$(PYTHON_VERSION)
-	make -C Python-$(PYTHON_VERSION) altinstall
-
 .venv/bin/python:
-	$(PYTHON) -m venv .venv
+	python -m venv .venv
 
 .venv/bin/pip: .venv/bin/python
-	.venv/bin/python -m pip install -U pip
+	.venv/bin/python -m pip install -U pip wheel
 
 .venv/bin/jupyter-book: .venv/bin/pip
 	.venv/bin/pip install -e ".[build]"
@@ -45,7 +30,7 @@ verceldeps:
 	yum update -y
 	yum install bzip2-devel libffi-devel openssl-devel sqlite-devel -y
 
-vercelinstall: verceldeps python .venv/bin/python
+vercelinstall: python .venv/bin/python
 	echo "Install complete"
 
 vercelbuild: .vercel/output/config.json .venv/bin/jupyter-book
