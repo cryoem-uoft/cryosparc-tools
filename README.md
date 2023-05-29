@@ -39,7 +39,7 @@ Toolkit for interfacing with CryoSPARC. Read the documentation at
 Recompile native modules after making changes to C code:
 
 ```sh
-make
+python -m setup build_ext -i
 ```
 
 ## Build Packages for Publishing
@@ -97,7 +97,7 @@ dependencies to execute, including the following system configuration:
 Clean previous build artefacts:
 
 ```sh
-make clean
+rm -rf cryosparc/*.so build dist *.egg-info
 ```
 
 Install dependencies into a new conda environment:

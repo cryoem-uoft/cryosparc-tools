@@ -63,6 +63,7 @@ from .dtype import (
     arraydtype,
     safe_makefield,
 )
+from .stream import AsyncBinaryIO, Streamable
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
@@ -100,7 +101,7 @@ FORMAT_MAGIC_PREFIXES = {
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
 
-class Dataset(MutableMapping[str, Column], Generic[R]):
+class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with CryoSPARC .cs files.
 
@@ -584,6 +585,21 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 return dset
 
         raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
+
+    @classmethod
+    async def from_async_stream(cls, stream: AsyncBinaryIO):
+        import snappy
+
+        headersize = u32intle(await stream.read(4))
+        header = decode_dataset_header(await stream.read(headersize))
+        cols = {}
+        for field in header["dtype"]:
+            colsize = u32intle(await stream.read(4))
+            buffer = await stream.read(colsize)
+            if field[0] in header["compressed_fields"]:
+                buffer = snappy.uncompress(buffer)
+            cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
+        return cls(cols)
 
     def save(self, file: Union[str, PurePath, IO[bytes]], format: int = DEFAULT_FORMAT):
         """

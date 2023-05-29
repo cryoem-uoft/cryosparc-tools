@@ -665,8 +665,8 @@ class Job(MongoController[JobDocument]):
         (PNG, JPG, GIF, PDF, SVG), text file (TXT, CSV, JSON, XML) or a binary
         IO object with data in one of those formats.
 
-        If a binary IO object is specified, either a filename or mimetype must
-        be specified.
+        If a binary IO object is specified, either a filename or file format
+        must be specified.
 
         Unlike the ``upload`` method which saves files to the job directory,
         this method saves images to the database and exposes them for use in the
