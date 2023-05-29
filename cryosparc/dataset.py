@@ -95,7 +95,7 @@ Newest save .cs file format. Same as ``CSDAT_FORMAT``.
 
 FORMAT_MAGIC_PREFIXES = {
     NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
-    CSDAT_FORMAT: b"\x94CSDAT",  # .csl compressed stream format
+    CSDAT_FORMAT: b"\x95CSDAT",  # .csl compressed stream format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
@@ -163,7 +163,7 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
         dset.add_fields(fields)
         return dset
 
-    def extend(self, *others, repeat_allowed=False):
+    def extend(self, *others: "Dataset", repeat_allowed=False):
         """
         Add the given dataset(s) to the end of the current dataset. Other
         datasets must have at least the same fields of the current dataset.
@@ -608,12 +608,12 @@ class Dataset(MutableMapping[str, Column], Generic[R]):
                 n.save(f, outdata, allow_pickle=False)
         elif format == CSDAT_FORMAT:
             with bopen(file, "wb") as f:
-                for chunk in self.stream(compression="snap"):
+                for chunk in self.stream(compression="lz4"):
                     f.write(chunk)
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["snap", None] = None) -> Iterable[Union[bytes, memoryview, "MemoryView"]]:
+    def stream(self, compression: Literal["lz4", None] = None) -> Iterable[Union[bytes, memoryview, "MemoryView"]]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.

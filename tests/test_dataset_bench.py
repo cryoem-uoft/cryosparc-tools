@@ -378,7 +378,7 @@ def test_streaming_bytes(benchmark, dset: Dataset):
     @benchmark
     def _():
         total_bytes = 0
-        for dat in dset.stream(compression="snap"):
+        for dat in dset.stream(compression="lz4"):
             stream.write(dat)
             total_bytes += len(dat)
         stream.seek(0)
@@ -389,7 +389,7 @@ def test_streaming_bytes(benchmark, dset: Dataset):
 
 def test_from_streaming_bytes(benchmark, big_dset: Dataset):
     stream = BytesIO()
-    for dat in big_dset.stream(compression="snap"):
+    for dat in big_dset.stream(compression="lz4"):
         stream.write(dat)
 
     def load():
