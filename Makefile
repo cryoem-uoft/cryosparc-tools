@@ -14,7 +14,7 @@ $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*
 # -----------------------------------------------------------------------------
 
 .venv/bin/python:
-	python -m venv .venv
+	python3 -m venv .venv
 
 .venv/bin/pip: .venv/bin/python
 	.venv/bin/python -m pip install -U pip wheel
@@ -30,7 +30,7 @@ verceldeps:
 	yum update -y
 	yum install bzip2-devel libffi-devel openssl-devel sqlite-devel -y
 
-vercelinstall: python .venv/bin/python
+vercelinstall: verceldeps python .venv/bin/python
 	echo "Install complete"
 
 vercelbuild: .vercel/output/config.json .venv/bin/jupyter-book
