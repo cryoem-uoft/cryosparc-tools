@@ -562,12 +562,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 dset = cls.allocate(0, header["dtype"])
                 data = dset._data
                 data.addrows(header["length"])
-                stream = Stream(data)
+                loader = Stream(data)
                 for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
                     buffer = f.read(colsize)
                     if field[0] in header["compressed_fields"]:
-                        stream.decompress_col(field[0], buffer)
+                        loader.decompress_col(field[0], buffer)
                     else:
                         data.getbuf(field[0])[:] = buffer
 
@@ -579,7 +579,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 data.setstrheap(heap)
 
                 # Convert C strings to Python strings
-                stream.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+                loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
                 if not cstrs:
                     dset.to_pystrs()
                 return dset
@@ -588,18 +588,29 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
-        import snappy
-
         headersize = u32intle(await stream.read(4))
         header = decode_dataset_header(await stream.read(headersize))
-        cols = {}
+
+        # Calling addrows separately to minimizes column-based allocations
+        dset = cls.allocate(0, header["dtype"])
+        data = dset._data
+        data.addrows(header["length"])
+        loader = Stream(data)
         for field in header["dtype"]:
             colsize = u32intle(await stream.read(4))
             buffer = await stream.read(colsize)
             if field[0] in header["compressed_fields"]:
-                buffer = snappy.uncompress(buffer)
-            cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
-        return cls(cols)
+                loader.decompress_col(field[0], buffer)
+            else:
+                data.getbuf(field[0])[:] = buffer
+
+        heap = stream.read()
+        data.setstrheap(heap)
+
+        # Convert C strings to Python strings
+        loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+        dset.to_pystrs()
+        return dset
 
     def save(self, file: Union[str, PurePath, IO[bytes]], format: int = DEFAULT_FORMAT):
         """
