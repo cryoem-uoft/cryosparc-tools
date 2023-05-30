@@ -13,28 +13,22 @@ $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*
 #    Vercel deployment-related targets
 # -----------------------------------------------------------------------------
 
-.venv/bin/python:
-	python3 -m venv .venv
+/usr/local/bin/micromamba:
+	curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local bin/micromamba
 
-.venv/bin/pip: .venv/bin/python
-	.venv/bin/python -m pip install -U pip wheel
-
-.venv/bin/jupyter-book: .venv/bin/pip
-	.venv/bin/pip install -e ".[build]"
+.venv:
+	micromamba create -p ./.venv -y -c conda-forge python=3.10 pip wheel cython numpy jupyter-book autodocsumm
+	micromamba run -p ./.venv pip install -e ".[build]"
 
 .vercel/output/config.json:
 	mkdir -p .vercel/output
-	echo '{"version":3,"cache":[".venv/**","build/**","docs/_build/**","Python-*.tgz","Python-*/**"]}' > .vercel/output/config.json
+	echo '{"version":3,"cache":["/usr/local/bin/micromamba", ".venv/**","build/**","docs/_build/**"]}' > .vercel/output/config.json
 
-verceldeps:
-	yum update -y
-	yum install bzip2-devel libffi-devel openssl-devel sqlite-devel -y
-
-vercelinstall: verceldeps python .venv/bin/python
+vercelinstall: /usr/local/bin/micromamba .venv
 	echo "Install complete"
 
-vercelbuild: .vercel/output/config.json .venv/bin/jupyter-book
-	.venv/bin/jupyter-book build docs
+vercelbuild: .vercel/output/config.json .venv
+	micromamba run -p ./.venv jupyter-book build docs
 	rm -rf .vercel/output/static && cp -R docs/_build/html .vercel/output/static
 
 # -----------------------------------------------------------------------------
@@ -48,6 +42,6 @@ clean:
 	rm -rf build
 	rm -rf dist
 	rm -rf *.egg-info
-	rm -rf Python-$(PYTHON_VERSION)
+	rm -rf .venv
 
-.PHONY: clean all python verceldeps vercelinstall vercelbuild
+.PHONY: clean all vercelinstall vercelbuild
