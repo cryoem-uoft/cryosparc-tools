@@ -1,5 +1,4 @@
 from io import BytesIO
-import os
 import pytest
 import numpy as n
 import cryosparc.dataset as ds
@@ -379,7 +378,7 @@ def test_streaming_bytes(benchmark, dset: Dataset):
     @benchmark
     def _():
         total_bytes = 0
-        for dat in dset.stream():
+        for dat in dset.stream(compression="lz4"):
             stream.write(dat)
             total_bytes += len(dat)
         stream.seek(0)
@@ -390,26 +389,23 @@ def test_streaming_bytes(benchmark, dset: Dataset):
 
 def test_from_streaming_bytes(benchmark, big_dset: Dataset):
     stream = BytesIO()
-    for dat in big_dset.stream():
+    for dat in big_dset.stream(compression="lz4"):
         stream.write(dat)
-    stream.seek(0)
 
     def load():
-        result = Dataset.load(stream)
         stream.seek(0)
+        result = Dataset.load(stream)
         return result
 
     result = benchmark(load)
     assert len(result) == len(big_dset)
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="Too slow at the moment")
 def test_to_cstrs(benchmark, dset: Dataset):
     result: Dataset = benchmark(dset.to_cstrs, copy=True)
     assert result["ctf/type"].dtype.type == n.uint64
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="Too slow at the moment")
 def test_to_pystrs(benchmark, dset_cstrs: Dataset):
     result: Dataset = benchmark(dset_cstrs.to_pystrs, copy=True)
     assert result["ctf/type"].dtype.type == n.object_

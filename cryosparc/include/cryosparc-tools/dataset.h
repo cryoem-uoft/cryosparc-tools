@@ -5,14 +5,14 @@
 #include <stdint.h>    // fixed width integer types
 #include <inttypes.h>  // printf specifiers for fixed width integer types
 
-#define repr(x,a,b,val) val 
+#define repr(x,a,b,val) val
 
 #ifdef _WIN32
 typedef _Fcomplex ds_float_complex_t;
 typedef _Dcomplex ds_double_complex_t;
 #else
-typedef float complex ds_float_complex_t;
-typedef double complex ds_double_complex_t;
+typedef float complex ds_float_complex_t; // NOLINT
+typedef double complex ds_double_complex_t; // NOLINT
 #endif
 
 #define DSET_TYPELIST(X) \
@@ -61,7 +61,7 @@ const char* dset_key    (uint64_t dset, uint64_t index);
 int         dset_type   (uint64_t dset, const char * colkey);
 void *      dset_get    (uint64_t dset, const char * colkey);
 uint64_t    dset_getsz  (uint64_t dset, const char * colkey);
-int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value);
+int         dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value, size_t length);
 const char* dset_getstr (uint64_t dset, const char * colkey, uint64_t index);
 uint32_t    dset_getshp (uint64_t dset, const char * colkey);
 
@@ -71,10 +71,16 @@ int        dset_addcol_array  (uint64_t dset, const char * key, int type, int sh
 int        dset_changecol     (uint64_t dset, const char * key, int type);
 
 int        dset_defrag (uint64_t dset, int realloc_smaller);
-void       dset_dumptxt (uint64_t dset);
+void       dset_dumptxt (uint64_t dset, int dump_data);
 void *     dset_dump (uint64_t dset);
 
+uint64_t   dset_strheapsz (uint64_t dset);
+char *     dset_strheap (uint64_t dset);
+int        dset_setstrheap (uint64_t dset, const char *heap, size_t length);
+int        dset_stralloc (uint64_t dset, const char *value, size_t length, uint64_t *index);
+
 #endif
+
 /*
 ===============================================================================
 
@@ -149,14 +155,14 @@ typedef	int ds_mutex_lock_t;
 
 #ifndef DSPRINTERR
 #define DSPRINTERR(str) do{fputs(str, stderr);fflush(stderr);}while(0);
-#endif 
+#endif
 
 
 
 /*
 	Default error message logging actions
 */
-static void 
+static void
 #if defined(__clang__) || defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif
@@ -216,9 +222,9 @@ typedef struct {
 		char shortkey[SHORTKEYSZ];
 		uint64_t longkey;
 	};
-	int8_t type; // magnitude matches enum dset_type. negative means use longkey  
+	int8_t type; // magnitude matches enum dset_type. negative means use longkey
 	uint8_t shape[3]; // safe to leave as zero for scalars
-	uint64_t offset;  // relative to start of respective heap 
+	uint64_t offset;  // relative to start of respective heap
 
 } ds_column;
 
@@ -236,29 +242,26 @@ typedef struct {
 	uint64_t   nrow;  // actual number of rows
 	uint64_t   arrheap_start; // offset where column data begins
 	uint64_t   strheap_start; // offset where string (and other data structure) heap begins
-	uint64_t   strheap_sz; // 
-	struct {
-		// lets track the number of times the more expensive operations occurr
-		// in the future we can improve the implementation based on what actually happens a lot
-		uint32_t nrealloc;   
-		uint32_t nreassign_arroffsets;
-		uint32_t nshift_strhandles;
-		uint32_t nmore_arrheap;
-		uint32_t nmore_strheap;
-		uint32_t nmore_colspace;
-	} stats;
+	uint64_t   strheap_sz; //
 	ds_column  columns[];
-
 } ds;
 
+
+typedef uint64_t ds_ht64_row[2];
+
+typedef struct ds_ht64 {
+	ds_ht64_row *ht;
+	int32_t len;
+	int32_t exp;
+} ds_ht64;
 
 /*
 	We'll be managing datasets via integer handles instead of via pointers.
 	The handle is a composite value containing an index and a "generation" counter.
 	The latter is in the upper few bits (15 by default).
 
-	The index is just an index into an array in memory. 
-	The generation counter is a way to make sure that if an index gets re-used, 
+	The index is just an index into an array in memory.
+	The generation counter is a way to make sure that if an index gets re-used,
 	we can tell if an old handle that points to this index does indeed refer to this dset.
 	This detects the case the user accidentally kept a handle around after deleting a dset.
 */
@@ -266,8 +269,22 @@ typedef struct {
 typedef struct {
 
 	ds         *memory;
+	ds_ht64    ht;  // hash table for fast string lookups. Keys are string
+					// hashes and values are an index into the dataset string
+					// heap. note that values are not removed until the whole
+					// dataset slot is deallocated
 	uint16_t   generation;
-
+	struct {
+		// lets track the number of times the more expensive operations occurr
+		// in the future we can improve the implementation based on what actually happens a lot
+		uint32_t nrealloc;
+		uint32_t nreassign_arroffsets;
+		uint32_t nshift_strhandles;
+		uint32_t nmore_arrheap;
+		uint32_t nmore_strheap;
+		uint32_t nmore_colspace;
+		uint32_t htnrealloc; // hash table reallocation count
+	} stats;
 } ds_slot;
 
 
@@ -351,7 +368,7 @@ unlock (void) {
 }
 
 
-static void 
+static void
 moreslots (void) {
 	static const size_t chunk = 4096;
 	void * mem = DSREALLOC(ds_module.slots, sizeof(ds_module.slots[0]) * (ds_module.nslots+chunk));
@@ -372,8 +389,10 @@ roundup(uint64_t value, uint64_t to)
 	return value+to-(value%to);
 }
 
-static uint64_t 
-dset_new_(size_t newsize, ds **allocation) 
+static int ht64_realloc(ds_ht64 *t, uint32_t sz); // implementation is below
+
+static uint64_t
+dset_new_(size_t newsize, ds **allocation)
 {
 	module_init();
 	lock();
@@ -392,7 +411,7 @@ dset_new_(size_t newsize, ds **allocation)
 	if (i == ds_module.nslots)
 		moreslots();
 
-	if (i == ds_module.nslots) 
+	if (i == ds_module.nslots)
 		goto out_of_memory;
 
 
@@ -406,6 +425,12 @@ dset_new_(size_t newsize, ds **allocation)
 	unlock();
 
 	memset(s->memory, 0, newsize);
+	memset(&(s->stats), 0, sizeof(s->stats));
+
+	// Alloc hash table for fast field name and C string lookup
+	s->ht.ht = 0;
+	ht64_realloc(&(s->ht), 255);
+
 	if (s->generation >= MAX_GEN) {
 		// Generation limit reached, trigger overflow so that handle != 0
 		s->generation = 0;
@@ -413,7 +438,7 @@ dset_new_(size_t newsize, ds **allocation)
 	gen = ++s->generation;
 
 	return i | (gen << SHIFT_GEN);
-	 
+
 	out_of_memory:
 	unlock();
 	nonfatal("out of memory");
@@ -422,8 +447,8 @@ dset_new_(size_t newsize, ds **allocation)
 
 
 
-static ds* 
-handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t * idx) 
+static ds*
+handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t * idx)
 {
 	uint16_t gen_ = 0;
 	uint64_t idx_ = 0;
@@ -440,14 +465,14 @@ handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t *
 		return 0;
 	}
 
-	if (!ds_module.slots[*idx].memory) { 
+	if (!ds_module.slots[*idx].memory) {
 		nonfatal("%s: invalid handle %" PRIu64 ", no heap at index %" PRIu64, msg_fragment, h, *idx);
 		return 0;
 	}
 
 	if (ds_module.slots[*idx].generation != *gen) {
 		nonfatal("%s: invalid handle %" PRIu64 ", wrong generation counter"
-				" (given %" PRIu16 ", expected %" PRIu16")", 
+				" (given %" PRIu16 ", expected %" PRIu16")",
 				msg_fragment, h, *gen, ds_module.slots[*idx].generation);
 		return 0;
 	}
@@ -466,14 +491,14 @@ handle_lookup (uint64_t h, const char * msg_fragment, uint16_t * gen, uint64_t *
 
 
 #define EMIT_TYPEENUM_ONLY(typeenum,a,b,c,d,e) typeenum,
-static const 
+static const
 int valid_types[] = { DSET_TYPELIST(EMIT_TYPEENUM_ONLY) };
 
-static const 
+static const
 size_t Ntypes = sizeof(valid_types)/sizeof(valid_types[0]);
 
 #define EMIT_SZ_ARRAY_ENTRY(typeenum,a,ctype,b,c,d) [typeenum]=sizeof(ctype),
-static const 
+static const
 size_t type_size[] = { DSET_TYPELIST(EMIT_SZ_ARRAY_ENTRY) };
 
 #define EMIT_ALIGNCHECK(a,name,ctype,b,c,d) static_assert(DSALIGNOF(ctype) <= 16, "platform incompatible");
@@ -491,9 +516,9 @@ static int
 tcheck(int8_t type)
 {
 	const int t  = abs_i8(type);
-	
-	for (int i = 0; i < Ntypes; i++) 
-		if (t == valid_types[i]) 
+
+	for (int i = 0; i < Ntypes; i++)
+		if (t == valid_types[i])
 			return 1;
 
 	return 0;
@@ -512,24 +537,26 @@ stride (const ds_column *c)
 }
 
 static const char *
-getkey(const ds *d, const ds_column *c) 
+getkey(const ds *d, const ds_column *c)
 {
 	char * ptr = (char *)d;
 	const char * key = (c->type < 0) ? ptr + d->strheap_start + c->longkey : c->shortkey;
 	return key;
 }
 
-static ds_column * 
-column_lookup(ds * d, const char * colkey)
+static ds_column *
+column_lookup(ds * d, const char *colkey, size_t *idx)
 {
 	if(!d) return 0;
 
 	char * ptr = (char *)d;
 	ds_column *c = d->columns;
-	long i = 0;
-	for (;  i < d->ncol;  i++,c++) {
+	for (size_t i = 0; i < d->ncol; i++, c++) {
 		const char * key = getkey(d, c);
-		if (!strcmp(key, colkey)) return c;
+		if (!strcmp(key, colkey)) {
+			if (idx != NULL) *idx = i;
+			return c;
+		}
 	}
 
 	// nonfatal("key error: %s", colkey);
@@ -537,7 +564,7 @@ column_lookup(ds * d, const char * colkey)
 }
 
 
-static inline uint64_t 
+static inline uint64_t
 arrheap_capacity (const ds *d) {
 	return d->strheap_start - d->arrheap_start;
 }
@@ -559,8 +586,9 @@ more_memory (uint64_t idx, uint64_t nbytes_more) {
 
 	const uint64_t more = roundup(nbytes_more, 1<<15); // 32 kB at a time (too little? too much?)
 
-	ds *d = ds_module.slots[idx].memory;
-	d->stats.nrealloc++;
+	ds_slot *slot = &ds_module.slots[idx];
+	ds *d = slot->memory;
+	slot->stats.nrealloc++;
 
 	ds * newptr = DSREALLOC(d, d->total_sz + more);
 	if (!newptr) {
@@ -568,7 +596,7 @@ more_memory (uint64_t idx, uint64_t nbytes_more) {
 		return 0;
 	}
 
-	ds_module.slots[idx].memory = d = newptr;
+	slot->memory = d = newptr;
 
 	char * ptr = (char *) newptr;
 	memset(ptr + d->total_sz, 0, more);
@@ -578,11 +606,12 @@ more_memory (uint64_t idx, uint64_t nbytes_more) {
 	return d;
 }
 
-static ds* 
-more_strheap (uint64_t idx, uint64_t nbytes_more) {
+static ds*
+more_strheap (uint64_t dsetidx, uint64_t nbytes_more) {
 
-	ds *d = ds_module.slots[idx].memory;
-	d->stats.nmore_strheap++;
+	ds_slot *slot = &ds_module.slots[dsetidx];
+	ds *d = slot->memory;
+	slot->stats.nmore_strheap++;
 
 	uint64_t arrheap_reqdsize = 0;
 	if (d->ncol > 0) {
@@ -597,7 +626,7 @@ more_strheap (uint64_t idx, uint64_t nbytes_more) {
 
 		char * ptr = (char *) d;
 		char * move_src = ptr + d->strheap_start;
-		char * move_dst = move_dst - nbytes_more;
+		char * move_dst = move_src - nbytes_more;
 
 		memmove (move_dst, move_src, d->strheap_sz);
 		memset  (move_dst + d->strheap_sz, 0, d->strheap_sz);
@@ -607,14 +636,15 @@ more_strheap (uint64_t idx, uint64_t nbytes_more) {
 	}
 
 	// otherwise we need more memory
-	return more_memory(idx, nbytes_more);
+	return more_memory(dsetidx, nbytes_more);
 }
 
 static ds*
-more_arrheap (uint64_t idx, uint64_t nbytes_more) {
+more_arrheap (uint64_t dsetidx, uint64_t nbytes_more) {
 
-	ds *d = ds_module.slots[idx].memory;
-	d->stats.nmore_arrheap++;
+	ds_slot *slot = &ds_module.slots[dsetidx];
+	ds *d = slot->memory;
+	slot->stats.nmore_arrheap++;
 
 	do {
 		// if we can find the space just by shrinking the string heap, do that.
@@ -632,18 +662,19 @@ more_arrheap (uint64_t idx, uint64_t nbytes_more) {
 		}
 
 		// otherwise we need more memory
-		d = more_memory(idx, nbytes_more);
+		d = more_memory(dsetidx, nbytes_more);
 	} while(d);
 	return 0;
 }
 
 static ds*
-more_columndescr_space (uint64_t idx, uint64_t ncolumns_more) {
+more_columndescr_space (uint64_t dsetidx, uint64_t ncolumns_more) {
 
 	uint64_t nbytes_more = ncolumns_more * sizeof(ds_column);
 
-	ds *d = ds_module.slots[idx].memory;
-	d->stats.nmore_colspace++;
+	ds_slot *slot = &ds_module.slots[dsetidx];
+	ds *d = slot->memory;
+	slot->stats.nmore_colspace++;
 
 	// for simplicity, let's not steal from the array heap, just from the string heap
 	do {
@@ -665,7 +696,7 @@ more_columndescr_space (uint64_t idx, uint64_t ncolumns_more) {
 		}
 
 		// otherwise we need more memory
-		d = more_memory(idx, nbytes_more);
+		d = more_memory(dsetidx, nbytes_more);
 	} while(d);
 	return 0;
 
@@ -680,25 +711,14 @@ actual_arrheap_sz (ds *d) {
 	return 0;
 }
 
-/**
- * Definitions for hash table where every key and value is 64 bits
- * Based on https://nullprogram.com/blog/2022/08/08/
- * Future work: Adapt for generic key/value types for the string buffer.
- */
-
-// Invalid or unset hashtable entry (64 bit all ones)
-#define DSHT64_INVALID 0xffffffffffffffffU
-
-typedef uint64_t ds_ht64_row[2];
-
-/**
- * Numeric hashtable where each key and value is a 64 bit integer
- */
-typedef struct ds_ht64 {
-	ds_ht64_row *ht; // array of key/value pairs
-	int32_t len;
-	int32_t exp; // exponent that denotes total hashtable capacity
-} ds_ht64;
+static inline uint64_t hash(const char *s, size_t len) {
+    uint64_t h = 0x100;
+    for (int32_t i = 0; i < len; i++) {
+        h ^= s[i] & 255;
+        h *= 1111111111111111111;
+    }
+    return h ^ h>>32;
+}
 
 // https://nullprogram.com/blog/2018/07/31/
 static inline uint64_t hash64(uint64_t x) {
@@ -710,24 +730,83 @@ static inline uint64_t hash64(uint64_t x) {
     return x;
 }
 
-// Allocate a hashtable with the given size
-static void ht64_new(ds_ht64 *t, uint32_t sz) {
-	// Allocate the given size for the hash table t
-	uint32_t exp = 0;
-	do { exp++; } while ((1 << exp) < sz);
-	exp += 1; // at least double the required size for fast lookups
+/**
+ * Definitions for hash table where every key and value is 64 bits
+ * Based on https://nullprogram.com/blog/2022/08/08/
+ * Future work: Adapt for generic key/value types for the string buffer.
+ */
 
-	size_t totalsz = sizeof(ds_ht64_row) * (1 << exp);
-	void *mem = DSREALLOC(0, totalsz);
-	// Initialize memory to -1 (all ones)
-	memset(mem, -1, totalsz);
-	t->ht = mem;
-	xassert(t->ht[0][0] == DSHT64_INVALID) // verify that memset worked
-	t->len =  0;
-	t->exp = exp;
+// Invalid or unset hashtable entry (64 bit all ones)
+#define DSHT64_INVALID 0xffffffffffffffffU
+
+/**
+ * Numeric hashtable definitions
+ * for ds_ht64, entries are indexes into a string heap.
+ * for ds_ht64, each key and value is a 64 bit integer
+ */
+
+// Compute the next candidate index. Initialize idx to the hash.
+static inline int32_t ht_lookup(uint64_t hash, int exp, int32_t idx) {
+	uint32_t mask = ((uint32_t)1 << exp) - 1;
+	uint32_t step = (hash >> (64 - exp)) | 1;
+	return (idx + step) & mask;
 }
 
-// Free an allocated hash table
+static inline uint32_t ht64_len(ds_ht64 *t) {
+	return t->len;
+}
+
+static inline uint32_t ht64_capacity(ds_ht64 *t) {
+	return (1 << (uint32_t) t->exp);
+}
+
+// Allocate a hash table with at least double the required size for fast
+// lookups. Initializes memory to all bits 1 (everything is invalid) since zero
+// is a valid entry. Note that if the hash table has already been allocated,
+// this wipes its contents.
+static int ht64_realloc(ds_ht64 *t, uint32_t sz) {
+	uint32_t exp = 0;
+	do { exp++; } while ((1 << exp) <= sz);
+	exp += 1;
+	size_t totalsz = sizeof(ds_ht64_row) * (1 << exp);
+	void *mem = DSREALLOC(t->ht, totalsz);
+	if (!mem) {
+		nonfatal("could not alloc hash table; out of memory");
+		return 1;
+	}
+	memset(mem, -1, totalsz);
+	t->ht = mem;
+	t->len = 0;
+	t->exp = exp;
+	return 0;
+}
+
+// Total number of bytes used by the hash table's `ht` memory field
+static inline size_t ht64_memsize(ds_ht64 *t) {
+	return sizeof(ds_ht64_row) * (1 << t->exp);
+}
+
+// Make hash table dst into an exact copy of src
+static void ht64_copy(ds_ht64 *dst, ds_ht64 *src) {
+	if (dst->exp != src->exp) {
+		uint32_t sz = (1 << (uint32_t) (src->exp) - 1) - 1; // half of capacity - 1
+		ht64_realloc(dst, sz);
+	}
+	memcpy(dst->ht, src->ht, ht64_memsize(dst));
+	dst->len = src->len;
+	dst->exp = src->exp;
+}
+
+// Note that this wipes the existing contents of the hash table
+static inline int ht64_double_capacity(ds_ht64 *t) {
+	return ht64_realloc(t, (1 << (uint32_t) t->exp) - 1);
+}
+
+static inline void ht64_clear(ds_ht64 *t) {
+	memset(t->ht, -1, ht64_memsize(t));
+	t->len = 0;
+}
+
 static void ht64_del(ds_ht64 *t) {
 	if (t->ht) {
 	DSFREE(t->ht);
@@ -737,17 +816,10 @@ static void ht64_del(ds_ht64 *t) {
 	t->exp = 0;
 }
 
-// Compute the next candidate index. Initialize idx to the hash.
-static inline int32_t ht64_lookup(uint64_t hash, int exp, int32_t idx) {
-	uint32_t mask = ((uint32_t)1 << exp) - 1;
-	uint32_t step = (hash >> (64 - exp)) | 1;
-	return (idx + step) & mask;
-}
-
-static inline int ht64_has(ds_ht64 *t, const uint64_t key) {
+static inline int ht64_has(ds_ht64 *t, uint64_t key) {
 	uint64_t h = hash64(key);
 	for (int32_t i = h;;) {
-		i = ht64_lookup(h, t->exp, i);
+		i = ht_lookup(h, t->exp, i);
 		if (t->ht[i][0] == DSHT64_INVALID) return 0; // empty, does not exist
 		else if (t->ht[i][0] == key) return 1; // found
 		// otherwise keep looking
@@ -757,10 +829,10 @@ static inline int ht64_has(ds_ht64 *t, const uint64_t key) {
 
 // Find the value of key in the hash table. Put the result in val. Returns 1
 // (true) if located, 0 otherwise.
-static int ht64_find(ds_ht64 *t, const uint64_t key, uint64_t *val) {
+static int ht64_find(ds_ht64 *t, uint64_t key, uint64_t *val) {
 	uint64_t h = hash64(key);
 	for (int32_t i = h;;) {
-		i = ht64_lookup(h, t->exp, i);
+		i = ht_lookup(h, t->exp, i);
 		if (t->ht[i][0] == DSHT64_INVALID) {
 			// empty
 			return 0;
@@ -776,15 +848,13 @@ static int ht64_find(ds_ht64 *t, const uint64_t key, uint64_t *val) {
 
 // Insert a value into the hash table
 // Will overwrite val if the key already exists
-static int ht64_insert(ds_ht64 *t, const uint64_t key, const uint64_t val) {
-	if ((uint32_t) t->len == (uint32_t) (1 << t->exp)) {
-		// hash table is full
-		return 0;
-	}
+static int ht64_insert(ds_ht64 *t, uint64_t key, uint64_t val) {
+	// there are external guards that check, assume table never full
+	xassert((uint32_t) t->len < ht64_capacity(t))  // fail if the table if full
 
 	uint64_t h = hash64(key);
 	for (int32_t i = h;;) {
-		i = ht64_lookup(h, t->exp, i);
+		i = ht_lookup(h, t->exp, i);
 		if (t->ht[i][0] == DSHT64_INVALID || t->ht[i][0] == key) {
 			// empty or existing key, insert here
 			t->len++;
@@ -797,97 +867,121 @@ static int ht64_insert(ds_ht64 *t, const uint64_t key, const uint64_t val) {
 	return 0;
 }
 
+// Check to see if the given hash is in the table. Use the hash as the key.
+//
+// If the key exists, populate target with the value address for the external
+// caller to retrieve and return 1.
+//
+// If the key does not exist, populate target with an address the caller can
+// write a new value into and return 0.
+static int ht64_intern_raw(ds_ht64 *t, uint64_t hash, uint64_t **target) {
+	xassert((uint32_t) t->len < (uint32_t) (1 << t->exp))  // fail if the table if full
+	for (int32_t i = hash;;) {
+		i = ht_lookup(hash, t->exp, i);
+		if (t->ht[i][0] == DSHT64_INVALID) {
+			// not found, insert here
+			t->len++;
+			t->ht[i][0] = hash;
+			*target = &(t->ht[i][1]);
+			return 0;
+		} else if (t->ht[i][0] == hash) {
+			// found key, retrieve from here or insert here if invalid
+			*target = &(t->ht[i][1]);
+			return t->ht[i][1] != DSHT64_INVALID; // value might be invalid
+		}
+		// Otherwise keep looking for a spot to insert
+	}
+	*target = NULL; // cannot write, likely full
+	return 0;
+}
 
-static uint64_t
-stralloc(ds **d, uint64_t idx, const char * str)
-{
-	const size_t sz = 1 + strlen(str);
-	char * base = (char*)*d;
+// Allocate a string in the given dataset's heap. Writes heap string index into
+// index param. Returns dataset pointer.
+static ds *
+stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
+
+	ds_slot *slot = &ds_module.slots[dsetidx];
+	ds *d = slot->memory;
+
+	if (len == 0) { // empty string
+		*index = 0;
+		return d;
+	}
+
+	size_t sz = 1 + len;
+
+	char *base = (char *) d;
+	char *strheap = base + d->strheap_start;
+	char *strheap_end = strheap + d->strheap_sz;
+
+	// setup hash table for fast strheap index lookup
+	ds_ht64 *ht = &(slot->ht);
+	uint64_t hsh;
+	uint64_t *htidx; // address of hash table address storage
+
+	// double hashtable capacity if the table is half full (for fast lookups)
+	if (ht->len >= ht64_capacity(ht) / 2) {
+		ht64_double_capacity(ht);
+		slot->stats.htnrealloc += 1;
+		// rehash string heap
+		char *p = strheap;
+		while (p < strheap_end) {
+			size_t len = strlen(p);
+			hsh = hash(p, len);
+			ht64_intern_raw(ht, hsh, &htidx);
+			*htidx = p - strheap;
+			p += len + 1;
+		}
+	}
 
 	// do we already have this string?
-	{
-		char * strheap = base + (*d)->strheap_start;
-		char * strheap_end = strheap + (*d)->strheap_sz;
+	hsh = hash(str, len);
+	if (ht64_intern_raw(ht, hsh, &htidx)) {
+		// Index already exists, record and return
+		*index = *htidx;
+		return d;
+	}
 
-		char * p = strheap;
-		while (p < strheap_end) {
-			if(!strcmp(str,p)) return p-strheap;
-			p += strlen(p) + 1;
-		}
-	} // guess not...
+	// guess not...
 
 	// do we need more space?
-	if ((*d)->total_sz - (*d)->strheap_start < (*d)->strheap_sz + sz) {
-		*d = more_strheap(idx, sz);
-		if (!*d) return 0;
+	if (d->total_sz - d->strheap_start < d->strheap_sz + sz) {
+		slot->memory = d = more_strheap(dsetidx, sz);
+		if (!d) return 0;
 	}
 
-	uint64_t newstr   = (*d)->strheap_sz;
-	(*d)->strheap_sz += sz;
+	*index = *htidx = d->strheap_sz;
+	d->strheap_sz += sz;
 
-	memcpy(base + (*d)->strheap_start + newstr, str, sz);
-	return newstr; 
-}
-
-static void 
-shift_all_string_handles(ds *d, int64_t shift, uint64_t shift_greater_than)
-{
-	char * ptr = (char *) d;
-	for (uint32_t i = 0; i < d->ncol; i++) {
-		if (d->columns[i].type < 0   &&   d->columns[i].longkey > shift_greater_than) {
-			d->columns[i].longkey += shift;
-		}
-
-		if (tcheck_s(d->columns[i].type)) {
-			uint64_t *handles = ptr + d->arrheap_start + d->columns[i].offset;
-			for (uint64_t j = 0 ; j < d->nrow; j++) {
-			
-				if (handles[j] > shift_greater_than)
-					handles[j] += shift;
-			}
-		}
-	}
-	d->stats.nshift_strhandles++;
-}
-
-static void
-strfree (uint64_t oldstr, ds *d)
-{
-	// TODO: This should check that no one else is using this string before freeing it
-	if (!oldstr) return;
-	char * strheap = ((char *)d) + d->strheap_start;
-	char * s = strheap + oldstr;
-	int64_t sz = 1 + strlen(s);
-	memmove(s, s+sz, (strheap+d->strheap_sz) - (s+sz));
-	shift_all_string_handles(d, -sz, oldstr);
-	d->strheap_sz -= sz;
+	memcpy(base + d->strheap_start + (*index), str, sz);
+	return d;
 }
 
 static inline char *
-getstr(ds *d, ds_column *c, uint64_t index) {
-	char * ptr = (char *) d;
-	uint64_t *handles = ptr + d->arrheap_start + c->offset;
+getstr(ds *d, uint64_t col, uint64_t index) {
+	char *ptr = (char *) d;
+	uint64_t *handles = ptr + d->arrheap_start + d->columns[col].offset;
 	return ptr + d->strheap_start + handles[index];
 }
 
 // Set string helper that returns dataset pointer with string assigned (may be
 // the same dataset pointer or different if required reallocation)
-static ds *
-setstr (ds *d, ds_column *c, uint64_t index, const char *value) {
-	uint64_t idx;
-	char *ptr = (char *) d;
-	uint64_t *handles = ptr + d->arrheap_start + c->offset;
-	strfree(handles[index], d);
-	uint64_t newstr = stralloc(&d, idx, value);
+static inline ds *setstr(uint64_t dsetidx, uint64_t col, uint64_t index, const char *value, size_t length) {
+	// Allocate str and retrieve updated dataset
+	uint64_t stridx;
+	ds *d = stralloc(dsetidx, value, length, &stridx);
 	if (!d) return 0; // Could not allocate string
 
-	handles[index] = newstr;
+	uint64_t *handles = (char *) d + d->arrheap_start + d->columns[col].offset;
+	handles[index] = stridx;
 	return d;
 }
 
 static void
-reassign_arrayoffsets (ds *d,  uint32_t new_crow)
+reassign_arrayoffsets (uint64_t idx, uint32_t new_crow)
 {
+	ds_slot *slot = &ds_module.slots[idx];
+	ds *d = slot->memory;
 	uint64_t cur_arrheap_used_sz = actual_arrheap_sz(d);
 
 	char * arrheap = ((char *)d) + d->arrheap_start;
@@ -915,27 +1009,28 @@ reassign_arrayoffsets (ds *d,  uint32_t new_crow)
 		d->columns[i].offset = mov_dst-arrheap;
 	}
 
-	d->stats.nreassign_arroffsets++;
+	slot->stats.nreassign_arroffsets++;
 }
 
 static inline void
 copyval(
-	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
-	ds *src_ds, ds_column *src_col, uint64_t src_idx,
+	ds *dst_ds, uint64_t dst_col, uint64_t dst_idx,
+	ds *src_ds, uint64_t src_col, uint64_t src_idx,
 	size_t itemsize // assume same stride on each column
 ) {
-	char *dst_ptr = (char *) dst_ds + dst_ds->arrheap_start + dst_col->offset + (dst_idx * itemsize);
-	char *src_ptr = (char *) src_ds + src_ds->arrheap_start + src_col->offset + (src_idx * itemsize);
+	char *dst_ptr = (char *) dst_ds + dst_ds->arrheap_start + dst_ds->columns[dst_col].offset + (dst_idx * itemsize);
+	char *src_ptr = (char *) src_ds + src_ds->arrheap_start + src_ds->columns[src_col].offset + (src_idx * itemsize);
 	memcpy(dst_ptr, src_ptr, itemsize);
 }
 
+// target dataset must be passed in as index in case it needs to get copied
 static inline ds *
 copystr(
-	ds *dst_ds, ds_column *dst_col, uint64_t dst_idx,
-	ds *src_ds, ds_column *src_col, uint64_t src_idx
+	uint64_t dst_dsetidx, uint64_t dst_col, uint64_t dst_idx,
+	ds *src_ds, uint64_t src_col, uint64_t src_idx
 ) {
-	char *str = getstr(src_ds, src_col, src_idx);
-	return setstr(dst_ds, dst_col, dst_idx, str);
+	const char *str = getstr(src_ds, src_col, src_idx);
+	return setstr(dst_dsetidx, dst_col, dst_idx, str, strlen(str));
 }
 
 /*
@@ -951,7 +1046,7 @@ uint64_t dset_new(void) {
 	ds * d = 0;
 
 	uint64_t handle = dset_new_(DS_INITIAL_SZ, &d);
-	if(handle == UINT64_MAX) 
+	if(handle == UINT64_MAX)
 		return handle;
 
 	*d = (ds) {
@@ -961,8 +1056,8 @@ uint64_t dset_new(void) {
 		.strheap_sz    = 1, // the null string is the string with index zero.
 	};
 
-	// 0x94 CSDAT
-	d->magic[0] = 0x94;
+	// 0x95 CSDAT
+	d->magic[0] = 0x95;
 	d->magic[1] = 0x43;
 	d->magic[2] = 0x53;
 	d->magic[3] = 0x44;
@@ -984,12 +1079,16 @@ uint64_t dset_copy(uint64_t dset)
 
 	ds* newds = 0;
 	uint64_t newhandle = dset_new_(oldds->total_sz, &newds);
+	uint64_t newidx = MASK_IDX & newhandle;
 
-	if (newhandle != UINT64_MAX) 
-		memcpy(newds,oldds,oldds->total_sz); 
+	if (newhandle != UINT64_MAX) {
+		memcpy(newds,oldds,oldds->total_sz);
+		ht64_copy(&ds_module.slots[newidx].ht, &ds_module.slots[idx].ht);
+	}
 
 	return newhandle;
 }
+
 
 // Compute the inner join of two Datasets R and S by matching values in the
 // column with the given key. Currently only 64-bit columns (e.g., T_U64) with
@@ -1001,7 +1100,7 @@ uint64_t dset_copy(uint64_t dset)
 // Implements Classic Hash Join algorithm
 // https://en.wikipedia.org/wiki/Hash_join#Classic_hash_join
 typedef struct ds_innerjoin_coldata {
-	ds_column *col;
+	uint64_t col;
 	int itemsize;
 	int is_str;
 } ds_innerjoin_coldata;
@@ -1020,15 +1119,15 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// Look up the two datasets and columns to join
 	if (!(ds_r = handle_lookup(dset_r, "dset_innerjoin", &generation_r, &idx_r))) return UINT64_MAX;
 	if (!(ds_s = handle_lookup(dset_s, "dset_innerjoin", &generation_s, &idx_s))) return UINT64_MAX;
-	keycol_r = column_lookup(ds_r, key);
-	keycol_s = column_lookup(ds_s, key);
+	keycol_r = column_lookup(ds_r, key, NULL);
+	keycol_s = column_lookup(ds_s, key, NULL);
 
 	if (!keycol_r || !keycol_s) {
 		nonfatal("dset_innerjoin: input dataset does not contain %s column", key);
 		return UINT64_MAX;
 	}
-	if (keycol_r->type != keycol_s->type) {
-		nonfatal("dset_innerjoin: input %s column types do match (%d, %d)", key, keycol_r->type, keycol_s->type);
+	if (abs_i8(keycol_r->type) != abs_i8(keycol_s->type)) {
+		nonfatal("dset_innerjoin: input %s column types do match (%d, %d)", key, abs_i8(keycol_r->type), abs_i8(keycol_s->type));
 		return UINT64_MAX;
 	}
 	if (keycol_r->shape[0] != 0 || keycol_s->shape[0] != 0) {
@@ -1036,9 +1135,9 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		return UINT64_MAX;
 	}
 
-	if (keycol_r->type != T_U64 && keycol_r->type != T_I64 && keycol_r->type != T_F64 && keycol_r->type != T_C32) {
+	if (abs_i8(keycol_r->type) != T_U64 && abs_i8(keycol_r->type) != T_I64 && abs_i8(keycol_r->type) != T_F64 && abs_i8(keycol_r->type) != T_C32) {
 		// TODO: Allow innerjoining any type (or least numeric types)
-		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-64bit type %d", key, keycol_r->type);
+		nonfatal("dset_innerjoin: cannot innerjoin column %s with non-64bit type %d", key, abs_i8(keycol_r->type));
 		return UINT64_MAX;
 	}
 
@@ -1048,6 +1147,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// Populate fields from the first dataset R. Declare a stack-allocated
 	// dynamic array of structs which memoize the required column data
 	ds_column *col;
+	size_t colidx;
 	char *colkey;
 
 	// Cache source column details (try to use stack version if possible)
@@ -1060,20 +1160,20 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	uint32_t nrcol = 0, nscol = 0; // number of columns used from R and S
 	for (uint32_t c = 0; c < ds_r->ncol; c++) {
 		colkey = dset_key(dset_r, c);
-		if (strcmp(key, colkey) == 0 || !column_lookup(ds_s, colkey)) {
+		if (strcmp(key, colkey) == 0 || !column_lookup(ds_s, colkey, NULL)) {
 			// key is either target join key or not in other dataset, add now
 			// with correct type details
-			col = column_lookup(ds_r, colkey);
+			col = column_lookup(ds_r, colkey, &colidx);
 			if (!dset_addcol_array(
-				dset, colkey, col->type,
+				dset, colkey, abs_i8(col->type),
 				col->shape[0], col->shape[1], col->shape[2]
 			)) {
 				nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
 				goto fail;
 			}
-			src_coldata[nrcol].col = col;
+			src_coldata[nrcol].col = colidx;
 			src_coldata[nrcol].itemsize = type_size[abs_i8(col->type)] * stride(col);
-			src_coldata[nrcol].is_str = col->type == T_STR;
+			src_coldata[nrcol].is_str = abs_i8(col->type) == T_STR;
 			nrcol++;
 		} // otherwise defer to dataset S for this column
 	}
@@ -1084,17 +1184,17 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		if (strcmp(key, colkey) == 0) {
 			continue; // already added in previous loop
 		}
-		col = column_lookup(ds_s, colkey);
+		col = column_lookup(ds_s, colkey, &colidx);
 		if (!dset_addcol_array(
-			dset, colkey, col->type,
+			dset, colkey, abs_i8(col->type),
 			col->shape[0], col->shape[1], col->shape[2]
 		)) {
 			nonfatal("dset_innerjoin: cannot add column %s to result dataset", colkey);
 			goto fail;
 		}
-		src_coldata[nrcol + nscol].col = col;
+		src_coldata[nrcol + nscol].col = colidx;
 		src_coldata[nrcol + nscol].itemsize = type_size[abs_i8(col->type)] * stride(col);
-		src_coldata[nrcol + nscol].is_str = col->type == T_STR;
+		src_coldata[nrcol + nscol].is_str = abs_i8(col->type) == T_STR;
 		nscol++;
 	}
 
@@ -1104,7 +1204,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 
 	// Create a hash table of values which store the index of each column value
 	// in dataset S
-	ht64_new(&idx_lookup, ds_s->nrow);
+	ht64_realloc(&idx_lookup, ds_s->nrow);
 	for (uint64_t j = 0; j < ds_s->nrow; j++) {
 		if (!ht64_insert(&idx_lookup, keydata_s[j], j)) {
 			nonfatal("dset_innerjoin: hash table full?? cannot proceed");
@@ -1137,18 +1237,18 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 		// Copy row values from Dataset R
 		for (c = 0; c < nrcol; c++) {
 			if (src_coldata[c].is_str) {
-				d = copystr(d, &d->columns[c], k, ds_r, src_coldata[c].col, i);
+				d = copystr(idx, c, k, ds_r, src_coldata[c].col, i);
 			} else {
-				copyval(d, &d->columns[c], k, ds_r, src_coldata[c].col, i, (size_t) src_coldata[c].itemsize);
+				copyval(d, c, k, ds_r, src_coldata[c].col, i, (size_t) src_coldata[c].itemsize);
 			}
 		}
 
 		// Copy row values from Dataset S
 		for (c = nrcol; c < nrcol + nscol; c++) {
 			if (src_coldata[c].is_str) {
-				d = copystr(d, &d->columns[c], k, ds_s, src_coldata[c].col, j);
+				d = copystr(idx, c, k, ds_s, src_coldata[c].col, j);
 			} else {
-				copyval(d, &d->columns[c], k, ds_s, src_coldata[c].col, j, (size_t) src_coldata[c].itemsize);
+				copyval(d, c, k, ds_s, src_coldata[c].col, j, (size_t) src_coldata[c].itemsize);
 			}
 		}
 
@@ -1182,6 +1282,8 @@ void dset_del(uint64_t dset)
 	if (handle_lookup(dset, "dset_del", &generation, &idx)) {
 
 		DSFREE(ds_module.slots[idx].memory);
+		ht64_del(&(ds_module.slots[idx].ht));
+
 		ds_module.slots[idx].memory = 0;
 	}
 	unlock();
@@ -1224,7 +1326,7 @@ const char *dset_key(uint64_t dset, uint64_t index)
 int dset_type (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey);
+	const ds_column *c  = column_lookup(d, colkey, NULL);
 
 	if(!(d && c)) return 0;
 	return abs_i8(c->type);
@@ -1235,7 +1337,7 @@ void *dset_get (uint64_t dset, const char * colkey)
 	// Caution: T_STR columns cannot be used directly, actual strings must be
 	// retrieved through dset_getstr
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey);
+	const ds_column *c  = column_lookup(d, colkey, NULL);
 	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
@@ -1246,17 +1348,17 @@ void *dset_get (uint64_t dset, const char * colkey)
 uint64_t dset_getsz(uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey);
+	const ds_column *c  = column_lookup(d, colkey, NULL);
 
 	if(!(d && c)) return 0;
 
-	return d->nrow * abs_i8(type_size[c->type]) * stride(c);
+	return d->nrow * type_size[abs_i8(c->type)] * stride(c);
 }
 
 uint32_t dset_getshp (uint64_t dset, const char * colkey)
 {
 	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey);
+	const ds_column *c  = column_lookup(d, colkey, NULL);
 
 	if(!(d && c)) return 0;
 
@@ -1273,13 +1375,16 @@ int dset_addcol_scalar (uint64_t dset, const char * key, int type) {
 int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, int shape1, int shape2) {
 
 	if(!tcheck(type)) {
-		nonfatal("invalid column data type: %i", type);
+		nonfatal("invalid column data type: %i (key %s)", type, key);
 		return 0;
 	}
 
-	uint64_t idx; 
+	uint64_t idx;
 	ds *d = handle_lookup(dset, "add column", 0, &idx);
-	if(!d) return 0;
+	if (!d) {
+		nonfatal("could not find dataset with handle %lu (adding column %s)", dset, key);
+		return 0;
+	}
 
 	const size_t ksz = 1 + strlen(key);
 	const int8_t t   = abs_i8(type);
@@ -1295,12 +1400,15 @@ int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, in
 
 		// need more space for column descriptors
 		d = more_columndescr_space(idx, 30);
-		if (!d) return 0;
+		if (!d) {
+			nonfatal("could not allocate more column descr space (adding column %s)", key);
+			return 0;
+		}
 	}
 
 	// compute the offset for the new column
 	col.offset = actual_arrheap_sz(d);
-	
+
 	// compute the required space on the array heap for the  new column
 	const uint64_t reqd_arrheap_space = compute_col_reserved_space(d->crow, &col);
 
@@ -1311,14 +1419,21 @@ int dset_addcol_array (uint64_t dset, const char * key, int type, int shape0, in
 		// need more space on the array heap
 		const size_t howmuch_need = col.offset + reqd_arrheap_space - arrheap_sz;
 		d = more_arrheap(idx, howmuch_need);
-		if (!d) return 0;
+		if (!d) {
+			nonfatal("could not allocate more array heap space (adding column %s)", key);
+			return 0;
+		}
 	}
 
 	if (col.type < 0) {
-		// key is long, so allocate a string for it	
+		// key is long, so allocate a string for it
 
-		uint64_t newstr = stralloc(&d, idx, key);
-		if (!d) return 0;
+		uint64_t newstr;
+		d = stralloc(idx, key, ksz - 1, &newstr);
+		if (!d) {
+			nonfatal("could not allocate more string space (adding column %s)", key);
+			return 0;
+		}
 		col.longkey    = newstr;
 
 	} else {
@@ -1339,24 +1454,24 @@ int dset_changecol (uint64_t dset, const char *key, int type) {
 	}
 
 	const ds  *d  = handle_lookup(dset, key, 0, 0);
-	ds_column *c  = column_lookup(d, key);
+	ds_column *c  = column_lookup(d, key, NULL);
 
 	if (!(d && c)) return 0;
 
-	int8_t current_size = abs_i8(type_size[c->type]);
-	int8_t proposed_size = abs_i8(type_size[type]);
+	int8_t current_size = type_size[abs_i8(c->type)];
+	int8_t proposed_size = type_size[type];
 
 	if (current_size != proposed_size) {
-		nonfatal("cannot change column with type %i to incompatible type %i", c->type, type);
+		nonfatal("cannot change column with type %i to incompatible type %i", abs_i8(c->type), type);
 		return 0;
 	}
 
-	c->type = type;
+	c->type = c->type < 0 ? -type : type;
 	return 1;
 }
 
 int dset_addrows (uint64_t dset, uint32_t num) {
-	uint64_t idx; 
+	uint64_t idx;
 
 	ds *d = handle_lookup(dset, "dset_addrows", 0, &idx);
 	if (!d) return 0;
@@ -1401,7 +1516,7 @@ int dset_addrows (uint64_t dset, uint32_t num) {
 
 
 	// now we have enough space, we just need to reassign the offsets and do some memmoves
-	reassign_arrayoffsets(d, new_crow);
+	reassign_arrayoffsets(idx, new_crow);
 
 	d->crow  = new_crow;
 	d->nrow += num;
@@ -1412,7 +1527,8 @@ int dset_addrows (uint64_t dset, uint32_t num) {
 
 int dset_defrag (uint64_t dset, int realloc_smaller)
 {
-	ds *d = handle_lookup(dset, "dset_compress", 0, 0);
+    uint64_t idx;
+	ds *d = handle_lookup(dset, "dset_compress", 0, &idx);
 	if(!d) return 0;
 	char * pd = (char *) d;
 
@@ -1427,7 +1543,7 @@ int dset_defrag (uint64_t dset, int realloc_smaller)
 	}
 
 	if (d->crow > d->nrow) {
-		reassign_arrayoffsets(d, d->nrow);
+		reassign_arrayoffsets(idx, d->nrow);
 		d->crow = d->nrow;
 	}
 
@@ -1439,7 +1555,7 @@ int dset_defrag (uint64_t dset, int realloc_smaller)
 	}
 
 	if (realloc_smaller) {
-		d->stats.nrealloc++;
+		ds_module.slots[idx].stats.nrealloc++;
 		d = DSREALLOC(d, d->strheap_start + d->strheap_sz);
 		if (!d) return 0;
 	}
@@ -1449,10 +1565,11 @@ int dset_defrag (uint64_t dset, int realloc_smaller)
 
 
 
-const char *dset_getstr (uint64_t dset, const char * colkey, uint64_t index) 
+const char *dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 {
+	uint64_t colidx;
 	ds        *d = handle_lookup(dset, colkey, 0, 0);
-	ds_column *c = column_lookup(d, colkey);
+	ds_column *c = column_lookup(d, colkey, &colidx);
 
 	if(!(d && c)) return 0;
 
@@ -1460,17 +1577,17 @@ const char *dset_getstr (uint64_t dset, const char * colkey, uint64_t index)
 		nonfatal("dset_getstr: column '%s' is not a string", colkey);
 		return 0;
 	} else {
-		return getstr(d, c, index);
+		return getstr(d, colidx, index);
 	}
 }
 
 
-int dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char * value)
+int dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char *value, size_t length)
 {
-	uint64_t idx;
+	uint64_t idx, colidx;
 
 	ds        *d = handle_lookup(dset, colkey, 0, &idx);
-	ds_column *c = column_lookup(d, colkey);
+	ds_column *c = column_lookup(d, colkey, &colidx);
 
 	if(!(d && c)) return 0;
 
@@ -1484,10 +1601,10 @@ int dset_setstr (uint64_t dset, const char * colkey, uint64_t index, const char 
 		return 0;
 	}
 
-	return setstr(d, c, index, value) ? 1 : 0;
+	return setstr(idx, colidx, index, value, length) ? 1 : 0;
 }
 
-static char* 
+static char*
 repr_cfloat (uint64_t ds, int sz, char * buf, ds_float_complex_t fc)
 {
 	snprintf(buf,sz,"(%f,%f)", crealf(fc), cimagf(fc));
@@ -1511,11 +1628,14 @@ repr_str (uint64_t dset, int sz, char * buf, uint64_t handle)
 }
 
 
-void dset_dumptxt (uint64_t dset) {
+// Specify dump_data = 1 to also output column data
+void dset_dumptxt (uint64_t dset, int dump_data) {
 
-	ds *d = handle_lookup(dset, "dset_dumptxt", 0, 0);
+	uint64_t idx;
+	ds *d = handle_lookup(dset, "dset_dumptxt", 0, &idx);
 	xassert(d);
 
+	ds_slot *slot = &ds_module.slots[idx];
 
 	printf ("dataset %"PRIu64"\n"
 		"\ttotal size:            %"PRIu64"\n"
@@ -1523,22 +1643,28 @@ void dset_dumptxt (uint64_t dset) {
 		"\trows (capacity)        %"PRIu64"\n"
 		"\tcols (actual)          %"PRIu32"\n"
 		"\tcols (capacity)        %"PRIu32"\n\n"
-		"\tnrealloc:              %"PRIu32"\n" 
-		"\tnreassign_arroffsets:  %"PRIu32"\n" 
-		"\tnshift_strhandles:     %"PRIu32"\n" 
-		"\tnmore_arrheap:         %"PRIu32"\n" 
-		"\tnmore_strheap:         %"PRIu32"\n" 
-		"\tnmore_colspace:        %"PRIu32"\n" ,
+		"\tnrealloc:              %"PRIu32"\n"
+		"\tnreassign_arroffsets:  %"PRIu32"\n"
+		"\tnshift_strhandles:     %"PRIu32"\n"
+		"\tnmore_arrheap:         %"PRIu32"\n"
+		"\tnmore_strheap:         %"PRIu32"\n"
+		"\tnmore_colspace:        %"PRIu32"\n\n"
+		"\thtnrealloc:            %"PRIu32"\n"
+		"\thtlen                  %"PRIu32"\n"
+		"\thtcapacity             %"PRIu32"\n\n",
 		d,
 		d->total_sz,
 		d->nrow, d->crow,
 		d->ncol, d->ccol,
-		d->stats.nrealloc,
-		d->stats.nreassign_arroffsets,
-		d->stats.nshift_strhandles,
-		d->stats.nmore_arrheap,
-		d->stats.nmore_strheap,
-		d->stats.nmore_colspace
+		slot->stats.nrealloc,
+		slot->stats.nreassign_arroffsets,
+		slot->stats.nshift_strhandles,
+		slot->stats.nmore_arrheap,
+		slot->stats.nmore_strheap,
+		slot->stats.nmore_colspace,
+		slot->stats.htnrealloc,
+		slot->ht.len,
+		ht64_capacity(&slot->ht)
 		);
 
 	char *sep = "";
@@ -1549,6 +1675,8 @@ void dset_dumptxt (uint64_t dset) {
 		sep = "\t";
 	}
 	fputc('\n',stdout);
+
+	if (!dump_data) return;
 
 	for (unsigned j = 0; j < d->nrow; j++) {
 		c = d->columns;
@@ -1562,7 +1690,7 @@ void dset_dumptxt (uint64_t dset) {
 
 			#define REPR(sym,_a,type,_c,spec,reprfn) \
 				case sym: printf("%s" spec, sep, reprfn(dset, sizeof(buf), buf, ((type*)data)[j])); break;
-				
+
 			switch (abs_i8(c->type)) {
 				DSET_TYPELIST(REPR);
 				default:
@@ -1577,6 +1705,48 @@ void dset_dumptxt (uint64_t dset) {
 
 void *dset_dump(uint64_t dset) {
 	return (void *) handle_lookup(dset, "dset_dump", 0, 0);
+}
+
+uint64_t dset_strheapsz(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_strheapsz", 0, 0);
+	return d->strheap_sz;
+}
+
+// Returns pointer to first item in the string heap
+char *dset_strheap(uint64_t dset) {
+	ds *d = handle_lookup(dset, "dset_strheap", 0, 0);
+	return (char *) d + d->strheap_start;
+}
+
+int dset_setstrheap(uint64_t dset, const char *heap, size_t size) {
+	uint64_t dsetidx;
+	ds *d = handle_lookup(dset, "dset_setstrheap", 0, &dsetidx);
+	ds_slot *slot = &ds_module.slots[dsetidx];
+
+	// erase current strings
+	d->strheap_sz = 1; // 1 for empty string
+	ht64_clear(&slot->ht);
+
+	char *s = heap;
+	size_t len;
+	uint64_t idx;
+	while (d && s < heap + size) {
+		len = strlen(s);
+		d = stralloc(dsetidx, s, len, &idx);
+		if (!d) return 0;
+		s += len + 1;
+	}
+
+	return d != 0;
+}
+
+// Raw string allocation for the dataset without assigning to any column
+// Returns 1 if given index was successfully assigned a value. Should not
+// normally be used.
+int dset_stralloc(uint64_t dset, const char *value, size_t length, uint64_t *index) {
+	uint64_t dsetidx;
+	ds *d = handle_lookup(dset, "dset_stralloc", 0, &dsetidx);
+	return stralloc(dsetidx, value, length, index) != 0;
 }
 
 #endif

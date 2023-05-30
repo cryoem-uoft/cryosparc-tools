@@ -41,7 +41,7 @@ T = TypeVar("T")
 K = TypeVar("K")
 V = TypeVar("V")
 E = TypeVar("E")  # error
-INT = TypeVar("INT", bound=n.integer, covariant=True)
+INT = TypeVar("INT", bound=n.integer)
 
 Result = Union[Tuple[T, Literal[None]], Tuple[Literal[None], E]]
 """

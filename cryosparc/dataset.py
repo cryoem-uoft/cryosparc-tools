@@ -33,6 +33,7 @@ from typing import (
     Collection,
     Dict,
     Generic,
+    Iterable,
     List,
     Mapping,
     MutableMapping,
@@ -47,11 +48,7 @@ from typing_extensions import Literal, SupportsIndex
 import numpy as n
 import numpy.core.records
 
-
-if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike
-
-from .core import Data, DsetType
+from .core import Data, DsetType, Stream
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
@@ -70,6 +67,11 @@ from .stream import AsyncBinaryIO, Streamable
 from .column import Column
 from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray, ArrayLike, DTypeLike
+    from .core import MemoryView
+
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -94,7 +96,7 @@ Newest save .cs file format. Same as ``CSDAT_FORMAT``.
 
 FORMAT_MAGIC_PREFIXES = {
     NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
-    CSDAT_FORMAT: b"\x94CSDAT",  # .csl binary format
+    CSDAT_FORMAT: b"\x95CSDAT",  # .csl compressed stream format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
@@ -161,6 +163,54 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dset = cls(size)
         dset.add_fields(fields)
         return dset
+
+    def extend(self, *others: "Dataset", repeat_allowed=False):
+        """
+        Add the given dataset(s) to the end of the current dataset. Other
+        datasets must have at least the same fields of the current dataset.
+
+        Args:
+            repeat_allowed (bool, optional): If True, does not fail when there
+                are duplicate UIDs. Defaults to False.
+
+        Returns:
+            Dataset: current dataset with others appended
+
+        Examples:
+
+            >>> len(d1), len(d2), len(d3)
+            (42, 3, 5)
+            >>> d1.extend(d2, d3)
+            Dataset(...)
+            >>> len(d1)
+            50
+        """
+        datasets = tuple(d for d in others if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return self
+
+        if not repeat_allowed:
+            all_uids = n.concatenate([dset["uid"] for dset in datasets])
+            assert len(all_uids) == len(n.unique(all_uids)), "Cannot append datasets that contain the same UIDs."
+
+        required_fields = self.descr()
+        common_fields = self.common_fields(self, *others)
+        assert set(common_fields) == set(required_fields), (
+            "Cannot extend, some datasets are missing required target fields. "
+            f"Required fields: {required_fields}. "
+            f"Missing fields: {set(required_fields).difference(common_fields)}"
+        )
+
+        extra_size = sum(len(d) for d in datasets)
+        startidx = len(self)
+        self._data.addrows(extra_size)
+        for dset in datasets:
+            num = len(dset)
+            for key, *_ in required_fields:
+                self[key][startidx : startidx + num] = dset[key]
+            startidx += num
+
+        return self
 
     def append(self, *others: "Dataset", assert_same_fields=False, repeat_allowed=False):
         """
@@ -472,7 +522,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return [f for f in datasets[0].descr() if f in fields]
 
     @classmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]]):
+    def load(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
         """
         Read a dataset from path or file handle.
 
@@ -484,6 +534,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
+            cstrs (bool): If True, load internal string columns as C strings
+                instead of Python strings. Defaults to False.
 
         Raises:
             TypeError: If cannot determine type of dataset file.
@@ -497,37 +549,68 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
                 f.seek(0)
                 indata = n.load(f, allow_pickle=False)
-                return cls(indata)
+                dset = cls(indata)
+                if cstrs:
+                    dset.to_cstrs()
+                return dset
             elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-                import snappy
-
                 headersize = u32intle(f.read(4))
                 header = decode_dataset_header(f.read(headersize))
-                cols = {}
+
+                # Calling addrows separately to minimizes column-based
+                # allocations, improves performance by ~20%
+                dset = cls.allocate(0, header["dtype"])
+                data = dset._data
+                data.addrows(header["length"])
+                loader = Stream(data)
                 for field in header["dtype"]:
                     colsize = u32intle(f.read(4))
                     buffer = f.read(colsize)
                     if field[0] in header["compressed_fields"]:
-                        buffer = snappy.uncompress(buffer)
-                    cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
-                return cls(cols)
+                        loader.decompress_col(field[0], buffer)
+                    else:
+                        data.getbuf(field[0])[:] = buffer
+
+                # Read in the string heap (rest of stream)
+                # NOTE: There will be a bug here for long column keys that are
+                # added when there's already an allocated string in a T_STR
+                # column in the saved dataset (should be rare).
+                heap = f.read()
+                data.setstrheap(heap)
+
+                # Convert C strings to Python strings
+                loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+                if not cstrs:
+                    dset.to_pystrs()
+                return dset
 
         raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
-        import snappy
-
         headersize = u32intle(await stream.read(4))
         header = decode_dataset_header(await stream.read(headersize))
-        cols = {}
+
+        # Calling addrows separately to minimizes column-based allocations
+        dset = cls.allocate(0, header["dtype"])
+        data = dset._data
+        data.addrows(header["length"])
+        loader = Stream(data)
         for field in header["dtype"]:
             colsize = u32intle(await stream.read(4))
             buffer = await stream.read(colsize)
             if field[0] in header["compressed_fields"]:
-                buffer = snappy.uncompress(buffer)
-            cols[field[0]] = n.frombuffer(buffer, dtype=fielddtype(field))
-        return cls(cols)
+                loader.decompress_col(field[0], buffer)
+            else:
+                data.getbuf(field[0])[:] = buffer
+
+        heap = stream.read()
+        data.setstrheap(heap)
+
+        # Convert C strings to Python strings
+        loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+        dset.to_pystrs()
+        return dset
 
     def save(self, file: Union[str, PurePath, IO[bytes]], format: int = DEFAULT_FORMAT):
         """
@@ -552,12 +635,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 n.save(f, outdata, allow_pickle=False)
         elif format == CSDAT_FORMAT:
             with bopen(file, "wb") as f:
-                for chunk in self.stream():
+                for chunk in self.stream(compression="lz4"):
                     f.write(chunk)
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self):
+    def stream(self, compression: Literal["lz4", None] = None) -> Iterable[Union[bytes, memoryview, "MemoryView"]]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -569,28 +652,31 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Yields:
             bytes: Dataset file chunks
         """
-        import snappy
-
-        cols = self.cols()
-        arrays = [cols[c].to_fixed() for c in cols]
-        descr = [makefield(f, arraydtype(a)) for f, a in zip(cols, arrays)]
+        data = self._data
+        stream = Stream(data)
 
         yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
 
-        compressed_fields = [col for col in cols if col not in NEVER_COMPRESS_FIELDS]
+        compressed_fields = [f for f in self if compression and f not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
-            DatasetHeader(dtype=descr, compression="snap", compressed_fields=compressed_fields)
+            DatasetHeader(
+                length=len(self), dtype=self.descr(), compression=compression, compressed_fields=compressed_fields
+            )
         )
         yield u32bytesle(len(header))
         yield header
 
-        for f, arr in zip(cols, arrays):
-            if f in NEVER_COMPRESS_FIELDS:
-                fielddata = arr.data.tobytes()
+        for f in self:
+            fielddata: "MemoryView"
+            if f in compressed_fields:
+                # obj columns added to strheap and loaded as indexes
+                fielddata = stream.compress_col(f)
             else:
-                fielddata: bytes = snappy.compress(arr.data)
+                fielddata = stream.stralloc_col(f) or data.getbuf(f)
             yield u32bytesle(len(fielddata))
-            yield fielddata
+            yield fielddata.memview
+
+        yield data.dumpstrheap().memview
 
     def __init__(
         self,
@@ -653,9 +739,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             populate.insert(0, (("uid", "<u8"), generate_uids(nrows)))
 
         self.add_fields([entry[0] for entry in populate])
-        self._data.addrows(nrows)
-        for field, data in populate:
-            self[field[0]] = data
+        if nrows > 0:
+            self._data.addrows(nrows)
+            for field, data in populate:
+                self[field[0]] = data
 
     def __len__(self):
         """
@@ -914,7 +1001,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 ('uid', [14727850622008419978 309606388100339041 15935837513913527085]),
                 ('foo', [0 0 0]),
                 ('bar', [[0. 0.] [0. 0.] [0. 0.]]),
-                ('baz', ["", "", ",]),
+                ('baz', ["" "" ""]),
             ])
         """
         if len(fields) == 0:

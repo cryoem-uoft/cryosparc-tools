@@ -182,17 +182,18 @@ def test_from_data_none():
 
 
 def test_streaming_bytes():
+    field3 = "fieldwithsuperduperlongcolumnnamethatislongandtestable"
     dset = Dataset.allocate(
         4,
         fields=[
             ("field1", "u8"),
             ("field2", "f4"),
-            ("field3", "O"),
+            (field3, "O"),
         ],
     )
     dset["field1"] = 42
     dset["field2"] = n.array([3.14, 2.73, 1.62, 3.14], dtype="f8")
-    dset["field3"][:] = n.array(["Hello", "World", "!", "!"])
+    dset[field3][:] = n.array(["Hello", "World", "!", "!"])
 
     stream = BytesIO()
     for dat in dset.stream():
@@ -234,27 +235,28 @@ def test_row_array_type(t20s_dset):
 
 
 def test_innerjoin_bigger():
+    dat2 = "dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2"
     d1 = Dataset([("uid", [1, 2, 3]), ("dat1", ["Hello", "World", "!"])])
-    d2 = Dataset([("uid", [0, 1, 2, 3, 4]), ("dat2", ["(", "Hello", "World", "!", ")"])])
-
+    d2 = Dataset([("uid", [0, 1, 2, 3, 4]), (dat2, ["(", "Hello", "World", "!", ")"])])
     assert d1.innerjoin(d2) == Dataset(
         [
             ("uid", [1, 2, 3]),
             ("dat1", ["Hello", "World", "!"]),
-            ("dat2", ["Hello", "World", "!"]),
+            (dat2, ["Hello", "World", "!"]),
         ]
     )
 
 
 def test_innerjoin_smaller():
+    dat2 = "dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2dat2"
     d1 = Dataset([("uid", [1, 2, 3]), ("dat1", ["Hello", "World", "!"])])
-    d2 = Dataset([("uid", [3, 1]), ("dat2", ["Hello", "World"])])
+    d2 = Dataset([("uid", [3, 1]), (dat2, ["Hello", "World"])])
 
     assert d1.innerjoin(d2) == Dataset(
         [
             ("uid", [1, 3]),
             ("dat1", ["Hello", "!"]),
-            ("dat2", ["World", "Hello"]),
+            (dat2, ["World", "Hello"]),
         ]
     )
 
