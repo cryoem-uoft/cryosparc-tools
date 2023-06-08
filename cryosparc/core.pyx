@@ -147,14 +147,15 @@ cdef class Data:
         cdef const char *colkey_c = colkey_b
         cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
         cdef size_t nrow = dataset.dset_nrow(self._handle)
-        cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
         cdef str pystr
         cdef bytes pybytes
 
         if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey_c, T_STR):
             return False
 
+        cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
         for i in xrange(nrow):
+            pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
             pystr = <str> pycol[i]
             pybytes = pystr.encode()
             Py_XDECREF(pycol[i])  # so string is deallocated

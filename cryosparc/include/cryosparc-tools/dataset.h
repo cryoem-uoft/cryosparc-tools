@@ -429,7 +429,7 @@ dset_new_(size_t newsize, ds **allocation)
 
 	// Alloc hash table for fast field name and C string lookup
 	s->ht.ht = 0;
-	ht64_realloc(&(s->ht), 255);
+	ht64_realloc(&(s->ht), 256);
 
 	if (s->generation >= MAX_GEN) {
 		// Generation limit reached, trigger overflow so that handle != 0
@@ -910,8 +910,7 @@ stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
 
 	size_t sz = 1 + len;
 
-	char *base = (char *) d;
-	char *strheap = base + d->strheap_start;
+	char *strheap = ((char*)d) + d->strheap_start;
 	char *strheap_end = strheap + d->strheap_sz;
 
 	// setup hash table for fast strheap index lookup
@@ -953,6 +952,7 @@ stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
 	*index = *htidx = d->strheap_sz;
 	d->strheap_sz += sz;
 
+	char *base = (char *) d;
 	memcpy(base + d->strheap_start + (*index), str, sz);
 	return d;
 }
@@ -968,7 +968,7 @@ getstr(ds *d, uint64_t col, uint64_t index) {
 // the same dataset pointer or different if required reallocation)
 static inline ds *setstr(uint64_t dsetidx, uint64_t col, uint64_t index, const char *value, size_t length) {
 	// Allocate str and retrieve updated dataset
-	uint64_t stridx;
+	uint64_t stridx = 0;
 	ds *d = stralloc(dsetidx, value, length, &stridx);
 	if (!d) return 0; // Could not allocate string
 
@@ -987,7 +987,7 @@ reassign_arrayoffsets (uint64_t idx, uint32_t new_crow)
 	char * arrheap = ((char *)d) + d->arrheap_start;
 	char * arrheap_end = arrheap + cur_arrheap_used_sz;
 
-	for(uint32_t i = 1; i < d->ncol; i++) {
+	for (uint32_t i = 1; i < d->ncol; i++) {
 
 		ds_column * lastcol = d->columns+i-1;
 
@@ -1315,7 +1315,7 @@ const char *dset_key(uint64_t dset, uint64_t index)
 	const ds *d  = handle_lookup(dset, "dset_colkey", 0, 0);
 	if (!d) return "";
 	if (index >= d->ncol) {
-		nonfatal("dset_key: column index %d out of range (%d ncol)", index, d->ncol);
+		nonfatal("dset_key: column index %"PRIu64" out of range (%d ncol)", index, d->ncol);
 		return "";
 	}
 	const ds_column *c  = &d->columns[index];
