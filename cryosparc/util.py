@@ -43,7 +43,8 @@ V = TypeVar("V")
 E = TypeVar("E")  # error
 INT = TypeVar("INT", bound=n.integer)
 
-Result = Union[Tuple[T, Literal[None]], Tuple[Literal[None], E]]
+Result = Union[Tuple[T, None], Tuple[None, E]]
+
 """
 Use as the return type for functions that may return either a value or an
 error.

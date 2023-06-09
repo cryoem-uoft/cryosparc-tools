@@ -1476,6 +1476,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         for k in dset:
             if dset._data.type(k) == DsetType.T_OBJ:
                 assert dset._data.tocstrs(k), f"Could not convert column {k} to C strings"
+        self._reset()  # in case data got reallocated
         return dset
 
     def to_pystrs(self, copy: bool = False):

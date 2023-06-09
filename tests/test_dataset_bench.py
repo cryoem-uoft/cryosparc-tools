@@ -402,8 +402,10 @@ def test_from_streaming_bytes(benchmark, big_dset: Dataset):
 
 
 def test_to_cstrs(benchmark, dset: Dataset):
+    assert dset.rows()[0]  # check that this is ok
     result: Dataset = benchmark(dset.to_cstrs, copy=True)
     assert result["ctf/type"].dtype.type == n.uint64
+    assert dset.rows()[0]
 
 
 def test_to_pystrs(benchmark, dset_cstrs: Dataset):
