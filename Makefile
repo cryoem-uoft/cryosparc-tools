@@ -1,4 +1,5 @@
-TARGET=cryosparc/core.cpython-310-x86_64-linux-gnu.so  # for CryoSPARC
+PY_EXT_SUFFIX=$(shell python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
+TARGET=cryosparc/core$(PY_EXT_SUFFIX)
 
 all: $(TARGET)
 
@@ -7,7 +8,7 @@ all: $(TARGET)
 # -----------------------------------------------------------------------------
 
 $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.toml
-	python -m setup build_ext -i
+	python3 -m setup build_ext -i
 
 # -----------------------------------------------------------------------------
 #    Vercel deployment-related targets
