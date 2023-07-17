@@ -241,7 +241,7 @@ class Project(MongoController[ProjectDocument]):
             Save a result with multiple slots of the same type.
 
             >>> project.save_external_result(
-            ...     workspace_uid="P1",
+            ...     workspace_uid="W1",
             ...     dataset=particles,
             ...     type="particle",
             ...     name="particle_alignments",
