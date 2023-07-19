@@ -79,8 +79,17 @@ cdef class Data:
 
     def getshp(self, str colkey):
         cdef int val = dataset.dset_getshp(self._handle, colkey.encode())
-        cdef tuple shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
-        return tuple(s for s in shape if s != 0)
+        cdef list shp = []
+        cdef int dim0 = val & 0xFF
+        cdef int dim1 = (val >> 8) & 0xFF
+        cdef int dim2 = (val >> 16) & 0xFF
+        if dim0:
+            shp.append(dim0)
+        if dim1:
+            shp.append(dim1)
+        if dim2:
+            shp.append(dim2)
+        return tuple(shp)
 
     def getbuf(self, str colkey):
         cdef void *mem
