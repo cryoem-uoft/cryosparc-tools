@@ -1,6 +1,6 @@
 from . cimport dataset
 from . cimport lz4
-from libc.stdint cimport uint64_t
+from libc.stdint cimport uint8_t, uint32_t, uint64_t
 from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 from cpython.mem cimport PyMem_Realloc, PyMem_Free
 
@@ -121,9 +121,18 @@ cdef class Data:
         return dataset.dset_addcol_array(self._handle, field.encode(), dtype, shape0, shape1, shape2)
 
     def getshp(self, str colkey):
-        cdef int val = dataset.dset_getshp(self._handle, colkey.encode())
-        cdef tuple shape = (val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF)
-        return tuple(s for s in shape if s != 0)
+        cdef list shp = []
+        cdef uint32_t val = dataset.dset_getshp(self._handle, colkey.encode())
+        cdef uint8_t dim0 = <uint8_t> (val & 0xFF)
+        cdef uint8_t dim1 = <uint8_t> ((val >> 8) & 0xFF)
+        cdef uint8_t dim2 = <uint8_t> ((val >> 16) & 0xFF)
+        if dim0:
+            shp.append(<int> dim0)
+        if dim1:
+            shp.append(<int> dim1)
+        if dim2:
+            shp.append(<int> dim2)
+        return tuple(shp)
 
     def getbuf(self, str colkey):
         cdef void *mem
