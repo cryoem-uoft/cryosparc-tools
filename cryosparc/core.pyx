@@ -1,4 +1,5 @@
 from . cimport dataset
+from libc.stdint cimport uint8_t, uint32_t
 from cython.view cimport array
 from cpython.ref cimport PyObject
 
@@ -78,17 +79,17 @@ cdef class Data:
         return dataset.dset_addcol_array(self._handle, field.encode(), dtype, shape0, shape1, shape2)
 
     def getshp(self, str colkey):
-        cdef int val = dataset.dset_getshp(self._handle, colkey.encode())
         cdef list shp = []
-        cdef int dim0 = val & 0xFF
-        cdef int dim1 = (val >> 8) & 0xFF
-        cdef int dim2 = (val >> 16) & 0xFF
+        cdef uint32_t val = dataset.dset_getshp(self._handle, colkey.encode())
+        cdef uint8_t dim0 = <uint8_t> (val & 0xFF)
+        cdef uint8_t dim1 = <uint8_t> ((val >> 8) & 0xFF)
+        cdef uint8_t dim2 = <uint8_t> ((val >> 16) & 0xFF)
         if dim0:
-            shp.append(dim0)
+            shp.append(<int> dim0)
         if dim1:
-            shp.append(dim1)
+            shp.append(<int> dim1)
         if dim2:
-            shp.append(dim2)
+            shp.append(<int> dim2)
         return tuple(shp)
 
     def getbuf(self, str colkey):
