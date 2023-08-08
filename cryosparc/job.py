@@ -769,11 +769,11 @@ class Job(MongoController[JobDocument]):
                 data.seek(0)
                 figdata.append((data, filename, fmt))
         elif isinstance(figure, (str, PurePath)):  # file path; assume format from filename
-            figure = PurePath(figure)
-            basename = figure.stem
+            path = PurePath(figure)
+            basename = path.stem
             fmt = str(figure).split(".")[-1]
             assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
-            filename = f"{name or figure.stem}.{fmt}"
+            filename = f"{name or path.stem}.{fmt}"
             figdata.append((figure, filename, fmt))
         else:  # Binary IO
             fmt = first(iter(formats))
