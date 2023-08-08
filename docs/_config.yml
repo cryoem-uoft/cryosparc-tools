@@ -40,6 +40,7 @@ html:
 sphinx:
   config:
     html_show_copyright: false
+    html_js_files: [ ['https://plausible.io/js/script.js', {'defer': 'defer', 'data-domain': 'tools.cryosparc.com'}] ]
   extra_extensions:
     - 'sphinx.ext.autodoc'
     - 'sphinx.ext.napoleon'
