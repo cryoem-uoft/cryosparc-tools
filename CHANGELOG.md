@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.3.0
+
+- Added: Updated project doc spec with updated generate intermediate results settings field
+- Fixed: Allow project file retrieval from when project directory contains a symbolic link
+- Fixed: Auto-exclude slots with missing metafile and better error message when output metafile is missing
+- Fixed: Extend `CommandClient.Error` from `Exception`
+- Fixed: Correctly catch command request timeout
+- Docs: Added T20S workflow example
+
 ## v4.2.0
 
 - Support for CryoSPARC v4.2
