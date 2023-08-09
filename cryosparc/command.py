@@ -4,6 +4,7 @@ servers. Generally should not be used directly.
 """
 from contextlib import contextmanager
 import json
+import socket
 import uuid
 from typing import Optional, Type
 from urllib.request import urlopen, Request
@@ -68,7 +69,7 @@ class CommandClient:
 
     service: str
 
-    class Error(BaseException):
+    class Error(Exception):
         def __init__(self, parent: "CommandClient", reason: str, *args: object, url: str = "") -> None:
             msg = f"*** {type(parent).__name__}: ({url}) {reason}"
             super().__init__(msg, *args)
@@ -126,14 +127,14 @@ class CommandClient:
 
 @contextmanager
 def make_request(
-    client: CommandClient, method: str = "post", url: str = "", query: dict = {}, data=None, headers: dict = {}
+    client: CommandClient, method: str = "POST", url: str = "", query: dict = {}, data=None, headers: dict = {}
 ):
     """
     Create a raw HTTP request/response context with the given command client.
 
     Args:
         client (CommandClient): command client instance
-        method (str, optional): HTTP method. Defaults to "post".
+        method (str, optional): HTTP method. Defaults to "POST".
         url (str, optional): URL to append to the client's initialized URL. Defaults to "".
         query (dict, optional): Query string parameters. Defaults to {}.
         data (any, optional): Request body data. Usually in binary. Defaults to None.
@@ -165,7 +166,7 @@ def make_request(
             with urlopen(request, timeout=client._timeout) as response:
                 yield response
                 return
-        except TimeoutError:
+        except (TimeoutError, socket.timeout):
             error_reason = "Timeout Error"
             print(
                 f"*** {type(client).__name__}: command ({url}) "

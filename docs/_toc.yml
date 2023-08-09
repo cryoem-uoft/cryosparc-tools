@@ -13,6 +13,7 @@ parts:
   - file: examples/3dflex-custom-mesh-rigidity-weights
   - file: examples/hi-res-2d-classes
   - file: examples/xml-exposure-groups
+  - file: examples/custom-workflow
 - caption: API Reference
   chapters:
   - file: api/index

@@ -219,6 +219,27 @@ class Job(MongoController[JobDocument]):
         ), f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
         return status
 
+    def interact(self, action: str, body: Any = {}, timeout: int = 10, refresh: bool = False) -> Any:
+        """
+        Call an interactive action on a waiting interactive job. The possible
+        actions and expected body depends on the job type.
+
+        Args:
+            action (str): Interactive endpoint to call.
+            body (any): Body parameters for the interactive endpoint. Must be
+                JSON-encodable.
+            timeout (int, optional): Maximum time to wait for the action to
+                complete, in seconds. Defaults to 10.
+            refresh (bool, optional): If True, refresh the job document after
+                posting. Defaults to False.
+        """
+        result: Any = self.cs.cli.interactive_post(  # type: ignore
+            project_uid=self.project_uid, job_uid=self.uid, endpoint=action, body=body, timeout=timeout
+        )
+        if refresh:
+            self.refresh()
+        return result
+
     def clear(self):
         """
         Clear this job and reset to building status.
@@ -384,10 +405,28 @@ class Job(MongoController[JobDocument]):
             for result in job["output_results"]
             if result["group_name"] == name and (not slots or result["name"] in slots)
         ]
+        if not slots:
+            # Requested all slots, but auto-filter results with no provided meta
+            # files
+            results = [result for result in results if result["metafiles"]]
         if not results:
             raise TypeError(f"Job {self.project_uid}-{self.uid} does not have any results for output {name}")
 
-        metafiles = set(r["metafiles"][0 if r["passthrough"] else version] for r in results)
+        metafiles = []
+        for r in results:
+            if r["metafiles"]:
+                metafile = r["metafiles"][0 if r["passthrough"] else version]
+                if metafile not in metafiles:
+                    metafiles.append(metafile)
+            else:
+                raise ValueError(
+                    (
+                        f"Cannot load output {name} slot {r['name']} because "
+                        "output does not have an associated dataset file. "
+                        "Please exclude this output from the requested slots."
+                    )
+                )
+
         datasets = [self.cs.download_dataset(self.project_uid, f) for f in metafiles]
         return Dataset.innerjoin(*datasets)
 
@@ -730,11 +769,11 @@ class Job(MongoController[JobDocument]):
                 data.seek(0)
                 figdata.append((data, filename, fmt))
         elif isinstance(figure, (str, PurePath)):  # file path; assume format from filename
-            figure = PurePath(figure)
-            basename = figure.stem
+            path = PurePath(figure)
+            basename = path.stem
             fmt = str(figure).split(".")[-1]
             assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
-            filename = f"{name or figure.stem}.{fmt}"
+            filename = f"{name or path.stem}.{fmt}"
             figdata.append((figure, filename, fmt))
         else:  # Binary IO
             fmt = first(iter(formats))
