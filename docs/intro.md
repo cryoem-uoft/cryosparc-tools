@@ -41,6 +41,10 @@ Install cryosparc-tools in the command line from [PyPI](https://pypi.org):
 ```sh
 pip install cryosparc-tools
 ```
+Update an existing installation of cryosparc-tools to the latest release:
+```sh
+pip install -U cryosparc-tools
+```
 
 ```{note}
 Use the version of cryosparc-tools that corresponds to your CryoSPARC _minor_
