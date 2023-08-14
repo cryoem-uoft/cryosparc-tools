@@ -31,4 +31,4 @@ cdef extern from "cryosparc-tools/dataset.h":
     uint64_t dset_strheapsz(Dset dset) nogil
     char *dset_strheap(Dset dset) nogil
     bint dset_setstrheap(Dset dset, const char *heap, size_t size) nogil
-    bint dset_stralloc(Dset dset, const char *value, size_t length, uint64_t *index) nogil
+    int dset_stralloc(Dset dset, const char *value, size_t length, uint64_t *index) nogil

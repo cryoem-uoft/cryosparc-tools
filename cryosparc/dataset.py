@@ -667,6 +667,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         yield header
 
         for f in self:
+            print(f)
             fielddata: "MemoryView"
             if f in compressed_fields:
                 # obj columns added to strheap and loaded as indexes
