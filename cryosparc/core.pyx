@@ -147,39 +147,37 @@ cdef class Data:
         else:
             return <unsigned char [:size]> mem
 
-    def getstr(self, str colkey, size_t index):
-        return dataset.dset_getstr(self._handle, colkey.encode(), index)  # returns bytes
+    def getstr(self, str col, size_t index):
+        return dataset.dset_getstr(self._handle, col.encode(), index)  # returns bytes
 
-    def tocstrs(self, str colkey):
+    def tocstrs(self, str col):
         # Convert Python strings to C strings in the given object column
-        cdef bytes colkey_b = colkey.encode()
-        cdef const char *colkey_c = colkey_b
-        cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
+        cdef bytes colkey = col.encode()
+        cdef int prevtype = dataset.dset_type(self._handle, colkey)
         cdef size_t nrow = dataset.dset_nrow(self._handle)
         cdef str pystr
         cdef bytes pybytes
 
-        if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey_c, T_STR):
+        if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey, T_STR):
             return False
 
-        cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
+        cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey)
         for i in xrange(nrow):
-            pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
+            pycol = <PyObject **> dataset.dset_get(self._handle, colkey)
             pystr = <str> pycol[i]
             pybytes = pystr.encode()
             Py_XDECREF(pycol[i])  # so string is deallocated
             pycol[i] = NULL  # so that strfree not attempted
-            dataset.dset_setstr(self._handle, colkey_c, i, pybytes, len(pybytes))
+            dataset.dset_setstr(self._handle, colkey, i, pybytes, len(pybytes))
 
         return True
 
-    def topystrs(self, str colkey):
+    def topystrs(self, str col):
         # Convert C strings to Python strings in the given column
-        cdef bytes colkey_b = colkey.encode()
-        cdef const char *colkey_c = colkey_b
-        cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
+        cdef bytes colkey = col.encode()
+        cdef int prevtype = dataset.dset_type(self._handle, colkey)
         cdef size_t nrow = dataset.dset_nrow(self._handle)
-        cdef size_t *pycol = <size_t *> dataset.dset_get(self._handle, colkey_c)
+        cdef size_t *pycol = <size_t *> dataset.dset_get(self._handle, colkey)
         cdef PyObject **pystrcol = <PyObject **> pycol
         cdef dict strcache = dict()
         cdef char *cstr
@@ -193,14 +191,14 @@ cdef class Data:
             if pycol[i] in strcache:
                 pystr = strcache[pycol[i]]
             else:
-                cbytes = dataset.dset_getstr(self._handle, colkey_c, i)
+                cbytes = dataset.dset_getstr(self._handle, colkey, i)
                 pystr = cbytes.decode()
                 strcache[pycol[i]] = pystr
 
             pystrcol[i] = <PyObject *> pystr
             Py_XINCREF(<PyObject *> pystr)
 
-        if not dataset.dset_changecol(self._handle, colkey_c, T_OBJ):
+        if not dataset.dset_changecol(self._handle, colkey, T_OBJ):
             return False
 
         return True
@@ -301,26 +299,33 @@ cdef class Stream:
     def stralloc_col(self, str col):
         # Allocate C strings for every Python string in the given object column
         # Returns 0 if the column does not have object type.
-        cdef int coltype = self.data.type(col)
+        cdef dataset.Dset handle = self.data._handle
+        cdef bytes colkey = col.encode()
+        cdef int coltype = dataset.dset_type(handle, colkey)
         if coltype != T_OBJ:
             return 0  # invalid column
 
-        cdef PyObject **pycol
-        cdef unsigned char [:] data = self.data.getbuf(col)
-        cdef size_t sz = data.size
-
         # Convert to C strings and compress index array instead
+        cdef PyObject **coldata = <PyObject **> dataset.dset_get(handle, colkey)
+        cdef uint64_t nrow = dataset.dset_nrow(handle)
+        cdef size_t sz = dataset.dset_getsz(handle, colkey)
+
         self._ensure_aux(sz)
-        pycol = <PyObject **> &data[0]
 
         cdef uint64_t idx
+        cdef int allocres
         cdef str pystr
         cdef bytes pybytes
-        for i in xrange(sz // sizeof(uint64_t)):
-            pystr = <str> pycol[i]
+
+        for i in xrange(nrow):
+            pystr = <str> coldata[i]
             pybytes = pystr.encode()
-            if not dataset.dset_stralloc(self.data._handle, pybytes, len(pybytes), &idx):
+            allocres = dataset.dset_stralloc(handle, pybytes, len(pybytes), &idx)
+            if allocres == 0:
                 raise MemoryError()
+            elif allocres == 2:
+                # dataset reallocated, coldata must be retrieved
+                coldata = <PyObject **> dataset.dset_get(handle, colkey)
             self.aux[i] = idx
 
         return <unsigned char [:sz]> (<unsigned char *> self.aux)
@@ -338,23 +343,41 @@ cdef class Stream:
         # indexes into the C string.
         #
         # Returns array memoryview with compressed data
-        cdef int coltype = self.data.type(col)
+        cdef dataset.Dset handle = self.data._handle
+        cdef colkey = col.encode()
+        cdef int coltype = dataset.dset_type(handle, colkey)
 
         if coltype == 0:
             return 0  # invalid column
 
-        cdef PyObject **pycol
-        cdef unsigned char [:] data = self.data.getbuf(col)
-        cdef size_t sz = data.size
+        cdef uint64_t nrow = dataset.dset_nrow(handle)
+        cdef size_t sz = dataset.dset_getsz(handle, colkey)
+        cdef uint64_t idx
+        cdef int allocres
+        cdef str pystr
+        cdef bytes pybytes
+        cdef PyObject **coldata
+        cdef unsigned char [:] data
+
         if coltype == T_OBJ:
             # Convert to C strings and compress index array instead
             self._ensure_aux(sz)
-            pycol = <PyObject **> &data[0]
+            coldata = <PyObject **> dataset.dset_get(handle, colkey)
 
-            for i in xrange(sz // sizeof(uint64_t)):
-                self.aux[i] = self.data.stralloc(<str> pycol[i])
+            for i in xrange(nrow):
+                pystr = <str> coldata[i]
+                pybytes = pystr.encode()
+                allocres = dataset.dset_stralloc(handle, pybytes, len(pybytes), &idx)
+                if allocres == 0:
+                    raise MemoryError()
+                elif allocres == 2:
+                    # dataset reallocated, coldata must be retrieved
+                    coldata = <PyObject **> dataset.dset_get(handle, colkey)
+                self.aux[i] = idx
 
             data = <unsigned char [:sz]> (<unsigned char *> self.aux)
+        else:
+            data = <unsigned char [:sz]> (<unsigned char *> dataset.dset_get(handle, colkey))
 
         return self.compress(data)
 

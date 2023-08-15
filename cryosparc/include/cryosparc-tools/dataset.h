@@ -1741,12 +1741,17 @@ int dset_setstrheap(uint64_t dset, const char *heap, size_t size) {
 }
 
 // Raw string allocation for the dataset without assigning to any column
-// Returns 1 if given index was successfully assigned a value. Should not
-// normally be used.
+// Returns 0 if the string couldn't be allocated
+// Returns 1 if given index was successfully assigned a value.
+// Returns 2 if the index was assigned AND a reallocation occured
+// Should not normally be used.
 int dset_stralloc(uint64_t dset, const char *value, size_t length, uint64_t *index) {
 	uint64_t dsetidx;
 	ds *d = handle_lookup(dset, "dset_stralloc", 0, &dsetidx);
-	return stralloc(dsetidx, value, length, index) != 0;
+	ds *newd = stralloc(dsetidx, value, length, index);
+	if (newd == 0) return 0;
+	else if (newd == d) return 1;
+	else return 2;
 }
 
 #endif
