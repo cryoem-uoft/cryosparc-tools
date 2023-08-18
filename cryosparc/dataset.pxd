@@ -20,9 +20,11 @@ cdef extern from "cryosparc-tools/dataset.h":
     uint32_t dset_getshp(Dset dset, const char *colkey) nogil
 
     bint dset_addrows(Dset dset, uint32_t num) nogil
+    bint dset_reserverows(Dset dset, uint32_t num) nogil
     bint dset_addcol_scalar(Dset dset, const char *key, int type) nogil
     bint dset_addcol_array(Dset dset, const char *key, int type, int shape0, int shape1, int shape2) nogil
     bint dset_changecol(Dset dset, const char *key, int type) nogil
+    bint dset_extend(Dset dset, Dset *others, uint32_t numothers) nogil
 
     bint dset_defrag(Dset dset, bint realloc_smaller) nogil
     void *dset_dump(Dset dset) nogil
