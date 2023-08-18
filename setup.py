@@ -20,7 +20,7 @@ if sys.platform == "win32" and DEBUG:
     extra_compile_args += ["/Zi"]
     extra_link_args += ["/DEBUG"]
 elif DEBUG:
-    extra_compile_args += ["-g", "-O0"]
+    extra_compile_args += ["-g", "-O0", "-Wall", "-Wextra"]
 
 setup(
     name="cryosparc_tools",
