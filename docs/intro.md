@@ -34,9 +34,23 @@ via <abbr title="Secure Shell">SSH</abbr>.
 
 cryosparc-tools is only available for CryoSPARC v4.1 or newer. If using CryoSPARC v4.0 or older, please see the [Manipulating .cs Files Created By CryoSPARC](https://guide.cryosparc.com/setup-configuration-and-management/software-system-guides/manipulating-.cs-files-created-by-cryosparc) guide.
 
+### Python Environment
+
+cryosparc-tools is intended to be used in a dedicated Python environment
+_outside_ of the CryoSPARC installation. A virtual environment is recommended to
+avoid conflicts with global Python installations.
+
+Virtual environment tools such as
+[venv](https://docs.python.org/3/tutorial/venv.html),
+[Conda](https://docs.conda.io/en/latest/),
+[Mamba](https://mamba.readthedocs.io/en/latest/),
+[Pipenv](https://pipenv.pypa.io/en/latest/) and
+[Poetry](https://python-poetry.org) all work with cryosparc-tools.
+
 ## Installation
 
-Install cryosparc-tools in the command line from [PyPI](https://pypi.org):
+Install cryosparc-tools in the command line from [PyPI](https://pypi.org) into
+the current Python environment:
 
 ```sh
 pip install cryosparc-tools
