@@ -1,7 +1,7 @@
 from . cimport dataset
 from libc.stdint cimport uint8_t, uint32_t
 from cython.view cimport array
-from cpython.ref cimport PyObject
+from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 
 
 # Mirror of equivalent C-datatype enumeration
@@ -33,6 +33,7 @@ cdef class Data:
             # copy constructor
             othr = <Data> other
             self._handle = dataset.dset_copy(othr._handle)
+            othr._increfs()
         elif other:
             # Initialize with a numeric handle
             self._handle = <dataset.Dset> other
@@ -46,10 +47,43 @@ cdef class Data:
 
     def __dealloc__(self):
         if self._handle:
+            self._decrefs()
             dataset.dset_del(self._handle)
 
+    def _increfs(self):
+        # Increment reference counts for all Python object fields.
+        # Call this after making a copy of this dataset.
+        nrow = dataset.dset_nrow(self._handle)
+        for i in xrange(dataset.dset_ncol(self._handle)):
+            with nogil:
+                colkey = dataset.dset_key(self._handle, i)
+                coltype = dataset.dset_type(self._handle, colkey)
+                if coltype != DsetType.T_OBJ:
+                    continue
+                mem = <PyObject **> (dataset.dset_get(self._handle, colkey))
+
+            for j in xrange(nrow):
+                Py_XINCREF(mem[j])
+
+    def _decrefs(self):
+        # Decrement reference counts for all Python object fields.
+        # Call this after destroying this dataset.
+        nrow = dataset.dset_nrow(self._handle)
+        for i in xrange(dataset.dset_ncol(self._handle)):
+            with nogil:
+                colkey = dataset.dset_key(self._handle, i)
+                coltype = dataset.dset_type(self._handle, colkey)
+                if coltype != DsetType.T_OBJ:
+                    continue
+                mem = <PyObject **> (dataset.dset_get(self._handle, colkey))
+
+            for j in xrange(nrow):
+                Py_XDECREF(mem[j])
+
     def innerjoin(self, str key, Data other):
-        return type(self)(dataset.dset_innerjoin(key.encode(), self._handle, other._handle))
+        cdef Data data = Data(dataset.dset_innerjoin(key.encode(), self._handle, other._handle))
+        data._increfs()
+        return data
 
     def totalsz(self):
         return dataset.dset_totalsz(self._handle)
@@ -108,33 +142,35 @@ cdef class Data:
     def getstr(self, str colkey, Py_ssize_t index):
         return dataset.dset_getstr(self._handle, colkey.encode(), index)  # returns bytes
 
-    def tocstrs(self, str colkey):
+    def tocstrs(self, str col):
         # Convert Python strings to C strings in the given object column
-        cdef bytes colkey_b = colkey.encode()
-        cdef const char *colkey_c = colkey_b
-        cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
-        cdef Py_ssize_t nrow = dataset.dset_nrow(self._handle)
-        cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey_c)
-        cdef str pybytes
+        cdef bytes colkey = col.encode()
+        cdef int prevtype = dataset.dset_type(self._handle, colkey)
+        cdef size_t nrow = dataset.dset_nrow(self._handle)
+        cdef str pystr
+        cdef bytes pybytes
 
-        if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey_c, T_STR):
+        if prevtype != T_OBJ or not dataset.dset_changecol(self._handle, colkey, T_STR):
             return False
 
-        for i in range(nrow):
-            pybytes = <str> (pycol[i])
-            pycol[i] = NULL  # so string is not deallocated
-            dataset.dset_setstr(self._handle, colkey_c, i, pybytes.encode())
+        cdef PyObject **pycol = <PyObject **> dataset.dset_get(self._handle, colkey)
+        for i in xrange(nrow):
+            pycol = <PyObject **> dataset.dset_get(self._handle, colkey)
+            pystr = <str> pycol[i]
+            pybytes = pystr.encode()
+            Py_XDECREF(pycol[i])  # so string is deallocated
+            pycol[i] = NULL  # so that strfree not attempted
+            dataset.dset_setstr(self._handle, colkey, i, pybytes)
 
         return True
 
-    def topystrs(self, str colkey):
+    def topystrs(self, str col):
         # Convert C strings to Python strings in the given column
-        cdef bytes colkey_b = colkey.encode()
-        cdef const char *colkey_c = colkey_b
-        cdef int prevtype = dataset.dset_type(self._handle, colkey_c)
-        cdef Py_ssize_t nrow = dataset.dset_nrow(self._handle)
-        cdef Py_ssize_t *pycol = <Py_ssize_t *> dataset.dset_get(self._handle, colkey_c)
-        cdef void **pystrcol = <void **> pycol
+        cdef bytes colkey = col.encode()
+        cdef int prevtype = dataset.dset_type(self._handle, colkey)
+        cdef size_t nrow = dataset.dset_nrow(self._handle)
+        cdef size_t *pycol = <size_t *> dataset.dset_get(self._handle, colkey)
+        cdef PyObject **pystrcol = <PyObject **> pycol
         cdef dict strcache = dict()
         cdef char *cstr
         cdef bytes cbytes
@@ -143,24 +179,18 @@ cdef class Data:
         if prevtype != T_STR:
             return False
 
-        # Save computed strcache to prevent string handles from getting garbage
-        # collected (since no other Python reference to them is kept)
-        self._strcache[colkey] = strcache
-
-        for i in range(nrow):
+        for i in xrange(nrow):
             if pycol[i] in strcache:
                 pystr = strcache[pycol[i]]
             else:
-                cbytes = dataset.dset_getstr(self._handle, colkey_c, i)
+                cbytes = dataset.dset_getstr(self._handle, colkey, i)
                 pystr = cbytes.decode()
                 strcache[pycol[i]] = pystr
 
-            pystrcol[i] = <void *> pystr
+            pystrcol[i] = <PyObject *> pystr
+            Py_XINCREF(<PyObject *> pystr)
 
-        if not dataset.dset_changecol(self._handle, colkey_c, T_OBJ):
-            return False
-
-        return True
+        return bool(dataset.dset_changecol(self._handle, colkey, T_OBJ))
 
     def defrag(self, bint realloc_smaller):
         return dataset.dset_defrag(self._handle, realloc_smaller)
