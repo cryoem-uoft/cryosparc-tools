@@ -47,6 +47,9 @@ Virtual environment tools such as
 [Pipenv](https://pipenv.pypa.io/en/latest/) and
 [Poetry](https://python-poetry.org) all work with cryosparc-tools.
 
+Ensure that the virtual environment is based on a supported version of Python
+(see Pre-requisites above).
+
 ## Installation
 
 Install cryosparc-tools in the command line from [PyPI](https://pypi.org) into
@@ -55,7 +58,9 @@ the current Python environment:
 ```sh
 pip install cryosparc-tools
 ```
+
 Update an existing installation of cryosparc-tools to the latest release:
+
 ```sh
 pip install -U cryosparc-tools
 ```
