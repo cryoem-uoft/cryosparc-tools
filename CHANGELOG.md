@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.3.1
+
+- Fixed: `Job.queue` method `lane` argument is now optional when queuing directly to master
+- Fixed: Dataset memory leak due to missing reference count decrease during dataset garbage collection
+- Docs: pip update instructions
+- Docs: Recommend Python environment as a prerequisite
+
 ## v4.3.0
 
 - Added: Updated project doc spec with updated generate intermediate results settings field
