@@ -46,17 +46,9 @@ cdef class Data:
             raise MemoryError()
 
     def __dealloc__(self):
-        cdef int nrow
-        cdef int coltype
-        cdef char *colkey
-        cdef PyObject **mem
-        cdef size_t size
-        cdef size_t itemsize
-        if not self._handle:
-            return
-
-        self._decrefs()
-        dataset.dset_del(self._handle)
+        if self._handle:
+            self._decrefs()
+            dataset.dset_del(self._handle)
 
     def _increfs(self):
         # Increment reference counts for all Python object fields.
@@ -198,10 +190,7 @@ cdef class Data:
             pystrcol[i] = <PyObject *> pystr
             Py_XINCREF(<PyObject *> pystr)
 
-        if not dataset.dset_changecol(self._handle, colkey, T_OBJ):
-            return False
-
-        return True
+        return bool(dataset.dset_changecol(self._handle, colkey, T_OBJ))
 
     def stralloc(self, str val):
         cdef uint64_t idx

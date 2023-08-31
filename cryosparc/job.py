@@ -112,17 +112,21 @@ class Job(MongoController[JobDocument]):
         """
         return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
 
-    def queue(self, lane: str, hostname: Optional[str] = None, gpus: List[int] = []):
+    def queue(self, lane: Optional[str] = None, hostname: Optional[str] = None, gpus: List[int] = []):
         """
-        Queue a job to a target lane. Available lanes may be queried from
+        Queue a job to a target lane. Available lanes may be queried with
         `CryoSPARC.get_lanes`_.
 
-        Optionally specify a hostname in that lane and/or specific GPUs to use
-        for computation. Available hostnames for a given lane may be queried
-        with `CryoSPARC.get_targets`_.
+        Optionally specify a hostname for a node or cluster in the given lane.
+        Optionally specify specific GPUs indexes to use for computation.
+
+        Available hostnames for a given lane may be queried with
+        `CryoSPARC.get_targets`_.
 
         Args:
-            lane (str): Configuried compute lane to queue to.
+            lane (str, optional): Configuried compute lane to queue to. Leave
+                unspecified to run directly on the master or current
+                workstation. Defaults to None.
             hostname (str, optional): Specific hostname in compute lane, if more
                 than one is available. Defaults to None.
             gpus (list[int], optional): GPUs to queue to. If specified, must
