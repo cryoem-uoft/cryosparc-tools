@@ -1556,4 +1556,4 @@ def generate_uids(num: int = 0):
     Returns:
         NDArray: Numpy array of random unsigned 64-bit integers
     """
-    return random_integers(default_rng(), low=0, high=2 ** 64, size=num, dtype=n.uint64)
+    return random_integers(default_rng(), low=0, high=2**64, size=num, dtype=n.uint64)

@@ -48,7 +48,7 @@ from .spec import (
 from .util import bopen, noopcontext, padarray, trimarray
 
 
-ONE_MIB = 2 ** 20  # bytes in one mebibyte
+ONE_MIB = 2**20  # bytes in one mebibyte
 
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 """Regular expression for matching CryoSPARC license IDs."""
@@ -951,7 +951,7 @@ def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, o
         arr = padarray(arr, val=n.mean(arr))
 
     radwn = (psize_A * arr.shape[-1]) / cutoff_resolution_A
-    inverse_cutoff_wn2 = 1.0 / radwn ** 2
+    inverse_cutoff_wn2 = 1.0 / radwn**2
 
     farr = n.fft.rfft2(arr)
     ny, nx = farr.shape
