@@ -359,22 +359,38 @@ class Project(MongoController[ProjectDocument]):
         """
         return self.cs.download_mrc(self.uid, path_rel)
 
-    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]):
+    def upload(
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        source: Union[str, bytes, PurePath, IO],
+        *,
+        overwrite: bool = False,
+    ):
         """
         Upload the given file to the project directory at the given relative
-        path.
+        path. Fails if target already exists.
 
         Args:
             target_path_rel (str | Path): Relative target path in project
                 directory.
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
-        return self.cs.upload(self.uid, target_path_rel, source)
+        return self.cs.upload(self.uid, target_path_rel, source, overwrite=overwrite)
 
-    def upload_dataset(self, target_path_rel: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT):
+    def upload_dataset(
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        dset: Dataset,
+        *,
+        format: int = DEFAULT_FORMAT,
+        overwrite: bool = False,
+    ):
         """
-        Upload a dataset as a CS file into the project directory.
+        Upload a dataset as a CS file into the project directory. Fails if
+        target already exists.
 
         Args:
             target_path_rel (str | Path): relative path to save dataset in
@@ -382,21 +398,32 @@ class Project(MongoController[ProjectDocument]):
             dset (Dataset): dataset to save.
             format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
-
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
-        return self.cs.upload_dataset(self.uid, target_path_rel, dset, format=format)
+        return self.cs.upload_dataset(self.uid, target_path_rel, dset, format=format, overwrite=overwrite)
 
-    def upload_mrc(self, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
+    def upload_mrc(
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        data: "NDArray",
+        psize: float,
+        *,
+        overwrite: bool = False,
+    ):
         """
-        Upload a numpy 2D or 3D array to the job directory as an MRC file.
+        Upload a numpy 2D or 3D array to the job directory as an MRC file. Fails
+        if target already exists.
 
         Args:
             target_path_rel (str | Path): filename or relative path. Should have
                 ``.mrc`` extension.
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
-        return self.cs.upload_mrc(self.uid, target_path_rel, data, psize)
+        return self.cs.upload_mrc(self.uid, target_path_rel, data, psize, overwrite=overwrite)
 
     def mkdir(
         self,

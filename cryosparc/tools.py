@@ -678,11 +678,16 @@ class CryoSPARC:
             return target
 
     def upload(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]
+        self,
+        project_uid: str,
+        target_path_rel: Union[str, PurePosixPath],
+        source: Union[str, bytes, PurePath, IO],
+        *,
+        overwrite: bool = False,
     ):
         """
         Upload the given source file to the project directory at the given
-        relative path.
+        relative path. Fails if target already exists.
 
         Args:
             project_uid (str): project unique ID, e.g., "P3"
@@ -690,10 +695,14 @@ class CryoSPARC:
                 directory.
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
+        url = f"/projects/{project_uid}/files"
+        query: dict = {"path": target_path_rel}
+        if overwrite:
+            query["overwrite"] = 1
         with open(source, "rb") if isinstance(source, (str, PurePath)) else noopcontext(source) as f:
-            url = f"/projects/{project_uid}/files"
-            query = {"path": target_path_rel}
             with make_request(self.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
                     f"Could not upload project {project_uid} file {target_path_rel}.\n"
@@ -701,10 +710,17 @@ class CryoSPARC:
                 )
 
     def upload_dataset(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT
+        self,
+        project_uid: str,
+        target_path_rel: Union[str, PurePosixPath],
+        dset: Dataset,
+        *,
+        format: int = DEFAULT_FORMAT,
+        overwrite: bool = False,
     ):
         """
-        Upload a dataset as a CS file into the project directory.
+        Upload a dataset as a CS file into the project directory. Fails if
+        target already exists.
 
         Args:
             project_uid (str): project unique ID, e.g., "P3"
@@ -713,23 +729,34 @@ class CryoSPARC:
             dset (Dataset): dataset to save.
             format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
         if len(dset) < 100:
             # Probably small enough to upload from memory
             f = BytesIO()
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f)
+            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
 
         # Write to temp file first
         with tempfile.TemporaryFile("w+b") as f:
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f)
+            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
 
-    def upload_mrc(self, project_uid: str, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
+    def upload_mrc(
+        self,
+        project_uid: str,
+        target_path_rel: Union[str, PurePosixPath],
+        data: "NDArray",
+        psize: float,
+        *,
+        overwrite: bool = False,
+    ):
         """
         Upload a numpy 2D or 3D array to the job directory as an MRC file.
+        Fails if target already exists.
 
         Args:
             project_uid (str): project unique ID, e.g., "P3"
@@ -737,11 +764,13 @@ class CryoSPARC:
                 ``.mrc`` extension.
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
         with tempfile.TemporaryFile("w+b") as f:
             mrc.write(f, data, psize)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f)
+            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
 
     def mkdir(
         self,
