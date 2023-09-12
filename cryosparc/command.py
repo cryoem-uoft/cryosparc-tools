@@ -4,12 +4,18 @@ servers. Generally should not be used directly.
 """
 from contextlib import contextmanager
 import json
+import os
 import socket
+import time
 import uuid
 from typing import Optional, Type
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
+from warnings import warn
+
+MAX_ATTEMPTS = int(os.getenv("CRYOSPARC_COMMAND_RETRIES", 3))
+RETRY_INTERVAL = int(os.getenv("CRYOSPARC_COMMAND_RETRY_SECONDS", 30))
 
 
 class CommandClient:
@@ -102,7 +108,7 @@ class CommandClient:
             }
             res = None
             try:
-                with make_json_request(self, "/api", data=data) as request:
+                with make_json_request(self, "/api", data=data, _stacklevel=4) as request:
                     res = json.loads(request.read())
             except CommandClient.Error as err:
                 raise CommandClient.Error(
@@ -127,7 +133,14 @@ class CommandClient:
 
 @contextmanager
 def make_request(
-    client: CommandClient, method: str = "POST", url: str = "", query: dict = {}, data=None, headers: dict = {}
+    client: CommandClient,
+    method: str = "POST",
+    url: str = "",
+    *,
+    query: dict = {},
+    data=None,
+    headers: dict = {},
+    _stacklevel=2,  # controls warning line number
 ):
     """
     Create a raw HTTP request/response context with the given command client.
@@ -157,24 +170,15 @@ def make_request(
     url = f"{client._url}{url}{'?' + urlencode(query) if query else ''}"
     headers = {"Originator": "client", **client._headers, **headers}
     attempt = 1
-    max_attempts = 3
     error_reason = "<unknown>"
-    while attempt < max_attempts:
+    while attempt < MAX_ATTEMPTS:
         request = Request(url, data=data, headers=headers, method=method)
         response = None
         try:
             with urlopen(request, timeout=client._timeout) as response:
                 yield response
                 return
-        except (TimeoutError, socket.timeout):
-            error_reason = "Timeout Error"
-            print(
-                f"*** {type(client).__name__}: command ({url}) "
-                f"did not reply within timeout of {client._timeout} seconds, "
-                f"attempt {attempt} of {max_attempts}"
-            )
-            attempt += 1
-        except HTTPError as error:
+        except HTTPError as error:  # command server reported an error
             error_reason = (
                 f"HTTP Error {error.code} {error.reason}; "
                 f"please check cryosparcm log {client.service} for additional information."
@@ -182,17 +186,31 @@ def make_request(
             if error.readable():
                 error_reason += "\nResponse from server: " + str(error.read())
 
-            print(f"*** {type(client).__name__}: ({url}) {error_reason}")
+            warn(f"*** {type(client).__name__}: ({url}) {error_reason}", stacklevel=_stacklevel)
             break
-        except URLError as error:
+        except URLError as error:  # command server may be down
             error_reason = f"URL Error {error.reason}"
-            print(f"*** {type(client).__name__}: ({url}) {error_reason}")
-            break
+            warn(
+                f"*** {type(client).__name__}: ({url}) {error_reason}, attempt {attempt} of {MAX_ATTEMPTS}. "
+                f"Retrying in {RETRY_INTERVAL} seconds",
+                stacklevel=_stacklevel,
+            )
+            time.sleep(RETRY_INTERVAL)
+            attempt += 1
+        except (TimeoutError, socket.timeout):  # slow network connection or request
+            error_reason = "Timeout Error"
+            warn(
+                f"*** {type(client).__name__}: command ({url}) "
+                f"did not reply within timeout of {client._timeout} seconds, "
+                f"attempt {attempt} of {MAX_ATTEMPTS}",
+                stacklevel=_stacklevel,
+            )
+            attempt += 1
 
     raise CommandClient.Error(client, error_reason, url=url)
 
 
-def make_json_request(client: CommandClient, url="", query={}, data=None, headers={}):
+def make_json_request(client: CommandClient, url="", *, query={}, data=None, headers={}, _stacklevel=3):
     """
     Similar to ``make_request``, except sends request body data JSON and
     receives arbitrary response.
@@ -218,7 +236,7 @@ def make_json_request(client: CommandClient, url="", query={}, data=None, header
     """
     headers = {"Content-Type": "application/json", **headers}
     data = json.dumps(data, cls=client._cls).encode()
-    return make_request(client, url=url, query=query, data=data, headers=headers)
+    return make_request(client, url=url, query=query, data=data, headers=headers, _stacklevel=_stacklevel)
 
 
 def format_server_error(error):
