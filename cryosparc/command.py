@@ -178,24 +178,6 @@ def make_request(
             with urlopen(request, timeout=client._timeout) as response:
                 yield response
                 return
-        except (TimeoutError, socket.timeout):  # slow network connection request
-            error_reason = "Timeout Error"
-            warn(
-                f"*** {type(client).__name__}: command ({url}) "
-                f"did not reply within timeout of {client._timeout} seconds, "
-                f"attempt {attempt} of {MAX_ATTEMPTS}",
-                stacklevel=_stacklevel,
-            )
-            attempt += 1
-        except URLError as error:  # command server may be down
-            error_reason = f"URL Error {error.reason}"
-            warn(
-                f"*** {type(client).__name__}: ({url}) {error_reason}, attempt {attempt} of {MAX_ATTEMPTS}. "
-                f"Retrying in {RETRY_INTERVAL} seconds",
-                stacklevel=_stacklevel,
-            )
-            time.sleep(RETRY_INTERVAL)
-            attempt += 1
         except HTTPError as error:  # command server reported an error
             error_reason = (
                 f"HTTP Error {error.code} {error.reason}; "
@@ -206,6 +188,24 @@ def make_request(
 
             warn(f"*** {type(client).__name__}: ({url}) {error_reason}", stacklevel=_stacklevel)
             break
+        except URLError as error:  # command server may be down
+            error_reason = f"URL Error {error.reason}"
+            warn(
+                f"*** {type(client).__name__}: ({url}) {error_reason}, attempt {attempt} of {MAX_ATTEMPTS}. "
+                f"Retrying in {RETRY_INTERVAL} seconds",
+                stacklevel=_stacklevel,
+            )
+            time.sleep(RETRY_INTERVAL)
+            attempt += 1
+        except (TimeoutError, socket.timeout):  # slow network connection or request
+            error_reason = "Timeout Error"
+            warn(
+                f"*** {type(client).__name__}: command ({url}) "
+                f"did not reply within timeout of {client._timeout} seconds, "
+                f"attempt {attempt} of {MAX_ATTEMPTS}",
+                stacklevel=_stacklevel,
+            )
+            attempt += 1
 
     raise CommandClient.Error(client, error_reason, url=url)
 
