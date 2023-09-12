@@ -14,6 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from warnings import warn
 
+MAX_ATTEMPTS = int(os.getenv("CRYOSPARC_COMMAND_RETRIES", 3))
 RETRY_INTERVAL = int(os.getenv("CRYOSPARC_COMMAND_RETRY_SECONDS", 30))
 
 
@@ -169,9 +170,8 @@ def make_request(
     url = f"{client._url}{url}{'?' + urlencode(query) if query else ''}"
     headers = {"Originator": "client", **client._headers, **headers}
     attempt = 1
-    max_attempts = 3
     error_reason = "<unknown>"
-    while attempt < max_attempts:
+    while attempt < MAX_ATTEMPTS:
         request = Request(url, data=data, headers=headers, method=method)
         response = None
         try:
@@ -183,14 +183,14 @@ def make_request(
             warn(
                 f"*** {type(client).__name__}: command ({url}) "
                 f"did not reply within timeout of {client._timeout} seconds, "
-                f"attempt {attempt} of {max_attempts}",
+                f"attempt {attempt} of {MAX_ATTEMPTS}",
                 stacklevel=_stacklevel,
             )
             attempt += 1
         except URLError as error:  # command server may be down
             error_reason = f"URL Error {error.reason}"
             warn(
-                f"*** {type(client).__name__}: ({url}) {error_reason}, attempt {attempt} of {max_attempts}. "
+                f"*** {type(client).__name__}: ({url}) {error_reason}, attempt {attempt} of {MAX_ATTEMPTS}. "
                 f"Retrying in {RETRY_INTERVAL} seconds",
                 stacklevel=_stacklevel,
             )
