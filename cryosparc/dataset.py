@@ -101,6 +101,12 @@ FORMAT_MAGIC_PREFIXES = {
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
 
+class DatasetLoadError(Exception):
+    """Exception type raised when a dataset cannot be loaded"""
+
+    pass
+
+
 class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with CryoSPARC .cs files.
@@ -538,22 +544,25 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 instead of Python strings. Defaults to False.
 
         Raises:
-            TypeError: If cannot determine type of dataset file.
+            DatasetLoadError: If cannot load dataset file.
 
         Returns:
             Dataset: loaded dataset.
         """
         prefix = None
-        with bopen(file, "rb") as f:
-            prefix = f.read(6)
-            if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
-                f.seek(0)
-                indata = n.load(f, allow_pickle=False)
-                dset = cls(indata)
-                if cstrs:
-                    dset.to_cstrs()
-                return dset
-            elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+        try:
+            with bopen(file, "rb") as f:
+                prefix = f.read(6)
+                if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                    f.seek(0)
+                    indata = n.load(f, allow_pickle=False)
+                    dset = cls(indata)
+                    if cstrs:
+                        dset.to_cstrs()
+                    return dset
+                elif prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+                    raise TypeError(f"Could not determine dataset format (prefix is {prefix})")
+
                 headersize = u32intle(f.read(4))
                 header = decode_dataset_header(f.read(headersize))
 
@@ -584,7 +593,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                     dset.to_pystrs()
                 return dset
 
-        raise TypeError(f"Could not determine dataset format for file {file} (prefix is {prefix})")
+        except Exception as err:
+            raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
