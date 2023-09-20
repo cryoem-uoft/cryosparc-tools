@@ -37,6 +37,7 @@ Datatype = Literal[
     "symmetry_candidate",
     "flex_mesh",
     "flex_model",
+    "hyperparameter",
 ]
 """Supported data types for job inputs and outputs."""
 
