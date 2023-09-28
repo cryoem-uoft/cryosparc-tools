@@ -4,6 +4,7 @@
 #include <complex.h>   // complex number support
 #include <stdint.h>    // fixed width integer types
 #include <inttypes.h>  // printf specifiers for fixed width integer types
+#include <stddef.h>    // standard variable types and macros
 
 #define repr(x,a,b,val) val
 
