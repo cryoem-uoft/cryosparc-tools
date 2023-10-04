@@ -96,6 +96,7 @@ jobs:
       - uses: pypa/cibuildwheel@v2.16.2
         env:
           CIBW_SKIP: cp36-* pp*-win* pp*-macosx* *_i686
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_ARCHS_MACOS: "x86_64 arm64 universal2"
           CIBW_ARCHS_WINDOWS: "AMD64 ARM64"
         with:
