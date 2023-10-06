@@ -650,7 +650,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["lz4", None] = None) -> Iterable[Union[bytes, memoryview, "MemoryView"]]:
+    def stream(self, compression: Literal["lz4", None] = None) -> Iterable[bytes]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -684,9 +684,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             else:
                 fielddata = stream.stralloc_col(f) or data.getbuf(f)
             yield u32bytesle(len(fielddata))
-            yield fielddata.memview
+            yield bytes(fielddata.memview)
 
-        yield data.dumpstrheap().memview
+        yield bytes(data.dumpstrheap().memview)
 
     def __init__(
         self,
