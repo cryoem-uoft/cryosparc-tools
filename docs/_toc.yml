@@ -14,6 +14,7 @@ parts:
   - file: examples/hi-res-2d-classes
   - file: examples/xml-exposure-groups
   - file: examples/custom-workflow
+  - file: examples/delete-rejected-exposures
 - caption: API Reference
   chapters:
   - file: api/index
