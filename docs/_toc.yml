@@ -15,6 +15,7 @@ parts:
   - file: examples/xml-exposure-groups
   - file: examples/custom-workflow
   - file: examples/delete-rejected-exposures
+  - file: examples/upscale-expanded-particles
 - caption: API Reference
   chapters:
   - file: api/index
