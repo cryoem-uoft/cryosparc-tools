@@ -16,6 +16,7 @@ parts:
   - file: examples/custom-workflow
   - file: examples/delete-rejected-exposures
   - file: examples/upscale-expanded-particles
+  - file: examples/connect_series_to_class3D
 - caption: API Reference
   chapters:
   - file: api/index
