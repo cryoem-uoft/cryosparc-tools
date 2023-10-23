@@ -30,6 +30,7 @@ dev = [
     "black",
     "cython",
     "httpretty",
+    "pre-commit",
     "pyright",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
