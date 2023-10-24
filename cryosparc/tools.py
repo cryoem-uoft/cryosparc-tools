@@ -24,11 +24,13 @@ from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 import os
 import re
 import tempfile
+from warnings import warn
 import numpy as n
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
 
+from . import __version__
 from . import mrc
 from .command import CommandClient, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
@@ -52,6 +54,9 @@ ONE_MIB = 2**20  # bytes in one mebibyte
 
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 """Regular expression for matching CryoSPARC license IDs."""
+
+VERSION_REGEX = re.compile(r"^v\d+\.\d+\.\d+")
+"""Regular version for CryoSPARC minor version, e.g., 'v4.1.0'"""
 
 SUPPORTED_EXPOSURE_FORMATS = {
     "MRC",
@@ -143,18 +148,46 @@ class CryoSPARC:
         assert password, "Invalid or unspecified password"
 
         self.cli = CommandClient(
-            service="command_core", host=host, port=base_port + 2, headers={"License-ID": license}, timeout=timeout
+            service="command_core",
+            host=host,
+            port=base_port + 2,
+            headers={"License-ID": license},
+            timeout=timeout,
         )
         self.vis = CommandClient(
-            service="command_vis", host=host, port=base_port + 3, headers={"License-ID": license}, timeout=timeout
+            service="command_vis",
+            host=host,
+            port=base_port + 3,
+            headers={"License-ID": license},
+            timeout=timeout,
         )
         self.rtp = CommandClient(
-            service="command_rtp", host=host, port=base_port + 5, headers={"License-ID": license}, timeout=timeout
+            service="command_rtp",
+            host=host,
+            port=base_port + 5,
+            headers={"License-ID": license},
+            timeout=timeout,
         )
         try:
             self.user_id = self.cli.get_id_by_email_password(email, password)  # type: ignore
+            cs_version: str = self.cli.get_running_version()  # type: ignore
         except Exception as e:
             raise RuntimeError("Could not complete CryoSPARC authentication with given credentials") from e
+
+        if cs_version and cs_version != "develop" and VERSION_REGEX.match(cs_version):
+            minor_cs_version = ".".join(cs_version[1:].split(".")[:2])  # e.g., v4.1.0 -> 4.1
+            minor_tools_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
+            tools_prerelease_url = "https://github.com/cryoem-uoft/cryosparc-tools/archive/refs/heads/develop.zip"
+            if minor_cs_version != minor_tools_version:
+                warn(
+                    f"CryoSPARC version {cs_version} for instance {host}:{base_port} "
+                    f"may not be compatible with current cryosparc-tools version v{__version__}.\n\n"
+                    "To install a compatible version of cryosparc-tools:\n\n"
+                    f"    pip install --force cryosparc-tools~={minor_cs_version}.0\n\n"
+                    "Or, if running a CryoSPARC pre-release or private beta:\n\n"
+                    f"    pip install --force {tools_prerelease_url}\n",
+                    stacklevel=2,
+                )
 
     def test_connection(self):
         """
