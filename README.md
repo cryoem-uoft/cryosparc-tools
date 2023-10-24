@@ -33,6 +33,10 @@ Toolkit for interfacing with CryoSPARC. Read the documentation at
    pip install -U pip wheel
    pip install -e ".[dev]"
    ```
+4. Install pre-commit hooks
+   ```
+   pre-commit install
+   ```
 
 ### Re-compile native module
 

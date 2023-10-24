@@ -430,4 +430,3 @@ cdef class Stream:
             return <char [:uncompressed_sz]> uncompressed
 
         raise ValueError(f"Could not decompress (error {uncompressed_sz})")
-

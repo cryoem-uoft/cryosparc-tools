@@ -13,7 +13,7 @@ char * randstr(void) {
 }
 
 #include <time.h>
-int main (int argc, char ** argv) 
+int main (int argc, char ** argv)
 {
 	srand(time(NULL));
 	uint64_t d = dset_new();
