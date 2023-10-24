@@ -175,15 +175,15 @@ class CryoSPARC:
             raise RuntimeError("Could not complete CryoSPARC authentication with given credentials") from e
 
         if cs_version and VERSION_REGEX.match(cs_version):
-            minor_cs_version = ".".join(cs_version[1:].split(".")[:2])  # e.g., v4.1.0 -> 4.1
-            minor_tools_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
+            cs_major_minor_version = ".".join(cs_version[1:].split(".")[:2])  # e.g., v4.1.0 -> 4.1
+            tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
             tools_prerelease_url = "https://github.com/cryoem-uoft/cryosparc-tools/archive/refs/heads/develop.zip"
-            if minor_cs_version != minor_tools_version:
+            if cs_major_minor_version != tools_major_minor_version:
                 warn(
                     f"CryoSPARC instance {host}:{base_port} with version {cs_version} "
                     f"may not be compatible with current cryosparc-tools version v{__version__}.\n\n"
                     "To install a compatible version of cryosparc-tools:\n\n"
-                    f"    pip install --force cryosparc-tools~={minor_cs_version}.0\n\n"
+                    f"    pip install --force cryosparc-tools~={cs_major_minor_version}.0\n\n"
                     "Or, if running a CryoSPARC pre-release or private beta:\n\n"
                     f"    pip install --no-cache --force {tools_prerelease_url}\n",
                     stacklevel=2,
