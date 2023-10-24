@@ -56,7 +56,7 @@ LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]
 """Regular expression for matching CryoSPARC license IDs."""
 
 VERSION_REGEX = re.compile(r"^v\d+\.\d+\.\d+")
-"""Regular version for CryoSPARC minor version, e.g., 'v4.1.0'"""
+"""Regular expression for CryoSPARC minor version, e.g., 'v4.1.0'"""
 
 SUPPORTED_EXPOSURE_FORMATS = {
     "MRC",
@@ -185,7 +185,7 @@ class CryoSPARC:
                     "To install a compatible version of cryosparc-tools:\n\n"
                     f"    pip install --force cryosparc-tools~={minor_cs_version}.0\n\n"
                     "Or, if running a CryoSPARC pre-release or private beta:\n\n"
-                    f"    pip install --force {tools_prerelease_url}\n",
+                    f"    pip install --no-cache --force {tools_prerelease_url}\n",
                     stacklevel=2,
                 )
 
