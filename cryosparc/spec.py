@@ -46,7 +46,6 @@ JobStatus = Literal[
     "building",
     "queued",
     "launched",
-    "started",
     "running",
     "waiting",
     "completed",

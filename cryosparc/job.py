@@ -177,7 +177,6 @@ class Job(MongoController[JobDocument]):
         - 'building'
         - 'queued'
         - 'launched'
-        - 'started'
         - 'running'
         - 'waiting'
         - 'completed'
