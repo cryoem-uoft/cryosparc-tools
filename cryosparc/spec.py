@@ -206,6 +206,25 @@ class Datafield(TypedDict):
     input/output. Assumed to be ``True`` if not specified"""
 
 
+SlotSpec = Union[str, Datafield]
+"""
+A result slot specification for the slots=... argument.
+"""
+
+
+class SlotsValidation(TypedDict):
+    """
+    Data from validation error when specifying external result input/output slots.
+
+    :meta private:
+    """
+
+    type: Datatype
+    valid: List[SlotSpec]
+    invalid: List[Datafield]
+    valid_dtypes: List[str]
+
+
 class InputSlot(TypedDict):
     """
     Dictionary entry in Job document's ``input_slot_groups.slots`` property.
@@ -878,3 +897,32 @@ class MongoController(ABC, Generic[D]):
     def refresh(self):
         # Must be implemented in subclasses
         return self
+
+
+def format_invalid_slots_error(caller: str, validation: SlotsValidation):
+    """
+    :meta private:
+    """
+    type = validation["type"]
+    valid_slots = validation["valid"]
+    invalid_slots = validation["invalid"]
+    valid_dtypes = validation["valid_dtypes"]
+    return "\n".join(
+        [
+            f"Unknown {type} slot dtype(s): {', '.join(s['dtype'] for s in invalid_slots)}. "
+            "Only the following slot dtypes are valid:",
+            "",
+        ]
+        + [f" - {t}" for t in valid_dtypes]
+        + [
+            "",
+            "If adding a dynamic result such as alignments_class_#, specify a "
+            "slots=... argument with a full data field specification:",
+            "",
+            f"    {caller}(... , slots=[",
+            "        ...",
+        ]
+        + [f"        {repr(s)}," for s in valid_slots]
+        + ["        {'dtype': '<INSERT HERE>', 'prefix': '%s', 'required': True}," % s["dtype"] for s in invalid_slots]
+        + ["        ...", "    ])"]
+    )

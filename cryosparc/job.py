@@ -9,7 +9,7 @@ from time import sleep, time
 from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Union, overload
 from typing_extensions import Literal
 
-from .command import make_json_request, make_request
+from .command import CommandError, make_json_request, make_request
 from .dataset import Dataset, DEFAULT_FORMAT
 from .spec import (
     ASSET_CONTENT_TYPES,
@@ -20,11 +20,12 @@ from .spec import (
     MongoController,
     ImageFormat,
     JobStatus,
+    SlotSpec,
     TextFormat,
     EventLogAsset,
     Datatype,
-    Datafield,
     JobDocument,
+    format_invalid_slots_error,
 )
 from .util import bopen, first
 
@@ -1049,7 +1050,7 @@ class ExternalJob(Job):
         name: Optional[str] = None,
         min: int = 0,
         max: Union[int, Literal["inf"]] = "inf",
-        slots: Iterable[Union[str, Datafield]] = [],
+        slots: Iterable[SlotSpec] = [],
         title: Optional[str] = None,
     ):
         """
@@ -1065,7 +1066,7 @@ class ExternalJob(Job):
             max (int | Literal["inf"], optional): Maximum number of input
                 connections. Specify ``"inf"`` for unlimited connections.
                 Defaults to "inf".
-            slots (list[str | Datafield], optional): List of slots that should
+            slots (list[SlotSpec], optional): List of slots that should
                 be connected to this input, such as ``"location"`` or ``"blob"``
                 Defaults to [].
             title (str, optional): Human-readable title for this input. Defaults
@@ -1092,16 +1093,23 @@ class ExternalJob(Job):
             ... )
             "input_micrographs"
         """
-        self.cs.vis.add_external_job_input(  # type: ignore
-            project_uid=self.project_uid,
-            job_uid=self.uid,
-            type=type,
-            name=name,
-            min=min,
-            max=max,
-            slots=slots,
-            title=title,
-        )
+        try:
+            self.cs.vis.add_external_job_input(  # type: ignore
+                project_uid=self.project_uid,
+                job_uid=self.uid,
+                type=type,
+                name=name,
+                min=min,
+                max=max,
+                slots=slots,
+                title=title,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise ValueError(format_invalid_slots_error("add_input", err.data["slots"]))
+            else:
+                raise
+
         self.refresh()
         return self.doc["input_slot_groups"][-1]["name"]
 
@@ -1110,7 +1118,7 @@ class ExternalJob(Job):
         self,
         type: Datatype,
         name: Optional[str] = ...,
-        slots: List[Union[str, Datafield]] = ...,
+        slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
         title: Optional[str] = None,
     ) -> str:
@@ -1121,7 +1129,7 @@ class ExternalJob(Job):
         self,
         type: Datatype,
         name: Optional[str] = ...,
-        slots: List[Union[str, Datafield]] = ...,
+        slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
         title: Optional[str] = None,
         alloc: Union[int, Dataset] = ...,
@@ -1132,7 +1140,7 @@ class ExternalJob(Job):
         self,
         type: Datatype,
         name: Optional[str] = None,
-        slots: List[Union[str, Datafield]] = [],
+        slots: List[SlotSpec] = [],
         passthrough: Optional[str] = None,
         title: Optional[str] = None,
         alloc: Union[int, Dataset, Literal[None]] = None,
@@ -1145,7 +1153,7 @@ class ExternalJob(Job):
             type (Datatype): cryo-EM datatype for this output, e.g., "particle"
             name (str, optional): Output name key, e.g., "selected_particles".
                 Same as ``type`` if not specified. Defaults to None.
-            slots (list[str, Datafield], optional): List of slot expected to be
+            slots (list[SlotSpec], optional): List of slot expected to be
                 created for this output, such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to [].
@@ -1221,7 +1229,7 @@ class ExternalJob(Job):
         target_input: str,
         source_job_uid: str,
         source_output: str,
-        slots: List[Union[str, Datafield]] = [],
+        slots: List[SlotSpec] = [],
         title: str = "",
         desc: str = "",
         refresh: bool = True,
@@ -1237,7 +1245,7 @@ class ExternalJob(Job):
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
-            slots (list[str | Datafield], optional): List of slots to add to
+            slots (list[SlotSpec], optional): List of slots to add to
                 created input. All if not specified. Defaults to [].
             title (str, optional): Human readable title for created input.
                 Defaults to "".
@@ -1258,16 +1266,23 @@ class ExternalJob(Job):
 
         """
         assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
-        self.cs.vis.connect_external_job(  # type: ignore
-            project_uid=self.project_uid,
-            source_job_uid=source_job_uid,
-            source_output=source_output,
-            target_job_uid=self.uid,
-            target_input=target_input,
-            slots=slots,
-            title=title,
-            desc=desc,
-        )
+        try:
+            self.cs.vis.connect_external_job(  # type: ignore
+                project_uid=self.project_uid,
+                source_job_uid=source_job_uid,
+                source_output=source_output,
+                target_job_uid=self.uid,
+                target_input=target_input,
+                slots=slots,
+                title=title,
+                desc=desc,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise ValueError(format_invalid_slots_error("connect", err.data["slots"]))
+            else:
+                raise
+
         if refresh:
             self.refresh()
 
