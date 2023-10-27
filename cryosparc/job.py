@@ -1106,7 +1106,7 @@ class ExternalJob(Job):
             )
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
-                raise ValueError(format_invalid_slots_error("add_input", err.data["slots"]))
+                raise ValueError(format_invalid_slots_error("add_input", err.data["slots"])) from err
             raise
         self.refresh()
         return self.doc["input_slot_groups"][-1]["name"]
@@ -1221,7 +1221,7 @@ class ExternalJob(Job):
             )
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
-                raise ValueError(format_invalid_slots_error("add_output", err.data["slots"]))
+                raise ValueError(format_invalid_slots_error("add_output", err.data["slots"])) from err
             raise
         self.refresh()
         result_name = self.doc["output_result_groups"][-1]["name"]
@@ -1282,7 +1282,7 @@ class ExternalJob(Job):
             )
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
-                raise ValueError(format_invalid_slots_error("connect", err.data["slots"]))
+                raise ValueError(format_invalid_slots_error("connect", err.data["slots"])) from err
             raise
         if refresh:
             self.refresh()
