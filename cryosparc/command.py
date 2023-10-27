@@ -8,7 +8,7 @@ import os
 import socket
 import time
 import uuid
-from typing import Optional, Type
+from typing import Any, Optional, Type
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -16,6 +16,21 @@ from warnings import warn
 
 MAX_ATTEMPTS = int(os.getenv("CRYOSPARC_COMMAND_RETRIES", 3))
 RETRY_INTERVAL = int(os.getenv("CRYOSPARC_COMMAND_RETRY_SECONDS", 30))
+
+
+class CommandError(Exception):
+    """
+    Raise by all
+    """
+
+    code: int
+    data: Any
+
+    def __init__(self, reason: str, *args: object, url: str = "", code: int = 500, data: Any = None) -> None:
+        msg = f"*** ({url}) {reason}"
+        super().__init__(msg, *args)
+        self.code = code
+        self.data = data
 
 
 class CommandClient:
@@ -73,12 +88,8 @@ class CommandClient:
 
     """
 
+    Error = CommandError
     service: str
-
-    class Error(Exception):
-        def __init__(self, parent: "CommandClient", reason: str, *args: object, url: str = "") -> None:
-            msg = f"*** {type(parent).__name__}: ({url}) {reason}"
-            super().__init__(msg, *args)
 
     def __init__(
         self,
@@ -100,24 +111,35 @@ class CommandClient:
     def _get_callable(self, key):
         def func(*args, **kwargs):
             params = kwargs if len(kwargs) else args
-            data = {
-                "jsonrpc": "2.0",
-                "method": key,
-                "params": params,
-                "id": str(uuid.uuid4()),
-            }
+            data = {"jsonrpc": "2.0", "method": key, "params": params, "id": str(uuid.uuid4())}
             res = None
             try:
                 with make_json_request(self, "/api", data=data, _stacklevel=4) as request:
                     res = json.loads(request.read())
-            except CommandClient.Error as err:
-                raise CommandClient.Error(
-                    self, f'Did not receive a JSON response from method "{key}" with params {params}', url=self._url
+            except CommandError as err:
+                raise CommandError(
+                    f'Encounted error from JSONRPC function "{key}" with params {params}',
+                    url=self._url,
+                    code=err.code,
+                    data=err.data,
                 ) from err
 
-            assert res, f'JSON response not received for method "{key}" with params {params}'
-            assert "error" not in res, f'Error for "{key}" with params {params}:\n' + format_server_error(res["error"])
-            return res["result"]
+            if not res:
+                raise CommandError(
+                    f'JSON response not received from JSONRPC function "{key}" with params {params}',
+                    url=self._url,
+                )
+            elif "error" in res:
+                error = res["error"]
+                raise CommandError(
+                    f'Encountered {error.get("name", "Error")} from JSONRPC function "{key}" with params {params}:\n'
+                    f"{format_server_error(error)}",
+                    url=self._url,
+                    code=error.get("code"),
+                    data=error.get("data"),
+                )
+            else:
+                return res["result"]  # OK
 
         return func
 
@@ -154,7 +176,7 @@ def make_request(
         headers (dict, optional): HTTP headers. Defaults to {}.
 
     Raises:
-        CommandClient.Error: General error such as timeout, URL or HTTP
+        CommandError: General error such as timeout, URL or HTTP
 
     Yields:
         http.client.HTTPResponse:  Use with a context manager to get HTTP response
@@ -171,6 +193,8 @@ def make_request(
     headers = {"Originator": "client", **client._headers, **headers}
     attempt = 1
     error_reason = "<unknown>"
+    code = 500
+    resdata = None
     while attempt < MAX_ATTEMPTS:
         request = Request(url, data=data, headers=headers, method=method)
         response = None
@@ -179,12 +203,16 @@ def make_request(
                 yield response
                 return
         except HTTPError as error:  # command server reported an error
+            code = error.code
             error_reason = (
                 f"HTTP Error {error.code} {error.reason}; "
                 f"please check cryosparcm log {client.service} for additional information."
             )
             if error.readable():
-                error_reason += "\nResponse from server: " + str(error.read())
+                resdata = error.read()
+                error_reason += f"\nResponse from server: {data}"
+            if resdata and error.headers.get_content_type() == "application/json":
+                resdata = json.loads(resdata)
 
             warn(f"*** {type(client).__name__}: ({url}) {error_reason}", stacklevel=_stacklevel)
             break
@@ -207,7 +235,7 @@ def make_request(
             )
             attempt += 1
 
-    raise CommandClient.Error(client, error_reason, url=url)
+    raise CommandError(error_reason, url=url, code=code, data=resdata)
 
 
 def make_json_request(client: CommandClient, url="", *, query={}, data=None, headers={}, _stacklevel=3):
@@ -226,6 +254,9 @@ def make_json_request(client: CommandClient, url="", *, query={}, data=None, hea
     Yields:
         http.client.HTTPResponse: Use with a context manager to get HTTP response
 
+    Raises:
+        CommandError: General error such as timeout, URL or HTTP
+
     Example:
 
         >>> from cryosparc.command import CommandClient, make_json_request
@@ -240,6 +271,9 @@ def make_json_request(client: CommandClient, url="", *, query={}, data=None, hea
 
 
 def format_server_error(error):
+    """
+    :meta private:
+    """
     err = error["message"] if "message" in error else str(error)
     if "data" in error and error["data"]:
         if isinstance(error["data"], dict) and "traceback" in error["data"]:
