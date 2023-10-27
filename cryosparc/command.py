@@ -20,7 +20,7 @@ RETRY_INTERVAL = int(os.getenv("CRYOSPARC_COMMAND_RETRY_SECONDS", 30))
 
 class CommandError(Exception):
     """
-    Raise by all
+    Raised by failed request to a CryoSPARC command server.
     """
 
     code: int
