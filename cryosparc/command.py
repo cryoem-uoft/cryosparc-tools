@@ -27,7 +27,7 @@ class CommandError(Exception):
     data: Any
 
     def __init__(self, reason: str, *args: object, url: str = "", code: int = 500, data: Any = None) -> None:
-        msg = f"*** ({url}) {reason}"
+        msg = f"*** ({url}, code {code}) {reason}"
         super().__init__(msg, *args)
         self.code = code
         self.data = data

@@ -1107,9 +1107,7 @@ class ExternalJob(Job):
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
                 raise ValueError(format_invalid_slots_error("add_input", err.data["slots"]))
-            else:
-                raise
-
+            raise
         self.refresh()
         return self.doc["input_slot_groups"][-1]["name"]
 
@@ -1211,15 +1209,20 @@ class ExternalJob(Job):
             ... )
             "particle_alignments"
         """
-        self.cs.vis.add_external_job_output(  # type: ignore
-            project_uid=self.project_uid,
-            job_uid=self.uid,
-            type=type,
-            name=name,
-            slots=slots,
-            passthrough=passthrough,
-            title=title,
-        )
+        try:
+            self.cs.vis.add_external_job_output(  # type: ignore
+                project_uid=self.project_uid,
+                job_uid=self.uid,
+                type=type,
+                name=name,
+                slots=slots,
+                passthrough=passthrough,
+                title=title,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise ValueError(format_invalid_slots_error("add_output", err.data["slots"]))
+            raise
         self.refresh()
         result_name = self.doc["output_result_groups"][-1]["name"]
         return result_name if alloc is None else self.alloc_output(result_name, alloc)
@@ -1280,9 +1283,7 @@ class ExternalJob(Job):
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
                 raise ValueError(format_invalid_slots_error("connect", err.data["slots"]))
-            else:
-                raise
-
+            raise
         if refresh:
             self.refresh()
 

@@ -533,8 +533,7 @@ class CryoSPARC:
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
                 raise ValueError(format_invalid_slots_error("save_external_result", err.data["slots"]))
-            else:
-                raise
+            raise
 
         job = self.find_external_job(project_uid, job_uid)
         with job.run():
