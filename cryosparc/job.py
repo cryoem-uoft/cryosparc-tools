@@ -17,15 +17,15 @@ from .spec import (
     TEXT_CONTENT_TYPES,
     AssetDetails,
     AssetFormat,
-    MongoController,
+    Datatype,
+    EventLogAsset,
     ImageFormat,
+    InvalidSlotsError,
+    JobDocument,
     JobStatus,
+    MongoController,
     SlotSpec,
     TextFormat,
-    EventLogAsset,
-    Datatype,
-    JobDocument,
-    format_invalid_slots_error,
 )
 from .util import bopen, first
 
@@ -1072,6 +1072,11 @@ class ExternalJob(Job):
             title (str, optional): Human-readable title for this input. Defaults
                 to None.
 
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
+
         Returns:
             str: name of created input
 
@@ -1106,7 +1111,7 @@ class ExternalJob(Job):
             )
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
-                raise ValueError(format_invalid_slots_error("add_input", err.data["slots"])) from err
+                raise InvalidSlotsError("add_input", err.data["slots"]) from err
             raise
         self.refresh()
         return self.doc["input_slot_groups"][-1]["name"]
@@ -1166,6 +1171,11 @@ class ExternalJob(Job):
                 which to inherit unique row IDs (useful when adding passthrough
                 outputs). Defaults to None.
 
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
+
         Returns:
             str | Dataset: Name of the created output. If ``alloc`` is
                 specified as an integer, instead returns blank dataset with the
@@ -1221,7 +1231,7 @@ class ExternalJob(Job):
             )
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
-                raise ValueError(format_invalid_slots_error("add_output", err.data["slots"])) from err
+                raise InvalidSlotsError("add_output", err.data["slots"]) from err
             raise
         self.refresh()
         result_name = self.doc["output_result_groups"][-1]["name"]
@@ -1257,6 +1267,11 @@ class ExternalJob(Job):
             refresh (bool, optional): Auto-refresh job document after
                 connecting. Defaults to True.
 
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
+
         Examples:
 
             Connect J3 to CTF-corrected micrographs from J2's ``micrographs``
@@ -1282,7 +1297,7 @@ class ExternalJob(Job):
             )
         except CommandError as err:
             if err.code == 422 and err.data and "slots" in err.data:
-                raise ValueError(format_invalid_slots_error("connect", err.data["slots"])) from err
+                raise InvalidSlotsError("connect", err.data["slots"]) from err
             raise
         if refresh:
             self.refresh()
