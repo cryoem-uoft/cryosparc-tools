@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from .dataset import Dataset
 from .row import R
 from .job import Job, ExternalJob
-from .spec import MongoController, Datafield, Datatype, WorkspaceDocument
+from .spec import MongoController, Datatype, SlotSpec, WorkspaceDocument
 
 if TYPE_CHECKING:
     from .tools import CryoSPARC
@@ -125,7 +125,7 @@ class Workspace(MongoController[WorkspaceDocument]):
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[Union[str, Datafield]]] = None,
+        slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,
@@ -138,7 +138,7 @@ class Workspace(MongoController[WorkspaceDocument]):
             type (Datatype): Type of output dataset.
             name (str, optional): Name of output on created External job. Same
                 as type if unspecified. Defaults to None.
-            slots (list[str | Datafield], optional): List of slots expected to
+            slots (list[SlotSpec], optional): List of slots expected to
                 be created for this output such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to None.

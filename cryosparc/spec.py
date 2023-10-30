@@ -206,6 +206,12 @@ class Datafield(TypedDict):
     input/output. Assumed to be ``True`` if not specified"""
 
 
+SlotSpec = Union[str, Datafield]
+"""
+A result slot specification for the slots=... argument.
+"""
+
+
 class InputSlot(TypedDict):
     """
     Dictionary entry in Job document's ``input_slot_groups.slots`` property.

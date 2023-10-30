@@ -6,7 +6,7 @@ from .workspace import Workspace
 from .job import Job, ExternalJob
 from .dataset import Dataset, DEFAULT_FORMAT
 from .row import R
-from .spec import MongoController, Datafield, Datatype, ProjectDocument
+from .spec import MongoController, Datatype, ProjectDocument, SlotSpec
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
@@ -199,7 +199,7 @@ class Project(MongoController[ProjectDocument]):
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[Union[str, Datafield]]] = None,
+        slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,
@@ -260,7 +260,7 @@ class Project(MongoController[ProjectDocument]):
             type (Datatype): Type of output dataset.
             name (str, optional): Name of output on created External job. Same
                 as type if unspecified. Defaults to None.
-            slots (list[str | Datafield], optional): List of slots expected to
+            slots (list[SlotSpec], optional): List of slots expected to
                 be created for this output such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to None.

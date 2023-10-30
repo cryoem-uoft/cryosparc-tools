@@ -25,6 +25,7 @@ import os
 import re
 import tempfile
 from warnings import warn
+from cryosparc.errors import InvalidSlotsError
 import numpy as n
 
 if TYPE_CHECKING:
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
 
 from . import __version__
 from . import mrc
-from .command import CommandClient, make_json_request, make_request
+from .command import CommandClient, CommandError, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
 from .row import R
 from .project import Project
@@ -41,11 +42,11 @@ from .job import ExternalJob, Job
 from .spec import (
     ASSET_EXTENSIONS,
     AssetDetails,
-    Datafield,
     Datatype,
     JobSection,
     SchedulerLane,
     SchedulerTarget,
+    SlotSpec,
 )
 from .util import bopen, noopcontext, padarray, trimarray
 
@@ -433,7 +434,7 @@ class CryoSPARC:
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[Union[str, Datafield]]] = None,
+        slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,
@@ -492,7 +493,7 @@ class CryoSPARC:
             type (Datatype): Type of output dataset.
             name (str, optional): Name of output on created External job. Same
                 as type if unspecified. Defaults to None.
-            slots (list[str | Datafield], optional): List of slots expected to
+            slots (list[SlotSpec], optional): List of slots expected to
                 be created for this output such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to None.
@@ -504,6 +505,11 @@ class CryoSPARC:
                 Defaults to None.
             desc (str, optional): Markdown description for this output. Defaults
                 to None.
+
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
 
         Returns:
             str: UID of created job where this output was saved
@@ -517,17 +523,22 @@ class CryoSPARC:
         assert slot_names.intersection(prefixes) == slot_names, "Given dataset missing required slots"
 
         passthrough_str = ".".join(passthrough) if passthrough else None
-        job_uid, output = self.vis.create_external_result(  # type: ignore
-            project_uid=project_uid,
-            workspace_uid=workspace_uid,
-            type=type,
-            name=name,
-            slots=slots,
-            passthrough=passthrough_str,
-            user=self.user_id,
-            title=title,
-            desc=desc,
-        )
+        try:
+            job_uid, output = self.vis.create_external_result(  # type: ignore
+                project_uid=project_uid,
+                workspace_uid=workspace_uid,
+                type=type,
+                name=name,
+                slots=slots,
+                passthrough=passthrough_str,
+                user=self.user_id,
+                title=title,
+                desc=desc,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise InvalidSlotsError("save_external_result", err.data["slots"]) from err
+            raise
 
         job = self.find_external_job(project_uid, job_uid)
         with job.run():
