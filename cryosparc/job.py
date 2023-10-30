@@ -9,8 +9,10 @@ from time import sleep, time
 from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Union, overload
 from typing_extensions import Literal
 
+
 from .command import CommandError, make_json_request, make_request
 from .dataset import Dataset, DEFAULT_FORMAT
+from .errors import InvalidSlotsError
 from .spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
@@ -20,7 +22,6 @@ from .spec import (
     Datatype,
     EventLogAsset,
     ImageFormat,
-    InvalidSlotsError,
     JobDocument,
     JobStatus,
     MongoController,

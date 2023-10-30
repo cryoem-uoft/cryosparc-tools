@@ -25,6 +25,7 @@ import os
 import re
 import tempfile
 from warnings import warn
+from cryosparc.errors import InvalidSlotsError
 import numpy as n
 
 if TYPE_CHECKING:
@@ -42,7 +43,6 @@ from .spec import (
     ASSET_EXTENSIONS,
     AssetDetails,
     Datatype,
-    InvalidSlotsError,
     JobSection,
     SchedulerLane,
     SchedulerTarget,

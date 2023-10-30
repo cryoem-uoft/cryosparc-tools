@@ -8,29 +8,16 @@ import os
 import socket
 import time
 import uuid
-from typing import Any, Optional, Type
+from typing import Optional, Type
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from warnings import warn
 
+from .errors import CommandError
+
 MAX_ATTEMPTS = int(os.getenv("CRYOSPARC_COMMAND_RETRIES", 3))
 RETRY_INTERVAL = int(os.getenv("CRYOSPARC_COMMAND_RETRY_SECONDS", 30))
-
-
-class CommandError(Exception):
-    """
-    Raised by failed request to a CryoSPARC command server.
-    """
-
-    code: int
-    data: Any
-
-    def __init__(self, reason: str, *args: object, url: str = "", code: int = 500, data: Any = None) -> None:
-        msg = f"*** ({url}, code {code}) {reason}"
-        super().__init__(msg, *args)
-        self.code = code
-        self.data = data
 
 
 class CommandClient:

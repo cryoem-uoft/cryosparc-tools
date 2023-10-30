@@ -4,42 +4,43 @@
 format: jb-book
 root: intro
 parts:
-- caption: Examples
-  numbered: True
-  chapters:
-  - file: examples/recenter-particles
-  - file: examples/cryolo
-  - file: examples/3dflex-custom-latent-trajectory
-  - file: examples/3dflex-custom-mesh-rigidity-weights
-  - file: examples/hi-res-2d-classes
-  - file: examples/xml-exposure-groups
-  - file: examples/custom-workflow
-  - file: examples/delete-rejected-exposures
-  - file: examples/upscale-expanded-particles
-  - file: examples/connect_series_to_class3D
-- caption: API Reference
-  chapters:
-  - file: api/index
-    sections:
-    - file: api/cryosparc
-    - file: api/tools
-    - file: api/project
-    - file: api/workspace
-    - file: api/job
-    - file: api/dataset
-    - file: api/column
-    - file: api/row
-    - file: api/dtype
-    - file: api/spec
-    - file: api/util
-    - file: api/mrc
-    - file: api/star
-    - file: api/command
-- caption: Links
-  chapters:
-  - url: https://github.com/cryoem-uoft/cryosparc-tools
-    title: GitHub Repository
-  - url: https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md
-    title: Changelog
-  - url: https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE
-    title: License
+  - caption: Examples
+    numbered: True
+    chapters:
+      - file: examples/recenter-particles
+      - file: examples/cryolo
+      - file: examples/3dflex-custom-latent-trajectory
+      - file: examples/3dflex-custom-mesh-rigidity-weights
+      - file: examples/hi-res-2d-classes
+      - file: examples/xml-exposure-groups
+      - file: examples/custom-workflow
+      - file: examples/delete-rejected-exposures
+      - file: examples/upscale-expanded-particles
+      - file: examples/connect_series_to_class3D
+  - caption: API Reference
+    chapters:
+      - file: api/index
+        sections:
+          - file: api/cryosparc
+          - file: api/tools
+          - file: api/project
+          - file: api/workspace
+          - file: api/job
+          - file: api/dataset
+          - file: api/column
+          - file: api/row
+          - file: api/dtype
+          - file: api/spec
+          - file: api/util
+          - file: api/mrc
+          - file: api/star
+          - file: api/command
+          - file: api/errors
+  - caption: Links
+    chapters:
+      - url: https://github.com/cryoem-uoft/cryosparc-tools
+        title: GitHub Repository
+      - url: https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md
+        title: Changelog
+      - url: https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE
+        title: License

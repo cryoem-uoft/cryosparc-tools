@@ -63,6 +63,7 @@ from .dtype import (
     arraydtype,
     safe_makefield,
 )
+from .errors import DatasetLoadError
 from .stream import AsyncBinaryIO, Streamable
 from .column import Column
 from .row import Row, Spool, R
@@ -99,12 +100,6 @@ FORMAT_MAGIC_PREFIXES = {
     CSDAT_FORMAT: b"\x95CSDAT",  # .csl compressed stream format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
-
-
-class DatasetLoadError(Exception):
-    """Exception type raised when a dataset cannot be loaded"""
-
-    pass
 
 
 class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
