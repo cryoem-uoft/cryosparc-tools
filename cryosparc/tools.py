@@ -25,7 +25,7 @@ import os
 import re
 import tempfile
 from warnings import warn
-from cryosparc.errors import InvalidSlotsError
+from .errors import InvalidSlotsError
 import numpy as n
 
 if TYPE_CHECKING:
