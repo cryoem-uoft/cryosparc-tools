@@ -23,10 +23,12 @@ Toolkit for interfacing with CryoSPARC. Read the documentation at
    cd cryosparc-tools
    git lfs pull
    ```
-2. Create and activate a conda environment named "tools" with the desired python version. See the Run Example Notebooks section to install an environment
+2. (Optional) Create and activate a virtual environment
    ```sh
-   conda create -n tools python=3.7 -c conda-forge
-   conda activate tools
+   python3 -m venv .venv
+   source .venv/bin/activate  # macOS / Linux
+   # OR
+   .venv\Scripts\activate.bat  # Windows
    ```
 3. Install dev dependencies and build native modules
    ```sh
@@ -96,7 +98,7 @@ dependencies to execute, including the following system configuration:
 
 - Nvidia GPU and driver
 - [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed
-- CryoSPARC running at `localhost:40000` or `cryoem5:40000` (can alias `cryoem5` to localhost)
+- CryoSPARC running at `localhost:40000` or `cryoem0:40000` (can alias `cryoem0` to localhost)
 
 Clean previous build artefacts:
 
