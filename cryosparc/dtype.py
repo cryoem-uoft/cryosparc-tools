@@ -43,8 +43,9 @@ class DatasetHeader(TypedDict):
     Dataset header description when saving in CSDAT format.
     """
 
+    length: int
     dtype: List[Field]
-    compression: Literal["snap"]
+    compression: Literal["lz4", None]
     compressed_fields: List[str]
 
 
@@ -130,20 +131,25 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
     try:
         header = json.loads(data) if isinstance(data, bytes) else data
         assert isinstance(header, dict), f"Incorrect decoded header type (expected dict, got {type(header)})"
+        assert "length" in header and isinstance(
+            header["length"], int
+        ), 'Dataset header "length" key missing or has incorrect type'
         assert "dtype" in header and isinstance(
             header["dtype"], list
         ), 'Dataset header "dtype" key missing or has incorrect type'
-        assert (
-            "compression" in header and header["compression"] == "snap"
-        ), 'Dataset header "compression" key missing or has incorrect type'
+        assert "compression" in header and header["compression"] in {
+            None,
+            "lz4",
+        }, 'Dataset header "compression" key missing or has incorrect type'
         assert (
             "compressed_fields" and header or isinstance(header["compressed_fields"], list)
         ), 'Dataset header "compressed_fields" key missing or has incorrect type'
 
+        length: int = header["length"]
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
-        compression: Literal["snap"] = header["compression"]
+        compression: Literal["lz4"] = header["compression"]
         compressed_fields: List[str] = header["compressed_fields"]
 
-        return DatasetHeader(dtype=dtype, compression=compression, compressed_fields=compressed_fields)
+        return DatasetHeader(length=length, dtype=dtype, compression=compression, compressed_fields=compressed_fields)
     except Exception as e:
         raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e

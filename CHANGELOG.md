@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.4.0
+
+- Added: Python 3.11 and 3.12 support
+- Added: `overwrite` keyword argument for file upload functions for extra confirmation when uploading project files to a path that already exist (raises error if not specified)
+- Added: Smaller and faster compressed dataset format when saving with `CSDAT_FORMAT` (datasets saved in this format prior to this release may no longer be readable)
+- Updated: Calls to CryoSPARC’s command servers automatically retry while CryoSPARC is down for up to one minute
+- Updated: Raise `cryosparc.errors.CommandError` instead of `AssertionError` when a CryoSPARC command server request fails
+- Updated: Raise `cryosparc.errors.DatasetLoadError` to show target file path when `Dataset.load` encounters an exception
+- Updated: Improved server- and slot- related error messages
+- Updated: Warn when connecting to CryoSPARC version that doesn’t match cryosparc-tools version
+- Docs: Delete Rejected Exposures example
+- Docs: Instructions for plotting scale bars on 2D Classes
+- Docs: Revert downsampled, symmetry expanded particles example
+- Docs: Connect a volume series to Class3D example
+
 ## v4.3.1
 
 - Fixed: `Job.queue` method `lane` argument is now optional when queuing directly to master

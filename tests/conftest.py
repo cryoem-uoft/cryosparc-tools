@@ -103,6 +103,7 @@ def request_callback_core(request, uri, response_headers):
     body = json.loads(request.body)
     procs = {
         "hello_world": {"hello": "world"},
+        "get_running_version": "develop",
         "get_id_by_email_password": "6372a35e821ed2b71d9fe4e3",
         "get_job": {
             "uid": "J1",

@@ -19,19 +19,25 @@ Toolkit for interfacing with CryoSPARC. Read the documentation at
 
 1. Clone this repository
    ```sh
-   git clone https://github.com/cryoem-uoft/cryosparc-tools.git
+   git clone --recursive https://github.com/cryoem-uoft/cryosparc-tools.git
    cd cryosparc-tools
    git lfs pull
    ```
-2. Create and activate a conda environment named "tools" with the desired python version. See the Run Example Notebooks section to install an environment
+2. (Optional) Create and activate a virtual environment
    ```sh
-   conda create -n tools python=3.7 -c conda-forge
-   conda activate tools
+   python3 -m venv .venv
+   source .venv/bin/activate  # macOS / Linux
+   # OR
+   .venv\Scripts\activate.bat  # Windows
    ```
 3. Install dev dependencies and build native modules
    ```sh
    pip install -U pip wheel
    pip install -e ".[dev]"
+   ```
+4. Install pre-commit hooks
+   ```
+   pre-commit install
    ```
 
 ### Re-compile native module
@@ -39,7 +45,7 @@ Toolkit for interfacing with CryoSPARC. Read the documentation at
 Recompile native modules after making changes to C code:
 
 ```sh
-make
+python -m setup build_ext -i
 ```
 
 ## Build Packages for Publishing
@@ -92,12 +98,12 @@ dependencies to execute, including the following system configuration:
 
 - Nvidia GPU and driver
 - [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed
-- CryoSPARC running at `localhost:40000` or `cryoem5:40000` (can alias `cryoem5` to localhost)
+- CryoSPARC running at `localhost:40000` or `cryoem0:40000` (can alias `cryoem0` to localhost)
 
 Clean previous build artefacts:
 
 ```sh
-make clean
+rm -rf cryosparc/*.so build dist *.egg-info
 ```
 
 Install dependencies into a new conda environment:

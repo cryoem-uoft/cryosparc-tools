@@ -67,4 +67,4 @@ ipython_config.py
 .vercel
 cryosparc/core.c
 *.dSYM
-Python-*
+cython_debug

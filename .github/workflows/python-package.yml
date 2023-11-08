@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
@@ -54,12 +56,12 @@ jobs:
       fail-fast: true
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        # os: ["ubuntu-latest"]
-        python-version: ["3.7", "3.10"]
-        # python-version: ["3.7"]
+        python-version: ["3.7", "3.12"]
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -89,10 +91,18 @@ jobs:
         os: ["ubuntu-20.04", "macos-11", "windows-2019"]
     steps:
       - uses: actions/checkout@v3
-      - uses: pypa/cibuildwheel@v2.11.2
+        with:
+          submodules: true
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: pypa/cibuildwheel@v2.16.2
         env:
-          CIBW_SKIP: cp36-* pp*-win* pp*-macosx* *_i686 cp3{8,9,10,11}-macosx_x86_64
-          CIBW_ARCHS_MACOS: "x86_64 universal2"
+          CIBW_SKIP: cp36-* pp*-win* pp*-macosx* *_i686
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_MACOS: "x86_64 arm64 universal2"
           CIBW_ARCHS_WINDOWS: "AMD64 ARM64"
         with:
           output-dir: dist

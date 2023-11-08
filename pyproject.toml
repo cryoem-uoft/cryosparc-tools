@@ -1,6 +1,6 @@
 [project]
 name = "cryosparc-tools"
-version = "4.3.1"
+version = "4.4.0"
 description = "Toolkit for interfacing with CryoSPARC"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -21,7 +21,6 @@ classifiers = [
 ]
 dependencies = [
     "numpy ~= 1.15",
-    "python-snappy ~= 0.6",
     "typing-extensions >= 3.7",
 ]
 
@@ -31,6 +30,7 @@ dev = [
     "black",
     "cython",
     "httpretty",
+    "pre-commit",
     "pyright",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
@@ -66,7 +66,10 @@ include = ["cryosparc", "tests", "setup.py"]
 
 [tool.black]
 line-length = 120
+extend-exclude = """
+^/cryosparc/include/.*\\.py
+"""
 
 [tool.ruff]
 line-length = 120
-exclude = ["docs", ".venv*"]
+exclude = ["docs", ".venv*", "cryosparc/include"]

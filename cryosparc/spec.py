@@ -27,7 +27,17 @@ D = TypeVar("D", bound=TypedDict)
 
 
 Datatype = Literal[
-    "exposure", "particle", "template", "volume", "mask", "ml_model", "symmetry_candidate", "flex_mesh", "flex_model"
+    "exposure",
+    "particle",
+    "template",
+    "volume",
+    "mask",
+    "live",
+    "ml_model",
+    "symmetry_candidate",
+    "flex_mesh",
+    "flex_model",
+    "hyperparameter",
 ]
 """Supported data types for job inputs and outputs."""
 
@@ -85,7 +95,7 @@ ImageContentType = Literal[
 Supported job image asset MIME types.
 """
 
-AssetContentType = Union[TextContentType, ImageContentType]
+AssetContentType = Union[TextContentType, ImageContentType, Literal["application/octet-stream"]]
 """
 Supported job asset MIME types.
 """
@@ -194,6 +204,12 @@ class Datafield(TypedDict):
     required: bool
     """whether this field must necessarily exist in a corresponding
     input/output. Assumed to be ``True`` if not specified"""
+
+
+SlotSpec = Union[str, Datafield]
+"""
+A result slot specification for the slots=... argument.
+"""
 
 
 class InputSlot(TypedDict):

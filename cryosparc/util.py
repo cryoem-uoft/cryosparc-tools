@@ -4,9 +4,6 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
-    AsyncGenerator,
-    AsyncIterator,
-    BinaryIO,
     Callable,
     ContextManager,
     Dict,
@@ -46,7 +43,8 @@ V = TypeVar("V")
 E = TypeVar("E")  # error
 INT = TypeVar("INT", bound=n.integer)
 
-Result = Union[Tuple[T, Literal[None]], Tuple[Literal[None], E]]
+Result = Union[Tuple[T, None], Tuple[None, E]]
+
 """
 Use as the return type for functions that may return either a value or an
 error.
@@ -113,138 +111,17 @@ class hashcache(Dict[K, V], Generic[K, V]):
         return new
 
 
-class BinaryIteratorIO(BinaryIO):
-    """
-    Read through a iterator that yields bytes as if it was a file.
-
-    Args:
-        iter (Iterator[bytes]): Generator that yields bytes
-    """
-
-    def __init__(self, iter: Iterator[bytes]):
-        self._iter = iter
-        self._left = b""
-
-    def readable(self):
-        """
-        Returns:
-            bool: True
-        """
-        return True
-
-    def seekable(self) -> bool:
-        """
-        Returns:
-            bool: False
-        """
-        return False
-
-    def _read1(self, n: Optional[int] = None):
-        while not self._left:
-            try:
-                self._left = next(self._iter)
-            except StopIteration:
-                break
-        ret = self._left[:n]
-        self._left = self._left[len(ret) :]
-        return ret
-
-    def read(self, n: Optional[int] = None) -> bytes:
-        """
-        Read the given number of bytes from the iterator
-
-        Args:
-            n (int, optional): Number of bytes to read. Reads all bytes if not
-                specified. Defaults to None.
-
-        Returns:
-            bytes: Zero or more bytes read
-        """
-        r = []
-        if n is None or n < 0:
-            while True:
-                m = self._read1()
-                if not m:
-                    break
-                r.append(m)
-        else:
-            while n > 0:
-                m = self._read1(n)
-                if not m:
-                    break
-                n -= len(m)
-                r.append(m)
-        return b"".join(r)
-
-
-class AsyncBinaryIteratorIO:
-    """
-    Similar to ``BinaryIteratorIO`` except the iterator yields bytes
-    asynchronously.
-
-    Args:
-        iter (AsyncIterator[bytes]): Generator that asynchronously yields bytes.
-
-    """
-
-    def __init__(self, iter: Union[AsyncIterator[bytes], AsyncGenerator[bytes, None]]):
-        self._iter = iter
-        self._left = b""
-
-    def readable(self):
-        """
-        Returns:
-            bool: True
-        """
-
-        return True
-
-    def seekable(self) -> bool:
-        """
-        Returns:
-            bool: False
-        """
-        return False
-
-    async def _read1(self, n: Optional[int] = None):
-        while not self._left:
-            try:
-                self._left = await self._iter.__anext__()
-            except StopAsyncIteration:
-                break
-        ret = self._left[:n]
-        self._left = self._left[len(ret) :]
-        return ret
-
-    async def read(self, n: Optional[int] = None):
-        """
-        Read the given number of bytes from the async iterator.
-
-        Args:
-            n (int, optional): Number of bytes to read. Reads all bytes if not
-                specified. Defaults to None.
-
-        Returns:
-            bytes: Zero or more bytes read
-        """
-        r = []
-        if n is None or n < 0:
-            while True:
-                m = await self._read1()
-                if not m:
-                    break
-                r.append(m)
-        else:
-            while n > 0:
-                m = await self._read1(n)
-                if not m:
-                    break
-                n -= len(m)
-                r.append(m)
-        return b"".join(r)
-
-
+@overload
 def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
+    ...
+
+
+@overload
+def first(it: Union[Iterator[V], Sequence[V]], default: V) -> V:
+    ...
+
+
+def first(it: Union[Iterator[V], Sequence[V]], default: Optional[V] = None) -> Optional[V]:
     """
     Get the first item from the given iterator. Returns None if the iterator is
     empty.
@@ -258,7 +135,7 @@ def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
     try:
         return it[0] if isinstance(it, Sequence) else next(it)
     except (StopIteration, IndexError):
-        return None
+        return default
 
 
 def u32bytesle(x: int) -> bytes:

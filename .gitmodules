@@ -1,0 +1,3 @@
+[submodule "cryosparc/include/lz4"]
+	path = cryosparc/include/lz4
+	url = https://github.com/lz4/lz4.git

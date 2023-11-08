@@ -1,0 +1,11 @@
+{
+    "venv": ".venv",
+    "venvPath": ".",
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "**/.*",
+        "cryosparc/include/**/*.py",
+        "docs/_build/**/*.py"
+    ]
+}
