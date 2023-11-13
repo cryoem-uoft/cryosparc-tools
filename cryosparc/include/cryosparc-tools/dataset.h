@@ -4,6 +4,7 @@
 #include <complex.h>   // complex number support
 #include <stdint.h>    // fixed width integer types
 #include <inttypes.h>  // printf specifiers for fixed width integer types
+#include <stddef.h>    // standard variable types and macros
 
 #define repr(x,a,b,val) val
 
@@ -517,7 +518,7 @@ tcheck(int8_t type)
 {
 	const int t  = abs_i8(type);
 
-	for (int i = 0; i < Ntypes; i++)
+	for (unsigned i = 0; i < Ntypes; i++)
 		if (t == valid_types[i])
 			return 1;
 
@@ -549,7 +550,6 @@ column_lookup(ds * d, const char *colkey, size_t *idx)
 {
 	if(!d) return 0;
 
-	char * ptr = (char *)d;
 	ds_column *c = d->columns;
 	for (size_t i = 0; i < d->ncol; i++, c++) {
 		const char * key = getkey(d, c);
@@ -713,7 +713,7 @@ actual_arrheap_sz (ds *d) {
 
 static inline uint64_t hash(const char *s, size_t len) {
     uint64_t h = 0x100;
-    for (int32_t i = 0; i < len; i++) {
+    for (int32_t i = 0; i < (int64_t)len; i++) {
         h ^= s[i] & 255;
         h *= 1111111111111111111;
     }
@@ -766,7 +766,7 @@ static inline uint32_t ht64_capacity(ds_ht64 *t) {
 // this wipes its contents.
 static int ht64_realloc(ds_ht64 *t, uint32_t sz) {
 	uint32_t exp = 0;
-	do { exp++; } while ((1 << exp) <= sz);
+	do { exp++; } while ((1u << exp) <= sz);
 	exp += 1;
 	size_t totalsz = sizeof(ds_ht64_row) * (1 << exp);
 	void *mem = DSREALLOC(t->ht, totalsz);
@@ -789,7 +789,7 @@ static inline size_t ht64_memsize(ds_ht64 *t) {
 // Make hash table dst into an exact copy of src
 static void ht64_copy(ds_ht64 *dst, ds_ht64 *src) {
 	if (dst->exp != src->exp) {
-		uint32_t sz = (1 << (uint32_t) (src->exp) - 1) - 1; // half of capacity - 1
+		uint32_t sz = (1 << (uint32_t) (src->exp - 1)) - 1; // half of capacity - 1
 		ht64_realloc(dst, sz);
 	}
 	memcpy(dst->ht, src->ht, ht64_memsize(dst));
@@ -919,7 +919,7 @@ stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
 	uint64_t *htidx; // address of hash table address storage
 
 	// double hashtable capacity if the table is half full (for fast lookups)
-	if (ht->len >= ht64_capacity(ht) / 2) {
+	if ((uint32_t)ht->len >= ht64_capacity(ht) / 2) {
 		ht64_double_capacity(ht);
 		slot->stats.htnrealloc += 1;
 		// rehash string heap
@@ -960,7 +960,7 @@ stralloc(uint64_t dsetidx, const char *str, size_t len, uint64_t *index) {
 static inline char *
 getstr(ds *d, uint64_t col, uint64_t index) {
 	char *ptr = (char *) d;
-	uint64_t *handles = ptr + d->arrheap_start + d->columns[col].offset;
+	uint64_t *handles = (uint64_t*)(ptr + d->arrheap_start + d->columns[col].offset);
 	return ptr + d->strheap_start + handles[index];
 }
 
@@ -972,7 +972,7 @@ static inline ds *setstr(uint64_t dsetidx, uint64_t col, uint64_t index, const c
 	ds *d = stralloc(dsetidx, value, length, &stridx);
 	if (!d) return 0; // Could not allocate string
 
-	uint64_t *handles = (char *) d + d->arrheap_start + d->columns[col].offset;
+	uint64_t *handles = (uint64_t*)((char *) d + d->arrheap_start + d->columns[col].offset);
 	handles[index] = stridx;
 	return d;
 }
@@ -1148,7 +1148,7 @@ uint64_t dset_innerjoin(const char *key, uint64_t dset_r, uint64_t dset_s)
 	// dynamic array of structs which memoize the required column data
 	ds_column *col;
 	size_t colidx;
-	char *colkey;
+	const char *colkey;
 
 	// Cache source column details (try to use stack version if possible)
 	ds_innerjoin_coldata src_coldata_stack[1024];
@@ -1325,8 +1325,8 @@ const char *dset_key(uint64_t dset, uint64_t index)
 
 int dset_type (uint64_t dset, const char * colkey)
 {
-	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey, NULL);
+	ds        *d  = handle_lookup(dset, colkey, 0, 0);
+	ds_column *c  = column_lookup(d, colkey, NULL);
 
 	if(!(d && c)) return 0;
 	return abs_i8(c->type);
@@ -1336,8 +1336,8 @@ void *dset_get (uint64_t dset, const char * colkey)
 {
 	// Caution: T_STR columns cannot be used directly, actual strings must be
 	// retrieved through dset_getstr
-	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey, NULL);
+	ds        *d  = handle_lookup(dset, colkey, 0, 0);
+	ds_column *c  = column_lookup(d, colkey, NULL);
 	char * ptr = (char *) d;
 
 	if(!(d && c)) return 0;
@@ -1347,8 +1347,8 @@ void *dset_get (uint64_t dset, const char * colkey)
 
 uint64_t dset_getsz(uint64_t dset, const char * colkey)
 {
-	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey, NULL);
+	ds        *d  = handle_lookup(dset, colkey, 0, 0);
+	ds_column *c  = column_lookup(d, colkey, NULL);
 
 	if(!(d && c)) return 0;
 
@@ -1357,8 +1357,8 @@ uint64_t dset_getsz(uint64_t dset, const char * colkey)
 
 uint32_t dset_getshp (uint64_t dset, const char * colkey)
 {
-	const ds        *d  = handle_lookup(dset, colkey, 0, 0);
-	const ds_column *c  = column_lookup(d, colkey, NULL);
+	ds        *d  = handle_lookup(dset, colkey, 0, 0);
+	ds_column *c  = column_lookup(d, colkey, NULL);
 
 	if(!(d && c)) return 0;
 
@@ -1453,7 +1453,7 @@ int dset_changecol (uint64_t dset, const char *key, int type) {
 		return 0;
 	}
 
-	const ds  *d  = handle_lookup(dset, key, 0, 0);
+	ds  *d  = handle_lookup(dset, key, 0, 0);
 	ds_column *c  = column_lookup(d, key, NULL);
 
 	if (!(d && c)) return 0;
@@ -1652,7 +1652,7 @@ void dset_dumptxt (uint64_t dset, int dump_data) {
 		"\thtnrealloc:            %"PRIu32"\n"
 		"\thtlen                  %"PRIu32"\n"
 		"\thtcapacity             %"PRIu32"\n\n",
-		d,
+		dset,
 		d->total_sz,
 		d->nrow, d->crow,
 		d->ncol, d->ccol,
@@ -1741,12 +1741,17 @@ int dset_setstrheap(uint64_t dset, const char *heap, size_t size) {
 }
 
 // Raw string allocation for the dataset without assigning to any column
-// Returns 1 if given index was successfully assigned a value. Should not
-// normally be used.
+// Returns 0 if the string couldn't be allocated
+// Returns 1 if given index was successfully assigned a value.
+// Returns 2 if the index was assigned AND a reallocation occured
+// Should not normally be used.
 int dset_stralloc(uint64_t dset, const char *value, size_t length, uint64_t *index) {
 	uint64_t dsetidx;
 	ds *d = handle_lookup(dset, "dset_stralloc", 0, &dsetidx);
-	return stralloc(dsetidx, value, length, index) != 0;
+	ds *newd = stralloc(dsetidx, value, length, index);
+	if (newd == 0) return 0;
+	else if (newd == d) return 1;
+	else return 2;
 }
 
 #endif

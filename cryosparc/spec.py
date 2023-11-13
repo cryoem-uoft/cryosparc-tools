@@ -37,6 +37,7 @@ Datatype = Literal[
     "symmetry_candidate",
     "flex_mesh",
     "flex_model",
+    "hyperparameter",
 ]
 """Supported data types for job inputs and outputs."""
 
@@ -203,6 +204,12 @@ class Datafield(TypedDict):
     required: bool
     """whether this field must necessarily exist in a corresponding
     input/output. Assumed to be ``True`` if not specified"""
+
+
+SlotSpec = Union[str, Datafield]
+"""
+A result slot specification for the slots=... argument.
+"""
 
 
 class InputSlot(TypedDict):

@@ -24,13 +24,16 @@ from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 import os
 import re
 import tempfile
+from warnings import warn
+from .errors import InvalidSlotsError
 import numpy as n
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
 
+from . import __version__
 from . import mrc
-from .command import CommandClient, make_json_request, make_request
+from .command import CommandClient, CommandError, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
 from .row import R
 from .project import Project
@@ -39,11 +42,11 @@ from .job import ExternalJob, Job
 from .spec import (
     ASSET_EXTENSIONS,
     AssetDetails,
-    Datafield,
     Datatype,
     JobSection,
     SchedulerLane,
     SchedulerTarget,
+    SlotSpec,
 )
 from .util import bopen, noopcontext, padarray, trimarray
 
@@ -52,6 +55,9 @@ ONE_MIB = 2**20  # bytes in one mebibyte
 
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 """Regular expression for matching CryoSPARC license IDs."""
+
+VERSION_REGEX = re.compile(r"^v\d+\.\d+\.\d+")
+"""Regular expression for CryoSPARC minor version, e.g., 'v4.1.0'"""
 
 SUPPORTED_EXPOSURE_FORMATS = {
     "MRC",
@@ -143,18 +149,46 @@ class CryoSPARC:
         assert password, "Invalid or unspecified password"
 
         self.cli = CommandClient(
-            service="command_core", host=host, port=base_port + 2, headers={"License-ID": license}, timeout=timeout
+            service="command_core",
+            host=host,
+            port=base_port + 2,
+            headers={"License-ID": license},
+            timeout=timeout,
         )
         self.vis = CommandClient(
-            service="command_vis", host=host, port=base_port + 3, headers={"License-ID": license}, timeout=timeout
+            service="command_vis",
+            host=host,
+            port=base_port + 3,
+            headers={"License-ID": license},
+            timeout=timeout,
         )
         self.rtp = CommandClient(
-            service="command_rtp", host=host, port=base_port + 5, headers={"License-ID": license}, timeout=timeout
+            service="command_rtp",
+            host=host,
+            port=base_port + 5,
+            headers={"License-ID": license},
+            timeout=timeout,
         )
         try:
             self.user_id = self.cli.get_id_by_email_password(email, password)  # type: ignore
+            cs_version: str = self.cli.get_running_version()  # type: ignore
         except Exception as e:
             raise RuntimeError("Could not complete CryoSPARC authentication with given credentials") from e
+
+        if cs_version and VERSION_REGEX.match(cs_version):
+            cs_major_minor_version = ".".join(cs_version[1:].split(".")[:2])  # e.g., v4.1.0 -> 4.1
+            tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
+            tools_prerelease_url = "https://github.com/cryoem-uoft/cryosparc-tools/archive/refs/heads/develop.zip"
+            if cs_major_minor_version != tools_major_minor_version:
+                warn(
+                    f"CryoSPARC instance {host}:{base_port} with version {cs_version} "
+                    f"may not be compatible with current cryosparc-tools version v{__version__}.\n\n"
+                    "To install a compatible version of cryosparc-tools:\n\n"
+                    f"    pip install --force cryosparc-tools~={cs_major_minor_version}.0\n\n"
+                    "Or, if running a CryoSPARC pre-release or private beta:\n\n"
+                    f"    pip install --no-cache --force {tools_prerelease_url}\n",
+                    stacklevel=2,
+                )
 
     def test_connection(self):
         """
@@ -400,7 +434,7 @@ class CryoSPARC:
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[Union[str, Datafield]]] = None,
+        slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,
@@ -459,7 +493,7 @@ class CryoSPARC:
             type (Datatype): Type of output dataset.
             name (str, optional): Name of output on created External job. Same
                 as type if unspecified. Defaults to None.
-            slots (list[str | Datafield], optional): List of slots expected to
+            slots (list[SlotSpec], optional): List of slots expected to
                 be created for this output such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to None.
@@ -471,6 +505,11 @@ class CryoSPARC:
                 Defaults to None.
             desc (str, optional): Markdown description for this output. Defaults
                 to None.
+
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
 
         Returns:
             str: UID of created job where this output was saved
@@ -484,17 +523,22 @@ class CryoSPARC:
         assert slot_names.intersection(prefixes) == slot_names, "Given dataset missing required slots"
 
         passthrough_str = ".".join(passthrough) if passthrough else None
-        job_uid, output = self.vis.create_external_result(  # type: ignore
-            project_uid=project_uid,
-            workspace_uid=workspace_uid,
-            type=type,
-            name=name,
-            slots=slots,
-            passthrough=passthrough_str,
-            user=self.user_id,
-            title=title,
-            desc=desc,
-        )
+        try:
+            job_uid, output = self.vis.create_external_result(  # type: ignore
+                project_uid=project_uid,
+                workspace_uid=workspace_uid,
+                type=type,
+                name=name,
+                slots=slots,
+                passthrough=passthrough_str,
+                user=self.user_id,
+                title=title,
+                desc=desc,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise InvalidSlotsError("save_external_result", err.data["slots"]) from err
+            raise
 
         job = self.find_external_job(project_uid, job_uid)
         with job.run():
@@ -678,11 +722,16 @@ class CryoSPARC:
             return target
 
     def upload(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]
+        self,
+        project_uid: str,
+        target_path_rel: Union[str, PurePosixPath],
+        source: Union[str, bytes, PurePath, IO],
+        *,
+        overwrite: bool = False,
     ):
         """
         Upload the given source file to the project directory at the given
-        relative path.
+        relative path. Fails if target already exists.
 
         Args:
             project_uid (str): project unique ID, e.g., "P3"
@@ -690,10 +739,14 @@ class CryoSPARC:
                 directory.
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
+        url = f"/projects/{project_uid}/files"
+        query: dict = {"path": target_path_rel}
+        if overwrite:
+            query["overwrite"] = 1
         with open(source, "rb") if isinstance(source, (str, PurePath)) else noopcontext(source) as f:
-            url = f"/projects/{project_uid}/files"
-            query = {"path": target_path_rel}
             with make_request(self.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
                     f"Could not upload project {project_uid} file {target_path_rel}.\n"
@@ -701,10 +754,17 @@ class CryoSPARC:
                 )
 
     def upload_dataset(
-        self, project_uid: str, target_path_rel: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT
+        self,
+        project_uid: str,
+        target_path_rel: Union[str, PurePosixPath],
+        dset: Dataset,
+        *,
+        format: int = DEFAULT_FORMAT,
+        overwrite: bool = False,
     ):
         """
-        Upload a dataset as a CS file into the project directory.
+        Upload a dataset as a CS file into the project directory. Fails if
+        target already exists.
 
         Args:
             project_uid (str): project unique ID, e.g., "P3"
@@ -713,23 +773,34 @@ class CryoSPARC:
             dset (Dataset): dataset to save.
             format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
         if len(dset) < 100:
             # Probably small enough to upload from memory
             f = BytesIO()
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f)
+            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
 
         # Write to temp file first
         with tempfile.TemporaryFile("w+b") as f:
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f)
+            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
 
-    def upload_mrc(self, project_uid: str, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
+    def upload_mrc(
+        self,
+        project_uid: str,
+        target_path_rel: Union[str, PurePosixPath],
+        data: "NDArray",
+        psize: float,
+        *,
+        overwrite: bool = False,
+    ):
         """
         Upload a numpy 2D or 3D array to the job directory as an MRC file.
+        Fails if target already exists.
 
         Args:
             project_uid (str): project unique ID, e.g., "P3"
@@ -737,11 +808,13 @@ class CryoSPARC:
                 ``.mrc`` extension.
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
         with tempfile.TemporaryFile("w+b") as f:
             mrc.write(f, data, psize)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f)
+            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
 
     def mkdir(
         self,

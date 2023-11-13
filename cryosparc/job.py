@@ -9,22 +9,24 @@ from time import sleep, time
 from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Union, overload
 from typing_extensions import Literal
 
-from .command import make_json_request, make_request
+
+from .command import CommandError, make_json_request, make_request
 from .dataset import Dataset, DEFAULT_FORMAT
+from .errors import InvalidSlotsError
 from .spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
     TEXT_CONTENT_TYPES,
     AssetDetails,
     AssetFormat,
-    MongoController,
-    ImageFormat,
-    JobStatus,
-    TextFormat,
-    EventLogAsset,
     Datatype,
-    Datafield,
+    EventLogAsset,
+    ImageFormat,
     JobDocument,
+    JobStatus,
+    MongoController,
+    SlotSpec,
+    TextFormat,
 )
 from .util import bopen, first
 
@@ -112,17 +114,21 @@ class Job(MongoController[JobDocument]):
         """
         return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
 
-    def queue(self, lane: str, hostname: Optional[str] = None, gpus: List[int] = []):
+    def queue(self, lane: Optional[str] = None, hostname: Optional[str] = None, gpus: List[int] = []):
         """
-        Queue a job to a target lane. Available lanes may be queried from
+        Queue a job to a target lane. Available lanes may be queried with
         `CryoSPARC.get_lanes`_.
 
-        Optionally specify a hostname in that lane and/or specific GPUs to use
-        for computation. Available hostnames for a given lane may be queried
-        with `CryoSPARC.get_targets`_.
+        Optionally specify a hostname for a node or cluster in the given lane.
+        Optionally specify specific GPUs indexes to use for computation.
+
+        Available hostnames for a given lane may be queried with
+        `CryoSPARC.get_targets`_.
 
         Args:
-            lane (str): Configuried compute lane to queue to.
+            lane (str, optional): Configuried compute lane to queue to. Leave
+                unspecified to run directly on the master or current
+                workstation. Defaults to None.
             hostname (str, optional): Specific hostname in compute lane, if more
                 than one is available. Defaults to None.
             gpus (list[int], optional): GPUs to queue to. If specified, must
@@ -642,17 +648,26 @@ class Job(MongoController[JobDocument]):
         """
         return self.cs.download_asset(fileid, target)
 
-    def upload(self, target_path_rel: Union[str, PurePosixPath], source: Union[str, bytes, PurePath, IO]):
+    def upload(
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        source: Union[str, bytes, PurePath, IO],
+        *,
+        overwrite: bool = False,
+    ):
         """
-        Upload the given file to the job directory at the given path.
+        Upload the given file to the job directory at the given path. Fails if
+        target already exists
 
         Args:
             target_path_rel (str | Path): Relative target path in job directory
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
         target_path_rel = PurePosixPath(self.uid) / target_path_rel
-        return self.cs.upload(self.project_uid, target_path_rel, source)
+        return self.cs.upload(self.project_uid, target_path_rel, source, overwrite=overwrite)
 
     def upload_asset(
         self,
@@ -807,9 +822,17 @@ class Job(MongoController[JobDocument]):
 
         return assets
 
-    def upload_dataset(self, target_path_rel: Union[str, PurePosixPath], dset: Dataset, format: int = DEFAULT_FORMAT):
+    def upload_dataset(
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        dset: Dataset,
+        *,
+        format: int = DEFAULT_FORMAT,
+        overwrite: bool = False,
+    ):
         """
-        Upload a dataset as a CS file into the job directory.
+        Upload a dataset as a CS file into the job directory. Fails if target
+        already exists.
 
         Args:
             target_path_rel (str | Path): relative path to save dataset in job
@@ -817,23 +840,34 @@ class Job(MongoController[JobDocument]):
             dset (Dataset): dataset to save.
             format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
-
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
         target_path_rel = PurePosixPath(self.uid) / target_path_rel
-        return self.cs.upload_dataset(self.project_uid, target_path_rel, dset, format=format)
+        return self.cs.upload_dataset(self.project_uid, target_path_rel, dset, format=format, overwrite=overwrite)
 
-    def upload_mrc(self, target_path_rel: Union[str, PurePosixPath], data: "NDArray", psize: float):
+    def upload_mrc(
+        self,
+        target_path_rel: Union[str, PurePosixPath],
+        data: "NDArray",
+        psize: float,
+        *,
+        overwrite: bool = False,
+    ):
         """
-        Upload a numpy 2D or 3D array to the job directory as an MRC file.
+        Upload a numpy 2D or 3D array to the job directory as an MRC file. Fails
+        if target already exists.
 
         Args:
             target_path_rel (str | Path): relative path to save array in job
                 directory. Should have ``.mrc`` extension.
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
+            overwrite (bool, optional): If True, overwrite existing files.
+                Defaults to False.
         """
         target_path_rel = PurePosixPath(self.uid) / target_path_rel
-        return self.cs.upload_mrc(self.project_uid, target_path_rel, data, psize)
+        return self.cs.upload_mrc(self.project_uid, target_path_rel, data, psize, overwrite=overwrite)
 
     def mkdir(
         self,
@@ -1017,7 +1051,7 @@ class ExternalJob(Job):
         name: Optional[str] = None,
         min: int = 0,
         max: Union[int, Literal["inf"]] = "inf",
-        slots: Iterable[Union[str, Datafield]] = [],
+        slots: Iterable[SlotSpec] = [],
         title: Optional[str] = None,
     ):
         """
@@ -1033,11 +1067,16 @@ class ExternalJob(Job):
             max (int | Literal["inf"], optional): Maximum number of input
                 connections. Specify ``"inf"`` for unlimited connections.
                 Defaults to "inf".
-            slots (list[str | Datafield], optional): List of slots that should
+            slots (list[SlotSpec], optional): List of slots that should
                 be connected to this input, such as ``"location"`` or ``"blob"``
                 Defaults to [].
             title (str, optional): Human-readable title for this input. Defaults
                 to None.
+
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
 
         Returns:
             str: name of created input
@@ -1060,16 +1099,21 @@ class ExternalJob(Job):
             ... )
             "input_micrographs"
         """
-        self.cs.vis.add_external_job_input(  # type: ignore
-            project_uid=self.project_uid,
-            job_uid=self.uid,
-            type=type,
-            name=name,
-            min=min,
-            max=max,
-            slots=slots,
-            title=title,
-        )
+        try:
+            self.cs.vis.add_external_job_input(  # type: ignore
+                project_uid=self.project_uid,
+                job_uid=self.uid,
+                type=type,
+                name=name,
+                min=min,
+                max=max,
+                slots=slots,
+                title=title,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise InvalidSlotsError("add_input", err.data["slots"]) from err
+            raise
         self.refresh()
         return self.doc["input_slot_groups"][-1]["name"]
 
@@ -1078,7 +1122,7 @@ class ExternalJob(Job):
         self,
         type: Datatype,
         name: Optional[str] = ...,
-        slots: List[Union[str, Datafield]] = ...,
+        slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
         title: Optional[str] = None,
     ) -> str:
@@ -1089,7 +1133,7 @@ class ExternalJob(Job):
         self,
         type: Datatype,
         name: Optional[str] = ...,
-        slots: List[Union[str, Datafield]] = ...,
+        slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
         title: Optional[str] = None,
         alloc: Union[int, Dataset] = ...,
@@ -1100,7 +1144,7 @@ class ExternalJob(Job):
         self,
         type: Datatype,
         name: Optional[str] = None,
-        slots: List[Union[str, Datafield]] = [],
+        slots: List[SlotSpec] = [],
         passthrough: Optional[str] = None,
         title: Optional[str] = None,
         alloc: Union[int, Dataset, Literal[None]] = None,
@@ -1113,7 +1157,7 @@ class ExternalJob(Job):
             type (Datatype): cryo-EM datatype for this output, e.g., "particle"
             name (str, optional): Output name key, e.g., "selected_particles".
                 Same as ``type`` if not specified. Defaults to None.
-            slots (list[str, Datafield], optional): List of slot expected to be
+            slots (list[SlotSpec], optional): List of slot expected to be
                 created for this output, such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to [].
@@ -1127,6 +1171,11 @@ class ExternalJob(Job):
                 to allocate a specific number of rows. Specify a Dataset from
                 which to inherit unique row IDs (useful when adding passthrough
                 outputs). Defaults to None.
+
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
 
         Returns:
             str | Dataset: Name of the created output. If ``alloc`` is
@@ -1171,15 +1220,20 @@ class ExternalJob(Job):
             ... )
             "particle_alignments"
         """
-        self.cs.vis.add_external_job_output(  # type: ignore
-            project_uid=self.project_uid,
-            job_uid=self.uid,
-            type=type,
-            name=name,
-            slots=slots,
-            passthrough=passthrough,
-            title=title,
-        )
+        try:
+            self.cs.vis.add_external_job_output(  # type: ignore
+                project_uid=self.project_uid,
+                job_uid=self.uid,
+                type=type,
+                name=name,
+                slots=slots,
+                passthrough=passthrough,
+                title=title,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise InvalidSlotsError("add_output", err.data["slots"]) from err
+            raise
         self.refresh()
         result_name = self.doc["output_result_groups"][-1]["name"]
         return result_name if alloc is None else self.alloc_output(result_name, alloc)
@@ -1189,7 +1243,7 @@ class ExternalJob(Job):
         target_input: str,
         source_job_uid: str,
         source_output: str,
-        slots: List[Union[str, Datafield]] = [],
+        slots: List[SlotSpec] = [],
         title: str = "",
         desc: str = "",
         refresh: bool = True,
@@ -1205,7 +1259,7 @@ class ExternalJob(Job):
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
-            slots (list[str | Datafield], optional): List of slots to add to
+            slots (list[SlotSpec], optional): List of slots to add to
                 created input. All if not specified. Defaults to [].
             title (str, optional): Human readable title for created input.
                 Defaults to "".
@@ -1213,6 +1267,11 @@ class ExternalJob(Job):
                 Defaults to "".
             refresh (bool, optional): Auto-refresh job document after
                 connecting. Defaults to True.
+
+        Raises:
+            CommandError: General CryoSPARC network access error such as
+                timeout, URL or HTTP
+            InvalidSlotsError: slots argument is invalid
 
         Examples:
 
@@ -1226,16 +1285,21 @@ class ExternalJob(Job):
 
         """
         assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
-        self.cs.vis.connect_external_job(  # type: ignore
-            project_uid=self.project_uid,
-            source_job_uid=source_job_uid,
-            source_output=source_output,
-            target_job_uid=self.uid,
-            target_input=target_input,
-            slots=slots,
-            title=title,
-            desc=desc,
-        )
+        try:
+            self.cs.vis.connect_external_job(  # type: ignore
+                project_uid=self.project_uid,
+                source_job_uid=source_job_uid,
+                source_output=source_output,
+                target_job_uid=self.uid,
+                target_input=target_input,
+                slots=slots,
+                title=title,
+                desc=desc,
+            )
+        except CommandError as err:
+            if err.code == 422 and err.data and "slots" in err.data:
+                raise InvalidSlotsError("connect", err.data["slots"]) from err
+            raise
         if refresh:
             self.refresh()
 

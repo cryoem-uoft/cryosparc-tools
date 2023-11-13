@@ -20,11 +20,11 @@ if sys.platform == "win32" and DEBUG:
     extra_compile_args += ["/Zi"]
     extra_link_args += ["/DEBUG"]
 elif DEBUG:
-    extra_compile_args += ["-g", "-O0"]
+    extra_compile_args += ["-g", "-O0", "-Wall", "-Wextra"]
 
 setup(
     name="cryosparc_tools",
-    version="4.2.0",
+    version="4.4.0",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["cryosparc/include/cryosparc-tools/dataset.h"],
     ext_modules=cythonize(
