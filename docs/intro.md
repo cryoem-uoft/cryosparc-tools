@@ -148,15 +148,45 @@ For speed, these do not include the dependencies for the crYOLO example
 notebook. Optionally install crYOLO with these commands:
 
 ```sh
-conda install -c conda-forge pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme
+conda install -c conda-forge pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme 'setuptools<66'
 pip install nvidia-pyindex
 pip install "cryolo[c11]"
 ```
 
-Install Jupyter with this command:
+If required, install Jupyter:
 
 ```sh
 pip install notebook
+```
+
+Run Jupyter:
+
+```sh
+jupyter notebook
+```
+
+Note the login token in the output.
+
+This starts a Jupyter Notebook server at http://localhost:8888 on the current
+machine. Optionally provide the following arguments to make Jupyter available to
+other machines on the local network:
+
+```sh
+jupyter notebook --no-browser --ip=0.0.0.0 --port=8888
+```
+
+Note that when initializing a `cryosparc.tools.CryoSPARC` instance in Python,
+you will have to provide the `license`, `email` and `password` arguments. For
+convenience, the examples in this guide avoid this by instead defining them in
+environment variables. To do the same, define `CRYOSPARC_LICENSE`,
+`CRYOSPARC_EMAIL` and `CRYOSPARC_PASSWORD` environment variables with your
+CryoSPARC license and login credentials:
+
+```sh
+CRYOSPARC_LICENSE_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+CRYOSPARC_EMAIL="ali@example.com" \
+CRYOSPARC_PASSWORD="password123" \
+jupyter notebook --no-browser --ip=0.0.0.0 --port=8888
 ```
 
 Example notebooks ran on Ubuntu Linux with x86-64 bit architecture.
