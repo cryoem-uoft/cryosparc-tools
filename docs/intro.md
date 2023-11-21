@@ -131,6 +131,7 @@ particles["location/center_y_frac"] *= new_loc_y / mic_shape_y
 particles.save(path)
 ```
 
+(running-the-examples)=
 ## Running the Examples
 
 The example Jupyter notebooks require additional dependencies to run. Use
