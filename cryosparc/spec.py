@@ -487,6 +487,17 @@ class ParamSpec(TypedDict):
     """Value of param."""
 
 
+class ParamSection(TypedDict):
+    """Param section specification"""
+
+    title: str
+    """Parameter section title"""
+    desc: str
+    """Parameter section description"""
+    order: int
+    """Order for this parameter section to appear in the job builder"""
+
+
 class ProjectLastAccessed(TypedDict, total=False):
     """
     Details on when a project was last accessed.
@@ -579,8 +590,11 @@ class JobDocument(TypedDict):
     project_uid_num: int
     """Project number, e.g., 3."""
 
-    job_type: str
+    type: str
     """Job type identifier, e.g., "class2d"."""
+
+    job_type: str
+    """Alias for type key"""
 
     title: str
     """Human-readable job title."""
@@ -624,6 +638,9 @@ class JobDocument(TypedDict):
     """User-specified parameter values. Each key is a parameter value. Not all
     keys from ``params_base`` are included here, only ones that were explicitly
     set."""
+
+    params_secs: Dict[str, ParamSection]
+    """Parameter section definitions"""
 
     workspace_uids: List[str]
     """List of workspace UIDs this job belongs to."""
@@ -831,11 +848,29 @@ Scheduler target details.
 """
 
 
+class JobSpec(TypedDict):
+    """
+    Specification for a Job document from the CryoSPARC's job register./
+    """
+
+    name: str
+    title: str
+    shorttitle: str
+    description: str
+    input_slot_groups: List[InputSlotGroup]
+    params_base: Dict[str, Union[Param, EnumParam, PathParam]]
+    params_secs: Dict[str, ParamSection]
+    is_interactive: bool
+    is_lightweight: bool
+    develop_only: bool
+    hidden: bool
+
+
 class JobSection(TypedDict):
     """
     Specification of available job types of a certain category.
 
-    Example:
+    Examples:
 
         >>> {
         ...     "name": "refinement",
@@ -857,7 +892,29 @@ class JobSection(TypedDict):
     description: str
     """Human-readable section description."""
     contains: List[str]
-    """Job type identifiers contained by this section."""
+    """List of available job types in this category"""
+
+
+class JobSpecSection(TypedDict):
+    """
+    Similar to JobSection_, except each item in ``contains`` is a detailed
+    JobSpec_.
+
+
+    .. _JobSection:
+        #cryosparc.spec.JobSection
+    .. _JobSpec:
+        #cryosparc.spec.JobSpec
+    """
+
+    name: str
+    """Section identifier."""
+    title: str
+    """Human-readable section title."""
+    description: str
+    """Human-readable section description."""
+    contains: List[JobSpec]
+    """List of job details available in this category"""
 
 
 class MongoController(ABC, Generic[D]):
