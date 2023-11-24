@@ -17,6 +17,9 @@ parts:
       - file: examples/delete-rejected-exposures
       - file: examples/upscale-expanded-particles
       - file: examples/connect_series_to_class3D
+  - caption: Guides
+    chapters:
+      - file: guides/jobs.ipynb
   - caption: API Reference
     chapters:
       - file: api/index
