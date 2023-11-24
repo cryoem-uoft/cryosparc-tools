@@ -23,7 +23,7 @@ from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 from typing_extensions import Literal, TypedDict
 
 # Database document
-D = TypeVar("D", bound=TypedDict)
+D = TypeVar("D")
 
 
 Datatype = Literal[
