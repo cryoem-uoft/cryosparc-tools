@@ -20,7 +20,7 @@ Examples:
 """
 from io import BytesIO
 from pathlib import Path, PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Optional, Tuple, Union
 import os
 import re
 import tempfile
@@ -44,11 +44,12 @@ from .spec import (
     AssetDetails,
     Datatype,
     JobSection,
+    JobSpecSection,
     SchedulerLane,
     SchedulerTarget,
     SlotSpec,
 )
-from .util import bopen, noopcontext, padarray, trimarray
+from .util import bopen, noopcontext, padarray, print_table, trimarray
 
 
 ONE_MIB = 2**20  # bytes in one mebibyte
@@ -254,6 +255,43 @@ class CryoSPARC:
                 are listed in the ``"contains"`` key in each dictionary.
         """
         return self.cli.get_job_sections()  # type: ignore
+
+    def get_job_specs(self) -> List[JobSpecSection]:
+        """
+        Get a detailed summary of job and their specification available on
+        this instance, organized by category.
+
+        Returns:
+
+            list[JobSpecSection]: List of job section dictionaries. Job specs
+            are listed in the ``"contains"`` key in each dictionary
+        """
+        return self.cli.get_config_var("job_types_available")  # type: ignore
+
+    def print_jobs_types(self, section: Union[str, Container[str], None] = None, *, show_legacy: bool = False):
+        """
+        Print a table of job types and their titles, organized by category.
+
+        Args:
+            section (str | list[str], optional): Only show jobs from the given
+                section or list of sections. Defaults to None.
+            show_legacy (bool, optional): If True, also show legacy jobs.
+                Defaults to False.
+        """
+        allowed_sections = {section} if isinstance(section, str) else section
+        sections = self.get_job_specs()
+        headings = ["Section", "Job", "Title"]
+        rows = []
+        for sec in sections:
+            if allowed_sections is not None and sec["name"] not in allowed_sections:
+                continue
+            sec_name = sec["name"]
+            for job in sec["contains"]:
+                if job["hidden"] or job["develop_only"] or not show_legacy and "(LEGACY)" in job["title"]:
+                    continue
+                rows.append([sec_name, job["name"], job["title"]])
+                sec_name = ""
+        print_table(headings, rows)
 
     def find_project(self, project_uid: str) -> Project:
         """
