@@ -4,6 +4,9 @@
 format: jb-book
 root: intro
 parts:
+  - caption: Guides
+    chapters:
+      - file: guides/jobs
   - caption: Examples
     numbered: True
     chapters:
@@ -17,9 +20,6 @@ parts:
       - file: examples/delete-rejected-exposures
       - file: examples/upscale-expanded-particles
       - file: examples/connect_series_to_class3D
-  - caption: Guides
-    chapters:
-      - file: guides/jobs.ipynb
   - caption: API Reference
     chapters:
       - file: api/index
