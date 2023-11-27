@@ -197,7 +197,7 @@ def make_request(
             )
             if error.readable():
                 resdata = error.read()
-                error_reason += f"\nResponse from server: {data}"
+                error_reason += f"\nResponse from server: {resdata}"
             if resdata and error.headers.get_content_type() == "application/json":
                 resdata = json.loads(resdata)
 
