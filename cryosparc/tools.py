@@ -268,7 +268,7 @@ class CryoSPARC:
         """
         return self.cli.get_config_var("job_types_available")  # type: ignore
 
-    def print_jobs_types(self, section: Union[str, Container[str], None] = None, *, show_legacy: bool = False):
+    def print_job_types(self, section: Union[str, Container[str], None] = None, *, show_legacy: bool = False):
         """
         Print a table of job types and their titles, organized by category.
 

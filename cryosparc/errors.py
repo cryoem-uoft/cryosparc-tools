@@ -43,7 +43,7 @@ class SlotsValidation(TypedDict):
 
 class InvalidSlotsError(ValueError):
     """
-    Raised by functions that accept slots arguments, and CryoSPARC reports that
+    Raised by functions that accept slots arguments when CryoSPARC reports that
     given slots are not valid.
     """
 

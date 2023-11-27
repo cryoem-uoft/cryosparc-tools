@@ -850,20 +850,35 @@ Scheduler target details.
 
 class JobSpec(TypedDict):
     """
-    Specification for a Job document from the CryoSPARC's job register./
+    Specification for a Job document from the CryoSPARC's job register.
     """
 
     name: str
+    """Job's machine-readable type, e.g., 'homo_abinit'."""
     title: str
+    """Job's human-readable name, e.g., 'Ab-Initio Reconstruction'."""
     shorttitle: str
+    """Short-version of name, e.g., 'Ab-Initio'."""
     description: str
+    """Detailed description of job type"""
+
     input_slot_groups: List[InputSlotGroup]
+    """Description of available inputs."""
     params_base: Dict[str, Union[Param, EnumParam, PathParam]]
+    """Description of available parameters."""
     params_secs: Dict[str, ParamSection]
+    """Description of parameter sections."""
+
     is_interactive: bool
+    """If True, this job is requires interaction. "Curate Exposures" and "Select
+    2D Classes" are examples of interactive jobs."""
     is_lightweight: bool
-    develop_only: bool
+    """If True, does job does not require GPUs and requires few-enough
+    resources that it can usually run directly on the master machine."""
     hidden: bool
+    """If True, job is not visible in the interface."""
+    develop_only: bool
+    """If True, job is in development and not available to run."""
 
 
 class JobSection(TypedDict):
