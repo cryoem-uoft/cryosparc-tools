@@ -105,6 +105,7 @@ class Job(MongoController[JobDocument]):
         self._doc = self.cs.cli.get_job(self.project_uid, self.uid)  # type: ignore
         return self
 
+    @property
     def dir(self) -> PurePosixPath:
         """
         Get the path to the job directory.
