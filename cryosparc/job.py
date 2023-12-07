@@ -554,12 +554,14 @@ class Job(MongoController[JobDocument]):
         files = self.cs.list_files(self.project_uid, prefix=root / prefix, recursive=recursive)
         return [str(PurePosixPath(f).relative_to(root)) for f in files]  # Strip leading "J#/"
 
-    def download(self, path_rel: Union[str, PurePosixPath]):
+    def download(self, path: Union[str, PurePosixPath]):
         """
-        Initiate a download request for a file inside the job's diretory
+        Initiate a download request for a file inside the job's directory. Use
+        to get files from a remote CryoSPARC instance where the job directory
+        is not available on the client file system.
 
         Args:
-            path_rel (str | Path): Relative path to file in job directory.
+            path (str | Path): Name or path of file in job directory.
 
         Yields:
             HTTPResponse: Use a context manager to read the file from the
@@ -575,51 +577,53 @@ class Job(MongoController[JobDocument]):
             >>>     job_data = json.loads(res.read())
 
         """
-        path_rel = PurePosixPath(self.uid) / path_rel
-        return self.cs.download(self.project_uid, path_rel)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download(self.project_uid, path)
 
-    def download_file(self, path_rel: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
+    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]] = ""):
         """
         Download file from job directory to the given target path or writeable
         file handle.
 
         Args:
-            path_rel (str | Path): Relative path to file in job directory.
-            target (str | Path | IO): Local file path, directory path or writeable
-                file handle to write response data.
+            path (str | Path): Name or path of file in job directory.
+            target (str | Path | IO): Local file path, directory path or
+                writeable file handle to write response data. If not specified,
+                downloads to current working directory with same file name.
+                Defaults to "".
 
         Returns:
             Path | IO: resulting target path or file handle.
         """
-        path_rel = PurePosixPath(self.uid) / path_rel
-        return self.cs.download_file(self.project_uid, path_rel, target)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download_file(self.project_uid, path, target)
 
-    def download_dataset(self, path_rel: Union[str, PurePosixPath]):
+    def download_dataset(self, path: Union[str, PurePosixPath]):
         """
-        Download a .cs dataset file from the given relative path in the job
+        Download a .cs dataset file from the given path in the job
         directory.
 
         Args:
-            path_rel (str | Path): Relative path to .cs file in job directory.
+            path (str | Path): Name or path of .cs file in job directory.
 
         Returns:
             Dataset: Loaded dataset instance
         """
-        path_rel = PurePosixPath(self.uid) / path_rel
-        return self.cs.download_dataset(self.project_uid, path_rel)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download_dataset(self.project_uid, path)
 
-    def download_mrc(self, path_rel: Union[str, PurePosixPath]):
+    def download_mrc(self, path: Union[str, PurePosixPath]):
         """
         Download a .mrc file from the given relative path in the job directory.
 
         Args:
-            path (str | Path): Relative path to .mrc file in job directory.
+            path (str | Path): Name or path of .mrc file in job directory.
 
         Returns:
             tuple[Header, NDArray]: MRC file header and data as a numpy array
         """
-        path_rel = PurePosixPath(self.uid) / path_rel
-        return self.cs.download_mrc(self.project_uid, path_rel)
+        path = PurePosixPath(self.uid) / path
+        return self.cs.download_mrc(self.project_uid, path)
 
     def list_assets(self) -> List[AssetDetails]:
         """
@@ -651,24 +655,25 @@ class Job(MongoController[JobDocument]):
 
     def upload(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         source: Union[str, bytes, PurePath, IO],
         *,
         overwrite: bool = False,
     ):
         """
         Upload the given file to the job directory at the given path. Fails if
-        target already exists
+        target already exists.
 
         Args:
-            target_path_rel (str | Path): Relative target path in job directory
+            target_path (str | Path): Name or path of file to write in job
+                directory.
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        target_path_rel = PurePosixPath(self.uid) / target_path_rel
-        return self.cs.upload(self.project_uid, target_path_rel, source, overwrite=overwrite)
+        target_path = PurePosixPath(self.uid) / target_path
+        return self.cs.upload(self.project_uid, target_path, source, overwrite=overwrite)
 
     def upload_asset(
         self,
@@ -692,7 +697,7 @@ class Job(MongoController[JobDocument]):
         format.
 
         Args:
-            file (str | Path | IO): Source asset file path or handle
+            file (str | Path | IO): Source asset file path or handle.
             filename (str, optional): Filename of asset. If ``file`` is a handle
                 specify one of ``filename`` or ``format``. Defaults to None.
             format (AssetFormat, optional): Format of filename. If ``file`` is
@@ -825,7 +830,7 @@ class Job(MongoController[JobDocument]):
 
     def upload_dataset(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         dset: Dataset,
         *,
         format: int = DEFAULT_FORMAT,
@@ -836,20 +841,20 @@ class Job(MongoController[JobDocument]):
         already exists.
 
         Args:
-            target_path_rel (str | Path): relative path to save dataset in job
+            target_path (str | Path): Name or path of dataset to save in the job
                 directory. Should have a ``.cs`` extension.
-            dset (Dataset): dataset to save.
-            format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
+            dset (Dataset): Dataset to save.
+            format (int): Format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        target_path_rel = PurePosixPath(self.uid) / target_path_rel
-        return self.cs.upload_dataset(self.project_uid, target_path_rel, dset, format=format, overwrite=overwrite)
+        target_path = PurePosixPath(self.uid) / target_path
+        return self.cs.upload_dataset(self.project_uid, target_path, dset, format=format, overwrite=overwrite)
 
     def upload_mrc(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         data: "NDArray",
         psize: float,
         *,
@@ -860,28 +865,28 @@ class Job(MongoController[JobDocument]):
         if target already exists.
 
         Args:
-            target_path_rel (str | Path): relative path to save array in job
-                directory. Should have ``.mrc`` extension.
+            target_path (str | Path): Name or path of MRC file to save in the
+                job directory. Should have a ``.mrc`` extension.
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        target_path_rel = PurePosixPath(self.uid) / target_path_rel
-        return self.cs.upload_mrc(self.project_uid, target_path_rel, data, psize, overwrite=overwrite)
+        target_path = PurePosixPath(self.uid) / target_path
+        return self.cs.upload_mrc(self.project_uid, target_path, data, psize, overwrite=overwrite)
 
     def mkdir(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         parents: bool = False,
         exist_ok: bool = False,
     ):
         """
-        Create a directory in the given job.
+        Create a folder in the given job.
 
         Args:
-            target_path_rel (str | Path): Relative path to create inside project
-                directory.
+            target_path (str | Path): Name or path of folder to create inside
+                the job directory.
             parents (bool, optional): If True, any missing parents are created
                 as needed. Defaults to False.
             exist_ok (bool, optional): If True, does not raise an error for
@@ -890,43 +895,45 @@ class Job(MongoController[JobDocument]):
         """
         self.cs.mkdir(
             project_uid=self.project_uid,
-            target_path_rel=PurePosixPath(self.uid) / target_path_rel,
+            target_path=PurePosixPath(self.uid) / target_path,
             parents=parents,
             exist_ok=exist_ok,
         )
 
-    def cp(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
+    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
         """
-        Copy a file or folder within a project to another location within that
-        same project.
+        Copy a file or folder into the job directory.
 
         Args:
-            source_path_rel (str | Path): Relative path in project of source
-                file or folder to copy.
-            target_path_rel (str | Path): Relative path in project to copy to.
+            source_path (str | Path): Relative or absolute path of source file
+                or folder to copy. If relative, assumed to be within the job
+                directory.
+            target_path (str | Path, optional): Name or path in the job
+                directory to copy into. If not specified, uses the same file
+                name as the source. Defaults to "".
         """
         self.cs.cp(
             project_uid=self.project_uid,
-            source_path_rel=PurePosixPath(self.uid) / source_path_rel,
-            target_path_rel=PurePosixPath(self.uid) / target_path_rel,
+            source_path=PurePosixPath(self.uid) / source_path,
+            target_path=PurePosixPath(self.uid) / target_path,
         )
 
-    def symlink(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
+    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
         """
-        Create a symbolic link in the given project. May only create links for
-        files within the project.
+        Create a symbolic link in job's directory.
 
         Args:
-            project_uid (str): Target project UID, e.g., "P3".
-            source_path_rel (str | Path): Relative path in project to file from
-                which to create symlink.
-            target_path_rel (str | Path): Relative path in project to new
-                symlink.
+            source_path (str | Path): Relative or absolute path of source file
+                or folder to create a link to. If relative, assumed to be within
+                the job directory.
+            target_path (str | Path): Name or path of new symlink in the job
+                directory. If not specified, creates link with the same file
+                name as the source. Defaults to "".
         """
         self.cs.symlink(
             project_uid=self.project_uid,
-            source_path_rel=PurePosixPath(self.uid) / source_path_rel,
-            target_path_rel=PurePosixPath(self.uid) / target_path_rel,
+            source_path=PurePosixPath(self.uid) / source_path,
+            target_path=PurePosixPath(self.uid) / target_path,
         )
 
     def subprocess(
