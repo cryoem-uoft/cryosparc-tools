@@ -471,7 +471,6 @@ class Job(MongoController[JobDocument]):
         figure: Union[str, PurePath, IO[bytes], Any],
         text: str,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
-        *,
         raw_data: Union[str, bytes, Literal[None]] = None,
         raw_data_file: Union[str, PurePath, IO[bytes], Literal[None]] = None,
         raw_data_format: Optional[TextFormat] = None,
