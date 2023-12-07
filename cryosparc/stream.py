@@ -18,7 +18,6 @@ from typing_extensions import Protocol
 
 if TYPE_CHECKING:
     from typing_extensions import Self  # not present in typing-extensions=3.7
-    from .core import MemoryView
 
 
 class AsyncBinaryIO(Protocol):
@@ -154,7 +153,7 @@ class Streamable(ABC):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator))
 
     @abstractmethod
-    def stream(self) -> Generator[Union[bytes, memoryview, "MemoryView"], None, None]:
+    def stream(self) -> Generator[bytes, None, None]:
         ...
 
     async def astream(self):
