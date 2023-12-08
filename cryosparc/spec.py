@@ -884,6 +884,6 @@ class MongoController(ABC, Generic[D]):
         return self._doc
 
     @abstractmethod
-    def refresh(self) -> Self:
+    def refresh(self) -> "Self":
         # Must be implemented in subclasses
         return self
