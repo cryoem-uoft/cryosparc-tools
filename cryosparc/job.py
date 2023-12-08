@@ -172,7 +172,7 @@ class Job(MongoController[JobDocument]):
         )
         self.refresh()
 
-    def wait_for_status(self, status: Union[JobStatus, Iterable[JobStatus]], timeout: Optional[int] = None) -> str:
+    def wait_for_status(self, status: Union[JobStatus, Iterable[JobStatus]], *, timeout: Optional[int] = None) -> str:
         """
         Wait for a job's status to reach the specified value. Must be one of
         the following:
@@ -208,7 +208,7 @@ class Job(MongoController[JobDocument]):
             self.refresh()
         return self.status
 
-    def wait_for_done(self, error_on_incomplete: bool = False, timeout: Optional[int] = None) -> str:
+    def wait_for_done(self, *, error_on_incomplete: bool = False, timeout: Optional[int] = None) -> str:
         """
         Wait until a job reaches status "completed", "killed" or "failed".
 
@@ -226,7 +226,7 @@ class Job(MongoController[JobDocument]):
         ), f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
         return status
 
-    def interact(self, action: str, body: Any = {}, timeout: int = 10, refresh: bool = False) -> Any:
+    def interact(self, action: str, body: Any = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
         """
         Call an interactive action on a waiting interactive job. The possible
         actions and expected body depends on the job type.
@@ -254,7 +254,7 @@ class Job(MongoController[JobDocument]):
         self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
         self.refresh()
 
-    def set_param(self, name: str, value: Any, refresh: bool = True) -> bool:
+    def set_param(self, name: str, value: Any, *, refresh: bool = True) -> bool:
         """
         Set the given param name on the current job to the given value. Only
         works if the job is in "building" status.
@@ -284,7 +284,7 @@ class Job(MongoController[JobDocument]):
             self.refresh()
         return result
 
-    def connect(self, target_input: str, source_job_uid: str, source_output: str, refresh: bool = True) -> bool:
+    def connect(self, target_input: str, source_job_uid: str, source_output: str, *, refresh: bool = True) -> bool:
         """
         Connect the given input for this job to an output with given job UID and
         name.
@@ -322,7 +322,7 @@ class Job(MongoController[JobDocument]):
             self.refresh()
         return result
 
-    def disconnect(self, target_input: str, connection_idx: Optional[int] = None, refresh: bool = True):
+    def disconnect(self, target_input: str, connection_idx: Optional[int] = None, *, refresh: bool = True):
         """
         Clear the given job input group.
 
@@ -1126,6 +1126,7 @@ class ExternalJob(Job):
         slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
         title: Optional[str] = None,
+        alloc: Literal[None] = None,
     ) -> str:
         ...
 
@@ -1244,11 +1245,12 @@ class ExternalJob(Job):
         target_input: str,
         source_job_uid: str,
         source_output: str,
+        *,
         slots: List[SlotSpec] = [],
         title: str = "",
         desc: str = "",
         refresh: bool = True,
-    ):
+    ) -> bool:
         """
         Connect the given input for this job to an output with given job UID and
         name. If this input does not exist, it will be added with the given
@@ -1303,6 +1305,7 @@ class ExternalJob(Job):
             raise
         if refresh:
             self.refresh()
+        return True
 
     def alloc_output(self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0) -> Dataset:
         """
@@ -1363,7 +1366,7 @@ class ExternalJob(Job):
         else:
             return Dataset({"uid": alloc}).add_fields(expected_fields)
 
-    def save_output(self, name: str, dataset: Dataset, refresh: bool = True):
+    def save_output(self, name: str, dataset: Dataset, *, refresh: bool = True):
         """
         Save output dataset to external job.
 
