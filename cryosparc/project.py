@@ -1,15 +1,15 @@
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-
-from .workspace import Workspace
-from .job import Job, ExternalJob
-from .dataset import Dataset, DEFAULT_FORMAT
+from .dataset import DEFAULT_FORMAT, Dataset
+from .job import ExternalJob, Job
 from .row import R
-from .spec import MongoController, Datatype, ProjectDocument, SlotSpec
+from .spec import Datatype, MongoController, ProjectDocument, SlotSpec
+from .workspace import Workspace
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
+
     from .tools import CryoSPARC
 
 

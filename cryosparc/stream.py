@@ -3,8 +3,8 @@
 from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
-    TYPE_CHECKING,
     IO,
+    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     AsyncIterator,
@@ -14,6 +14,7 @@ from typing import (
     Optional,
     Union,
 )
+
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:

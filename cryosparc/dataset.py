@@ -44,33 +44,35 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal, SupportsIndex
+
 import numpy as n
 import numpy.core.records
+from typing_extensions import Literal, SupportsIndex
 
+from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
     Field,
+    arraydtype,
     decode_dataset_header,
+    encode_dataset_header,
+    fielddtype,
     get_data_field,
     get_data_field_dtype,
     makefield,
-    encode_dataset_header,
-    fielddtype,
-    arraydtype,
     safe_makefield,
 )
 from .errors import DatasetLoadError
+from .row import R, Row, Spool
 from .stream import AsyncBinaryIO, Streamable
-from .column import Column
-from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike
+    from numpy.typing import ArrayLike, DTypeLike, NDArray
+
     from .core import MemoryView
 
 

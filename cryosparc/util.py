@@ -18,8 +18,9 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
+
 import numpy as n
+from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore

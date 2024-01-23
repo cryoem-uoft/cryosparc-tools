@@ -19,7 +19,8 @@ Examples:
     ]
 """
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+
 from typing_extensions import Literal, TypedDict
 
 if TYPE_CHECKING:

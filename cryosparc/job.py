@@ -1,17 +1,17 @@
 """
 Defines the Job and External job classes for accessing CryoSPARC jobs.
 """
+import json
 from contextlib import contextmanager
 from io import BytesIO
-import json
 from pathlib import PurePath, PurePosixPath
 from time import sleep, time
 from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Union, overload
+
 from typing_extensions import Literal
 
-
 from .command import CommandError, make_json_request, make_request
-from .dataset import Dataset, DEFAULT_FORMAT
+from .dataset import DEFAULT_FORMAT, Dataset
 from .errors import InvalidSlotsError
 from .spec import (
     ASSET_CONTENT_TYPES,
@@ -30,9 +30,9 @@ from .spec import (
 )
 from .util import bopen, first
 
-
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike
+    from numpy.typing import ArrayLike, NDArray
+
     from .tools import CryoSPARC
 
 
@@ -959,8 +959,8 @@ class Job(MongoController[JobDocument]):
             TypeError: For invalid arguments
             RuntimeError: If process exists with non-zero status code
         """
-        import subprocess
         import re
+        import subprocess
 
         pttrn = None
         if checkpoint_line_pattern and isinstance(checkpoint_line_pattern, str):
