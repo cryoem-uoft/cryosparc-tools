@@ -124,8 +124,8 @@ Run the following commands to check the code for issues related to type-safety, 
 
 ```sh
 pyright
-ruff .
-black .
+ruff check .
+ruff format .
 ```
 
 Commit your changes and [submit a pull request](https://github.com/cryoem-uoft/cryosparc-tools/compare). The pull request will be reviewed by someone on the Stuctura team. Check your GitHub notifications periodically for change requests. Once the pull request is approved, it will be merged to the `main` branch and deployed in the next release.
@@ -138,12 +138,12 @@ Inline source documentation is compiled to HTML via [Sphinx](https://www.sphinx-
 
 ## Styleguides
 
-cryosparc-tools uses [black](https://black.readthedocs.io/en/stable/) for
-formatting source code. Configuration options for black are included in
+cryosparc-tools uses [ruff](https://docs.astral.sh/ruff/formatter/) for
+formatting source code. Configuration options for ruff are included in
 pyproject.toml
 
-To format code with the required style, run `black .` in the cryosparc-tools
-directory.
+To format code with the required style, run `ruff format .` in the
+cryosparc-tools directory.
 
 ### Commit Messages
 
