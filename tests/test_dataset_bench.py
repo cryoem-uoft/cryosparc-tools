@@ -1,7 +1,10 @@
 from io import BytesIO
-import pytest
+
 import numpy as n
+import pytest
+
 import cryosparc.dataset as ds
+
 from .conftest import Dataset
 
 

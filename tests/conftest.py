@@ -11,9 +11,8 @@ import numpy as n
 import pytest
 from numpy.core.records import fromrecords
 
-from cryosparc.dataset import CSDAT_FORMAT
+from cryosparc.dataset import CSDAT_FORMAT, Row
 from cryosparc.dataset import Dataset as BaseDataset
-from cryosparc.dataset import Row
 from cryosparc.tools import CryoSPARC
 from cryosparc.util import default_rng
 

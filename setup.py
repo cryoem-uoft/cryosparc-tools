@@ -1,6 +1,7 @@
 import sys
-from setuptools import Extension, setup
+
 from Cython.Build import cythonize
+from setuptools import Extension, setup
 
 DEBUG = False  # set to True to enable debugging
 libraries = []
@@ -30,7 +31,11 @@ setup(
     ext_modules=cythonize(
         Extension(
             name="cryosparc.core",
-            sources=["cryosparc/include/lz4/lib/lz4.c", "cryosparc/dataset.c", "cryosparc/core.pyx"],
+            sources=[
+                "cryosparc/include/lz4/lib/lz4.c",
+                "cryosparc/dataset.c",
+                "cryosparc/core.pyx",
+            ],
             include_dirs=["cryosparc/include/"],
             libraries=libraries,
             define_macros=define_macros,

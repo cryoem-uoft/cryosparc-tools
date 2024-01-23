@@ -1,4 +1,5 @@
 from typing import Optional
+
 import numpy as n
 
 from .core import Data

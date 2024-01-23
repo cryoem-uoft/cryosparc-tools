@@ -1,9 +1,11 @@
 import sys
-import pytest
+
 import httpretty
-from cryosparc.project import Project
-from cryosparc.job import Job
+import pytest
+
 from cryosparc.dataset import Dataset
+from cryosparc.job import Job
+from cryosparc.project import Project
 
 
 @pytest.fixture
