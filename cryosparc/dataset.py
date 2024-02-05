@@ -23,7 +23,7 @@ Dataset supports:
 - joining fields from another dataset on UID
 
 """
-from functools import reduce, lru_cache
+from functools import lru_cache, reduce
 from pathlib import PurePath
 from typing import (
     IO,
