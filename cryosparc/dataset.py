@@ -187,6 +187,7 @@ summary_result_fields = {
     "flex_mesh.mesh": [],
     "flex_model.checkpoint": [],
     "flex_mesh.mesh_pdb": [],
+    "mask.blob": ["path", "shape", "psize_A"],
 }
 
 
