@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.4.1
+
+- Fixed: Correct command response error data formatting
+
 ## v4.4.0
 
 - Added: Python 3.11 and 3.12 support

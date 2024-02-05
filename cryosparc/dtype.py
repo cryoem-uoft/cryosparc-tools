@@ -1,15 +1,16 @@
 """
 Utilities and type definitions for working with dataset fields and column types.
 """
-from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
 import json
-from typing_extensions import Literal, TypedDict
+from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
+
 import numpy as n
+from typing_extensions import Literal, TypedDict
 
 from .core import Data, DsetType
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, DTypeLike
+    from numpy.typing import DTypeLike, NDArray
 
 Shape = Tuple[int, ...]
 """A numpy shape tuple from ndarray.shape"""

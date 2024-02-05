@@ -1,9 +1,12 @@
-from io import BytesIO
 from base64 import b64decode
-import pytest
+from io import BytesIO
+
 import numpy as n
+import pytest
+
 from cryosparc.dataset import Column
 from cryosparc.row import Row
+
 from .conftest import Dataset
 
 

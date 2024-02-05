@@ -1,6 +1,7 @@
 import sys
-from setuptools import Extension, setup
+
 from Cython.Build import cythonize
+from setuptools import Extension, setup
 
 DEBUG = False  # set to True to enable debugging
 libraries = []
@@ -24,13 +25,17 @@ elif DEBUG:
 
 setup(
     name="cryosparc_tools",
-    version="4.4.0",
+    version="4.4.1",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["cryosparc/include/cryosparc-tools/dataset.h"],
     ext_modules=cythonize(
         Extension(
             name="cryosparc.core",
-            sources=["cryosparc/include/lz4/lib/lz4.c", "cryosparc/dataset.c", "cryosparc/core.pyx"],
+            sources=[
+                "cryosparc/include/lz4/lib/lz4.c",
+                "cryosparc/dataset.c",
+                "cryosparc/core.pyx",
+            ],
             include_dirs=["cryosparc/include/"],
             libraries=libraries,
             define_macros=define_macros,

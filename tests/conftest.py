@@ -11,9 +11,8 @@ import numpy as n
 import pytest
 from numpy.core.records import fromrecords
 
-from cryosparc.dataset import CSDAT_FORMAT
+from cryosparc.dataset import CSDAT_FORMAT, Row
 from cryosparc.dataset import Dataset as BaseDataset
-from cryosparc.dataset import Row
 from cryosparc.tools import CryoSPARC
 from cryosparc.util import default_rng
 
@@ -21,8 +20,9 @@ from cryosparc.util import default_rng
 # Always use this class for testing to ensure Dataset#items property is never
 # used internally. Downstream CryoSPARC relies on this.
 class Dataset(BaseDataset[Row]):
+    # Override items like the Particles class does in CryoSPARC
     @property
-    def items(self):
+    def items(self):  # type: ignore
         return self.rows()
 
     def shuffle(self):

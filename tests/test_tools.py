@@ -1,7 +1,8 @@
 import httpretty
-from cryosparc.tools import CryoSPARC
-from cryosparc.project import Project
+
 from cryosparc.job import Job
+from cryosparc.project import Project
+from cryosparc.tools import CryoSPARC
 
 
 def test_create_job_basic(cs: CryoSPARC, project: Project):
