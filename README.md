@@ -6,6 +6,14 @@
 Toolkit for interfacing with CryoSPARC. Read the documentation at
 [tools.cryosparc.com](https://tools.cryosparc.com)
 
+## Getting Help and Reporting Bugs
+
+For usage questions and general discussion about `cryosparc-tools` scripts and functions, please post to the [CryoSPARC discussion forum](https://discuss.cryosparc.com/c/scripting) under the Scripting category.
+
+If you like to request or propose a feature, change or fix for `cryosparc-tools` source code, please either [report an issue](https://github.com/cryoem-uoft/cryosparc-tools/issues/new) or [submit a pull request](https://github.com/cryoem-uoft/cryosparc-tools/compare).
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
+
 ## Development
 
 ### Prerequisites
