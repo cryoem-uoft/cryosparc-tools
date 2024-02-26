@@ -980,6 +980,28 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
 
+    def prefix_descr(self, prefix: str, new_prefix: str | None = None) -> List[Field]:
+        """
+        Get the dataset fields with the given prefix. Optionally replace the
+        prefix with another one before returning. Does not mutate dataset; use
+        rename_prefix instead.
+
+        Args:
+            prefix (str): Prefix to filter by.
+            new_prefix (str | None, optional): Replace the prefix with this one
+                before returning. Defaults to None.
+
+        Returns:
+            List[Field]: _description_
+        """
+        prefix_fields: List[Field] = [f for f in self.descr() if f[0].startswith(f"{prefix}/")]
+        if new_prefix and prefix != new_prefix:
+            prefix_fields = [
+                (f"{new_prefix}/{f[0].split('/', 1)[1]}", *f[1:])  # type: ignore
+                for f in prefix_fields
+            ]
+        return prefix_fields
+
     @overload
     def add_fields(self, fields: List[Field]) -> "Dataset[R]": ...
     @overload
