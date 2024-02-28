@@ -103,95 +103,6 @@ FORMAT_MAGIC_PREFIXES = {
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
-# the following dictionary contains a record of all fields inside each result group that should be summarized
-# a group can be "summarized" if all values in the group are non-unique
-# (e.g, movie_blob/shape has the same value for all exposures in the .cs file)
-summary_result_fields = {
-    "exposure.movie_blob": ["shape", "psize_A", "is_gain_corrected", "format", "has_defect_file"],
-    "exposure.mscope_params": ["accel_kv", "cs_mm", "total_dose_e_per_A2", "phase_plate", "neg_stain"],
-    "exposure.gain_ref_blob": ["shape", "flip_x", "flip_y", "rotate_num"],
-    "exposure.micrograph_blob": ["shape", "psize_A", "format", "is_background_subtracted"],
-    "exposure.stat_blob": ["binfactor", "shape", "psize_A"],
-    "exposure.signal_noise_model": ["type"],
-    "exposure.motion": ["type", "frame_start", "frame_end", "zero_shift_frame", "psize_A"],
-    "exposure.thumbnail_blob": ["shape", "format", "binfactor"],
-    "exposure.ctf": [
-        "type",
-        "accel_kv",
-        "cs_mm",
-        "amp_contrast",
-        "phase_shift_rad",
-    ],
-    "exposure.ctf_stats": [
-        "type",
-        "spectrum_dim",
-    ],
-    "exposure.ctf_plotdata": ["spectrum_dim"],
-    "particle.blob": ["shape", "psize_A", "sign"],
-    "particle.ctf": [
-        "type",
-        "accel_kv",
-        "cs_mm",
-        "amp_contrast",
-        "phase_shift_rad",
-        "scale",
-        "shift_A",
-        "tilt_A",
-        "trefoil_A",
-        "tetra_A",
-        "anisomag",
-        "bfactor",
-    ],
-    "particle.location": ["micrograph_shape"],
-    "particle.pick_stats": [],
-    "particle.motion": ["type", "frame_start", "frame_end", "zero_shift_frame", "psize_A"],
-    "particle.alignments3D": [
-        "psize_A",  # not unique
-    ],
-    "particle.alignments2D": [
-        "psize_A",  # not unique
-    ],
-    "particle.components": [
-        "component",
-    ],
-    "particle.ml_properties": ["type"],
-    "particle.sym_expand": [
-        "symmetry",  # not unique
-        "is_helix",  # not unique
-        "helix_rise_A",  # not unique
-        "helix_twist_rad",  # not unique
-        "helix_num_rises",  # not unique
-    ],
-    "particle.filament": [
-        "inter_box_dist_A",  # not unique
-    ],
-    "template.blob": ["shape", "psize_A", "res_A"],
-    "template.noisemodel": ["nrm", "psize_A", "boxsize"],
-    "template.partial": ["idx", "psize_A", "boxsize"],
-    "volume.blob": ["shape", "psize_A"],
-    "volume.noisemodel": ["nrm", "psize_A", "boxsize"],
-    "volume.partial": ["psize_A", "boxsize"],
-    "volume.series": ["count", "shape", "psize_A", "type"],
-    "volume.symmetry": ["group", "helical_rise_A", "helical_twist"],  # unique  # unique  # unique
-    "live.session_info": ["session_uid"],
-    "ml_model.blob": ["type", "version"],
-    "ml_model.preprocess": [
-        "psize_A",
-        "threshold",
-        "input_shape",
-        "denoise",
-        "lowpass",
-        "normalize",
-        "downsample",
-        "processed_mics",
-    ],
-    "symmetry_candidate.sym_params": [],
-    "flex_mesh.mesh": [],
-    "flex_model.checkpoint": [],
-    "flex_mesh.mesh_pdb": [],
-    "mask.blob": ["path", "shape", "psize_A"],
-}
-
 
 class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     """
@@ -1652,18 +1563,6 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     def _ipython_key_completions_(self):
         return self.fields()
-
-    def create_summary(self, result_names_to_types_map):
-        summary = {}
-        for field in self.fields(exclude_uid=True):
-            prefix = field.split("/")[0]
-            result_type = field.split("/")[1]
-            summary_fields = summary_result_fields[result_names_to_types_map[prefix]]
-            # some fields are empty
-            if len(self[field]) == 0 or result_type not in summary_fields:
-                continue
-            summary[field] = next(iter(self[field][:1].tolist()))
-        return summary
 
 
 def generate_uids(num: int = 0):
