@@ -20,21 +20,13 @@ Thanks for taking the time to contribute! See the [Table of Contents](#table-of-
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://tools.cryosparc.com).
 
-Before asking a question, search for existing [Issues](https://github.com/cryoem-uoft/cryosparc-tools/issues) that might help. If additional clarification is needed for a relevant issue, write a question in this issue. Search the [CryoSPARC Discussion Forum](https://discuss.cryosparc.com) for additional help.
-
-If you still have a question and need clarification, we recommend the following:
-
-- Open an [Issue](https://github.com/cryoem-uoft/cryosparc-tools/issues/new).
-- Provide as much context as you can about what you're running into.
-- Provide project and platform versions (operating system, python version, pip/conda version, etc), depending on what seems relevant.
-
-Structura will address the issue as soon as possible.
+For usage questions and general discussion about `cryosparc-tools` scripts and functions, please post to the [CryoSPARC discussion forum](https://discuss.cryosparc.com/c/scripting) under the Scripting category.
 
 ## I Want to Contribute
 
 > ### Legal Notice <!-- omit in toc -->
 >
-> When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
+> When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license (BSD-3-Clause).
 
 ### Reporting Bugs
 
