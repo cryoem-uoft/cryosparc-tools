@@ -23,7 +23,7 @@ Dataset supports:
 - joining fields from another dataset on UID
 
 """
-from functools import reduce
+from functools import lru_cache, reduce
 from pathlib import PurePath
 from typing import (
     IO,
@@ -592,6 +592,18 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
+
+    @classmethod
+    def load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+        """Replicate Dataset.from_file but with cacheing.
+        This can significantly speed up end-of-job validation with a large number of outputs (e.g., 3D Classification)
+        """
+        return cls._load_cached(file, cstrs).copy()
+
+    @classmethod
+    @lru_cache(maxsize=None)
+    def _load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+        return cls.load(file, cstrs)
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
