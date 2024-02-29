@@ -269,9 +269,9 @@ def request_callback_vis_get_project_file(request, uri, response_headers):
     body = json.loads(request.body)
     data = b""
     dset = None
-    if body["project_uid"] == "P1" and body["path_rel"] == "J1/J1_class_00_final_particles.cs":
+    if body["project_uid"] == "P1" and body["path"] == "J1/J1_class_00_final_particles.cs":
         dset = T20S_PARTICLES
-    elif body["project_uid"] == "P1" and body["path_rel"] == "J1/J1_passthrough_particles_class_0.cs":
+    elif body["project_uid"] == "P1" and body["path"] == "J1/J1_passthrough_particles_class_0.cs":
         dset = T20S_PARTICLES_PASSTHROUGH
     else:
         raise RuntimeError(f"Unimplemented get_project_file pytest fixture for request body {body}")
