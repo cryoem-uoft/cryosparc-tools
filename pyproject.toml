@@ -27,7 +27,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "build",
-    "black",
     "cython",
     "httpretty",
     "pre-commit",
@@ -64,12 +63,7 @@ build-backend = "setuptools.build_meta"
 [tool.pyright]
 include = ["cryosparc", "tests", "setup.py"]
 
-[tool.black]
-line-length = 120
-extend-exclude = """
-^/cryosparc/include/.*\\.py
-"""
-
 [tool.ruff]
 line-length = 120
-exclude = ["docs", ".venv*", "cryosparc/include"]
+extend-include =  ["*.ipynb"]
+extend-exclude = [".venv*", "cryosparc/include"]

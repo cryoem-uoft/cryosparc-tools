@@ -3,9 +3,10 @@ Helper module for reading and writing relion star files.
 """
 from pathlib import PurePath
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union, overload
-from typing_extensions import Literal
+
 import numpy as n
 from numpy.core.records import fromrecords
+from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
@@ -504,8 +505,8 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
     """
 
     # If numpy.loadtxt has a max_rows argument, can read more efficiently.
-    from inspect import signature
     import tempfile
+    from inspect import signature
 
     use_max_rows = "max_rows" in signature(n.loadtxt).parameters
 

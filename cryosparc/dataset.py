@@ -32,8 +32,8 @@ from typing import (
     Callable,
     Collection,
     Dict,
+    Generator,
     Generic,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
@@ -44,33 +44,35 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal, SupportsIndex
+
 import numpy as n
 import numpy.core.records
+from typing_extensions import Literal, SupportsIndex
 
+from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
     Field,
+    arraydtype,
     decode_dataset_header,
+    encode_dataset_header,
+    fielddtype,
     get_data_field,
     get_data_field_dtype,
     makefield,
-    encode_dataset_header,
-    fielddtype,
-    arraydtype,
     safe_makefield,
 )
 from .errors import DatasetLoadError
+from .row import R, Row, Spool
 from .stream import AsyncBinaryIO, Streamable
-from .column import Column
-from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike
+    from numpy.typing import ArrayLike, DTypeLike, NDArray
+
     from .core import MemoryView
 
 
@@ -645,7 +647,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["lz4", None] = None) -> Iterable[bytes]:
+    def stream(self, compression: Literal["lz4", None] = None) -> Generator[bytes, None, None]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -824,7 +826,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         self.drop_fields([key])
 
-    def __contains__(self, key: str) -> bool:
+    def __contains__(self, key: object) -> bool:
         """
         Use the ``in`` operator to check if the given field exists in dataset.
 
@@ -834,7 +836,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             bool: True if exists, False otherwise.
         """
-        return self._data.has(key)
+        return self._data.has(key) if isinstance(key, str) else False
 
     def __eq__(self, other: object):
         """

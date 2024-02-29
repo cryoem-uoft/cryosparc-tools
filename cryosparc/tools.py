@@ -18,27 +18,27 @@ Examples:
     >>> project = cs.find_project("P3")
 
 """
-from io import BytesIO
-from pathlib import Path, PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 import os
 import re
 import tempfile
+from io import BytesIO
+from pathlib import Path, PurePath, PurePosixPath
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 from warnings import warn
-from .errors import InvalidSlotsError
+
 import numpy as n
+
+from .errors import InvalidSlotsError
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
 
-from . import __version__
-from . import mrc
+from . import __version__, mrc
 from .command import CommandClient, CommandError, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
-from .row import R
-from .project import Project
-from .workspace import Workspace
 from .job import ExternalJob, Job
+from .project import Project
+from .row import R
 from .spec import (
     ASSET_EXTENSIONS,
     AssetDetails,
@@ -49,7 +49,7 @@ from .spec import (
     SlotSpec,
 )
 from .util import bopen, noopcontext, padarray, trimarray
-
+from .workspace import Workspace
 
 ONE_MIB = 2**20  # bytes in one mebibyte
 

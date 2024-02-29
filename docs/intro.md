@@ -15,6 +15,10 @@ Use it for the following use cases:
 This guide documents usage of the `cryosparc-tools` Python library. For CryoSPARC installation or general CryoSPARC usage instructions, [read the official guide](https://guide.cryosparc.com).
 ```
 
+For usage questions and general discussion about `cryosparc-tools` scripts and functions, please post to the [CryoSPARC discussion forum](https://discuss.cryosparc.com/c/scripting) under the Scripting category.
+
+If you would like to request or propose a feature, change or fix for `cryosparc-tools` source code, please either [report an issue](https://github.com/cryoem-uoft/cryosparc-tools/issues/new) or [submit a pull request](https://github.com/cryoem-uoft/cryosparc-tools/compare).
+
 Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-tools).
 
 ## Pre-requisites
@@ -172,8 +176,7 @@ API Reference for full usage capabilities.
 
 ## Contributing
 
-For questions, bug reports, suggestions or source code contributions, please
-[read the contribution guide](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CONTRIBUTING.md).
+[Read the contribution guide](https://github.com/cryoem-uoft/cryosparc-tools/blob/develop/CONTRIBUTING.md) for full details.
 
 If you publish an open-source tool that uses this package to GitHub, add the
 `cryosparc-tools` topic to your repository so others may discover it.
