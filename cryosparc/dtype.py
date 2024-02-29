@@ -1,6 +1,7 @@
 """
 Utilities and type definitions for working with dataset fields and column types.
 """
+
 import json
 from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
 

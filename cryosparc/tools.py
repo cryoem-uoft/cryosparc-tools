@@ -18,6 +18,7 @@ Examples:
     >>> project = cs.find_project("P3")
 
 """
+
 import os
 import re
 import tempfile

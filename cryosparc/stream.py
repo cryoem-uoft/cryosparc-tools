@@ -1,5 +1,5 @@
-"""Stream processing utilities
-"""
+"""Stream processing utilities"""
+
 from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
@@ -22,8 +22,7 @@ if TYPE_CHECKING:
 
 
 class AsyncBinaryIO(Protocol):
-    async def read(self, n: Optional[int] = None) -> bytes:
-        ...
+    async def read(self, n: Optional[int] = None) -> bytes: ...
 
 
 class BinaryIteratorIO(BinaryIO):
@@ -154,8 +153,7 @@ class Streamable(ABC):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator))
 
     @abstractmethod
-    def stream(self) -> Generator[bytes, None, None]:
-        ...
+    def stream(self) -> Generator[bytes, None, None]: ...
 
     async def astream(self):
         for chunk in self.stream():

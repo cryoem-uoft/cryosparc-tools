@@ -23,6 +23,7 @@ Dataset supports:
 - joining fields from another dataset on UID
 
 """
+
 from functools import reduce
 from pathlib import PurePath
 from typing import (
@@ -767,17 +768,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             yield key
 
     @overload
-    def __getitem__(self, key: SupportsIndex) -> R:
-        ...
-
+    def __getitem__(self, key: SupportsIndex) -> R: ...
     @overload
-    def __getitem__(self, key: slice) -> List[R]:
-        ...
-
+    def __getitem__(self, key: slice) -> List[R]: ...
     @overload
-    def __getitem__(self, key: str) -> Column:
-        ...
-
+    def __getitem__(self, key: str) -> Column: ...
     def __getitem__(self, key: Union[SupportsIndex, slice, str]) -> Union[R, List[R], Column]:
         """
         Get either a specific field in the dataset or a specific row or slice of
@@ -962,13 +957,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
 
     @overload
-    def add_fields(self, fields: List[Field]) -> "Dataset[R]":
-        ...
-
+    def add_fields(self, fields: List[Field]) -> "Dataset[R]": ...
     @overload
-    def add_fields(self, fields: List[str], dtypes: Union[str, List["DTypeLike"]]) -> "Dataset[R]":
-        ...
-
+    def add_fields(self, fields: List[str], dtypes: Union[str, List["DTypeLike"]]) -> "Dataset[R]": ...
     def add_fields(
         self,
         fields: Union[List[str], List[Field]],
