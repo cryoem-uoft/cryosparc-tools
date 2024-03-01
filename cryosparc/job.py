@@ -1,6 +1,7 @@
 """
 Defines the Job and External job classes for accessing CryoSPARC jobs.
 """
+
 import json
 from contextlib import contextmanager
 from io import BytesIO
@@ -1127,9 +1128,7 @@ class ExternalJob(Job):
         passthrough: Optional[str] = ...,
         title: Optional[str] = None,
         alloc: Literal[None] = None,
-    ) -> str:
-        ...
-
+    ) -> str: ...
     @overload
     def add_output(
         self,
@@ -1139,9 +1138,7 @@ class ExternalJob(Job):
         passthrough: Optional[str] = ...,
         title: Optional[str] = None,
         alloc: Union[int, Dataset] = ...,
-    ) -> Dataset:
-        ...
-
+    ) -> Dataset: ...
     def add_output(
         self,
         type: Datatype,

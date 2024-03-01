@@ -5,7 +5,7 @@ description = "Toolkit for interfacing with CryoSPARC"
 readme = "README.md"
 requires-python = ">=3.7"
 authors = [
-    { name = "Structura Biotechnology Inc.", email = "info@structura.bio"}
+    { name = "Structura Biotechnology Inc.", email = "info@structura.bio" },
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -19,10 +19,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Libraries",
 ]
-dependencies = [
-    "numpy ~= 1.15",
-    "typing-extensions >= 3.7",
-]
+dependencies = ["numpy ~= 1.15", "typing-extensions >= 3.7"]
 
 [project.optional-dependencies]
 dev = [
@@ -37,12 +34,7 @@ dev = [
     "ruff",
 ]
 
-build = [
-    "build",
-    "autodocsumm",
-    "cython",
-    "jupyter-book",
-]
+build = ["build", "autodocsumm", "cython", "jupyter-book"]
 
 [project.urls]
 Homepage = "https://tools.cryosparc.com"
@@ -65,5 +57,5 @@ include = ["cryosparc", "tests", "setup.py"]
 
 [tool.ruff]
 line-length = 120
-extend-include =  ["*.ipynb"]
+extend-include = ["*.ipynb"]
 extend-exclude = [".venv*", "cryosparc/include"]

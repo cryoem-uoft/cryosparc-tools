@@ -1,6 +1,7 @@
 """
 Helper module for reading and writing relion star files.
 """
+
 from pathlib import PurePath
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union, overload
 
@@ -676,15 +677,9 @@ def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDAr
 
 
 @overload
-def _read_until(f: IO[str], line_test: Callable[[str], bool]) -> Tuple[Optional[int], str]:
-    ...
-
-
+def _read_until(f: IO[str], line_test: Callable[[str], bool]) -> Tuple[Optional[int], str]: ...
 @overload
-def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof: Literal[True]) -> Tuple[int, str]:
-    ...
-
-
+def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof: Literal[True]) -> Tuple[int, str]: ...
 def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof=False) -> Tuple[Optional[int], str]:
     # Read from the given file handle line-by-line until the line m
     num_lines = 0
