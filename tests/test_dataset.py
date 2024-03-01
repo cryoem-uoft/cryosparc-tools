@@ -102,11 +102,27 @@ def test_valid_key_assignment():
 
 
 def test_valid_multi_dimensional_key_assignment():
-    storage = Dataset.allocate(size=3, fields=[("location/micrograph_shape", "<u4", (2,))])
-    storage["location/micrograph_shape"] = n.array([42, 24])
+    storage = Dataset.allocate(
+        size=3,
+        fields=[
+            ("location/micrograph_shape", "<u4", (2,)),
+            ("alignments3D/shift", "500,2f4"),
+        ],
+    )
+
+    shapearr = n.array([42, 24])
+    shiftarr = n.array([(3.14, 2.67)] * 500, dtype=n.float32)
+    storage["location/micrograph_shape"] = shapearr
+    storage["alignments3D/shift"] = shiftarr
+
     assert isinstance(storage["location/micrograph_shape"], Column)
+    assert isinstance(storage["alignments3D/shift"], Column)
     assert len(storage["location/micrograph_shape"]) == 3
-    assert all(storage["location/micrograph_shape"][2] == n.array([42, 24]))
+    assert len(storage["alignments3D/shift"]) == 3
+    assert storage["location/micrograph_shape"].shape == (3, 2)
+    assert storage["alignments3D/shift"].shape == (3, 500, 2)
+    assert n.all(storage["location/micrograph_shape"][2] == shapearr)
+    assert n.all(storage["alignments3D/shift"][2] == shiftarr)
 
 
 def test_add_fields():

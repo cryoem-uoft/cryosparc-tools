@@ -1,6 +1,6 @@
 from . cimport dataset
 from . cimport lz4
-from libc.stdint cimport uint8_t, uint32_t, uint64_t
+from libc.stdint cimport uint8_t, uint16_t, uint64_t
 from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 from cpython.mem cimport PyMem_Realloc, PyMem_Free
 
@@ -109,21 +109,26 @@ cdef class Data:
     def addcol_scalar(self, str field, int dtype):
         return dataset.dset_addcol_scalar(self._handle, field.encode(), dtype)
 
-    def addcol_array(self, str field, int dtype, int shape0, int shape1, int shape2):
-        return dataset.dset_addcol_array(self._handle, field.encode(), dtype, shape0, shape1, shape2)
+    def addcol_array(self, str field, int dtype, tuple shape):
+        if not 0 < len(shape) <= 3:
+            raise ValueError("Shape size must be between 0 and 3")
+
+        cdef uint16_t c_shape[3]
+        c_shape[0] = 0; c_shape[1] = 0; c_shape[2] = 0
+        for i in xrange(len(shape)):
+            c_shape[i] = <uint16_t> shape[i]
+
+        return dataset.dset_addcol_array(self._handle, field.encode(), dtype, c_shape)
 
     def getshp(self, str colkey):
         cdef list shp = []
-        cdef uint32_t val = dataset.dset_getshp(self._handle, colkey.encode())
-        cdef uint8_t dim0 = <uint8_t> (val & 0xFF)
-        cdef uint8_t dim1 = <uint8_t> ((val >> 8) & 0xFF)
-        cdef uint8_t dim2 = <uint8_t> ((val >> 16) & 0xFF)
-        if dim0:
-            shp.append(<int> dim0)
-        if dim1:
-            shp.append(<int> dim1)
-        if dim2:
-            shp.append(<int> dim2)
+        cdef uint64_t val = dataset.dset_getshp(self._handle, colkey.encode())
+        cdef uint16_t dim0 = <uint16_t> (val & 0xFFFF)
+        cdef uint16_t dim1 = <uint16_t> ((val >> 16) & 0xFFFF)
+        cdef uint16_t dim2 = <uint16_t> ((val >> 32) & 0xFFFF)
+        if dim0: shp.append(<int> dim0)
+        if dim1: shp.append(<int> dim1)
+        if dim2: shp.append(<int> dim2)
         return tuple(shp)
 
     def getbuf(self, str colkey):
@@ -134,10 +139,7 @@ cdef class Data:
         with nogil:
             mem = dataset.dset_get(self._handle, colkey_c)
             size = dataset.dset_getsz(self._handle, colkey_c)
-        if size == 0:
-            return 0
-        else:
-            return <unsigned char [:size]> mem
+        return 0 if size == 0 else <unsigned char [:size]> mem
 
     def getstr(self, str col, size_t index):
         return dataset.dset_getstr(self._handle, col.encode(), index)  # returns bytes
