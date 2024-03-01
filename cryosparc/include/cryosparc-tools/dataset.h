@@ -1630,7 +1630,6 @@ void dset_dumptxt (uint64_t dset, int dump_data) {
 
 	ds_slot *slot = &ds_module.slots[idx];
 
-	printf("column dset size %lu", sizeof(d->columns[0]));
 	printf ("dataset %"PRIu64"\n"
 		"\ttotal size:            %"PRIu64"\n"
 		"\trows (actual)          %"PRIu64"\n"
