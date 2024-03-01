@@ -1,6 +1,7 @@
 """
 Definitions for various error classes raised by cryosparc-tools functions
 """
+
 from typing import Any, List
 
 from typing_extensions import TypedDict
