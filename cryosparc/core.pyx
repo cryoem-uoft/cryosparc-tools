@@ -43,7 +43,7 @@ cdef class Data:
             self._handle = dataset.dset_new()
 
         if self._handle == 0:
-            raise MemoryError()
+            raise MemoryError("Could not allocate dataset")
 
     def __dealloc__(self):
         if self._handle:
@@ -104,10 +104,12 @@ cdef class Data:
         return self.type(field) > 0
 
     def addrows(self, int num):
-        return dataset.dset_addrows(self._handle, num)
+        if not dataset.dset_addrows(self._handle, num):
+            raise MemoryError("Could not add rows to dataset")
 
     def addcol_scalar(self, str field, int dtype):
-        return dataset.dset_addcol_scalar(self._handle, field.encode(), dtype)
+        if not dataset.dset_addcol_scalar(self._handle, field.encode(), dtype):
+            raise MemoryError("Could not add column to dataset")
 
     def addcol_array(self, str field, int dtype, tuple shape):
         if not 0 < len(shape) <= 3:
@@ -118,7 +120,8 @@ cdef class Data:
         for i in xrange(len(shape)):
             c_shape[i] = <uint16_t> shape[i]
 
-        return dataset.dset_addcol_array(self._handle, field.encode(), dtype, c_shape)
+        if not dataset.dset_addcol_array(self._handle, field.encode(), dtype, c_shape):
+            raise MemoryError("Could not add column to dataset")
 
     def getshp(self, str colkey):
         cdef list shp = []
@@ -162,7 +165,8 @@ cdef class Data:
             pybytes = pystr.encode()
             Py_XDECREF(pycol[i])  # so string is deallocated
             pycol[i] = NULL  # so that strfree not attempted
-            dataset.dset_setstr(self._handle, colkey, i, pybytes, len(pybytes))
+            if not dataset.dset_setstr(self._handle, colkey, i, pybytes, len(pybytes)):
+                raise MemoryError("Could not convert strings")
 
         return True
 
@@ -198,7 +202,7 @@ cdef class Data:
         cdef uint64_t idx
         cdef bytes pybytes = val.encode()
         if not dataset.dset_stralloc(self._handle, pybytes, len(pybytes), &idx):
-            raise MemoryError()
+            raise MemoryError("Could not allocate string in dataset")
         return <int> idx
 
     def dump(self):
@@ -219,10 +223,11 @@ cdef class Data:
 
     def setstrheap(self, bytes heap):
         if not dataset.dset_setstrheap(self._handle, <const char *> heap, len(heap)):
-            raise MemoryError()
+            raise MemoryError("Could not set string heap in dataset")
 
     def defrag(self, bint realloc_smaller):
-        return dataset.dset_defrag(self._handle, realloc_smaller)
+        if not dataset.dset_defrag(self._handle, realloc_smaller):
+            raise MemoryError("Could not defrag dataset")
 
     def dumptxt(self, bint dump_data = 0):
         dataset.dset_dumptxt(self._handle, dump_data)
@@ -313,7 +318,7 @@ cdef class Stream:
             pybytes = pystr.encode()
             allocres = dataset.dset_stralloc(handle, pybytes, len(pybytes), &idx)
             if allocres == 0:
-                raise MemoryError()
+                raise MemoryError("Could not allocate string in dataset")
             elif allocres == 2:
                 # dataset reallocated, coldata must be retrieved
                 coldata = <PyObject **> dataset.dset_get(handle, colkey)
@@ -360,7 +365,7 @@ cdef class Stream:
                 pybytes = pystr.encode()
                 allocres = dataset.dset_stralloc(handle, pybytes, len(pybytes), &idx)
                 if allocres == 0:
-                    raise MemoryError()
+                    raise MemoryError("Could not allocate string in dataset for compression")
                 elif allocres == 2:
                     # dataset reallocated, coldata must be retrieved
                     coldata = <PyObject **> dataset.dset_get(handle, colkey)
