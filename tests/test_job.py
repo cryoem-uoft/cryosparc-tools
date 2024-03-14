@@ -13,6 +13,62 @@ def job(project: Project):
     return project.find_job("J1")
 
 
+def test_queue(job: Job):
+    job.queue()
+    queue_request = httpretty.latest_requests()[-3]
+    refresh_request = httpretty.latest_requests()[-1]
+    assert queue_request.parsed_body["method"] == "enqueue_job"
+    assert queue_request.parsed_body["params"] == {
+        "project_uid": job.project_uid,
+        "job_uid": job.uid,
+        "lane": None,
+        "user_id": job.cs.user_id,
+        "hostname": None,
+        "gpus": False,
+    }
+    assert refresh_request.parsed_body["method"] == "get_job"
+
+
+def test_queue_worker(job: Job):
+    job.queue(lane="workers", hostname="worker1", gpus=[1])
+    queue_request = httpretty.latest_requests()[-3]
+    refresh_request = httpretty.latest_requests()[-1]
+    assert queue_request.parsed_body["method"] == "enqueue_job"
+    assert queue_request.parsed_body["params"] == {
+        "project_uid": job.project_uid,
+        "job_uid": job.uid,
+        "lane": "workers",
+        "user_id": job.cs.user_id,
+        "hostname": "worker1",
+        "gpus": [1],
+    }
+    assert refresh_request.parsed_body["method"] == "get_job"
+
+
+def test_queue_cluster(job: Job):
+    vars = {"var1": 42, "var2": "test"}
+    job.queue(lane="cluster", cluster_vars=vars)
+    vars_request = httpretty.latest_requests()[-5]
+    queue_request = httpretty.latest_requests()[-3]
+    refresh_request = httpretty.latest_requests()[-1]
+    assert vars_request.parsed_body["method"] == "set_cluster_job_custom_vars"
+    assert vars_request.parsed_body["params"] == {
+        "project_uid": job.project_uid,
+        "job_uid": job.uid,
+        "cluster_job_custom_vars": vars,
+    }
+    assert queue_request.parsed_body["method"] == "enqueue_job"
+    assert queue_request.parsed_body["params"] == {
+        "project_uid": job.project_uid,
+        "job_uid": job.uid,
+        "lane": "cluster",
+        "user_id": job.cs.user_id,
+        "hostname": None,
+        "gpus": False,
+    }
+    assert refresh_request.parsed_body["method"] == "get_job"
+
+
 def test_load_output_all_slots(job: Job):
     output = job.load_output("particles_class_0")
     assert set(output.prefixes()) == {"location", "blob", "ctf"}
