@@ -284,6 +284,14 @@ def test_append_many_empty():
     assert len(Dataset.append_many().rows()) == 0
 
 
+def test_append_empty_fields():
+    d1 = Dataset.allocate(0, [("field", "f4")])
+    d2 = Dataset.allocate(0, [("field", "f4")])
+    d3 = d1.append(d2)
+    assert len(d3) == 0
+    assert d3.fields() == ["uid", "field"]
+
+
 def test_union_many_empty():
     assert len(Dataset.union_many().rows()) == 0
 
