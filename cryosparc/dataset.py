@@ -69,7 +69,7 @@ from .dtype import (
 from .errors import DatasetLoadError
 from .row import R, Row, Spool
 from .stream import AsyncBinaryIO, Streamable
-from .util import bopen, default_rng, first, hashcache, random_integers, u32bytesle, u32intle
+from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray
@@ -275,7 +275,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if not datasets:
             return cls()
 
-        first_dset = first(datasets)
+        first_dset = datasets[0]
         datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         if not datasets:
             return cls(first_dset)  # so that fields are kept
