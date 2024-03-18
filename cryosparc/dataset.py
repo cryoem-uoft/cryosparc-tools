@@ -272,9 +272,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: Appended dataset
         """
-        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         if not datasets:
             return cls()
+
+        first_dset = datasets[0]
+        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return cls(first_dset)  # so that fields are kept
 
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
