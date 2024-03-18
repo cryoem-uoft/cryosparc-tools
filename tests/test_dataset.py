@@ -296,6 +296,14 @@ def test_union_many_empty():
     assert len(Dataset.union_many().rows()) == 0
 
 
+def test_union_empty_fields():
+    d1 = Dataset.allocate(0, [("field", "f4")])
+    d2 = Dataset.allocate(0, [("field", "f4")])
+    d3 = d1.union(d2)
+    assert len(d3) == 0
+    assert d3.fields() == ["uid", "field"]
+
+
 def test_allocate_many_separate():
     for _ in range(66_000):
         allocated = []

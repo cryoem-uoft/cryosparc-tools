@@ -278,7 +278,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         first_dset = datasets[0]
         datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         if not datasets:
-            return cls(first_dset)  # so that fields are kept
+            return cls(first_dset)  # keep the same fields as the first
 
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
@@ -354,7 +354,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: combined dataset, or empty dataset if none are provided.
         """
+        if not datasets:
+            return cls()
+
+        first_dset = datasets[0]
         datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return cls(first_dset)  # keep the same fields as the first
+
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
         keep_uids = n.array([], dtype=n.uint64)
