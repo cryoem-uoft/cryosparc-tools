@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from time import sleep, time
-from typing import IO, TYPE_CHECKING, Any, Iterable, List, Optional, Pattern, Union, overload
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, Union, overload
 
 from typing_extensions import Literal
 
@@ -116,7 +116,13 @@ class Job(MongoController[JobDocument]):
         """
         return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
 
-    def queue(self, lane: Optional[str] = None, hostname: Optional[str] = None, gpus: List[int] = []):
+    def queue(
+        self,
+        lane: Optional[str] = None,
+        hostname: Optional[str] = None,
+        gpus: List[int] = [],
+        cluster_vars: Dict[str, Any] = {},
+    ):
         """
         Queue a job to a target lane. Available lanes may be queried with
         `CryoSPARC.get_lanes`_.
@@ -136,6 +142,9 @@ class Job(MongoController[JobDocument]):
             gpus (list[int], optional): GPUs to queue to. If specified, must
                 have as many GPUs as required in job parameters. Leave
                 unspecified to use first available GPU(s). Defaults to [].
+            cluster_vars (dict[str, Any], optional): Specify custom cluster
+                variables when queuing to a cluster. Keys are variable names.
+                Defaults to False.
 
         Examples:
 
@@ -154,6 +163,12 @@ class Job(MongoController[JobDocument]):
         .. _CryoSPARC.get_targets:
             tools.html#cryosparc.tools.CryoSPARC.get_targets
         """
+        if cluster_vars:
+            self.cs.cli.set_cluster_job_custom_vars(  # type: ignore
+                project_uid=self.project_uid,
+                job_uid=self.uid,
+                cluster_job_custom_vars=cluster_vars,
+            )
         self.cs.cli.enqueue_job(  # type: ignore
             project_uid=self.project_uid,
             job_uid=self.uid,

@@ -1,5 +1,5 @@
-Modules
-=======
+# Modules
 
 ```{tableofcontents}
+
 ```

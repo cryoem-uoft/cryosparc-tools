@@ -248,6 +248,8 @@ def request_callback_core(request, uri, response_headers):
         "get_project_dir_abs": "/projects/my-project",
         "get_project": {"uid": "P1", "title": "My Project"},
         "make_job": "J1",
+        "set_cluster_job_custom_vars": None,
+        "enqueue_job": "queued",
         "job_send_streamlog": None,
         "job_connect_group": True,
         "job_set_param": True,

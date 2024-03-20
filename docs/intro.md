@@ -122,7 +122,7 @@ current machine):
 ```py
 from cryosparc.dataset import Dataset
 
-path = project.dir() / "J43" / "particles.cs"
+path = project.dir / "J43" / "particles.cs"
 particles = Dataset.load(path)
 
 shift_y, shift_x = particles["alignments2D/shift"].T

@@ -1,4 +1,4 @@
-from libc.stdint cimport uint64_t, uint32_t
+from libc.stdint cimport uint64_t, uint16_t, uint32_t
 ctypedef uint64_t Dset
 
 cdef extern from "cryosparc-tools/dataset.h":
@@ -21,7 +21,7 @@ cdef extern from "cryosparc-tools/dataset.h":
 
     bint dset_addrows(Dset dset, uint32_t num) nogil
     bint dset_addcol_scalar(Dset dset, const char *key, int type) nogil
-    bint dset_addcol_array(Dset dset, const char *key, int type, int shape0, int shape1, int shape2) nogil
+    bint dset_addcol_array(Dset dset, const char *key, int type, const uint16_t *shape) nogil
     bint dset_changecol(Dset dset, const char *key, int type) nogil
 
     bint dset_defrag(Dset dset, bint realloc_smaller) nogil

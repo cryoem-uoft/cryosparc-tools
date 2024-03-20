@@ -24,7 +24,7 @@ Dataset supports:
 
 """
 
-from functools import reduce
+from functools import lru_cache, reduce
 from pathlib import PurePath
 from typing import (
     IO,
@@ -272,9 +272,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: Appended dataset
         """
-        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         if not datasets:
             return cls()
+
+        first_dset = datasets[0]
+        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return cls(first_dset)  # keep the same fields as the first
 
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
@@ -350,7 +354,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: combined dataset, or empty dataset if none are provided.
         """
+        if not datasets:
+            return cls()
+
+        first_dset = datasets[0]
         datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return cls(first_dset)  # keep the same fields as the first
+
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
         keep_uids = n.array([], dtype=n.uint64)
@@ -593,6 +604,18 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
+
+    @classmethod
+    def load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+        """Replicate Dataset.from_file but with cacheing.
+        This can significantly speed up end-of-job validation with a large number of outputs (e.g., 3D Classification)
+        """
+        return cls._load_cached(file, cstrs).copy()
+
+    @classmethod
+    @lru_cache(maxsize=None)
+    def _load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+        return cls.load(file, cstrs)
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
@@ -1020,19 +1043,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             dt = n.dtype(fielddtype(field))
             if dt.shape:
                 assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
-                shape = [0] * 3
-                shape[0 : len(dt.shape)] = dt.shape
-                assert self._data.addcol_array(
-                    name, TYPE_TO_DSET_MAP[dt.base.type], *shape
-                ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_array(name, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
             elif dt.char in {"O", "S", "U"}:  # all python string object types
-                assert self._data.addcol_scalar(name, DsetType.T_OBJ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_scalar(name, DsetType.T_OBJ)
                 self[name] = ""  # Reset object field to empty string
             else:
                 assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
-                assert self._data.addcol_scalar(
-                    name, TYPE_TO_DSET_MAP[dt.type]
-                ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_scalar(name, TYPE_TO_DSET_MAP[dt.type])
 
         return self._reset()
 
