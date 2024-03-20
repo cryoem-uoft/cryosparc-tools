@@ -1043,17 +1043,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             dt = n.dtype(fielddtype(field))
             if dt.shape:
                 assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
-                assert self._data.addcol_array(
-                    name, TYPE_TO_DSET_MAP[dt.base.type], dt.shape
-                ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_array(name, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
             elif dt.char in {"O", "S", "U"}:  # all python string object types
-                assert self._data.addcol_scalar(name, DsetType.T_OBJ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_scalar(name, DsetType.T_OBJ)
                 self[name] = ""  # Reset object field to empty string
             else:
                 assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
-                assert self._data.addcol_scalar(
-                    name, TYPE_TO_DSET_MAP[dt.type]
-                ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_scalar(name, TYPE_TO_DSET_MAP[dt.type])
 
         return self._reset()
 
