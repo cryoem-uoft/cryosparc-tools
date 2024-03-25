@@ -9,7 +9,7 @@ from cryosparc.project import Project
 
 
 @pytest.fixture
-def job(project: Project):
+def job(cs, project: Project):
     return project.find_job("J1")
 
 

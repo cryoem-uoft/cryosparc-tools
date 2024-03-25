@@ -261,7 +261,7 @@ class CryoSPARC:
         Get a project by its unique ID.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
+            project_uid (str): Project unique ID, e.g., "P3"
 
         Returns:
             Project: project instance
@@ -290,7 +290,7 @@ class CryoSPARC:
         Get a job by its unique project and job ID.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
+            project_uid (str): Project unique ID, e.g., "P3"
             job_uid (str): job unique ID, e.g., "J42"
 
         Returns:
@@ -554,7 +554,7 @@ class CryoSPARC:
         Get a list of files inside the project directory.
 
         Args:
-            project_uid (str): Project unique ID, e.g., "P3"
+            project_uid (str): Project unique ID, e.g., "P3".
             prefix (str | Path, optional): Subdirectory inside project to list.
                 Defaults to "".
             recursive (bool, optional): If True, lists files recursively.
@@ -569,7 +569,7 @@ class CryoSPARC:
             recursive=recursive,
         )
 
-    def download(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
+    def download(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
         Open a file in the given project for reading. Use to get files from a
         remote CryoSPARC instance whose the project directories are not
@@ -577,11 +577,11 @@ class CryoSPARC:
 
         Args:
             project_uid (str): Short unique ID of CryoSPARC project, e.g., "P3"
-            path_rel (str | Path): Relative path to file in project directory
+            path (str | Path): Name or path of file in project directory.
 
         Yields:
             HTTPResponse: Use a context manager to read the file from the
-            request body
+            request body.
 
         Examples:
             Download a job's metadata
@@ -591,20 +591,28 @@ class CryoSPARC:
             >>>     job_data = json.loads(res.read())
 
         """
-        data = {"project_uid": project_uid, "path_rel": str(path_rel)}
+        if not path:
+            raise ValueError("Download path cannot be empty")
+        data = {"project_uid": project_uid, "path": str(path)}
         return make_json_request(self.vis, "/get_project_file", data=data)
 
     def download_file(
-        self, project_uid: str, path_rel: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]
+        self,
+        project_uid: str,
+        path: Union[str, PurePosixPath],
+        target: Union[str, PurePath, IO[bytes]] = "",
     ):
         """
-        Download a file from the project directory to the given writeable target.
+        Download a file from the directory of the specified project to the given
+        target path or writeable file handle.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
-            path_rel (str | Path): Relative path of file in project directory.
-            target (str | Path | IO): Local file path, directory path or writeable
-                file handle to write response data.
+            project_uid (str): Project unique ID, e.g., "P3".
+            path (str | Path): Name or path of file in project directory.
+            target (str | Path | IO, optional): Local file path, directory path
+                or writeable file handle to write response data. If not
+                specified, downloads to current working directory with same file
+                name. Defaults to "".
 
         Returns:
             Path | IO: resulting target path or file handle.
@@ -612,29 +620,28 @@ class CryoSPARC:
         if isinstance(target, (str, PurePath)):
             target = Path(target)
             if target.is_dir():
-                target /= PurePath(path_rel).name
+                target /= PurePath(path).name
         with bopen(target, "wb") as f:
-            with self.download(project_uid, path_rel) as response:
+            with self.download(project_uid, path) as response:
                 data = response.read(ONE_MIB)
                 while data:
                     f.write(data)
                     data = response.read(ONE_MIB)
         return target
 
-    def download_dataset(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
+    def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
         Download a .cs dataset file from the given relative path in the project
         directory.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
-            path_rel (str | Path): Realtive path to .cs file in project
-            directory.
+            project_uid (str): Project unique ID, e.g., "P3".
+            path (str | Path): Name or path to .cs file in project directory.
 
         Returns:
             Dataset: Loaded dataset instance
         """
-        with self.download(project_uid, path_rel) as response:
+        with self.download(project_uid, path) as response:
             size = response.headers.get("Content-Length")
             mime = response.headers.get("Content-Type")
             if mime == "application/x-cryosparc-dataset":
@@ -655,20 +662,19 @@ class CryoSPARC:
                 f.seek(0)
                 return Dataset.load(f)
 
-    def download_mrc(self, project_uid: str, path_rel: Union[str, PurePosixPath]):
+    def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
         Download a .mrc file from the given relative path in the project
         directory.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
-            path_rel (str | Path): Relative path to .mrc file in project
-                directory.
+            project_uid (str): Project unique ID, e.g., "P3"
+            path (str | Path): Name or path to .mrc file in project directory.
 
         Returns:
             tuple[Header, NDArray]: MRC file header and data as a numpy array
         """
-        with self.download(project_uid, path_rel) as response:
+        with self.download(project_uid, path) as response:
             with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
                 data = response.read(ONE_MIB)
                 while data:
@@ -685,7 +691,7 @@ class CryoSPARC:
         method.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
+            project_uid (str): Project unique ID, e.g., "P3"
             job_uid (str): job unique ID, e.g., "J42"
 
         Returns:
@@ -725,7 +731,7 @@ class CryoSPARC:
     def upload(
         self,
         project_uid: str,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         source: Union[str, bytes, PurePath, IO],
         *,
         overwrite: bool = False,
@@ -735,8 +741,8 @@ class CryoSPARC:
         relative path. Fails if target already exists.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
-            target_path_rel (str | Path): Relative target path in project
+            project_uid (str): Project unique ID, e.g., "P3"
+            target_path (str | Path): Name or path of file to write in project
                 directory.
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
@@ -744,20 +750,20 @@ class CryoSPARC:
                 Defaults to False.
         """
         url = f"/projects/{project_uid}/files"
-        query: dict = {"path": target_path_rel}
+        query: dict = {"path": target_path}
         if overwrite:
             query["overwrite"] = 1
         with open(source, "rb") if isinstance(source, (str, PurePath)) else noopcontext(source) as f:
             with make_request(self.vis, url=url, query=query, data=f) as res:
                 assert res.status >= 200 and res.status < 300, (
-                    f"Could not upload project {project_uid} file {target_path_rel}.\n"
+                    f"Could not upload project {project_uid} file {target_path}.\n"
                     f"Response from CryoSPARC ({res.status}): {res.read().decode()}"
                 )
 
     def upload_dataset(
         self,
         project_uid: str,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         dset: Dataset,
         *,
         format: int = DEFAULT_FORMAT,
@@ -768,11 +774,11 @@ class CryoSPARC:
         target already exists.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
-            target_path_rel (str | Path): relative path to save dataset in
+            project_uid (str): Project unique ID, e.g., "P3"
+            target_path (str | Path): Name or path of dataset to save in the
                 project directory. Should have a ``.cs`` extension.
             dset (Dataset): dataset to save.
-            format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
+            format (int): Format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
@@ -782,18 +788,18 @@ class CryoSPARC:
             f = BytesIO()
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
+            return self.upload(project_uid, target_path, f, overwrite=overwrite)
 
         # Write to temp file first
         with tempfile.TemporaryFile("w+b") as f:
             dset.save(f, format=format)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
+            return self.upload(project_uid, target_path, f, overwrite=overwrite)
 
     def upload_mrc(
         self,
         project_uid: str,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         data: "NDArray",
         psize: float,
         *,
@@ -804,9 +810,9 @@ class CryoSPARC:
         Fails if target already exists.
 
         Args:
-            project_uid (str): project unique ID, e.g., "P3"
-            target_path_rel (str | Path): filename or relative path. Should have
-                ``.mrc`` extension.
+            project_uid (str): Project unique ID, e.g., "P3"
+            target_path (str | Path): Name or path of MRC file to save in the
+                project directory. Should have a ``.mrc`` extension.
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
             overwrite (bool, optional): If True, overwrite existing files.
@@ -815,12 +821,12 @@ class CryoSPARC:
         with tempfile.TemporaryFile("w+b") as f:
             mrc.write(f, data, psize)
             f.seek(0)
-            return self.upload(project_uid, target_path_rel, f, overwrite=overwrite)
+            return self.upload(project_uid, target_path, f, overwrite=overwrite)
 
     def mkdir(
         self,
         project_uid: str,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         parents: bool = False,
         exist_ok: bool = False,
     ):
@@ -829,8 +835,8 @@ class CryoSPARC:
 
         Args:
             project_uid (str): Target project directory
-            target_path_rel (str | Path): Relative path to create inside project
-                directory.
+            target_path (str | Path): Name or path of folder to create inside
+                the project directory.
             parents (bool, optional): If True, any missing parents are created
                 as needed. Defaults to False.
             exist_ok (bool, optional): If True, does not raise an error for
@@ -839,32 +845,36 @@ class CryoSPARC:
         """
         self.vis.project_mkdir(  # type: ignore
             project_uid=project_uid,
-            path_rel=str(target_path_rel),
+            path=str(target_path),
             parents=parents,
             exist_ok=exist_ok,
         )
 
-    def cp(
-        self, project_uid: str, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]
-    ):
+    def cp(self, project_uid: str, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
         """
         Copy a file or folder within a project to another location within that
         same project.
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
-            source_path_rel (str | Path): Relative path in project of source
-                file or folder to copy.
-            target_path_rel (str | Path): Relative path in project to copy to.
+            source_path (str | Path): Relative or absolute path of source file
+                or folder to copy. If relative, assumed to be within the project
+                directory.
+            target_path (str | Path, optional): Name or path in the project
+                directory to copy into. If not specified, uses the same file
+                name as the source. Defaults to "".
         """
         self.vis.project_cp(  # type: ignore
             project_uid=project_uid,
-            source_path_rel=str(source_path_rel),
-            target_path_rel=str(target_path_rel),
+            source_path=str(source_path),
+            target_path=str(target_path),
         )
 
     def symlink(
-        self, project_uid: str, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]
+        self,
+        project_uid: str,
+        source_path: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath] = "",
     ):
         """
         Create a symbolic link in the given project. May only create links for
@@ -872,15 +882,17 @@ class CryoSPARC:
 
         Args:
             project_uid (str): Target project UID, e.g., "P3".
-            source_path_rel (str | Path): Relative path in project to file from
-                which to create symlink.
-            target_path_rel (str | Path): Relative path in project to new
-                symlink.
+            source_path (str | Path): Relative or absolute path of source file
+                or folder to create a link to. If relative, assumed to be within
+                the project directory.
+            target_path (str | Path): Name or path of new symlink in the project
+                directory. If not specified, creates link with the same file
+                name as the source. Defaults to "".
         """
         self.vis.project_symlink(  # type: ignore
             project_uid=project_uid,
-            source_path_rel=str(source_path_rel),
-            target_path_rel=str(target_path_rel),
+            source_path=str(source_path),
+            target_path=str(target_path),
         )
 
 

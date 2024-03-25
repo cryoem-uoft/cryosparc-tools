@@ -303,66 +303,77 @@ class Project(MongoController[ProjectDocument]):
         """
         return self.cs.list_files(self.uid, prefix=prefix, recursive=recursive)
 
-    def download(self, path_rel: Union[str, PurePosixPath]):
+    def download(self, path: Union[str, PurePosixPath]):
         """
         Open a file in the current project for reading. Use to get files from a
         remote CryoSPARC instance where the project directory is not available
         on the client file system.
 
         Args:
-            path (str | Path): Relative path of file in project directory.
+            path (str | Path): Name or path of file in project directory.
 
         Yields:
             HTTPResponse: Use a context manager to read the file from the
-            request body
-        """
-        return self.cs.download(self.uid, path_rel)
+            request body.
 
-    def download_file(self, path_rel: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]]):
+        Examples:
+
+            Download a project's metadata
+
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> with project.download("project.json") as res:
+            >>>     project_data = json.loads(res.read())
+
         """
-        Download a file from the project directory to the given writeable target.
+        return self.cs.download(self.uid, path)
+
+    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]] = ""):
+        """
+        Download a file from the project directory to the given target path or
+        writeable file handle.
 
         Args:
-            path_rel (str | Path): Relative path of file in project directory.
-            target (str | Path | IO): Local file path, directory path or writeable
-                file handle to write response data.
+            path (str | Path): Name or path of file in project directory.
+            target (str | Path | IO, optional): Local file path, directory path or
+                writeable file handle to write response data. If not specified,
+                downloads to current working directory with same file name.
+                Defaults to "".
 
         Returns:
             Path | IO: resulting target path or file handle.
         """
-        return self.cs.download_file(self.uid, path_rel, target)
+        return self.cs.download_file(self.uid, path, target)
 
-    def download_dataset(self, path_rel: Union[str, PurePosixPath]):
+    def download_dataset(self, path: Union[str, PurePosixPath]):
         """
-        Download a .cs dataset file frmo the given relative path in the project
+        Download a .cs dataset file from the given relative path in the project
         directory.
 
         Args:
-            path_rel (str | Path): Realtive path to .cs file in project
-            directory.
+            path (str | Path): Name or path to .cs file in project directory.
 
         Returns:
             Dataset: Loaded dataset instance
         """
-        return self.cs.download_dataset(self.uid, path_rel)
+        return self.cs.download_dataset(self.uid, path)
 
-    def download_mrc(self, path_rel: Union[str, PurePosixPath]):
+    def download_mrc(self, path: Union[str, PurePosixPath]):
         """
         Download a .mrc file from the given relative path in the project
         directory.
 
         Args:
-            path_rel (str | Path): Relative path to .mrc file in project
-                directory.
+            path (str | Path): Name or path to .mrc file in project directory.
 
         Returns:
             tuple[Header, NDArray]: MRC file header and data as a numpy array
         """
-        return self.cs.download_mrc(self.uid, path_rel)
+        return self.cs.download_mrc(self.uid, path)
 
     def upload(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         source: Union[str, bytes, PurePath, IO],
         *,
         overwrite: bool = False,
@@ -372,18 +383,18 @@ class Project(MongoController[ProjectDocument]):
         path. Fails if target already exists.
 
         Args:
-            target_path_rel (str | Path): Relative target path in project
+            target_path (str | Path): Name or path of file to write in project
                 directory.
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        return self.cs.upload(self.uid, target_path_rel, source, overwrite=overwrite)
+        return self.cs.upload(self.uid, target_path, source, overwrite=overwrite)
 
     def upload_dataset(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         dset: Dataset,
         *,
         format: int = DEFAULT_FORMAT,
@@ -394,19 +405,19 @@ class Project(MongoController[ProjectDocument]):
         target already exists.
 
         Args:
-            target_path_rel (str | Path): relative path to save dataset in
+            target_path (str | Path): Name or path of dataset to save in the
                 project directory. Should have a ``.cs`` extension.
-            dset (Dataset): dataset to save.
-            format (int): format to save in from ``cryosparc.dataset.*_FORMAT``,
+            dset (Dataset): Dataset to save.
+            format (int): Format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        return self.cs.upload_dataset(self.uid, target_path_rel, dset, format=format, overwrite=overwrite)
+        return self.cs.upload_dataset(self.uid, target_path, dset, format=format, overwrite=overwrite)
 
     def upload_mrc(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         data: "NDArray",
         psize: float,
         *,
@@ -417,18 +428,18 @@ class Project(MongoController[ProjectDocument]):
         if target already exists.
 
         Args:
-            target_path_rel (str | Path): filename or relative path. Should have
-                ``.mrc`` extension.
+            target_path (str | Path): Name or path of MRC file to save in the
+                project directory. Should have a ``.mrc`` extension.
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        return self.cs.upload_mrc(self.uid, target_path_rel, data, psize, overwrite=overwrite)
+        return self.cs.upload_mrc(self.uid, target_path, data, psize, overwrite=overwrite)
 
     def mkdir(
         self,
-        target_path_rel: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath],
         parents: bool = False,
         exist_ok: bool = False,
     ):
@@ -436,8 +447,8 @@ class Project(MongoController[ProjectDocument]):
         Create a directory in the given project.
 
         Args:
-            target_path_rel (str | Path): Relative path to create inside project
-                directory.
+            target_path (str | Path): Name or path of folder to create inside
+                the project directory.
             parents (bool, optional): If True, any missing parents are created
                 as needed. Defaults to False.
             exist_ok (bool, optional): If True, does not raise an error for
@@ -446,41 +457,44 @@ class Project(MongoController[ProjectDocument]):
         """
         self.cs.mkdir(
             project_uid=self.uid,
-            target_path_rel=target_path_rel,
+            target_path=target_path,
             parents=parents,
             exist_ok=exist_ok,
         )
 
-    def cp(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
+    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
         """
-        Copy a file or folder within a project to another location within that
-        same project.
+        Copy a file or folder into the job direcotry.
 
         Args:
-            source_path_rel (str | Path): Relative path in project of source
-                file or folder to copy.
-            target_path_rel (str | Path): Relative path in project to copy to.
+            source_path (str | Path): Relative or absolute path of source file
+                or folder to copy. If relative, assumed to be within the project
+                directory.
+            target_path (str | Path, optional): Name or path in the project
+                directory to copy into. If not specified, uses the same file
+                name as the source. Defaults to "".
         """
         self.cs.cp(
             project_uid=self.uid,
-            source_path_rel=source_path_rel,
-            target_path_rel=target_path_rel,
+            source_path=source_path,
+            target_path=target_path,
         )
 
-    def symlink(self, source_path_rel: Union[str, PurePosixPath], target_path_rel: Union[str, PurePosixPath]):
+    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
         """
         Create a symbolic link in the given project. May only create links for
         files within the project.
 
         Args:
-            project_uid (str): Target project UID, e.g., "P3".
-            source_path_rel (str | Path): Relative path in project to file from
-                which to create symlink.
-            target_path_rel (str | Path): Relative path in project to new
-                symlink.
+            source_path (str | Path): Relative or absolute path of source file
+                or folder to create a link to. If relative, assumed to be within
+                the project directory.
+            target_path (str | Path): Name or path of new symlink in the project
+                directory. If not specified, creates link with the same file
+                name as the source. Defaults to "".
         """
         self.cs.symlink(
             project_uid=self.uid,
-            source_path_rel=source_path_rel,
-            target_path_rel=target_path_rel,
+            source_path=source_path,
+            target_path=target_path,
         )
