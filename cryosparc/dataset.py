@@ -861,7 +861,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Check whether two datasets contain the same data in the same order.
 
         Args:
-            other (Dataset): dataset to compare
+            other (object): dataset to compare
 
         Returns:
             bool: True or False
@@ -1507,7 +1507,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         order.
 
         Args:
-            other (Dataset): dataset to compare
+            other (object): dataset to compare
 
         Returns:
             bool: True or False
