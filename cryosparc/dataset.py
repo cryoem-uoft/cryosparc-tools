@@ -1495,7 +1495,25 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return result
 
-    def to_cstrs(self, copy: bool = False):
+    def is_equivalent(self, other: object):
+        """
+        Check whether two datasets contain the same data, regardless of field
+        order.
+
+        Args:
+            other (Dataset): dataset to compare
+
+        Returns:
+            bool: True or False
+        """
+        return (
+            isinstance(other, Dataset)
+            and len(self) == len(other)
+            and set(self.descr()) == set(other.descr())
+            and all(n.array_equal(self[f], other[f]) for f in self)
+        )
+
+    def to_cstrs(self, *, copy: bool = False):
         """
         Convert all Python string columns to C strings. Resulting dataset fields
         that previously had dtype ``np.object_`` (or ``T_OBJ`` internally) will get
