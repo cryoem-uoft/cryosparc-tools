@@ -1129,12 +1129,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes), copy=copy)
 
-    def filter_prefix(self, keep_prefix: str, copy: bool = False):
+    def filter_prefix(self, keep_prefix: str, *, rename: str | None = None, copy: bool = False):
         """
         Similar to ``filter_prefixes`` but for a single prefix.
 
         Args:
-            keep_prefix (str): Prefix to keep
+            keep_prefix (str): Prefix to keep.
+            rename (str, optional): If specified, rename prefix to this prefix.
+                Defaults to None.
             copy (bool, optional): If True, return a copy if the dataset rather
                 than mutate. Defaults to False.
 
@@ -1142,7 +1144,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             Dataset: current dataset or copy with filtered prefix
 
         """
-        return self.filter_prefixes([keep_prefix], copy=copy)
+        keep_fields = [f for f in self.fields(exclude_uid=True) if f.startswith(f"{keep_prefix}/")]
+        new_fields = keep_fields
+        if rename and rename != keep_prefix:
+            new_fields = [f"{rename}/{f.split('/', 1)[1]}" for f in keep_fields]
+
+        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])
+        return result if copy else self._reset(result._data)
 
     def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
         """
