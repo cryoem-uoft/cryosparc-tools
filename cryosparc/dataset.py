@@ -1076,7 +1076,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return self._reset()
 
-    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
+    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
         """
         Keep only the given fields from the dataset. Provide a list of fields or
         function that returns ``True`` if a given field name should be kept.
@@ -1152,7 +1152,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])
         return result if copy else self._reset(result._data)
 
-    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
+    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
         """
         Remove the given field names from the dataset. Provide a list of fields
         or a function that takes a field name and returns True if that field
@@ -1171,7 +1171,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))  # type: ignore
         return self.filter_fields(test, copy=copy)
 
-    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], copy: bool = False):
+    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], *, copy: bool = False):
         """
         Change the name of dataset fields based on the given mapping.
 
@@ -1192,7 +1192,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         result = type(self)([(f if f == "uid" else fm(f), self[f]) for f in self])
         return result if copy else self._reset(result._data)
 
-    def rename_field(self, current_name: str, new_name: str, copy: bool = False):
+    def rename_field(self, current_name: str, new_name: str, *, copy: bool = False):
         """
         Change name of a dataset field based on the given mapping.
 
@@ -1207,7 +1207,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.rename_fields({current_name: new_name}, copy=copy)
 
-    def rename_prefix(self, old_prefix: str, new_prefix: str, copy: bool = False):
+    def rename_prefix(self, old_prefix: str, new_prefix: str, *, copy: bool = False):
         """
         Similar to rename_fields, except changes the prefix of all fields with
         the given ``old_prefix`` to ``new_prefix``.
@@ -1541,7 +1541,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         self._reset()  # in case data got reallocated
         return dset
 
-    def to_pystrs(self, copy: bool = False):
+    def to_pystrs(self, *, copy: bool = False):
         """
         Convert all C string columns to Python strings. Resulting dataset fields
         that previously had dtype ``np.uint64`` (and ``T_STR`` internally) will
