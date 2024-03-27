@@ -1092,16 +1092,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             Dataset: current dataset or copy with filtered fields
         """
         test = (lambda n: n in names) if isinstance(names, Collection) else names
-        new_fields = [f for f in self.descr() if f[0] == "uid" or test(f[0])]
-        if len(new_fields) == len(self.descr()):
-            return self
+        new_fields = [f for f in self.fields() if f == "uid" or test(f)]
+        if len(new_fields) == self._data.ncol():
+            return self  # nothing to filter
 
-        result = self.allocate(len(self), new_fields)
-        for key, *_ in new_fields:
-            result[key] = self[key]
+        result = type(self)([(key, self[key]) for key in new_fields])
         return result if copy else self._reset(result._data)
 
-    def filter_prefixes(self, prefixes: Collection[str], copy: bool = False):
+    def filter_prefixes(self, prefixes: Collection[str], *, copy: bool = False):
         """
         Similar to ``filter_fields``, except takes list of prefixes.
 
