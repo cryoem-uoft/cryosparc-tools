@@ -1060,7 +1060,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         test = (lambda n: n in names) if isinstance(names, Collection) else names
         new_fields = [f for f in self.fields() if f == "uid" or test(f)]
         if len(new_fields) == self._data.ncol():
-            return self  # nothing to filter
+            return self.copy() if copy else self  # nothing to filter
 
         result = type(self)([(key, self[key]) for key in new_fields])
         return result if copy else self._reset(result._data)
