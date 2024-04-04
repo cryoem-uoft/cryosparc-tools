@@ -24,7 +24,7 @@ Dataset supports:
 
 """
 
-from functools import lru_cache, reduce
+from functools import reduce
 from pathlib import PurePath
 from typing import (
     IO,
