@@ -606,18 +606,6 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
     @classmethod
-    def load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
-        """Replicate Dataset.from_file but with cacheing.
-        This can significantly speed up end-of-job validation with a large number of outputs (e.g., 3D Classification)
-        """
-        return cls._load_cached(file, cstrs).copy()
-
-    @classmethod
-    @lru_cache(maxsize=None)
-    def _load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
-        return cls.load(file, cstrs)
-
-    @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
         headersize = u32intle(await stream.read(4))
         header = decode_dataset_header(await stream.read(headersize))
@@ -979,28 +967,6 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             ["field", "foo", "bar"]
         """
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
-
-    def prefix_descr(self, prefix: str, new_prefix: str | None = None) -> List[Field]:
-        """
-        Get the dataset fields with the given prefix. Optionally replace the
-        prefix with another one before returning. Does not mutate dataset; use
-        rename_prefix instead.
-
-        Args:
-            prefix (str): Prefix to filter by.
-            new_prefix (str | None, optional): Replace the prefix with this one
-                before returning. Defaults to None.
-
-        Returns:
-            List[Field]: _description_
-        """
-        prefix_fields: List[Field] = [f for f in self.descr() if f[0].startswith(f"{prefix}/")]
-        if new_prefix and prefix != new_prefix:
-            prefix_fields = [
-                (f"{new_prefix}/{f[0].split('/', 1)[1]}", *f[1:])  # type: ignore
-                for f in prefix_fields
-            ]
-        return prefix_fields
 
     @overload
     def add_fields(self, fields: List[Field]) -> "Dataset[R]": ...
