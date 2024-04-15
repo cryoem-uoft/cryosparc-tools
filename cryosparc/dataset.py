@@ -932,7 +932,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             list[Field]: Fields
         """
-        return [get_data_field(self._data, self._data.key(i)) for i in range(self._data.ncol())]
+        descr = [get_data_field(self._data, self._data.key(i)) for i in range(self._data.ncol())]
+        return [f for f in descr if f[0] != "uid"] if exclude_uid else descr
 
     def copy(self):
         """
