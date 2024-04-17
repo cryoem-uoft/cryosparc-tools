@@ -62,6 +62,19 @@ def test_empty_data_constructor():
     assert len(data.descr()) == 1
 
 
+def test_fields():
+    data = Dataset.allocate(3, [("test1", "<u4"), ("test2", "<f8", (2,))])
+    assert data.fields() == ["uid", "test1", "test2"]
+    assert data.fields(exclude_uid=True) == ["test1", "test2"]
+
+
+def test_descr():
+    data = Dataset.allocate(3, [("test1", "<u4"), ("test2", "<f8", (2,))])
+    expected_descr = [("uid", "<u8"), ("test1", "<u4"), ("test2", "<f8", (2,))]
+    assert data.descr() == expected_descr
+    assert data.descr(exclude_uid=True) == expected_descr[1:]
+
+
 def test_invalid_data_fields():
     # This is ok actually
     assert Dataset(
