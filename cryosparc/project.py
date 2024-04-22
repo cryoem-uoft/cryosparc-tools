@@ -46,7 +46,6 @@ class Project(MongoController[ProjectDocument]):
         self._doc = self.cs.cli.get_project(self.uid)  # type: ignore
         return self
 
-    @property
     def dir(self) -> PurePosixPath:
         """
         Get the path to the project directory.
