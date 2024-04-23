@@ -1,6 +1,7 @@
-from io import StringIO
 import os
+from io import StringIO
 from pathlib import Path
+
 import pytest
 
 from cryosparc import star

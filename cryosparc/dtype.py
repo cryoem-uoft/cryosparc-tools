@@ -1,15 +1,17 @@
 """
 Utilities and type definitions for working with dataset fields and column types.
 """
-from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
+
 import json
-from typing_extensions import Literal, TypedDict
+from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
+
 import numpy as n
+from typing_extensions import Literal, TypedDict
 
 from .core import Data, DsetType
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, DTypeLike
+    from numpy.typing import DTypeLike, NDArray
 
 Shape = Tuple[int, ...]
 """A numpy shape tuple from ndarray.shape"""
@@ -141,13 +143,13 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
             None,
             "lz4",
         }, 'Dataset header "compression" key missing or has incorrect type'
-        assert (
-            "compressed_fields" and header or isinstance(header["compressed_fields"], list)
+        assert "compressed_fields" in header or isinstance(
+            header["compressed_fields"], list
         ), 'Dataset header "compressed_fields" key missing or has incorrect type'
 
         length: int = header["length"]
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
-        compression: Literal["lz4"] = header["compression"]
+        compression: Literal["lz4", None] = header["compression"]
         compressed_fields: List[str] = header["compressed_fields"]
 
         return DatasetHeader(length=length, dtype=dtype, compression=compression, compressed_fields=compressed_fields)

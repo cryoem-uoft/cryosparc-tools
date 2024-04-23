@@ -19,8 +19,9 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
+
 import numpy as n
+from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
@@ -113,15 +114,9 @@ class hashcache(Dict[K, V], Generic[K, V]):
 
 
 @overload
-def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
-    ...
-
-
+def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]: ...
 @overload
-def first(it: Union[Iterator[V], Sequence[V]], default: V) -> V:
-    ...
-
-
+def first(it: Union[Iterator[V], Sequence[V]], default: V) -> V: ...
 def first(it: Union[Iterator[V], Sequence[V]], default: Optional[V] = None) -> Optional[V]:
     """
     Get the first item from the given iterator. Returns None if the iterator is
@@ -233,15 +228,9 @@ def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
 
 
 @overload
-def noopcontext() -> ContextManager[None]:
-    ...
-
-
+def noopcontext() -> ContextManager[None]: ...
 @overload
-def noopcontext(x: T) -> ContextManager[T]:
-    ...
-
-
+def noopcontext(x: T) -> ContextManager[T]: ...
 @contextmanager
 def noopcontext(x: Optional[T] = None) -> Generator[Optional[T], None, None]:
     """

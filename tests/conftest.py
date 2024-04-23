@@ -10,9 +10,8 @@ import httpretty
 import numpy as n
 import pytest
 
-from cryosparc.dataset import CSDAT_FORMAT
+from cryosparc.dataset import CSDAT_FORMAT, Row
 from cryosparc.dataset import Dataset as BaseDataset
-from cryosparc.dataset import Row
 from cryosparc.tools import CryoSPARC
 from cryosparc.util import default_rng
 
@@ -20,8 +19,9 @@ from cryosparc.util import default_rng
 # Always use this class for testing to ensure Dataset#items property is never
 # used internally. Downstream CryoSPARC relies on this.
 class Dataset(BaseDataset[Row]):
+    # Override items like the Particles class does in CryoSPARC
     @property
-    def items(self):
+    def items(self):  # type: ignore
         return self.rows()
 
     def shuffle(self):
@@ -247,6 +247,8 @@ def request_callback_core(request, uri, response_headers):
         "get_project_dir_abs": "/projects/my-project",
         "get_project": {"uid": "P1", "title": "My Project"},
         "make_job": "J1",
+        "set_cluster_job_custom_vars": None,
+        "enqueue_job": "queued",
         "job_send_streamlog": None,
         "job_connect_group": True,
         "job_set_param": True,
@@ -268,9 +270,9 @@ def request_callback_vis_get_project_file(request, uri, response_headers):
     body = json.loads(request.body)
     data = b""
     dset = None
-    if body["project_uid"] == "P1" and body["path_rel"] == "J1/J1_class_00_final_particles.cs":
+    if body["project_uid"] == "P1" and body["path"] == "J1/J1_class_00_final_particles.cs":
         dset = T20S_PARTICLES
-    elif body["project_uid"] == "P1" and body["path_rel"] == "J1/J1_passthrough_particles_class_0.cs":
+    elif body["project_uid"] == "P1" and body["path"] == "J1/J1_passthrough_particles_class_0.cs":
         dset = T20S_PARTICLES_PASSTHROUGH
     else:
         raise RuntimeError(f"Unimplemented get_project_file pytest fixture for request body {body}")

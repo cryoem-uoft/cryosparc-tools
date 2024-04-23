@@ -41,6 +41,8 @@ parts:
           - file: api/errors
   - caption: Links
     chapters:
+      - url: https://discuss.cryosparc.com/c/scripting
+        title: Discussion Forum
       - url: https://github.com/cryoem-uoft/cryosparc-tools
         title: GitHub Repository
       - url: https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md

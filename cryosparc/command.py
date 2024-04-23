@@ -2,16 +2,17 @@
 Provides classes and functions for communicating with CryoSPARC's command
 servers. Generally should not be used directly.
 """
-from contextlib import contextmanager
+
 import json
 import os
 import socket
 import time
 import uuid
+from contextlib import contextmanager
 from typing import Optional, Type
-from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from warnings import warn
 
 from .errors import CommandError
@@ -197,7 +198,7 @@ def make_request(
             )
             if error.readable():
                 resdata = error.read()
-                error_reason += f"\nResponse from server: {data}"
+                error_reason += f"\nResponse from server: {resdata}"
             if resdata and error.headers.get_content_type() == "application/json":
                 resdata = json.loads(resdata)
 

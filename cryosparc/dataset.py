@@ -23,7 +23,8 @@ Dataset supports:
 - joining fields from another dataset on UID
 
 """
-from functools import reduce
+
+from functools import lru_cache, reduce
 from pathlib import PurePath
 from typing import (
     IO,
@@ -32,8 +33,8 @@ from typing import (
     Callable,
     Collection,
     Dict,
+    Generator,
     Generic,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
@@ -44,32 +45,34 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal, SupportsIndex
-import numpy as n
 
+import numpy as n
+from typing_extensions import Literal, SupportsIndex
+
+from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
     Field,
+    arraydtype,
     decode_dataset_header,
+    encode_dataset_header,
+    fielddtype,
     get_data_field,
     get_data_field_dtype,
     makefield,
-    encode_dataset_header,
-    fielddtype,
-    arraydtype,
     safe_makefield,
 )
 from .errors import DatasetLoadError
+from .row import R, Row, Spool
 from .stream import AsyncBinaryIO, Streamable
-from .column import Column
-from .row import Row, Spool, R
 from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray, ArrayLike, DTypeLike
+    from numpy.typing import ArrayLike, DTypeLike, NDArray
+
     from .core import MemoryView
 
 
@@ -268,9 +271,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: Appended dataset
         """
-        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
         if not datasets:
             return cls()
+
+        first_dset = datasets[0]
+        datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return cls(first_dset)  # keep the same fields as the first
 
         if not repeat_allowed:
             all_uids = n.concatenate([dset["uid"] for dset in datasets])
@@ -346,7 +353,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: combined dataset, or empty dataset if none are provided.
         """
+        if not datasets:
+            return cls()
+
+        first_dset = datasets[0]
         datasets = tuple(d for d in datasets if len(d) > 0)  # skip empty datasets
+        if not datasets:
+            return cls(first_dset)  # keep the same fields as the first
+
         keep_fields = cls.common_fields(*datasets, assert_same_fields=assert_same_fields)
         keep_masks = []
         keep_uids = n.array([], dtype=n.uint64)
@@ -591,6 +605,18 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
     @classmethod
+    def load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+        """Replicate Dataset.from_file but with cacheing.
+        This can significantly speed up end-of-job validation with a large number of outputs (e.g., 3D Classification)
+        """
+        return cls._load_cached(file, cstrs).copy()
+
+    @classmethod
+    @lru_cache(maxsize=None)
+    def _load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+        return cls.load(file, cstrs)
+
+    @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
         headersize = u32intle(await stream.read(4))
         header = decode_dataset_header(await stream.read(headersize))
@@ -644,7 +670,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["lz4", None] = None) -> Iterable[bytes]:
+    def stream(self, compression: Literal["lz4", None] = None) -> Generator[bytes, None, None]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -764,17 +790,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             yield key
 
     @overload
-    def __getitem__(self, key: SupportsIndex) -> R:
-        ...
-
+    def __getitem__(self, key: SupportsIndex) -> R: ...
     @overload
-    def __getitem__(self, key: slice) -> List[R]:
-        ...
-
+    def __getitem__(self, key: slice) -> List[R]: ...
     @overload
-    def __getitem__(self, key: str) -> Column:
-        ...
-
+    def __getitem__(self, key: str) -> Column: ...
     def __getitem__(self, key: Union[SupportsIndex, slice, str]) -> Union[R, List[R], Column]:
         """
         Get either a specific field in the dataset or a specific row or slice of
@@ -823,7 +843,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         self.drop_fields([key])
 
-    def __contains__(self, key: str) -> bool:
+    def __contains__(self, key: object) -> bool:
         """
         Use the ``in`` operator to check if the given field exists in dataset.
 
@@ -833,7 +853,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             bool: True if exists, False otherwise.
         """
-        return self._data.has(key)
+        return self._data.has(key) if isinstance(key, str) else False
 
     def __eq__(self, other: object):
         """
@@ -911,7 +931,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             list[Field]: Fields
         """
-        return [get_data_field(self._data, self._data.key(i)) for i in range(self._data.ncol())]
+        descr = [get_data_field(self._data, self._data.key(i)) for i in range(self._data.ncol())]
+        return [f for f in descr if f[0] != "uid"] if exclude_uid else descr
 
     def copy(self):
         """
@@ -959,13 +980,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
 
     @overload
-    def add_fields(self, fields: List[Field]) -> "Dataset[R]":
-        ...
-
+    def add_fields(self, fields: List[Field]) -> "Dataset[R]": ...
     @overload
-    def add_fields(self, fields: List[str], dtypes: Union[str, List["DTypeLike"]]) -> "Dataset[R]":
-        ...
-
+    def add_fields(self, fields: List[str], dtypes: Union[str, List["DTypeLike"]]) -> "Dataset[R]": ...
     def add_fields(
         self,
         fields: Union[List[str], List[Field]],
@@ -1026,19 +1043,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             dt = n.dtype(fielddtype(field))
             if dt.shape:
                 assert dt.base.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt.base}"
-                shape = [0] * 3
-                shape[0 : len(dt.shape)] = dt.shape
-                assert self._data.addcol_array(
-                    name, TYPE_TO_DSET_MAP[dt.base.type], *shape
-                ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_array(name, TYPE_TO_DSET_MAP[dt.base.type], dt.shape)
             elif dt.char in {"O", "S", "U"}:  # all python string object types
-                assert self._data.addcol_scalar(name, DsetType.T_OBJ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_scalar(name, DsetType.T_OBJ)
                 self[name] = ""  # Reset object field to empty string
             else:
                 assert dt.type in TYPE_TO_DSET_MAP, f"Unsupported column data type {dt}"
-                assert self._data.addcol_scalar(
-                    name, TYPE_TO_DSET_MAP[dt.type]
-                ), f"Could not add {field} with dtype {dt}"
+                self._data.addcol_scalar(name, TYPE_TO_DSET_MAP[dt.type])
 
         return self._reset()
 

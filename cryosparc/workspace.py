@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from .dataset import Dataset
+from .job import ExternalJob, Job
 from .row import R
-from .job import Job, ExternalJob
-from .spec import MongoController, Datatype, SlotSpec, WorkspaceDocument
+from .spec import Datatype, MongoController, SlotSpec, WorkspaceDocument
 
 if TYPE_CHECKING:
     from .tools import CryoSPARC
