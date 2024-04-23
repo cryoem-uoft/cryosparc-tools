@@ -96,7 +96,7 @@ class Job(MongoController[JobDocument]):
         """
         Job type key
         """
-        return self.doc["type"]
+        return self.doc["job_type"]
 
     @property
     def status(self) -> JobStatus:
