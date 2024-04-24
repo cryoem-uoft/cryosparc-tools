@@ -9,7 +9,6 @@ from typing import Any, Dict
 import httpretty
 import numpy as n
 import pytest
-from numpy.core.records import fromrecords
 
 from cryosparc.dataset import CSDAT_FORMAT, Row
 from cryosparc.dataset import Dataset as BaseDataset
@@ -33,7 +32,7 @@ class Dataset(BaseDataset[Row]):
 
 # fmt: off
 T20S_PARTICLES = Dataset(
-    fromrecords([
+    n.rec.array([
         (  531905114944910449, 'J30/extract/012951868257382468663_14sep05c_00024sq_00004hl_00002es.frames_patch_aligned_doseweighted_particles.mrc', 176, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 16400.2  , 16232.468,  4.6313896, 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),  # noqa
         ( 1832753233363106142, 'J30/extract/012756078269171603280_14sep05c_c_00003gr_00014sq_00005hl_00005es.frames_patch_aligned_doseweighted_particles.mrc', 210, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 13942.286, 13810.533,  4.695857 , 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),  # noqa
         ( 2101618993165418746, 'J30/extract/000588255143468195995_14sep05c_c_00003gr_00014sq_00011hl_00004es.frames_patch_aligned_doseweighted_particles.mrc', 325, [448, 448], 0.6575, -1., 0, 'spline', 0, 300., 2.7, 0.1, 15820.722, 15637.411, -1.5558333, 0., 1., 1., [0., 0.], [0., 0.], [0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], 0.),  # noqa
@@ -74,7 +73,7 @@ T20S_PARTICLES = Dataset(
 )
 
 T20S_PARTICLES_PASSTHROUGH = Dataset(
-    fromrecords([
+    n.rec.array([
         (  531905114944910449, 12951868257382468663, 0, 'J14/motioncorrected/012951868257382468663_14sep05c_00024sq_00004hl_00002es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.22586207, 0.10166667, 100.),  # noqa
         ( 1832753233363106142, 12756078269171603280, 0, 'J14/motioncorrected/012756078269171603280_14sep05c_c_00003gr_00014sq_00005hl_00005es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.08965518, 0.52166665, 100.),  # noqa
         ( 2101618993165418746,   588255143468195995, 0, 'J14/motioncorrected/000588255143468195995_14sep05c_c_00003gr_00014sq_00011hl_00004es.frames_patch_aligned_doseweighted.mrc', [7676, 7420], 0.8913793 , 0.945     , 100.),  # noqa
@@ -338,7 +337,7 @@ def big_dset():
 @pytest.fixture
 def t20s_dset():
     # fmt: off
-    return Dataset(fromrecords([
+    return Dataset(n.rec.array([
         (15762140416835289736, "J1/imported/015762140416835289736_14sep05c_00024sq_00003hl_00002es.frames.tif", [  38, 7676, 7420], 0.6575, 0, "TIFF", 0, 14011218726240589193, "J1/imported/norm-amibox05-0.mrc", 0, [7676, 7420], 0, 0, 0, 300., 2.7, 53., 0, 0, 8, "", "", 0, [0, 0], 0., "", 0, 0., 0., 0),  # noqa
         ( 7260969837812210921, "J1/imported/007260969837812210921_14sep05c_00024sq_00003hl_00005es.frames.tif", [  38, 7676, 7420], 0.6575, 0, "TIFF", 0,  5837173768828397691, "J1/imported/norm-amibox05-0.mrc", 0, [7676, 7420], 0, 0, 0, 300., 2.7, 53., 0, 0, 8, "", "", 0, [0, 0], 0., "", 0, 0., 0., 0),  # noqa
         (10800491058062947733, "J1/imported/010800491058062947733_14sep05c_00024sq_00004hl_00002es.frames.tif", [  38, 7676, 7420], 0.6575, 0, "TIFF", 0,  1196980374560176443, "J1/imported/norm-amibox05-0.mrc", 0, [7676, 7420], 0, 0, 0, 300., 2.7, 53., 0, 0, 8, "", "", 0, [0, 0], 0., "", 0, 0., 0., 0),  # noqa
