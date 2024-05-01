@@ -1095,7 +1095,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes), copy=copy)
 
-    def filter_prefix(self, keep_prefix: str, *, rename: str | None = None, copy: bool = False):
+    def filter_prefix(self, keep_prefix: str, *, rename: Optional[str] = None, copy: bool = False):
         """
         Similar to ``filter_prefixes`` but for a single prefix.
 
