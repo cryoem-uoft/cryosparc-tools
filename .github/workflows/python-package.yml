@@ -88,8 +88,8 @@ jobs:
           pytest -v --benchmark-disable -n auto
 
   build:
-    # needs: [test]
-    # if: "startsWith(github.ref, 'refs/tags/')"
+    needs: [test]
+    if: "startsWith(github.ref, 'refs/tags/')"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -107,6 +107,7 @@ jobs:
       - uses: pypa/cibuildwheel@v2.17.0
         env:
           CIBW_SKIP: cp36-* pp*-win* pp*-macosx* *_i686
+          CIBW_TEST_SKIP: "*-win_arm64"
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_ARCHS_MACOS: "x86_64 arm64 universal2"
           CIBW_ARCHS_WINDOWS: "AMD64 ARM64"
