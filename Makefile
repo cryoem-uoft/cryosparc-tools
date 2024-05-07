@@ -11,6 +11,12 @@ $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*
 	python3 -m setup build_ext -i
 
 # -----------------------------------------------------------------------------
+#    Docs
+# -----------------------------------------------------------------------------
+docs:
+	jupyter-book build docs
+
+# -----------------------------------------------------------------------------
 #    Vercel deployment-related targets
 # -----------------------------------------------------------------------------
 
@@ -45,4 +51,4 @@ clean:
 	rm -rf *.egg-info
 	rm -rf .venv
 
-.PHONY: clean all vercelinstall vercelbuild
+.PHONY: clean all docs vercelinstall vercelbuild

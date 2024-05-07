@@ -606,9 +606,6 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     def load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
-        """Replicate Dataset.from_file but with cacheing.
-        This can significantly speed up end-of-job validation with a large number of outputs (e.g., 3D Classification)
-        """
         return cls._load_cached(file, cstrs).copy()
 
     @classmethod
