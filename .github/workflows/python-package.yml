@@ -114,7 +114,7 @@ jobs:
           output-dir: dist
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ runner.os }}
           path: dist
 
   release:
@@ -126,6 +126,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wheels
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-Linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-macOS
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-Windows
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
