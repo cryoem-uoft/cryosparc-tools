@@ -1,5 +1,18 @@
 # Changelog
 
+## v4.5.0
+
+- Added: New `cluster_vars` argument for `Job.queue` method for queueing to clusters
+- Added: Various `print` methods for inspecting available job types, inputs, outputs and parameters
+- Updated: Allow copy and symlink operations from outside project directory
+- Updated: Allow larger shapes for dataset fields
+- Fixed: Always raise explicit errors when dataset allocation fails
+- Fixed: Correctly retain fields when appending or creating a union of empty datasets with non-empty fields
+- Fixed: Correctly allow excluding `uid` field in `Dataset.descr` method
+- Docs: New guide for job access and inspection
+- Docs: Fix broken code in custom latent trajectory example
+- Docs: Generalize 3D Flex custom trajectory example to >2 dimensions
+
 ## v4.4.1
 
 - Fixed: Correct command response error data formatting
