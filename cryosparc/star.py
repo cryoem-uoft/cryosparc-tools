@@ -1,11 +1,12 @@
 """
 Helper module for reading and writing relion star files.
 """
+
 from pathlib import PurePath
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union, overload
-from typing_extensions import Literal
+
 import numpy as n
-from numpy.core.records import fromrecords
+from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
@@ -504,8 +505,8 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
     """
 
     # If numpy.loadtxt has a max_rows argument, can read more efficiently.
-    from inspect import signature
     import tempfile
+    from inspect import signature
 
     use_max_rows = "max_rows" in signature(n.loadtxt).parameters
 
@@ -619,7 +620,7 @@ def write(
 
         With numpy record array
 
-        >>> arr  = np.core.records.fromrecords([
+        >>> arr  = np.rec.array([
         ...     (123., 456.),
         ...     (789., 987.)
         ... ], names=[('rlnCoordinateX', 'f8') , ('rlnCoordinateY', 'f8')])
@@ -628,7 +629,7 @@ def write(
     if not isinstance(data, n.ndarray):
         assert labels, f"Cannot write STAR file data with missing labels: {data}"
         names = ",".join(labels)
-        data = fromrecords(data, names=names)  # type: ignore
+        data = n.rec.array(data, names=names)  # type: ignore
     return write_blocks(file, {name: data})
 
 
@@ -646,10 +647,10 @@ def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDAr
 
         >>> from cryosparc import star
         >>> import numpy as np
-        >>> optics = np.core.records.fromrecords([
+        >>> optics = np.rec.array([
         ...     ('mydata', ..., 0.1, 0.1)
         ... ], names='rlnOpticsGroupName,...,rlnBeamTiltX,rlnBeamTiltY'])
-        >>> particles = np.core.records.fromrecords([
+        >>> particles = np.rec.array([
         ...     (123., 456.), ... (789., 987.),
         ... ], names='rlnCoordinateX,rlnCoordinateY')
         >>> star.write('particles.star', {
@@ -675,15 +676,9 @@ def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDAr
 
 
 @overload
-def _read_until(f: IO[str], line_test: Callable[[str], bool]) -> Tuple[Optional[int], str]:
-    ...
-
-
+def _read_until(f: IO[str], line_test: Callable[[str], bool]) -> Tuple[Optional[int], str]: ...
 @overload
-def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof: Literal[True]) -> Tuple[int, str]:
-    ...
-
-
+def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof: Literal[True]) -> Tuple[int, str]: ...
 def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof=False) -> Tuple[Optional[int], str]:
     # Read from the given file handle line-by-line until the line m
     num_lines = 0

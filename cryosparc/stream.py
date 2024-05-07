@@ -1,10 +1,10 @@
-"""Stream processing utilities
-"""
+"""Stream processing utilities"""
+
 from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
-    TYPE_CHECKING,
     IO,
+    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     AsyncIterator,
@@ -14,16 +14,15 @@ from typing import (
     Optional,
     Union,
 )
+
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:
     from typing_extensions import Self  # not present in typing-extensions=3.7
-    from .core import MemoryView
 
 
 class AsyncBinaryIO(Protocol):
-    async def read(self, n: Optional[int] = None) -> bytes:
-        ...
+    async def read(self, n: Optional[int] = None) -> bytes: ...
 
 
 class BinaryIteratorIO(BinaryIO):
@@ -154,8 +153,7 @@ class Streamable(ABC):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator))
 
     @abstractmethod
-    def stream(self) -> Generator[Union[bytes, memoryview, "MemoryView"], None, None]:
-        ...
+    def stream(self) -> Generator[bytes, None, None]: ...
 
     async def astream(self):
         for chunk in self.stream():

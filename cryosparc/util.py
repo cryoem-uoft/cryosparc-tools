@@ -10,6 +10,7 @@ from typing import (
     Generator,
     Generic,
     Iterator,
+    List,
     Optional,
     Sequence,
     Tuple,
@@ -18,8 +19,9 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal
+
 import numpy as n
+from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
@@ -112,15 +114,9 @@ class hashcache(Dict[K, V], Generic[K, V]):
 
 
 @overload
-def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]:
-    ...
-
-
+def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]: ...
 @overload
-def first(it: Union[Iterator[V], Sequence[V]], default: V) -> V:
-    ...
-
-
+def first(it: Union[Iterator[V], Sequence[V]], default: V) -> V: ...
 def first(it: Union[Iterator[V], Sequence[V]], default: Optional[V] = None) -> Optional[V]:
     """
     Get the first item from the given iterator. Returns None if the iterator is
@@ -232,15 +228,9 @@ def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
 
 
 @overload
-def noopcontext() -> ContextManager[None]:
-    ...
-
-
+def noopcontext() -> ContextManager[None]: ...
 @overload
-def noopcontext(x: T) -> ContextManager[T]:
-    ...
-
-
+def noopcontext(x: T) -> ContextManager[T]: ...
 @contextmanager
 def noopcontext(x: Optional[T] = None) -> Generator[Optional[T], None, None]:
     """
@@ -352,3 +342,16 @@ def random_integers(
     except AttributeError:
         f = rng.randint  # type: ignore
     return f(low=low, high=high, size=size, dtype=dtype)  # type: ignore
+
+
+def print_table(headings: List[str], rows: List[List[str]]):
+    """
+    Utility to print a formatted table given a list of headings (strings) and
+    list of rows (list of strings same length as headings).
+    """
+    pad = [max(0, len(h), *(len(r[i]) for r in rows)) for i, h in enumerate(headings)]
+    heading = " | ".join(f"{h:{p}s}" for h, p in zip(headings, pad))
+    print(heading)
+    print("=" * len(heading))
+    for row in rows:
+        print(" | ".join(f"{v:{p}s}" for v, p in zip(row, pad)))
