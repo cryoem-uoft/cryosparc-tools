@@ -104,9 +104,10 @@ jobs:
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
-      - uses: pypa/cibuildwheel@v2.16.2
+      - uses: pypa/cibuildwheel@v2.17.0
         env:
           CIBW_SKIP: cp36-* pp*-win* pp*-macosx* *_i686
+          CIBW_TEST_SKIP: "*-win_arm64"
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_ARCHS_MACOS: "x86_64 arm64 universal2"
           CIBW_ARCHS_WINDOWS: "AMD64 ARM64"
@@ -114,7 +115,7 @@ jobs:
           output-dir: dist
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ runner.os }}
           path: dist
 
   release:
@@ -126,6 +127,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wheels
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-Linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-macOS
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-Windows
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
