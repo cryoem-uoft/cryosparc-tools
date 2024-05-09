@@ -47,7 +47,6 @@ from typing import (
 )
 
 import numpy as n
-import numpy.core.records
 from typing_extensions import Literal, SupportsIndex
 
 from .column import Column
@@ -1269,7 +1268,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         cols = self.cols()
         arrays = [(cols[c].to_fixed() if fixed else cols[c]) for c in cols]
         dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
-        return numpy.core.records.fromarrays(arrays, dtype=dtype)
+        return n.rec.array(arrays, dtype=dtype)
 
     def query(self, query: Union[Dict[str, "ArrayLike"], Callable[[R], bool]]):
         """

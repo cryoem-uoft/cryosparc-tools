@@ -1,6 +1,6 @@
 [project]
 name = "cryosparc-tools"
-version = "4.4.1"
+version = "4.5.0"
 description = "Toolkit for interfacing with CryoSPARC"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -19,6 +19,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Libraries",
 ]
+license = { file = "LICENSE" }
 dependencies = ["numpy ~= 1.15", "typing-extensions >= 3.7"]
 
 [project.optional-dependencies]
@@ -41,9 +42,6 @@ Homepage = "https://tools.cryosparc.com"
 Documentation = "https://tools.cryosparc.com"
 Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
-
-[license]
-file = "LICENSE"
 
 [tool.setuptools]
 packages = ["cryosparc"]

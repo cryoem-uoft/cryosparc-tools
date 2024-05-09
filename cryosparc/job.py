@@ -3,12 +3,14 @@ Defines the Job and External job classes for accessing CryoSPARC jobs.
 """
 
 import json
+import math
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from time import sleep, time
 from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, Union, overload
 
+import numpy as n
 from typing_extensions import Literal
 
 from .command import CommandError, make_json_request, make_request
@@ -29,7 +31,7 @@ from .spec import (
     SlotSpec,
     TextFormat,
 )
-from .util import bopen, first
+from .util import bopen, first, print_table
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
@@ -88,6 +90,13 @@ class Job(MongoController[JobDocument]):
         self.cs = cs
         self.project_uid = project_uid
         self.uid = uid
+
+    @property
+    def type(self) -> str:
+        """
+        Job type key
+        """
+        return self.doc["job_type"]
 
     @property
     def status(self) -> JobStatus:
@@ -1019,6 +1028,108 @@ class Job(MongoController[JobDocument]):
                 raise RuntimeError(msg)
 
             self.log("======================= Subprocess complete. =========================")
+
+    def print_param_spec(self):
+        """
+        Print a table of parameter keys, their title, type and default to
+        standard output:
+
+        Examples:
+
+            >>> cs = CryoSPARC()
+            >>> job = cs.find_job("P3", "J42")
+            >>> job.doc['type']
+            'extract_micrographs_multi'
+            >>> job.print_param_spec()
+            Param                       | Title                 | Type    | Default
+            =======================================================================
+            box_size_pix                | Extraction box size   | number  | 256
+            bin_size_pix                | Fourier crop box size | number  | None
+            compute_num_gpus            | Number of GPUs        | number  | 1
+            ...
+
+        """
+        headings = ["Param", "Title", "Type", "Default"]
+        rows = []
+        for key, details in self.doc["params_base"].items():
+            if details["hidden"]:
+                continue
+            rows.append([key, details["title"], details["type"], repr(details["value"])])
+        print_table(headings, rows)
+
+    def print_input_spec(self):
+        """
+        Print a table of input keys, their title, type, connection requirements
+        and details about their low-level required slots.
+
+        The "Required?" heading also shows the number of outputs that must be
+        connected to the input for this job to run.
+
+        Examples:
+
+            >>> cs = CryoSPARC()
+            >>> job = cs.find_job("P3", "J42")
+            >>> job.doc['type']
+            'extract_micrographs_multi'
+            >>> job.print_output_spec()
+            Input       | Title       | Type     | Required? | Input Slots     | Slot Types      | Slot Required?
+            =====================================================================================================
+            micrographs | Micrographs | exposure | ✓ (1+)    | micrograph_blob | micrograph_blob | ✓
+                        |             |          |           | mscope_params   | mscope_params   | ✓
+                        |             |          |           | background_blob | stat_blob       | ✕
+                        |             |          |           | ctf             | ctf             | ✕
+            particles   | Particles   | particle | ✕ (0+)    | location        | location        | ✓
+                        |             |          |           | alignments2D    | alignments2D    | ✕
+                        |             |          |           | alignments3D    | alignments3D    | ✕
+        """
+        headings = ["Input", "Title", "Type", "Required?", "Input Slots", "Slot Types", "Slot Required?"]
+        rows = []
+        for group in self.doc["input_slot_groups"]:
+            name, title, type = group["name"], group["title"], group["type"]
+            required = f"✓ ({group['count_min']}" if group["count_min"] else "✕ (0"
+            if group["count_max"] in {None, 0, 0.0, math.inf, n.inf}:
+                required += "+)"  # unlimited connections
+            elif group["count_min"] == group["count_max"]:
+                required += ")"
+            else:
+                required += f"-{group['count_max']})"
+            for slot in group["slots"]:
+                slot_required = "✕" if slot["optional"] else "✓"
+                rows.append([name, title, type, required, slot["name"], slot["type"].split(".").pop(), slot_required])
+                name, title, type, required = ("",) * 4
+        print_table(headings, rows)
+
+    def print_output_spec(self):
+        """
+        Print a table of output keys, their title, type and details about their
+        low-level results.
+
+        Examples:
+
+            >>> cs = CryoSPARC()
+            >>> job = cs.find_job("P3", "J42")
+            >>> job.doc['type']
+            'extract_micrographs_multi'
+            >>> job.print_output_spec()
+            Output                 | Title       | Type     | Result Slots           | Result Types
+            ==========================================================================================
+            micrographs            | Micrographs | exposure | micrograph_blob        | micrograph_blob
+                                   |             |          | micrograph_blob_non_dw | micrograph_blob
+                                   |             |          | background_blob        | stat_blob
+                                   |             |          | ctf                    | ctf
+                                   |             |          | ctf_stats              | ctf_stats
+                                   |             |          | mscope_params          | mscope_params
+            particles              | Particles   | particle | blob                   | blob
+                                   |             |          | ctf                    | ctf
+        """
+        headings = ["Output", "Title", "Type", "Result Slots", "Result Types"]
+        rows = []
+        for group in self.doc["output_result_groups"]:
+            name, title, type = group["name"], group["title"], group["type"]
+            for result in group["contains"]:
+                rows.append([name, title, type, result["name"], result["type"].split(".").pop()])
+                name, title, type = "", "", ""  # only these print once per group
+        print_table(headings, rows)
 
 
 class ExternalJob(Job):

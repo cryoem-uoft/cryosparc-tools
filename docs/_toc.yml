@@ -4,6 +4,9 @@
 format: jb-book
 root: intro
 parts:
+  - caption: Guides
+    chapters:
+      - file: guides/jobs
   - caption: Examples
     numbered: True
     chapters:

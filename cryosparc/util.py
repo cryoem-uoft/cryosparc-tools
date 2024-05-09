@@ -10,6 +10,7 @@ from typing import (
     Generator,
     Generic,
     Iterator,
+    List,
     Optional,
     Sequence,
     Tuple,
@@ -341,3 +342,16 @@ def random_integers(
     except AttributeError:
         f = rng.randint  # type: ignore
     return f(low=low, high=high, size=size, dtype=dtype)  # type: ignore
+
+
+def print_table(headings: List[str], rows: List[List[str]]):
+    """
+    Utility to print a formatted table given a list of headings (strings) and
+    list of rows (list of strings same length as headings).
+    """
+    pad = [max(0, len(h), *(len(r[i]) for r in rows)) for i, h in enumerate(headings)]
+    heading = " | ".join(f"{h:{p}s}" for h, p in zip(headings, pad))
+    print(heading)
+    print("=" * len(heading))
+    for row in rows:
+        print(" | ".join(f"{v:{p}s}" for v, p in zip(row, pad)))
