@@ -36,6 +36,7 @@ Datatype = Literal[
     "particle",
     "template",
     "volume",
+    "volume_multi",
     "mask",
     "live",
     "ml_model",
@@ -43,6 +44,8 @@ Datatype = Literal[
     "flex_mesh",
     "flex_model",
     "hyperparameter",
+    "denoise_model",
+    "annotation_model",
 ]
 """Supported data types for job inputs and outputs."""
 
