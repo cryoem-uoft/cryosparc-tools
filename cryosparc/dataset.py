@@ -746,11 +746,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 populate.append((field, allocate[field[0]]))
         elif isinstance(allocate, Mapping):
             for f, v in allocate.items():
-                a = n.array(v, copy=False)
+                a = n.asarray(v)
                 populate.append((safe_makefield(f, arraydtype(a)), a))
         else:
             for f, v in allocate:
-                a = n.array(v, copy=False)
+                a = n.asarray(v)
                 populate.append((safe_makefield(f, arraydtype(a)), a))
 
         # Check that all entries are the same length
