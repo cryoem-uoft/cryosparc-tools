@@ -63,10 +63,10 @@ class Column(n.ndarray):
 
         return obj
 
-    def __array_wrap__(self, obj, context=None):
+    def __array_wrap__(self, obj, context=None, return_scalar=False):
         # This prevents wrapping single results such as aggregations from n.sum
         # or n.median
-        return obj[()] if obj.shape == () else super().__array_wrap__(obj, context)
+        return obj[()] if obj.shape == () else super().__array_wrap__(obj, context, return_scalar)  # type: ignore
 
     def to_fixed(self) -> "Column":
         """
