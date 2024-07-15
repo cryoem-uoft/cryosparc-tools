@@ -39,6 +39,7 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -151,7 +152,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     _data: Data
 
     @classmethod
-    def allocate(cls, size: int = 0, fields: List[Field] = []):
+    def allocate(cls, size: int = 0, fields: Sequence[Field] = []):
         """
         Allocate a dataset with the given number of rows and specified fields.
 
@@ -746,11 +747,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 populate.append((field, allocate[field[0]]))
         elif isinstance(allocate, Mapping):
             for f, v in allocate.items():
-                a = n.array(v, copy=False)
+                a = n.asarray(v)
                 populate.append((safe_makefield(f, arraydtype(a)), a))
         else:
             for f, v in allocate:
-                a = n.array(v, copy=False)
+                a = n.asarray(v)
                 populate.append((safe_makefield(f, arraydtype(a)), a))
 
         # Check that all entries are the same length
@@ -977,13 +978,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
 
     @overload
-    def add_fields(self, fields: List[Field]) -> "Dataset[R]": ...
+    def add_fields(self, fields: Sequence[Field]) -> "Dataset[R]": ...
     @overload
-    def add_fields(self, fields: List[str], dtypes: Union[str, List["DTypeLike"]]) -> "Dataset[R]": ...
+    def add_fields(self, fields: Sequence[str], dtypes: Union[str, Sequence["DTypeLike"]]) -> "Dataset[R]": ...
     def add_fields(
         self,
-        fields: Union[List[str], List[Field]],
-        dtypes: Union[str, List["DTypeLike"], Literal[None]] = None,
+        fields: Union[Sequence[str], Sequence[Field]],
+        dtypes: Union[str, Sequence["DTypeLike"], Literal[None]] = None,
     ) -> "Dataset[R]":
         """
         Adds the given fields to the dataset. If a field with the same name
