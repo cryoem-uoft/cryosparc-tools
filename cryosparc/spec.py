@@ -66,7 +66,7 @@ Possible job status values.
 """
 
 # Valid plot file types
-TextFormat = Literal["txt", "csv", "html", "json", "xml"]
+TextFormat = Literal["txt", "csv", "html", "json", "xml", "bild", "bld"]
 """
 Supported job stream log asset file text formats.
 """
@@ -87,6 +87,7 @@ TextContentType = Literal[
     "text/html",
     "application/json",
     "application/xml",
+    "application/x-bild",
 ]
 """
 Supported job stream log text asset MIME types.
@@ -114,6 +115,8 @@ TEXT_CONTENT_TYPES: Dict[TextFormat, TextContentType] = {
     "html": "text/html",
     "json": "application/json",
     "xml": "application/xml",
+    "bild": "application/x-bild",
+    "bld": "application/x-bild",
 }
 
 IMAGE_CONTENT_TYPES: Dict[ImageFormat, ImageContentType] = {
