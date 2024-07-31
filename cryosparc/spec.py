@@ -87,7 +87,7 @@ TextContentType = Literal[
     "text/html",
     "application/json",
     "application/xml",
-    "application/x-chimera-bild",
+    "application/x-troff",
 ]
 """
 Supported job stream log text asset MIME types.
@@ -115,8 +115,8 @@ TEXT_CONTENT_TYPES: Dict[TextFormat, TextContentType] = {
     "html": "text/html",
     "json": "application/json",
     "xml": "application/xml",
-    "bild": "application/x-chimera-bild",
-    "bld": "application/x-chimera-bild",
+    "bild": "application/x-troff",
+    "bld": "application/x-troff",
 }
 
 IMAGE_CONTENT_TYPES: Dict[ImageFormat, ImageContentType] = {
