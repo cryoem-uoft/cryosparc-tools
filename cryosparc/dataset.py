@@ -717,11 +717,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             List[Tuple[str, "ArrayLike"]],
             Literal[None],
         ] = 0,
-        row_class: Type[R] = Row,
+        row_class=Row,
     ):
         # Always initialize with at least a UID field
         super().__init__()
-        self._row_class = row_class
+        self._row_class = row_class  # type: ignore
         self._rows = None
 
         if isinstance(allocate, Dataset):
