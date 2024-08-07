@@ -757,7 +757,7 @@ class CryoSPARC:
                     # headers. If cannot be determined, defaults to "file.dat"
                     content_type: str = response.headers.get_content_type()
                     attachment_filename: Optional[str] = response.headers.get_filename()
-                    target /= attachment_filename or f"file.{ASSET_EXTENSIONS.get(content_type, 'dat')}"
+                    target /= attachment_filename or f"file.{ASSET_EXTENSIONS.get(content_type, 'dat')}"  # type: ignore
             with bopen(target, "wb") as f:
                 data = response.read(ONE_MIB)
                 while data:
