@@ -129,7 +129,7 @@ IMAGE_CONTENT_TYPES: Dict[ImageFormat, ImageContentType] = {
 }
 
 ASSET_CONTENT_TYPES: Dict[AssetFormat, AssetContentType] = {**TEXT_CONTENT_TYPES, **IMAGE_CONTENT_TYPES}  # type: ignore
-ASSET_EXTENSIONS = {v: k for k, v in ASSET_CONTENT_TYPES.items()}
+ASSET_EXTENSIONS: Dict[AssetContentType, AssetFormat] = {v: k for k, v in ASSET_CONTENT_TYPES.items()}
 
 
 class AssetDetails(TypedDict):
