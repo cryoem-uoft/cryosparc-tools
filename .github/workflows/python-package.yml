@@ -94,7 +94,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: ["ubuntu-20.04", "macos-11", "windows-2019"]
+        os: ["ubuntu-20.04", "macos-12", "windows-2019"]
     steps:
       - uses: actions/checkout@v4
         with:
