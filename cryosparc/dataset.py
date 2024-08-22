@@ -563,47 +563,56 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             with bopen(file, "rb") as f:
                 prefix = f.read(6)
                 if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
-                    f.seek(0)
-                    indata = n.load(f, allow_pickle=False)
-                    dset = cls(indata)
-                    if cstrs:
-                        dset.to_cstrs()
-                    return dset
-                elif prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-                    raise TypeError(f"Could not determine dataset format (prefix is {prefix})")
-
-                headersize = u32intle(f.read(4))
-                header = decode_dataset_header(f.read(headersize))
-
-                # Calling addrows separately to minimizes column-based
-                # allocations, improves performance by ~20%
-                dset = cls.allocate(0, header["dtype"])
-                data = dset._data
-                data.addrows(header["length"])
-                loader = Stream(data)
-                for field in header["dtype"]:
-                    colsize = u32intle(f.read(4))
-                    buffer = f.read(colsize)
-                    if field[0] in header["compressed_fields"]:
-                        loader.decompress_col(field[0], buffer)
-                    else:
-                        data.getbuf(field[0])[:] = buffer
-
-                # Read in the string heap (rest of stream)
-                # NOTE: There will be a bug here for long column keys that are
-                # added when there's already an allocated string in a T_STR
-                # column in the saved dataset (should be rare).
-                heap = f.read()
-                data.setstrheap(heap)
-
-                # Convert C strings to Python strings
-                loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
-                if not cstrs:
-                    dset.to_pystrs()
-                return dset
-
+                    f.seek(0)  # will be done after context block for mmapping
+                elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+                    return cls._load_stream(f, cstrs=cstrs)
+                else:
+                    raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
+            # numpy
+            return cls._load_numpy(file, cstrs=cstrs)
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
+
+    @classmethod
+    def _load_numpy(cls, file: Union[str, PurePath, IO[bytes]], *, cstrs: bool = False):
+        indata = n.load(file, allow_pickle=False)
+        dset = cls(indata)
+        if cstrs:
+            dset.to_cstrs()
+        return dset
+
+    @classmethod
+    def _load_stream(cls, f: IO[bytes], *, cstrs: bool = False):
+        # NOTE: assumes prefix header bytes have already been read
+        headersize = u32intle(f.read(4))
+        header = decode_dataset_header(f.read(headersize))
+
+        # Calling addrows separately to minimizes column-based
+        # allocations, improves performance by ~20%
+        dset = cls.allocate(0, header["dtype"])
+        data = dset._data
+        data.addrows(header["length"])
+        loader = Stream(data)
+        for field in header["dtype"]:
+            colsize = u32intle(f.read(4))
+            buffer = f.read(colsize)
+            if field[0] in header["compressed_fields"]:
+                loader.decompress_col(field[0], buffer)
+            else:
+                data.getbuf(field[0])[:] = buffer
+
+        # Read in the string heap (rest of stream)
+        # NOTE: There will be a bug here for long column keys that are
+        # added when there's already an allocated string in a T_STR
+        # column in the saved dataset (should be rare).
+        heap = f.read()
+        data.setstrheap(heap)
+
+        # Convert C strings to Python strings
+        loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+        if not cstrs:
+            dset.to_pystrs()
+        return dset
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
@@ -667,6 +676,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Buffer will have the same format as Dataset files saved with
         ``format=CSDAT_FORMAT``. Call ``Dataset.load`` on the resulting
         file/buffer to retrieve the original data.
+
+        Args:
+            compression (Literal["lz4", None], optional):
 
         Yields:
             bytes: Dataset file chunks
@@ -818,11 +830,6 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             val (ArrayLike): numpy array or value to assign
         """
         assert self._data.has(key), f"Cannot set non-existing dataset key {key}; use add_fields() first"
-        if isinstance(val, n.ndarray):
-            if val.dtype.char == "S":
-                val = n.vectorize(hashcache(bytes.decode), otypes="O")(val)
-            elif val.dtype.char == "U":
-                val = n.vectorize(hashcache(str), otypes="O")(val)
         self[key][:] = val
 
     def __delitem__(self, key: str):
