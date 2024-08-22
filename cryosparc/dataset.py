@@ -575,8 +575,24 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     def _load_numpy(cls, file: Union[str, PurePath, IO[bytes]], *, cstrs: bool = False):
-        indata = n.load(file, allow_pickle=False)
-        dset = cls(indata)
+        # Use mmap to avoid loading into memory
+        mmap_mode = "r" if isinstance(file, (str, PurePath)) else None
+        indata = n.load(file, mmap_mode=mmap_mode, allow_pickle=False)
+        size = len(indata)
+        dset = cls.allocate(size, indata.dtype.descr)
+        offset = 0
+        chunk_size = 2**15  # magic number optimizes memory and performance
+        while offset < size:
+            end = min(offset + chunk_size, size)
+            chunk = indata[offset:end]
+            for field in dset:
+                dset[field][offset:end] = chunk[field]
+            offset += chunk_size
+            if mmap_mode and offset < size:
+                # reset mmap to avoid excessive memory usage
+                del indata
+                indata = n.load(file, mmap_mode=mmap_mode, allow_pickle=False)
+
         if cstrs:
             dset.to_cstrs()
         return dset
