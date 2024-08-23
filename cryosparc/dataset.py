@@ -568,8 +568,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         cls,
         file: Union[str, PurePath, IO[bytes]],
         *,
-        prefixes: Sequence[str] | None = None,
-        fields: Sequence[str] | None = None,
+        prefixes: Optional[Sequence[str]] = None,
+        fields: Optional[Sequence[str]] = None,
         cstrs: bool = False,
     ):
         """
@@ -623,8 +623,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def _load_numpy(
         cls,
         file: Union[str, PurePath, IO[bytes]],
-        prefixes: Sequence[str] | None = None,
-        fields: Sequence[str] | None = None,
+        prefixes: Optional[Sequence[str]] = None,
+        fields: Optional[Sequence[str]] = None,
         cstrs: bool = False,
     ):
         # Use mmap to avoid loading full record array into memory
@@ -660,8 +660,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def _load_stream(
         cls,
         f: IO[bytes],
-        prefixes: Sequence[str] | None = None,
-        fields: Sequence[str] | None = None,
+        prefixes: Optional[Sequence[str]] = None,
+        fields: Optional[Sequence[str]] = None,
         cstrs: bool = False,
         seekable: bool = False,
     ):

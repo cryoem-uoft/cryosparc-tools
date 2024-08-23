@@ -3,7 +3,7 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as n
 from typing_extensions import Literal, Sequence, TypedDict
@@ -142,8 +142,8 @@ def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
 def filter_descr(
     descr: List[Field],
     *,
-    keep_prefixes: Sequence[str] | None = None,
-    keep_fields: Sequence[str] | None = None,
+    keep_prefixes: Optional[Sequence[str]] = None,
+    keep_fields: Optional[Sequence[str]] = None,
 ) -> List[Field]:
     # Get a filtered list of fields based on the user-specified prefixies
     # and/or fields. Returns all fields if no filter params are specified.
