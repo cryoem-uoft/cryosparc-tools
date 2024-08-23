@@ -42,13 +42,22 @@ Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
 
 class DatasetHeader(TypedDict):
     """
-    Dataset header description when saving in CSDAT format.
+    Encoded dataset file description.
     """
 
     length: int
+    """Number of rows in the dataset"""
+
     dtype: List[Field]
+    """
+    Column description
+    """
+
     compression: Literal["lz4", None]
+    """Compression library used for in the dataset"""
+
     compressed_fields: List[str]
+    """Field names that require decompression."""
 
 
 DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
@@ -84,13 +93,18 @@ TYPE_TO_DSET_MAP = {
 NEVER_COMPRESS_FIELDS = {"uid"}
 
 
-def makefield(name: str, dtype: "DTypeLike") -> Field:
+def normalize_field(name: str, dtype: "DTypeLike") -> Field:
+    # Note: field name "uid" is always uint64, regardless of given dtype
+    # Note: sd
     dt = n.dtype(dtype)
-    return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)
-
-
-def safe_makefield(name: str, dtype: "DTypeLike") -> Field:
-    return ("uid", n.dtype(n.uint64).str) if name == "uid" else makefield(name, dtype)
+    dtstr = dt.str
+    if name == "uid":
+        dtstr = n.dtype(n.uint64).str
+    elif dt.char in {"O", "S", "U"}:  # all python string object types
+        dtstr = n.dtype(object).str
+    elif dt.shape:
+        dtstr = dt.base.str
+    return (name, dtstr, dt.shape) if dt.shape else (name, dtstr)
 
 
 def fielddtype(field: Field) -> DType:
@@ -113,7 +127,7 @@ def dtypestr(dtype: "DTypeLike") -> str:
 
 
 def get_data_field(data: Data, field: str) -> Field:
-    return makefield(field, get_data_field_dtype(data, field))
+    return normalize_field(field, get_data_field_dtype(data, field))
 
 
 def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
@@ -152,6 +166,11 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         compression: Literal["lz4", None] = header["compression"]
         compressed_fields: List[str] = header["compressed_fields"]
 
-        return DatasetHeader(length=length, dtype=dtype, compression=compression, compressed_fields=compressed_fields)
+        return DatasetHeader(
+            length=length,
+            dtype=dtype,
+            compression=compression,
+            compressed_fields=compressed_fields,
+        )
     except Exception as e:
         raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e

@@ -32,6 +32,7 @@ from typing import (
     Any,
     Callable,
     Collection,
+    Container,
     Dict,
     Generator,
     Generic,
@@ -63,8 +64,7 @@ from .dtype import (
     fielddtype,
     get_data_field,
     get_data_field_dtype,
-    makefield,
-    safe_makefield,
+    normalize_field,
 )
 from .errors import DatasetLoadError
 from .row import R, Row, Spool
@@ -537,7 +537,40 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return [f for f in datasets[0].descr() if f in fields]
 
     @classmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+    def inspect(cls, file: Union[str, PurePath]) -> DatasetHeader:
+        """
+        Given a path to a dataset file, get information included in its header.
+
+        Args:
+            file: (str | Path): Readable file path.
+
+        Returns:
+            DatasetHeader: Dictionary with dataset
+
+        """
+        try:
+            with bopen(file, "rb") as f:
+                prefix = f.read(6)
+                if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                    f.seek(0)  # will be done after context block for mmapping
+                elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+                    return cls._load_stream_header(f)
+                else:
+                    raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
+            # numpy
+            return cls._load_numpy_header(file)
+        except Exception as err:
+            raise DatasetLoadError(f"Could not load dataset from file {file}") from err
+
+    @classmethod
+    def load(
+        cls,
+        file: Union[str, PurePath, IO[bytes]],
+        *,
+        prefixes: Container[str] | None = None,
+        fields: Container[str] | None = None,
+        cstrs: bool = False,
+    ):
         """
         Read a dataset from path or file handle.
 
@@ -549,6 +582,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
+            prefixes (list[str], optional): Which field prefixes to load. Loads
+                either all if not specified, or specified `fields`.
+            fields (list[str], optional): Which fields to load. If no specified,
+                loads either all or prefixes if prefixes is specified.
             cstrs (bool): If True, load internal string columns as C strings
                 instead of Python strings. Defaults to False.
 
@@ -572,6 +609,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             return cls._load_numpy(file, cstrs=cstrs)
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
+
+    @classmethod
+    def _load_numpy_header(cls, file: Union[str, PurePath]) -> DatasetHeader:
+        indata = n.load(file, mmap_mode="r", allow_pickle=False)
+        fields = [normalize_field(f[0], fielddtype(f)) for f in indata.dtype.descr]
+        return DatasetHeader(length=len(indata), dtype=fields, compression=None, compressed_fields=[])
 
     @classmethod
     def _load_numpy(cls, file: Union[str, PurePath, IO[bytes]], *, cstrs: bool = False):
@@ -598,10 +641,15 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return dset
 
     @classmethod
-    def _load_stream(cls, f: IO[bytes], *, cstrs: bool = False):
+    def _load_stream_header(cls, f: IO[bytes]) -> DatasetHeader:
         # NOTE: assumes prefix header bytes have already been read
         headersize = u32intle(f.read(4))
-        header = decode_dataset_header(f.read(headersize))
+        return decode_dataset_header(f.read(headersize))
+
+    @classmethod
+    def _load_stream(cls, f: IO[bytes], *, cstrs: bool = False):
+        # NOTE: assumes prefix header bytes have already been read
+        header = cls._load_stream_header(f)
 
         # Calling addrows separately to minimizes column-based
         # allocations, improves performance by ~20%
@@ -707,7 +755,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         compressed_fields = [f for f in self if compression and f not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
             DatasetHeader(
-                length=len(self), dtype=self.descr(), compression=compression, compressed_fields=compressed_fields
+                length=len(self),
+                dtype=self.descr(),
+                compression=compression,
+                compressed_fields=compressed_fields,
             )
         )
         yield u32bytesle(len(header))
@@ -762,16 +813,16 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         elif isinstance(allocate, n.ndarray):  # record array
             for field in allocate.dtype.descr:
                 assert field[0], f"Cannot initialize with record array of dtype {allocate.dtype}"
-                field = ("uid", "u8") if field[0] == "uid" else field
-                populate.append((field, allocate[field[0]]))
+                a = allocate[field[0]]
+                populate.append((normalize_field(field[0], fielddtype(field)), a))
         elif isinstance(allocate, Mapping):
             for f, v in allocate.items():
                 a = n.asarray(v)
-                populate.append((safe_makefield(f, arraydtype(a)), a))
+                populate.append((normalize_field(f, arraydtype(a)), a))
         else:
             for f, v in allocate:
                 a = n.asarray(v)
-                populate.append((safe_makefield(f, arraydtype(a)), a))
+                populate.append((normalize_field(f, arraydtype(a)), a))
 
         # Check that all entries are the same length
         nrows = 0
@@ -1044,7 +1095,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if dtypes:
             dt = dtypes.split(",") if isinstance(dtypes, str) else dtypes
             assert len(fields) == len(dt), "Incorrect dtype spec"
-            desc = [safe_makefield(str(f), dt) for f, dt in zip(fields, dt)]
+            desc = [normalize_field(str(f), dt) for f, dt in zip(fields, dt)]
         else:
             desc = fields  # type: ignore
 
@@ -1233,7 +1284,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         current_fields = self.fields()
         missing_fields = [
-            makefield(new, get_data_field_dtype(self._data, old))
+            normalize_field(new, get_data_field_dtype(self._data, old))
             for old, new in zip(old_fields, new_fields)
             if new not in current_fields
         ]
