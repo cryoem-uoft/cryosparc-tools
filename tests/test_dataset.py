@@ -24,6 +24,32 @@ def io_data():
     return BytesIO(data)
 
 
+@pytest.fixture
+def small_dset():
+    field3 = "long/fieldwithsuperduperlongcolumnnamethatislongandtestable"
+    dset = Dataset.allocate(
+        4,
+        fields=[
+            ("field/1", "u8", (2,)),
+            ("field/2", "f4"),
+            (field3, "O"),
+        ],
+    )
+    dset["field/1"] = (42, 43)
+    dset["field/2"] = n.array([3.14, 2.73, 1.62, 3.14], dtype="f8")
+    dset[field3][:] = n.array(["Hello", "World", "!", "!"])
+    return dset
+
+
+@pytest.fixture
+def small_dset_stream(small_dset):
+    stream = BytesIO()
+    for dat in small_dset.stream():
+        stream.write(dat)
+    stream.seek(0)
+    return stream
+
+
 def test_allocate():
     storage = Dataset.allocate(size=2000000, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     assert storage is not None
@@ -173,7 +199,7 @@ def test_to_list_exclude_uid():
     assert lst == [[0, 0.0, "Hello"]]
 
 
-def test_to_file():
+def test_save():
     dtype = [("uid", "u8"), ("field1", "u4"), ("field2", "f4"), ("field3", "S6"), ("field4", "f8")]
     expected = n.array([(1, 42, 3.14, "Hello", 1.0), (2, 42, 2.73, "World", 0.0)], dtype=dtype)
     dset = Dataset(expected)
@@ -186,18 +212,28 @@ def test_to_file():
     assert all(e.decode() == a.decode() for e, a in zip(expected["field3"], actual["field3"]))
 
 
-def test_from_file(io_data):
+def test_load(io_data):
     dtype = [("field1", "u4"), ("field2", "f4"), ("field3", "O"), ("field4", "f8"), ("field5", "i8")]
-
-    result = Dataset.load(io_data)
     expected = Dataset.allocate(size=2, fields=dtype)
-
     expected["field1"] = 42
     expected["field2"] = n.array([3.14, 2.73], dtype="f8")
     expected["field3"][:] = n.array(["Hello", "World"])
     expected["field4"][1] = 1.0
     expected["field5"][0:] = 43
 
+    result = Dataset.load(io_data)
+    assert expected.descr() == result.descr()
+    assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
+
+
+def test_load_fields(io_data):
+    dtype = [("field2", "f4"), ("field3", "O"), ("field5", "i8")]
+    expected = Dataset.allocate(size=2, fields=dtype)
+    expected["field2"] = n.array([3.14, 2.73], dtype="f8")
+    expected["field3"][:] = n.array(["Hello", "World"])
+    expected["field5"][0:] = 43
+
+    result = Dataset.load(io_data, fields=["field2", "field3", "field5"])
     assert expected.descr() == result.descr()
     assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
 
@@ -213,27 +249,19 @@ def test_from_data_none():
     assert len(data) == 0
 
 
-def test_streaming_bytes():
-    field3 = "fieldwithsuperduperlongcolumnnamethatislongandtestable"
-    dset = Dataset.allocate(
-        4,
-        fields=[
-            ("field1", "u8"),
-            ("field2", "f4"),
-            (field3, "O"),
-        ],
-    )
-    dset["field1"] = 42
-    dset["field2"] = n.array([3.14, 2.73, 1.62, 3.14], dtype="f8")
-    dset[field3][:] = n.array(["Hello", "World", "!", "!"])
+def test_load_stream(small_dset, small_dset_stream):
+    result = Dataset.load(small_dset_stream)
+    assert result == small_dset
 
-    stream = BytesIO()
-    for dat in dset.stream():
-        stream.write(dat)
-    stream.seek(0)
-    result = dset.load(stream)
 
-    assert dset == result
+def test_load_stream_prefixes(small_dset, small_dset_stream):
+    result = Dataset.load(small_dset_stream, prefixes=["field"])
+    assert result == small_dset.filter_prefixes(["field"], copy=True)
+
+
+def test_load_stream_fields(small_dset, small_dset_stream):
+    result = Dataset.load(small_dset_stream, fields=["field/2"])
+    assert result == small_dset.filter_fields(["field/2"], copy=True)
 
 
 def test_pickle_unpickle():

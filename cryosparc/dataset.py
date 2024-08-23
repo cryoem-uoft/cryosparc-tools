@@ -62,6 +62,7 @@ from .dtype import (
     decode_dataset_header,
     encode_dataset_header,
     fielddtype,
+    filter_descr,
     get_data_field,
     get_data_field_dtype,
     normalize_field,
@@ -501,7 +502,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         # [0,1,2]}), …]. This is faster than doing the innerjoin for all columns
         # and safer because we don't have to worry about not updating Python
         # string reference counts in the resulting dataset.
-        indexed_dsets = [Dataset({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
+        indexed_dsets = [cls({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
         indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
         result = cls({"uid": indexed_dset["uid"]})
         result.add_fields(all_fields)
@@ -549,7 +550,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         """
         try:
-            with bopen(file, "rb") as f:
+            with open(file, "rb") as f:
                 prefix = f.read(6)
                 if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
                     f.seek(0)  # will be done after context block for mmapping
@@ -557,7 +558,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                     return cls._load_stream_header(f)
                 else:
                     raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
-            # numpy
+            # numpy format
             return cls._load_numpy_header(file)
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
@@ -567,8 +568,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         cls,
         file: Union[str, PurePath, IO[bytes]],
         *,
-        prefixes: Container[str] | None = None,
-        fields: Container[str] | None = None,
+        prefixes: Sequence[str] | None = None,
+        fields: Sequence[str] | None = None,
         cstrs: bool = False,
     ):
         """
@@ -602,11 +603,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
                     f.seek(0)  # will be done after context block for mmapping
                 elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-                    return cls._load_stream(f, cstrs=cstrs)
+                    return cls._load_stream(
+                        f, prefixes=prefixes, fields=fields, cstrs=cstrs, seekable=isinstance(f, (str, PurePath))
+                    )
                 else:
                     raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
             # numpy
-            return cls._load_numpy(file, cstrs=cstrs)
+            return cls._load_numpy(file, prefixes=prefixes, fields=fields, cstrs=cstrs)
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
@@ -617,19 +620,26 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return DatasetHeader(length=len(indata), dtype=fields, compression=None, compressed_fields=[])
 
     @classmethod
-    def _load_numpy(cls, file: Union[str, PurePath, IO[bytes]], *, cstrs: bool = False):
-        # Use mmap to avoid loading into memory
+    def _load_numpy(
+        cls,
+        file: Union[str, PurePath, IO[bytes]],
+        prefixes: Sequence[str] | None = None,
+        fields: Sequence[str] | None = None,
+        cstrs: bool = False,
+    ):
+        # Use mmap to avoid loading full record array into memory
         mmap_mode = "r" if isinstance(file, (str, PurePath)) else None
         indata = n.load(file, mmap_mode=mmap_mode, allow_pickle=False)
         size = len(indata)
-        dset = cls.allocate(size, indata.dtype.descr)
+        descr = filter_descr(indata.dtype.descr, keep_prefixes=prefixes, keep_fields=fields)
+        dset = cls.allocate(size, descr)
         offset = 0
-        chunk_size = 2**15  # magic number optimizes memory and performance
+        chunk_size = 2**14  # magic number optimizes memory and performance
         while offset < size:
             end = min(offset + chunk_size, size)
             chunk = indata[offset:end]
-            for field in dset:
-                dset[field][offset:end] = chunk[field]
+            for field in descr:
+                dset[field[0]][offset:end] = chunk[field[0]]
             offset += chunk_size
             if mmap_mode and offset < size:
                 # reset mmap to avoid excessive memory usage
@@ -647,18 +657,31 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return decode_dataset_header(f.read(headersize))
 
     @classmethod
-    def _load_stream(cls, f: IO[bytes], *, cstrs: bool = False):
+    def _load_stream(
+        cls,
+        f: IO[bytes],
+        prefixes: Sequence[str] | None = None,
+        fields: Sequence[str] | None = None,
+        cstrs: bool = False,
+        seekable: bool = False,
+    ):
         # NOTE: assumes prefix header bytes have already been read
         header = cls._load_stream_header(f)
+        descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
+        field_names = {field[0] for field in descr}
 
         # Calling addrows separately to minimizes column-based
         # allocations, improves performance by ~20%
-        dset = cls.allocate(0, header["dtype"])
+        dset = cls.allocate(0, descr)
         data = dset._data
         data.addrows(header["length"])
         loader = Stream(data)
         for field in header["dtype"]:
             colsize = u32intle(f.read(4))
+            if field[0] not in field_names:
+                # try to seek instead of read to reduce memory usage
+                f.seek(colsize) if seekable else f.read(colsize)
+                continue  # skip fields that were not selected
             buffer = f.read(colsize)
             if field[0] in header["compressed_fields"]:
                 loader.decompress_col(field[0], buffer)

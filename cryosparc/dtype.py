@@ -6,7 +6,7 @@ import json
 from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
 
 import numpy as n
-from typing_extensions import Literal, TypedDict
+from typing_extensions import Literal, Sequence, TypedDict
 
 from .core import Data, DsetType
 
@@ -137,6 +137,27 @@ def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
     dt = n.dtype(DSET_TO_TYPE_MAP[t])
     shape = data.getshp(field)
     return (dt.str, shape) if shape else dt.str
+
+
+def filter_descr(
+    descr: List[Field],
+    *,
+    keep_prefixes: Sequence[str] | None = None,
+    keep_fields: Sequence[str] | None = None,
+) -> List[Field]:
+    # Get a filtered list of fields based on the user-specified prefixies
+    # and/or fields. Returns all fields if no filter params are specified.
+    # Always returns at least uid field, if it exists.
+    filtered: List[Field] = []
+    for field in descr:
+        if (
+            field[0] == "uid"
+            or (keep_prefixes is None and keep_fields is None)
+            or (keep_prefixes is not None and any(field[0].startswith(f"{p}/") for p in keep_prefixes))
+            or (keep_fields is not None and field[0] in keep_fields)
+        ):
+            filtered.append(field)
+    return filtered
 
 
 def encode_dataset_header(fields: DatasetHeader) -> bytes:
