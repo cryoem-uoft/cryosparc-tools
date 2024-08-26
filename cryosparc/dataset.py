@@ -32,7 +32,6 @@ from typing import (
     Any,
     Callable,
     Collection,
-    Container,
     Dict,
     Generator,
     Generic,
@@ -70,7 +69,7 @@ from .dtype import (
 from .errors import DatasetLoadError
 from .row import R, Row, Spool
 from .stream import AsyncBinaryIO, Streamable
-from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
+from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray

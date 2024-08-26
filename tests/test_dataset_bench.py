@@ -420,7 +420,7 @@ def test_inspect(big_dset_path, fields):
     result = Dataset.inspect(big_dset_path)
     assert result["length"] == 1961726
     assert result["dtype"] == fields
-    assert result["compression"] == None
+    assert result["compression"] is None
     assert result["compressed_fields"] == []
 
 
