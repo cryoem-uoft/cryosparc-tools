@@ -628,7 +628,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         cstrs: bool = False,
     ):
         # Use mmap to avoid loading full record array into memory
-        mmap_mode = "r" if isinstance(file, (str, PurePath)) else None
+        # cast path to a string for older numpy/python
+        mmap_mode, f = ("r", str(file)) if isinstance(file, (str, PurePath)) else (None, file)
         indata = n.load(file, mmap_mode=mmap_mode, allow_pickle=False)
         size = len(indata)
         descr = filter_descr(indata.dtype.descr, keep_prefixes=prefixes, keep_fields=fields)

@@ -318,9 +318,8 @@ def big_dset_path():
                 print(f"Downloading big dataset sample data ({total_size} bytes, {progress:.0f}%)", end="\r")
 
             urllib.request.urlretrieve(download_url, compressed_path, reporthook=download_report_hook)
-            with gzip.open(compressed_path, "rb") as compressed_file:
-                with open(cs_path, "wb") as cs_file:
-                    shutil.copyfileobj(compressed_file, cs_file)
+            with gzip.open(compressed_path, "rb") as compressed_file, open(cs_path, "wb") as cs_file:
+                shutil.copyfileobj(compressed_file, cs_file)
 
             print("")
             print("Downloaded big dataset sample data; loading...", end="\r")
