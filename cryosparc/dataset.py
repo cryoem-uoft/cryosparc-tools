@@ -962,7 +962,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return (
             isinstance(other, type(self))
-            and type(self) == type(other)
+            and type(self) is type(other)
             and len(self) == len(other)
             and self.descr() == other.descr()
             and all(n.array_equal(self[c1], other[c2]) for c1, c2 in zip(self, other))
