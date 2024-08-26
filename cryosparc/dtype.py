@@ -97,14 +97,14 @@ def normalize_field(name: str, dtype: "DTypeLike") -> Field:
     # Note: field name "uid" is always uint64, regardless of given dtype
     # Note: sd
     dt = n.dtype(dtype)
-    dtstr = dt.str
     if name == "uid":
-        dtstr = n.dtype(n.uint64).str
+        return name, n.dtype(n.uint64).str
     elif dt.char in {"O", "S", "U"}:  # all python string object types
-        dtstr = n.dtype(object).str
+        return name, n.dtype(object).str
     elif dt.shape:
-        dtstr = dt.base.str
-    return (name, dtstr, dt.shape) if dt.shape else (name, dtstr)
+        return name, dt.base.str, dt.shape
+    else:
+        return name, dt.str
 
 
 def fielddtype(field: Field) -> DType:

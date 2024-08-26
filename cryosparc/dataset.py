@@ -583,10 +583,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
-            prefixes (list[str], optional): Which field prefixes to load. Loads
-                either all if not specified, or specified `fields`.
-            fields (list[str], optional): Which fields to load. If no specified,
-                loads either all or prefixes if prefixes is specified.
+            prefixes (list[str], optional): Which field prefixes to load. If
+                not specified, loads either all or specified `fields`.
+            fields (list[str], optional): Which fields to load. If not
+                specified, loads either all or specified `prefixes`.
             cstrs (bool): If True, load internal string columns as C strings
                 instead of Python strings. Defaults to False.
 
@@ -627,15 +627,23 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         fields: Optional[Sequence[str]] = None,
         cstrs: bool = False,
     ):
-        # Use mmap to avoid loading full record array into memory
-        # cast path to a string for older numpy/python
-        mmap_mode, f = ("r", str(file)) if isinstance(file, (str, PurePath)) else (None, file)
+        import os
+
+        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false
+        if os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true" and isinstance(file, (str, PurePath)):
+            # Use mmap to avoid loading full record array into memory
+            # cast path to a string for older numpy/python
+            mmap_mode, f = "r", str(file)
+            chunk_size = 2**14  # magic number optimizes memory and performance
+        else:
+            mmap_mode, f = None, file
+            chunk_size = 2**60  # huge enough number so you don't use chunks
+
         indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False)
         size = len(indata)
         descr = filter_descr(indata.dtype.descr, keep_prefixes=prefixes, keep_fields=fields)
         dset = cls.allocate(size, descr)
         offset = 0
-        chunk_size = 2**14  # magic number optimizes memory and performance
         while offset < size:
             end = min(offset + chunk_size, size)
             chunk = indata[offset:end]
