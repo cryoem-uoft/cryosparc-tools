@@ -645,7 +645,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             if mmap_mode and offset < size:
                 # reset mmap to avoid excessive memory usage
                 del indata
-                indata = n.load(file, mmap_mode=mmap_mode, allow_pickle=False)
+                indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False)
 
         if cstrs:
             dset.to_cstrs()
