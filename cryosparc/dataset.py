@@ -501,7 +501,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         # [0,1,2]}), …]. This is faster than doing the innerjoin for all columns
         # and safer because we don't have to worry about not updating Python
         # string reference counts in the resulting dataset.
-        indexed_dsets = [Dataset({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
+        indexed_dsets = [cls({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
         indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
         result = cls({"uid": indexed_dset["uid"]})
         result.add_fields(all_fields)
@@ -856,7 +856,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return (
             isinstance(other, type(self))
-            and type(self) == type(other)
+            and type(self) is type(other)
             and len(self) == len(other)
             and self.descr() == other.descr()
             and all(n.array_equal(self[c1], other[c2]) for c1, c2 in zip(self, other))

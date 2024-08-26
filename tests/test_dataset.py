@@ -254,8 +254,8 @@ def test_pickle_unpickle():
 
 
 def test_column_aggregation(t20s_dset):
-    assert type(t20s_dset["uid"]) == Column
-    assert type(n.max(t20s_dset["uid"])) == n.uint64
+    assert type(t20s_dset["uid"]) is Column
+    assert type(n.max(t20s_dset["uid"])) is n.uint64
     assert isinstance(n.mean(t20s_dset["uid"]), n.number)
     assert not isinstance(n.mean(t20s_dset["uid"]), n.ndarray)
 
