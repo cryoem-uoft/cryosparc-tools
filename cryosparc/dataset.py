@@ -615,7 +615,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     def _load_numpy_header(cls, file: Union[str, PurePath]) -> DatasetHeader:
-        indata = n.load(file, mmap_mode="r", allow_pickle=False)
+        indata = n.load(str(file), mmap_mode="r", allow_pickle=False)
         fields = [normalize_field(f[0], fielddtype(f)) for f in indata.dtype.descr]
         return DatasetHeader(length=len(indata), dtype=fields, compression=None, compressed_fields=[])
 
