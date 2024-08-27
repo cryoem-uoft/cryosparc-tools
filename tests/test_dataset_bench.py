@@ -414,3 +414,57 @@ def test_to_cstrs(benchmark, dset: Dataset):
 def test_to_pystrs(benchmark, dset_cstrs: Dataset):
     result: Dataset = benchmark(dset_cstrs.to_pystrs, copy=True)
     assert result["ctf/type"].dtype.type == n.object_
+
+
+def test_inspect(big_dset_path, fields):
+    result = Dataset.inspect(big_dset_path)
+    assert result["length"] == 1961726
+    assert result["dtype"] == fields
+    assert result["compression"] is None
+    assert result["compressed_fields"] == []
+
+
+def test_load(benchmark, big_dset_path, fields):
+    result = benchmark(Dataset.load, big_dset_path)
+    assert len(result) == 1961726
+    assert result.descr() == fields
+
+
+def test_load_prefixes(benchmark, big_dset_path, fields):
+    keep_prefixes = ["location", "pick_stats"]
+    expected_fields = [
+        field
+        for field in fields
+        if field[0] == "uid" or field[0].startswith("location/") or field[0].startswith("pick_stats/")
+    ]
+    result = benchmark(Dataset.load, big_dset_path, prefixes=keep_prefixes)
+    assert len(result) == 1961726
+    assert result.descr() == expected_fields
+
+
+def test_load_fields(benchmark, big_dset_path, fields):
+    keep_fields = ["ctf/type", "ctf/shift_A", "location/micrograph_uid"]
+    result = benchmark(Dataset.load, big_dset_path, fields=keep_fields)
+    assert len(result) == 1961726
+    assert result.descr() == [
+        ("uid", "<u8"),
+        ("ctf/type", "|O"),
+        ("ctf/shift_A", "<f4", (2,)),
+        ("location/micrograph_uid", "<u8"),
+    ]
+
+
+def test_load_prefixes_fields(benchmark, big_dset_path, fields):
+    keep_prefixes = ["location", "pick_stats"]
+    keep_fields = ["ctf/type", "ctf/shift_A", "location/micrograph_uid"]
+    result = benchmark(Dataset.load, big_dset_path, prefixes=keep_prefixes, fields=keep_fields)
+    expected_fields = [
+        field
+        for field in fields
+        if field[0] == "uid"
+        or field[0].startswith("location/")
+        or field[0].startswith("pick_stats/")
+        or field[0] in keep_fields
+    ]
+    assert len(result) == 1961726
+    assert result.descr() == expected_fields

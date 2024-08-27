@@ -68,6 +68,15 @@ class Column(n.ndarray):
         # or n.median
         return obj[()] if obj.shape == () else super().__array_wrap__(obj, context, return_scalar)  # type: ignore
 
+    def __setitem__(self, key, value):
+        if isinstance(value, n.ndarray):
+            # parse fixed-size size strings
+            if value.dtype.char == "S":
+                value = n.vectorize(hashcache(bytes.decode), otypes="O")(value)
+            elif value.dtype.char == "U":
+                value = n.vectorize(hashcache(str), otypes="O")(value)
+        return super().__setitem__(key, value)
+
     def to_fixed(self) -> "Column":
         """
         If this Column is composed of Python objects, convert to fixed-size
