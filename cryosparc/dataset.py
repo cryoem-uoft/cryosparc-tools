@@ -603,7 +603,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                     f.seek(0)  # will be done after context block for mmapping
                 elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
                     return cls._load_stream(
-                        f, prefixes=prefixes, fields=fields, cstrs=cstrs, seekable=isinstance(f, (str, PurePath))
+                        f,
+                        prefixes=prefixes,
+                        fields=fields,
+                        cstrs=cstrs,
+                        seekable=isinstance(file, (str, PurePath)),
                     )
                 else:
                     raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
@@ -688,7 +692,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             colsize = u32intle(f.read(4))
             if field[0] not in field_names:
                 # try to seek instead of read to reduce memory usage
-                f.seek(colsize) if seekable else f.read(colsize)
+                f.seek(colsize, 1) if seekable else f.read(colsize)
                 continue  # skip fields that were not selected
             buffer = f.read(colsize)
             if field[0] in header["compressed_fields"]:

@@ -4,7 +4,7 @@ from io import BytesIO
 import numpy as n
 import pytest
 
-from cryosparc.dataset import Column
+from cryosparc.dataset import CSDAT_FORMAT, Column
 from cryosparc.row import Row
 
 from .conftest import Dataset
@@ -42,10 +42,16 @@ def small_dset():
 
 
 @pytest.fixture
+def small_dset_path(tmp_path, small_dset):
+    path = tmp_path / "small_dset.cs"
+    small_dset.save(path, format=CSDAT_FORMAT)
+    return path
+
+
+@pytest.fixture
 def small_dset_stream(small_dset):
     stream = BytesIO()
-    for dat in small_dset.stream():
-        stream.write(dat)
+    small_dset.save(stream, format=CSDAT_FORMAT)
     stream.seek(0)
     return stream
 
@@ -249,13 +255,13 @@ def test_from_data_none():
     assert len(data) == 0
 
 
-def test_load_stream(small_dset, small_dset_stream):
-    result = Dataset.load(small_dset_stream)
+def test_load_stream(small_dset, small_dset_path):
+    result = Dataset.load(small_dset_path)
     assert result == small_dset
 
 
-def test_load_stream_prefixes(small_dset, small_dset_stream):
-    result = Dataset.load(small_dset_stream, prefixes=["field"])
+def test_load_stream_prefixes(small_dset, small_dset_path):
+    result = Dataset.load(small_dset_path, prefixes=["field"])
     assert result == small_dset.filter_prefixes(["field"], copy=True)
 
 
