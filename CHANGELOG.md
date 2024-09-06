@@ -1,5 +1,15 @@
 # Changelog
 
+## v4.6.0
+
+- Added: `Dataset.is_equivalent` method to check if two datasets have identical fields, but in a different order
+- Added: `Dataset.inspect` class method which accepts a path to a dataset and returns its header without loading the entire dataset from disk
+- Added: Load a subset of dataset fields with `Dataset.load` by specifying `prefixes` or `fields` keyword arguments
+- Added: Support for uploading job assets in `bild` format
+- Updated: `ExternalJob.add_output` method now expects `alloc` argument to be specified as a keyword arg
+- Updated: Dataset methods which accept a `copy` argument now expect it to be specified as a keyword arg
+- Fixed: Significantly reduced memory when loading large datasets with `Dataset.load`
+
 ## v4.5.1
 
 - Added: Numpy 2.0 support
