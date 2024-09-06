@@ -496,8 +496,8 @@ class Job(MongoController[JobDocument]):
         figure: Union[str, PurePath, IO[bytes], Any],
         text: str,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
-        raw_data: Union[str, bytes, Literal[None]] = None,
-        raw_data_file: Union[str, PurePath, IO[bytes], Literal[None]] = None,
+        raw_data: Union[str, bytes, None] = None,
+        raw_data_file: Union[str, PurePath, IO[bytes], None] = None,
         raw_data_format: Optional[TextFormat] = None,
         flags: List[str] = ["plots"],
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
@@ -767,8 +767,8 @@ class Job(MongoController[JobDocument]):
         figure: Union[str, PurePath, IO[bytes], Any],
         name: Optional[str] = None,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
-        raw_data: Union[str, bytes, Literal[None]] = None,
-        raw_data_file: Union[str, PurePath, IO[bytes], Literal[None]] = None,
+        raw_data: Union[str, bytes, None] = None,
+        raw_data_file: Union[str, PurePath, IO[bytes], None] = None,
         raw_data_format: Optional[TextFormat] = None,
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> List[EventLogAsset]:
@@ -965,7 +965,7 @@ class Job(MongoController[JobDocument]):
         args: Union[str, list],
         mute: bool = False,
         checkpoint: bool = False,
-        checkpoint_line_pattern: Union[str, Pattern[str], Literal[None]] = None,
+        checkpoint_line_pattern: Union[str, Pattern[str], None] = None,
         **kwargs,
     ):
         """
@@ -1258,7 +1258,8 @@ class ExternalJob(Job):
         name: Optional[str] = ...,
         slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
-        title: Optional[str] = None,
+        title: Optional[str] = ...,
+        *,
         alloc: Literal[None] = None,
     ) -> str: ...
     @overload
@@ -1268,7 +1269,8 @@ class ExternalJob(Job):
         name: Optional[str] = ...,
         slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
-        title: Optional[str] = None,
+        title: Optional[str] = ...,
+        *,
         alloc: Union[int, Dataset] = ...,
     ) -> Dataset: ...
     def add_output(
@@ -1278,7 +1280,8 @@ class ExternalJob(Job):
         slots: List[SlotSpec] = [],
         passthrough: Optional[str] = None,
         title: Optional[str] = None,
-        alloc: Union[int, Dataset, Literal[None]] = None,
+        *,
+        alloc: Union[int, Dataset, None] = None,
     ) -> Union[str, Dataset]:
         """
         Add an output slot to the current job. Optionally returns the

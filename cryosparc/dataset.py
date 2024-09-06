@@ -820,7 +820,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             Data,
             Mapping[str, "ArrayLike"],
             List[Tuple[str, "ArrayLike"]],
-            Literal[None],
+            None,
         ] = 0,
         row_class=Row,
     ):
@@ -1084,7 +1084,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def add_fields(
         self,
         fields: Union[Sequence[str], Sequence[Field]],
-        dtypes: Union[str, Sequence["DTypeLike"], Literal[None]] = None,
+        dtypes: Union[str, Sequence["DTypeLike"], None] = None,
     ) -> "Dataset[R]":
         """
         Adds the given fields to the dataset. If a field with the same name

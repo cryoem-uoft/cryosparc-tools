@@ -320,7 +320,7 @@ def random_integers(
     rng: "n.random.Generator",
     low: int,
     high: Optional[int] = None,
-    size: Union[int, Shape, Literal[None]] = None,
+    size: Union[int, Shape, None] = None,
     dtype: Type[INT] = n.uint64,
 ) -> "NDArray[INT]":
     """
