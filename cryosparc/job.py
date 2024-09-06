@@ -1255,20 +1255,23 @@ class ExternalJob(Job):
     def add_output(
         self,
         type: Datatype,
-        name: Optional[str],
-        slots: List[SlotSpec],
-        passthrough: Optional[str],
-        title: Optional[str],
+        name: Optional[str] = ...,
+        slots: List[SlotSpec] = ...,
+        passthrough: Optional[str] = ...,
+        title: Optional[str] = ...,
+        *,
+        alloc: Literal[None] = None,
     ) -> str: ...
     @overload
     def add_output(
         self,
         type: Datatype,
-        name: Optional[str],
-        slots: List[SlotSpec],
-        passthrough: Optional[str],
-        title: Optional[str],
-        alloc: Union[int, Dataset],
+        name: Optional[str] = ...,
+        slots: List[SlotSpec] = ...,
+        passthrough: Optional[str] = ...,
+        title: Optional[str] = ...,
+        *,
+        alloc: Union[int, Dataset] = ...,
     ) -> Dataset: ...
     def add_output(
         self,
@@ -1277,6 +1280,7 @@ class ExternalJob(Job):
         slots: List[SlotSpec] = [],
         passthrough: Optional[str] = None,
         title: Optional[str] = None,
+        *,
         alloc: Union[int, Dataset, None] = None,
     ) -> Union[str, Dataset]:
         """
