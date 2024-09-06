@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.5.1
+
+- Added: Numpy 2.0 support
+- Fixed: Add missing result data types added in CryoSPARC v4.5
+
 ## v4.5.0
 
 - Added: New `cluster_vars` argument for `Job.queue` method for queueing to clusters
