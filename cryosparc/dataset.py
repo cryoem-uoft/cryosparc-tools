@@ -24,7 +24,7 @@ Dataset supports:
 
 """
 
-from functools import lru_cache, reduce
+from functools import reduce
 from pathlib import PurePath
 from typing import (
     IO,
@@ -61,15 +61,15 @@ from .dtype import (
     decode_dataset_header,
     encode_dataset_header,
     fielddtype,
+    filter_descr,
     get_data_field,
     get_data_field_dtype,
-    makefield,
-    safe_makefield,
+    normalize_field,
 )
 from .errors import DatasetLoadError
 from .row import R, Row, Spool
 from .stream import AsyncBinaryIO, Streamable
-from .util import bopen, default_rng, hashcache, random_integers, u32bytesle, u32intle
+from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray
@@ -501,7 +501,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         # [0,1,2]}), …]. This is faster than doing the innerjoin for all columns
         # and safer because we don't have to worry about not updating Python
         # string reference counts in the resulting dataset.
-        indexed_dsets = [Dataset({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
+        indexed_dsets = [cls({"uid": d["uid"], f"idx{i}": n.arange(len(d))}) for i, d in enumerate(datasets)]
         indexed_dset = reduce(lambda dr, ds: cls(dr._data.innerjoin("uid", ds._data)), indexed_dsets)
         result = cls({"uid": indexed_dset["uid"]})
         result.add_fields(all_fields)
@@ -537,7 +537,40 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return [f for f in datasets[0].descr() if f in fields]
 
     @classmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
+    def inspect(cls, file: Union[str, PurePath]) -> DatasetHeader:
+        """
+        Given a path to a dataset file, get information included in its header.
+
+        Args:
+            file: (str | Path): Readable file path.
+
+        Returns:
+            DatasetHeader: Dictionary with dataset
+
+        """
+        try:
+            with open(file, "rb") as f:
+                prefix = f.read(6)
+                if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                    f.seek(0)  # will be done after context block for mmapping
+                elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+                    return cls._load_stream_header(f)
+                else:
+                    raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
+            # numpy format
+            return cls._load_numpy_header(file)
+        except Exception as err:
+            raise DatasetLoadError(f"Could not load dataset from file {file}") from err
+
+    @classmethod
+    def load(
+        cls,
+        file: Union[str, PurePath, IO[bytes]],
+        *,
+        prefixes: Optional[Sequence[str]] = None,
+        fields: Optional[Sequence[str]] = None,
+        cstrs: bool = False,
+    ):
         """
         Read a dataset from path or file handle.
 
@@ -549,6 +582,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
+            prefixes (list[str], optional): Which field prefixes to load. If
+                not specified, loads either all or specified `fields`.
+            fields (list[str], optional): Which fields to load. If not
+                specified, loads either all or specified `prefixes`.
             cstrs (bool): If True, load internal string columns as C strings
                 instead of Python strings. Defaults to False.
 
@@ -563,56 +600,118 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             with bopen(file, "rb") as f:
                 prefix = f.read(6)
                 if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
-                    f.seek(0)
-                    indata = n.load(f, allow_pickle=False)
-                    dset = cls(indata)
-                    if cstrs:
-                        dset.to_cstrs()
-                    return dset
-                elif prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-                    raise TypeError(f"Could not determine dataset format (prefix is {prefix})")
-
-                headersize = u32intle(f.read(4))
-                header = decode_dataset_header(f.read(headersize))
-
-                # Calling addrows separately to minimizes column-based
-                # allocations, improves performance by ~20%
-                dset = cls.allocate(0, header["dtype"])
-                data = dset._data
-                data.addrows(header["length"])
-                loader = Stream(data)
-                for field in header["dtype"]:
-                    colsize = u32intle(f.read(4))
-                    buffer = f.read(colsize)
-                    if field[0] in header["compressed_fields"]:
-                        loader.decompress_col(field[0], buffer)
-                    else:
-                        data.getbuf(field[0])[:] = buffer
-
-                # Read in the string heap (rest of stream)
-                # NOTE: There will be a bug here for long column keys that are
-                # added when there's already an allocated string in a T_STR
-                # column in the saved dataset (should be rare).
-                heap = f.read()
-                data.setstrheap(heap)
-
-                # Convert C strings to Python strings
-                loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
-                if not cstrs:
-                    dset.to_pystrs()
-                return dset
-
+                    f.seek(0)  # will be done after context block for mmapping
+                elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+                    return cls._load_stream(
+                        f,
+                        prefixes=prefixes,
+                        fields=fields,
+                        cstrs=cstrs,
+                        seekable=isinstance(file, (str, PurePath)),
+                    )
+                else:
+                    raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
+            # numpy
+            return cls._load_numpy(file, prefixes=prefixes, fields=fields, cstrs=cstrs)
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
     @classmethod
-    def load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
-        return cls._load_cached(file, cstrs).copy()
+    def _load_numpy_header(cls, file: Union[str, PurePath]) -> DatasetHeader:
+        indata = n.load(str(file), mmap_mode="r", allow_pickle=False)
+        fields = [normalize_field(f[0], fielddtype(f)) for f in indata.dtype.descr]
+        return DatasetHeader(length=len(indata), dtype=fields, compression=None, compressed_fields=[])
 
     @classmethod
-    @lru_cache(maxsize=None)
-    def _load_cached(cls, file: Union[str, PurePath, IO[bytes]], cstrs: bool = False):
-        return cls.load(file, cstrs)
+    def _load_numpy(
+        cls,
+        file: Union[str, PurePath, IO[bytes]],
+        prefixes: Optional[Sequence[str]] = None,
+        fields: Optional[Sequence[str]] = None,
+        cstrs: bool = False,
+    ):
+        import os
+
+        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false
+        if os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true" and isinstance(file, (str, PurePath)):
+            # Use mmap to avoid loading full record array into memory
+            # cast path to a string for older numpy/python
+            mmap_mode, f = "r", str(file)
+            chunk_size = 2**14  # magic number optimizes memory and performance
+        else:
+            mmap_mode, f = None, file
+            chunk_size = 2**60  # huge enough number so you don't use chunks
+
+        indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False)
+        size = len(indata)
+        descr = filter_descr(indata.dtype.descr, keep_prefixes=prefixes, keep_fields=fields)
+        dset = cls.allocate(size, descr)
+        offset = 0
+        while offset < size:
+            end = min(offset + chunk_size, size)
+            chunk = indata[offset:end]
+            for field in descr:
+                dset[field[0]][offset:end] = chunk[field[0]]
+            offset += chunk_size
+            if mmap_mode and offset < size:
+                # reset mmap to avoid excessive memory usage
+                del indata
+                indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False)
+
+        if cstrs:
+            dset.to_cstrs()
+        return dset
+
+    @classmethod
+    def _load_stream_header(cls, f: IO[bytes]) -> DatasetHeader:
+        # NOTE: assumes prefix header bytes have already been read
+        headersize = u32intle(f.read(4))
+        return decode_dataset_header(f.read(headersize))
+
+    @classmethod
+    def _load_stream(
+        cls,
+        f: IO[bytes],
+        prefixes: Optional[Sequence[str]] = None,
+        fields: Optional[Sequence[str]] = None,
+        cstrs: bool = False,
+        seekable: bool = False,
+    ):
+        # NOTE: assumes prefix header bytes have already been read
+        header = cls._load_stream_header(f)
+        descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
+        field_names = {field[0] for field in descr}
+
+        # Calling addrows separately to minimizes column-based
+        # allocations, improves performance by ~20%
+        dset = cls.allocate(0, descr)
+        data = dset._data
+        data.addrows(header["length"])
+        loader = Stream(data)
+        for field in header["dtype"]:
+            colsize = u32intle(f.read(4))
+            if field[0] not in field_names:
+                # try to seek instead of read to reduce memory usage
+                f.seek(colsize, 1) if seekable else f.read(colsize)
+                continue  # skip fields that were not selected
+            buffer = f.read(colsize)
+            if field[0] in header["compressed_fields"]:
+                loader.decompress_col(field[0], buffer)
+            else:
+                data.getbuf(field[0])[:] = buffer
+
+        # Read in the string heap (rest of stream)
+        # NOTE: There will be a bug here for long column keys that are
+        # added when there's already an allocated string in a T_STR
+        # column in the saved dataset (should be rare).
+        heap = f.read()
+        data.setstrheap(heap)
+
+        # Convert C strings to Python strings
+        loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
+        if not cstrs:
+            dset.to_pystrs()
+        return dset
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO):
@@ -677,6 +776,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         ``format=CSDAT_FORMAT``. Call ``Dataset.load`` on the resulting
         file/buffer to retrieve the original data.
 
+        Args:
+            compression (Literal["lz4", None], optional):
+
         Yields:
             bytes: Dataset file chunks
         """
@@ -688,7 +790,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         compressed_fields = [f for f in self if compression and f not in NEVER_COMPRESS_FIELDS]
         header = encode_dataset_header(
             DatasetHeader(
-                length=len(self), dtype=self.descr(), compression=compression, compressed_fields=compressed_fields
+                length=len(self),
+                dtype=self.descr(),
+                compression=compression,
+                compressed_fields=compressed_fields,
             )
         )
         yield u32bytesle(len(header))
@@ -715,7 +820,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             Data,
             Mapping[str, "ArrayLike"],
             List[Tuple[str, "ArrayLike"]],
-            Literal[None],
+            None,
         ] = 0,
         row_class=Row,
     ):
@@ -743,16 +848,16 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         elif isinstance(allocate, n.ndarray):  # record array
             for field in allocate.dtype.descr:
                 assert field[0], f"Cannot initialize with record array of dtype {allocate.dtype}"
-                field = ("uid", "u8") if field[0] == "uid" else field
-                populate.append((field, allocate[field[0]]))
+                a = allocate[field[0]]
+                populate.append((normalize_field(field[0], fielddtype(field)), a))
         elif isinstance(allocate, Mapping):
             for f, v in allocate.items():
                 a = n.asarray(v)
-                populate.append((safe_makefield(f, arraydtype(a)), a))
+                populate.append((normalize_field(f, arraydtype(a)), a))
         else:
             for f, v in allocate:
                 a = n.asarray(v)
-                populate.append((safe_makefield(f, arraydtype(a)), a))
+                populate.append((normalize_field(f, arraydtype(a)), a))
 
         # Check that all entries are the same length
         nrows = 0
@@ -827,11 +932,6 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             val (ArrayLike): numpy array or value to assign
         """
         assert self._data.has(key), f"Cannot set non-existing dataset key {key}; use add_fields() first"
-        if isinstance(val, n.ndarray):
-            if val.dtype.char == "S":
-                val = n.vectorize(hashcache(bytes.decode), otypes="O")(val)
-            elif val.dtype.char == "U":
-                val = n.vectorize(hashcache(str), otypes="O")(val)
         self[key][:] = val
 
     def __delitem__(self, key: str):
@@ -858,14 +958,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Check whether two datasets contain the same data in the same order.
 
         Args:
-            other (Dataset): dataset to compare
+            other (object): dataset to compare
 
         Returns:
             bool: True or False
         """
         return (
             isinstance(other, type(self))
-            and type(self) == type(other)
+            and type(self) is type(other)
             and len(self) == len(other)
             and self.descr() == other.descr()
             and all(n.array_equal(self[c1], other[c2]) for c1, c2 in zip(self, other))
@@ -984,7 +1084,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def add_fields(
         self,
         fields: Union[Sequence[str], Sequence[Field]],
-        dtypes: Union[str, Sequence["DTypeLike"], Literal[None]] = None,
+        dtypes: Union[str, Sequence["DTypeLike"], None] = None,
     ) -> "Dataset[R]":
         """
         Adds the given fields to the dataset. If a field with the same name
@@ -1030,7 +1130,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if dtypes:
             dt = dtypes.split(",") if isinstance(dtypes, str) else dtypes
             assert len(fields) == len(dt), "Incorrect dtype spec"
-            desc = [safe_makefield(str(f), dt) for f, dt in zip(fields, dt)]
+            desc = [normalize_field(str(f), dt) for f, dt in zip(fields, dt)]
         else:
             desc = fields  # type: ignore
 
@@ -1051,7 +1151,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return self._reset()
 
-    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
+    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
         """
         Keep only the given fields from the dataset. Provide a list of fields or
         function that returns ``True`` if a given field name should be kept.
@@ -1067,16 +1167,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             Dataset: current dataset or copy with filtered fields
         """
         test = (lambda n: n in names) if isinstance(names, Collection) else names
-        new_fields = [f for f in self.descr() if f[0] == "uid" or test(f[0])]
-        if len(new_fields) == len(self.descr()):
-            return self
+        new_fields = [f for f in self.fields() if f == "uid" or test(f)]
+        if len(new_fields) == self._data.ncol():
+            return self.copy() if copy else self  # nothing to filter
 
-        result = self.allocate(len(self), new_fields)
-        for key, *_ in new_fields:
-            result[key] = self[key]
+        result = type(self)([(key, self[key]) for key in new_fields])
         return result if copy else self._reset(result._data)
 
-    def filter_prefixes(self, prefixes: Collection[str], copy: bool = False):
+    def filter_prefixes(self, prefixes: Collection[str], *, copy: bool = False):
         """
         Similar to ``filter_fields``, except takes list of prefixes.
 
@@ -1106,12 +1204,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes), copy=copy)
 
-    def filter_prefix(self, keep_prefix: str, copy: bool = False):
+    def filter_prefix(self, keep_prefix: str, *, rename: Optional[str] = None, copy: bool = False):
         """
         Similar to ``filter_prefixes`` but for a single prefix.
 
         Args:
-            keep_prefix (str): Prefix to keep
+            keep_prefix (str): Prefix to keep.
+            rename (str, optional): If specified, rename prefix to this prefix.
+                Defaults to None.
             copy (bool, optional): If True, return a copy if the dataset rather
                 than mutate. Defaults to False.
 
@@ -1119,9 +1219,15 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             Dataset: current dataset or copy with filtered prefix
 
         """
-        return self.filter_prefixes([keep_prefix], copy=copy)
+        keep_fields = [f for f in self.fields(exclude_uid=True) if f.startswith(f"{keep_prefix}/")]
+        new_fields = keep_fields
+        if rename and rename != keep_prefix:
+            new_fields = [f"{rename}/{f.split('/', 1)[1]}" for f in keep_fields]
 
-    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], copy: bool = False):
+        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])
+        return result if copy else self._reset(result._data)
+
+    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
         """
         Remove the given field names from the dataset. Provide a list of fields
         or a function that takes a field name and returns True if that field
@@ -1140,7 +1246,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))  # type: ignore
         return self.filter_fields(test, copy=copy)
 
-    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], copy: bool = False):
+    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], *, copy: bool = False):
         """
         Change the name of dataset fields based on the given mapping.
 
@@ -1161,7 +1267,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         result = type(self)([(f if f == "uid" else fm(f), self[f]) for f in self])
         return result if copy else self._reset(result._data)
 
-    def rename_field(self, current_name: str, new_name: str, copy: bool = False):
+    def rename_field(self, current_name: str, new_name: str, *, copy: bool = False):
         """
         Change name of a dataset field based on the given mapping.
 
@@ -1176,7 +1282,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.rename_fields({current_name: new_name}, copy=copy)
 
-    def rename_prefix(self, old_prefix: str, new_prefix: str, copy: bool = False):
+    def rename_prefix(self, old_prefix: str, new_prefix: str, *, copy: bool = False):
         """
         Similar to rename_fields, except changes the prefix of all fields with
         the given ``old_prefix`` to ``new_prefix``.
@@ -1213,7 +1319,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         assert len(old_fields) == len(new_fields), "Number of old and new fields must match"
         current_fields = self.fields()
         missing_fields = [
-            makefield(new, get_data_field_dtype(self._data, old))
+            normalize_field(new, get_data_field_dtype(self._data, old))
             for old, new in zip(old_fields, new_fields)
             if new not in current_fields
         ]
@@ -1470,7 +1576,25 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return result
 
-    def to_cstrs(self, copy: bool = False):
+    def is_equivalent(self, other: object):
+        """
+        Check whether two datasets contain the same data, regardless of field
+        order.
+
+        Args:
+            other (object): dataset to compare
+
+        Returns:
+            bool: True or False
+        """
+        return (
+            isinstance(other, Dataset)
+            and len(self) == len(other)
+            and set(self.descr()) == set(other.descr())
+            and all(n.array_equal(self[f], other[f]) for f in self)
+        )
+
+    def to_cstrs(self, *, copy: bool = False):
         """
         Convert all Python string columns to C strings. Resulting dataset fields
         that previously had dtype ``np.object_`` (or ``T_OBJ`` internally) will get
@@ -1492,7 +1616,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         self._reset()  # in case data got reallocated
         return dset
 
-    def to_pystrs(self, copy: bool = False):
+    def to_pystrs(self, *, copy: bool = False):
         """
         Convert all C string columns to Python strings. Resulting dataset fields
         that previously had dtype ``np.uint64`` (and ``T_STR`` internally) will

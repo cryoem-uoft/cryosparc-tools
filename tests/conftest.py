@@ -295,18 +295,14 @@ def request_callback_rtp(request, uri, response_headers):
 
 
 @pytest.fixture(scope="session")
-def big_dset():
+def big_dset_path():
     basename = "bench_big_dset"
     existing_path = Path.home() / f"{basename}.cs"
 
     print("")  # Keeps printing clean
     if existing_path.exists():
         print(f"Using local sample data {existing_path}; loading...", end="\r")
-        tic = time()
-
-        dset = Dataset.load(existing_path)
-        print(f"Using local sample data {existing_path}; loaded in {time() - tic:.3f} seconds")
-        yield dset
+        yield existing_path
     else:
         import gzip
         import tempfile
@@ -322,16 +318,20 @@ def big_dset():
                 print(f"Downloading big dataset sample data ({total_size} bytes, {progress:.0f}%)", end="\r")
 
             urllib.request.urlretrieve(download_url, compressed_path, reporthook=download_report_hook)
-            with gzip.open(compressed_path, "rb") as compressed_file:
-                with open(cs_path, "wb") as cs_file:
-                    shutil.copyfileobj(compressed_file, cs_file)
+            with gzip.open(compressed_path, "rb") as compressed_file, open(cs_path, "wb") as cs_file:
+                shutil.copyfileobj(compressed_file, cs_file)
 
             print("")
             print("Downloaded big dataset sample data; loading...", end="\r")
-            tic = time()
-            dset = Dataset.load(cs_path)
-            print(f"Downloaded big dataset sample data; loaded in {time() - tic:.3f} seconds")
-            yield dset
+            yield cs_path
+
+
+@pytest.fixture(scope="session")
+def big_dset(big_dset_path):
+    tic = time()
+    dset = Dataset.load(big_dset_path)
+    print(f"Loaded big dataset in {time() - tic:.3f} seconds")
+    return dset
 
 
 @pytest.fixture

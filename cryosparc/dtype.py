@@ -3,10 +3,10 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as n
-from typing_extensions import Literal, TypedDict
+from typing_extensions import Literal, Sequence, TypedDict
 
 from .core import Data, DsetType
 
@@ -42,13 +42,22 @@ Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
 
 class DatasetHeader(TypedDict):
     """
-    Dataset header description when saving in CSDAT format.
+    Encoded dataset file description.
     """
 
     length: int
+    """Number of rows in the dataset"""
+
     dtype: List[Field]
+    """
+    Column description
+    """
+
     compression: Literal["lz4", None]
+    """Compression library used for in the dataset"""
+
     compressed_fields: List[str]
+    """Field names that require decompression."""
 
 
 DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
@@ -84,13 +93,18 @@ TYPE_TO_DSET_MAP = {
 NEVER_COMPRESS_FIELDS = {"uid"}
 
 
-def makefield(name: str, dtype: "DTypeLike") -> Field:
+def normalize_field(name: str, dtype: "DTypeLike") -> Field:
+    # Note: field name "uid" is always uint64, regardless of given dtype
+    # Note: sd
     dt = n.dtype(dtype)
-    return (name, dt.base.str, dt.shape) if dt.shape else (name, dt.str)
-
-
-def safe_makefield(name: str, dtype: "DTypeLike") -> Field:
-    return ("uid", n.dtype(n.uint64).str) if name == "uid" else makefield(name, dtype)
+    if name == "uid":
+        return name, n.dtype(n.uint64).str
+    elif dt.char in {"O", "S", "U"}:  # all python string object types
+        return name, n.dtype(object).str
+    elif dt.shape:
+        return name, dt.base.str, dt.shape
+    else:
+        return name, dt.str
 
 
 def fielddtype(field: Field) -> DType:
@@ -113,7 +127,7 @@ def dtypestr(dtype: "DTypeLike") -> str:
 
 
 def get_data_field(data: Data, field: str) -> Field:
-    return makefield(field, get_data_field_dtype(data, field))
+    return normalize_field(field, get_data_field_dtype(data, field))
 
 
 def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
@@ -123,6 +137,27 @@ def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
     dt = n.dtype(DSET_TO_TYPE_MAP[t])
     shape = data.getshp(field)
     return (dt.str, shape) if shape else dt.str
+
+
+def filter_descr(
+    descr: List[Field],
+    *,
+    keep_prefixes: Optional[Sequence[str]] = None,
+    keep_fields: Optional[Sequence[str]] = None,
+) -> List[Field]:
+    # Get a filtered list of fields based on the user-specified prefixies
+    # and/or fields. Returns all fields if no filter params are specified.
+    # Always returns at least uid field, if it exists.
+    filtered: List[Field] = []
+    for field in descr:
+        if (
+            field[0] == "uid"
+            or (keep_prefixes is None and keep_fields is None)
+            or (keep_prefixes is not None and any(field[0].startswith(f"{p}/") for p in keep_prefixes))
+            or (keep_fields is not None and field[0] in keep_fields)
+        ):
+            filtered.append(field)
+    return filtered
 
 
 def encode_dataset_header(fields: DatasetHeader) -> bytes:
@@ -152,6 +187,11 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         compression: Literal["lz4", None] = header["compression"]
         compressed_fields: List[str] = header["compressed_fields"]
 
-        return DatasetHeader(length=length, dtype=dtype, compression=compression, compressed_fields=compressed_fields)
+        return DatasetHeader(
+            length=length,
+            dtype=dtype,
+            compression=compression,
+            compressed_fields=compressed_fields,
+        )
     except Exception as e:
         raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e
