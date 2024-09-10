@@ -107,10 +107,10 @@ jobs:
           pytest -v --benchmark-disable -n auto
 
   # NOTE: build step only runs on tag builds or when the commit message contains
-  # "[ci build]" for testing
+  # "[ci test build]" for testing
   build:
     needs: [meta, test]
-    if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.meta.outputs.commit-message, '[ci build]') }}"
+    if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.meta.outputs.commit-message, '[ci test build]') }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
