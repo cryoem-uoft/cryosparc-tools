@@ -22,10 +22,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
+  meta:
     runs-on: ubuntu-latest
     outputs:
       commit-message: ${{ steps.get-commit-message.outputs.commit-message }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }} # gets correct commit message
+      - name: Show commit
+        run: git show -s
+      - name: Output commit message
+        id: get-commit-message
+        run: |
+          {
+            echo 'commit-message<<CI_EOF'
+            git show -s --format="%B"
+            echo CI_EOF
+          } >> "$GITHUB_OUTPUT"
+
+  lint:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,14 +69,6 @@ jobs:
         with:
           name: wheels
           path: dist
-      - name: Output commit message
-        id: get-commit-message
-        run: |
-          {
-            echo 'commit-message<<CI_EOF'
-            git show -s --format="%B"
-            echo CI_EOF
-          } >> "$GITHUB_OUTPUT"
 
   test:
     needs: [lint]
@@ -100,8 +109,9 @@ jobs:
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci build]" for testing
   build:
-    needs: [lint, test]
-    if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.lint.outputs.commit-message, '[ci build]') }}"
+    # needs: [meta, test]
+    needs: [meta]
+    if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.meta.outputs.commit-message, '[ci build]') }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
