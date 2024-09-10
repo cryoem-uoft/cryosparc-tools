@@ -49,13 +49,13 @@ jobs:
         with:
           name: wheels
           path: dist
-      - name: Check for [ci build] in commit message
+      - name: Output commit message
         run: |
-          if git log -1 --pretty=format:"%B" | grep "\[ci build\]" ; then
-            echo "force-build=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "force-build=false" >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo 'commit-message<<CI_EOF'
+            git show -s --format="%B"
+            echo CI_EOF
+          } >> "$GITHUB_OUTPUT"
 
   test:
     needs: [lint]
@@ -97,14 +97,14 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     steps:
-      - run: echo "${{ needs.lint.outputs.force-build }}"
+      - run: echo "${{ needs.lint.outputs.commit-message }}"
 
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci build]" for testing
   build:
     # needs: [lint, test]
     needs: [lint]
-    if: "${{ startsWith(github.ref, 'refs/tags/') || needs.lint.outputs.force-build == 'true' }}"
+    if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.lint.outputs.commit-message, '[ci build]') }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
