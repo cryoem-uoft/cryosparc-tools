@@ -96,15 +96,18 @@ jobs:
 
   foo:
     runs-on: ubuntu-latest
+    outputs:
+      commit-message: ${{ steps.get-commit-message.outputs.commit-message }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }} # gets correct commit message
       - name: Output commit message
+        id: get-commit-message
         run: |
           git show -s --format="%B"
           {
-            echo 'commit<<CI_EOF'
+            echo 'commit-message<<CI_EOF'
             git show -s --format="%B"
             echo CI_EOF
           } >> "$GITHUB_OUTPUT"
@@ -114,7 +117,7 @@ jobs:
     needs: [foo]
     steps:
       - name: Get commit message
-        run: echo "${{ needs.foo.outputs.commit }}"
+        run: echo "${{ needs.foo.outputs.commit-message }}"
 
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci build]" for testing
