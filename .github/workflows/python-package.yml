@@ -52,7 +52,7 @@ jobs:
       - name: Output commit message
         run: |
           {
-            echo 'commit-message<<CI_EOF'
+            echo 'commit<<CI_EOF'
             git show -s --format="%B"
             echo CI_EOF
           } >> "$GITHUB_OUTPUT"
@@ -94,17 +94,22 @@ jobs:
           pytest -v --benchmark-disable -n auto
 
   foo:
-    needs: [lint]
     runs-on: ubuntu-latest
     steps:
-      - run: echo "${{ needs.lint.outputs.commit-message }}"
+      - name: Output commit message
+        run: |
+          {
+            echo 'commit<<CI_EOF'
+            git show -s --format="%B"
+            echo CI_EOF
+          } >> "$GITHUB_OUTPUT"
 
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci build]" for testing
   build:
     # needs: [lint, test]
-    needs: [lint]
-    if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.lint.outputs.commit-message, '[ci build]') }}"
+    needs: [foo]
+    if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.foo.outputs.commit, '[ci build]') }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
