@@ -100,8 +100,7 @@ jobs:
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci build]" for testing
   build:
-    # needs: [lint, test]
-    needs: [lint]
+    needs: [lint, test]
     if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.lint.outputs.commit-message, '[ci build]') }}"
     runs-on: ${{ matrix.os }}
     strategy:
