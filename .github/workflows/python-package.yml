@@ -96,6 +96,7 @@ jobs:
   foo:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Output commit message
         run: |
           {
