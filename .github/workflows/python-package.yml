@@ -89,7 +89,7 @@ jobs:
 
   build:
     needs: [test]
-    if: ${{ startsWith(github.ref, 'refs/tags/') or contains(github.event.head_commit.message, '[ci build]') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[ci build]') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
