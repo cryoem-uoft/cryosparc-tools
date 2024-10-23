@@ -423,7 +423,7 @@ class Project(MongoController[ProjectDocument]):
         overwrite: bool = False,
     ):
         """
-        Upload a numpy 2D or 3D array to the job directory as an MRC file. Fails
+        Upload a numpy 2D or 3D array to the project directory as an MRC file. Fails
         if target already exists.
 
         Args:
