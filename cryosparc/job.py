@@ -15,7 +15,7 @@ from typing_extensions import Literal
 
 from .command import CommandError, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
-from .errors import InvalidSlotsError
+from .errors import ExternalJobError, InvalidSlotsError
 from .spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
@@ -1572,7 +1572,6 @@ class ExternalJob(Job):
         """
         error = False
         self.start("running")
-        self.refresh()
         try:
             yield self
         except Exception:
@@ -1580,4 +1579,17 @@ class ExternalJob(Job):
             raise
         finally:
             self.stop(error)  # TODO: Write Error to job log, if possible
-            self.refresh()
+
+    def queue(
+        self,
+        lane: Optional[str] = None,
+        hostname: Optional[str] = None,
+        gpus: List[int] = [],
+        cluster_vars: Dict[str, Any] = {},
+    ):
+        raise ExternalJobError(
+            "Cannot queue an external job; use `job.start()`/`job.stop()` or `with job.run()` instead"
+        )
+
+    def kill(self):
+        raise ExternalJobError("Cannot kill an external job; use `job.stop()` instead")
