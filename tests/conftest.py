@@ -98,9 +98,13 @@ T20S_PARTICLES_PASSTHROUGH = Dataset(
 # fmt: on
 
 
-def request_callback_core(request, uri, response_headers):
-    body = json.loads(request.body)
-    procs = {
+@pytest.fixture
+def mock_jsonrpc_procs_core() -> dict[str, Any]:
+    """
+    Dictionary of JSON RPC method names and their return values. Can override
+    existing values in subfixtures.
+    """
+    return {
         "hello_world": {"hello": "world"},
         "get_running_version": "develop",
         "get_id_by_email_password": "6372a35e821ed2b71d9fe4e3",
@@ -253,17 +257,36 @@ def request_callback_core(request, uri, response_headers):
         "job_connect_group": True,
         "job_set_param": True,
     }
-    procs["system.describe"] = {"procs": [{"name": m} for m in procs]}
-    response_headers["content-type"] = "application/json"
-    return [200, response_headers, json.dumps({"result": procs[body["method"]]})]
 
 
-def request_callback_vis(request, uri, response_headers):
-    body = json.loads(request.body)
-    procs: Dict[str, Any] = {"hello_world": {"hello": "world"}}
-    procs["system.describe"] = {"procs": [{"name": m} for m in procs]}
-    response_headers["content-type"] = "application/json"
-    return [200, response_headers, json.dumps({"result": procs[body["method"]]})]
+@pytest.fixture
+def request_callback_core(mock_jsonrpc_procs_core):
+    def request_callback_core_fn(request, uri, response_headers):
+        body = json.loads(request.body)
+        mock_jsonrpc_procs_core["system.describe"] = {"procs": [{"name": m} for m in mock_jsonrpc_procs_core]}
+        response_headers["content-type"] = "application/json"
+        return [200, response_headers, json.dumps({"result": mock_jsonrpc_procs_core[body["method"]]})]
+
+    return request_callback_core_fn
+
+
+@pytest.fixture
+def mock_jsonrpc_procs_vis() -> dict[str, Any]:
+    return {
+        "hello_world": {"hello": "world"},
+    }
+
+
+@pytest.fixture
+def request_callback_vis(mock_jsonrpc_procs_vis):
+    def request_callback_vis_fn(request, uri, response_headers):
+        body = json.loads(request.body)
+
+        mock_jsonrpc_procs_vis["system.describe"] = {"procs": [{"name": m} for m in mock_jsonrpc_procs_vis]}
+        response_headers["content-type"] = "application/json"
+        return [200, response_headers, json.dumps({"result": mock_jsonrpc_procs_vis[body["method"]]})]
+
+    return request_callback_vis_fn
 
 
 def request_callback_vis_get_project_file(request, uri, response_headers):
@@ -404,7 +427,7 @@ def t20s_particles_passthrough():
 
 
 @pytest.fixture
-def cs():
+def cs(request_callback_core, request_callback_vis):
     httpretty.enable(verbose=False, allow_net_connect=False)
     httpretty.register_uri(httpretty.POST, "http://localhost:39002/api", body=request_callback_core)  # type: ignore
     httpretty.register_uri(httpretty.POST, "http://localhost:39003/api", body=request_callback_vis)  # type: ignore
