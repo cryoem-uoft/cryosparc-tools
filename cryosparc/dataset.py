@@ -844,7 +844,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if allocate is None:  # Same as zero
             populate = [(("uid", "<u8"), n.ndarray(0, dtype=n.uint64))]
         elif isinstance(allocate, (int, n.integer)):
-            populate = [(("uid", "<u8"), generate_uids(allocate or 0))]
+            populate = [(("uid", "<u8"), generate_uids(int(allocate)))]
         elif isinstance(allocate, n.ndarray):  # record array
             for field in allocate.dtype.descr:
                 assert field[0], f"Cannot initialize with record array of dtype {allocate.dtype}"
