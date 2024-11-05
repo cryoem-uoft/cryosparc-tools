@@ -99,7 +99,7 @@ T20S_PARTICLES_PASSTHROUGH = Dataset(
 
 
 @pytest.fixture
-def mock_jsonrpc_procs_core() -> dict[str, Any]:
+def mock_jsonrpc_procs_core() -> Dict[str, Any]:
     """
     Dictionary of JSON RPC method names and their return values. Can override
     existing values in subfixtures.
@@ -271,7 +271,7 @@ def request_callback_core(mock_jsonrpc_procs_core):
 
 
 @pytest.fixture
-def mock_jsonrpc_procs_vis() -> dict[str, Any]:
+def mock_jsonrpc_procs_vis() -> Dict[str, Any]:
     return {
         "hello_world": {"hello": "world"},
     }
