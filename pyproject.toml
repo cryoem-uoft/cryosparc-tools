@@ -33,6 +33,7 @@ dev = [
     "pytest-xdist[psutil]",
     "pytest",
     "ruff",
+    "setuptools",
 ]
 
 build = ["build", "autodocsumm", "cython", "jupyter-book"]
