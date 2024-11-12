@@ -685,6 +685,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         # Calling addrows separately to minimizes column-based
         # allocations, improves performance by ~20%
         dset = cls.allocate(0, descr)
+        if header["length"] == 0:
+            return dset  # no more data to load
+
         data = dset._data
         data.addrows(header["length"])
         loader = Stream(data)
@@ -798,6 +801,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         )
         yield u32bytesle(len(header))
         yield header
+
+        if len(self) == 0:
+            return  # empty dataset, don't yield anything
 
         for f in self:
             fielddata: "MemoryView"
