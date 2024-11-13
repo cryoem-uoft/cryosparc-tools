@@ -78,3 +78,11 @@ class InvalidSlotsError(ValueError):
         )
 
         return super().__init__(msg)
+
+
+class ExternalJobError(Exception):
+    """
+    Raised during external job lifecycle failures
+    """
+
+    pass
