@@ -4,6 +4,8 @@ Defines the Job and External job classes for accessing CryoSPARC jobs.
 
 import json
 import math
+import re
+import urllib.parse
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
@@ -15,7 +17,7 @@ from typing_extensions import Literal
 
 from .command import CommandError, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
-from .errors import InvalidSlotsError
+from .errors import ExternalJobError, InvalidSlotsError
 from .spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
@@ -37,6 +39,12 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
 
     from .tools import CryoSPARC
+
+
+GROUP_NAME_PATTERN = r"^[A-Za-z][0-9A-Za-z_]*$"
+"""
+Input and output result groups may only contain, letters, numbers and underscores.
+"""
 
 
 class Job(MongoController[JobDocument]):
@@ -1233,6 +1241,11 @@ class ExternalJob(Job):
             ... )
             "input_micrographs"
         """
+        if name and not re.fullmatch(GROUP_NAME_PATTERN, name):
+            raise ValueError(
+                f'Invalid input name "{name}"; may only contain letters, numbers and underscores, '
+                "and must start with a letter"
+            )
         try:
             self.cs.vis.add_external_job_input(  # type: ignore
                 project_uid=self.project_uid,
@@ -1354,6 +1367,11 @@ class ExternalJob(Job):
             ... )
             "particle_alignments"
         """
+        if name and not re.fullmatch(GROUP_NAME_PATTERN, name):
+            raise ValueError(
+                f'Invalid output name "{name}"; may only contain letters, numbers and underscores, '
+                "and must start with a letter"
+            )
         try:
             self.cs.vis.add_external_job_output(  # type: ignore
                 project_uid=self.project_uid,
@@ -1519,7 +1537,8 @@ class ExternalJob(Job):
             >>> job.save_output("picked_particles", particles)
 
         """
-        url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/outputs/{name}/dataset"
+
+        url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/outputs/{urllib.parse.quote_plus(name)}/dataset"
         with make_request(self.cs.vis, url=url, data=dataset.stream(compression="lz4")) as res:
             result = res.read().decode()
             assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"
@@ -1572,7 +1591,6 @@ class ExternalJob(Job):
         """
         error = False
         self.start("running")
-        self.refresh()
         try:
             yield self
         except Exception:
@@ -1580,4 +1598,17 @@ class ExternalJob(Job):
             raise
         finally:
             self.stop(error)  # TODO: Write Error to job log, if possible
-            self.refresh()
+
+    def queue(
+        self,
+        lane: Optional[str] = None,
+        hostname: Optional[str] = None,
+        gpus: List[int] = [],
+        cluster_vars: Dict[str, Any] = {},
+    ):
+        raise ExternalJobError(
+            "Cannot queue an external job; use `job.start()`/`job.stop()` or `with job.run()` instead"
+        )
+
+    def kill(self):
+        raise ExternalJobError("Cannot kill an external job; use `job.stop()` instead")

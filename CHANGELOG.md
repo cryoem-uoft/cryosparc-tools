@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.6.1
+
+- Added: Python 3.13 support
+- Fix: Disallow non-URL-encodable characters when creating external job inputs and outputs
+- Fix: Prevent queuing and killing external jobs (must use `job.start/job.stop()` or `with job.run()`)
+
 ## v4.6.0
 
 - Added: `Dataset.is_equivalent` method to check if two datasets have identical fields, but in a different order
