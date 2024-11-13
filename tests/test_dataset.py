@@ -56,6 +56,27 @@ def small_dset_stream(small_dset):
     return stream
 
 
+@pytest.fixture
+def empty_dset():
+    field3 = "long/fieldwithsuperduperlongcolumnnamethatislongandtestable"
+    return Dataset.allocate(
+        0,
+        fields=[
+            ("field/1", "u8", (2,)),
+            ("field/2", "f4"),
+            (field3, "O"),
+        ],
+    )
+
+
+@pytest.fixture
+def empty_dset_stream(empty_dset):
+    stream = BytesIO()
+    empty_dset.save(stream, format=CSDAT_FORMAT)
+    stream.seek(0)
+    return stream
+
+
 def test_allocate():
     storage = Dataset.allocate(size=2000000, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     assert storage is not None
@@ -268,6 +289,11 @@ def test_load_stream_prefixes(small_dset, small_dset_path):
 def test_load_stream_fields(small_dset, small_dset_stream):
     result = Dataset.load(small_dset_stream, fields=["field/2"])
     assert result == small_dset.filter_fields(["field/2"], copy=True)
+
+
+def test_load_empty_stream(empty_dset, empty_dset_stream):
+    result = Dataset.load(empty_dset_stream)
+    assert result == empty_dset
 
 
 def test_pickle_unpickle():
