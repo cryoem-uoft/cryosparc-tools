@@ -144,7 +144,7 @@ jobs:
           path: dist
 
   pyodide: # Webassembly build
-    name: Build (Pyodide)
+    name: Build (pyodide)
     runs-on: ubuntu-latest
     needs: [meta, test]
     steps:
