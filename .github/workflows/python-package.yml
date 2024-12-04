@@ -112,7 +112,7 @@ jobs:
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci test build]" for testing
   build:
-    name: ${{ runner.os }} Build
+    name: Build
     needs: [meta, test]
     if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.meta.outputs.commit-message, '[ci test build]') }}"
     runs-on: ${{ matrix.os }}
