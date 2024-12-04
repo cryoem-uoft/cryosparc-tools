@@ -143,9 +143,10 @@ jobs:
           name: wheels-${{ runner.os }}
           path: dist
 
-  pyodide:
-    name: Pyodide build (Webassembly)
+  pyodide: # Webassembly build
+    name: Build (Pyodide)
     runs-on: ubuntu-latest
+    needs: [meta, test]
     steps:
       - uses: actions/checkout@v4
         with:
