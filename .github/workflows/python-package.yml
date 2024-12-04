@@ -23,6 +23,7 @@ concurrency:
 
 jobs:
   meta:
+    name: Meta
     runs-on: ubuntu-latest
     outputs:
       commit-message: ${{ steps.get-commit-message.outputs.commit-message }}
@@ -42,6 +43,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,6 +73,7 @@ jobs:
           path: dist
 
   test:
+    name: Test
     needs: [lint]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -109,6 +112,7 @@ jobs:
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci test build]" for testing
   build:
+    name: ${{ runner.os }} Build
     needs: [meta, test]
     if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.meta.outputs.commit-message, '[ci test build]') }}"
     runs-on: ${{ matrix.os }}
@@ -137,6 +141,28 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ runner.os }}
+          path: dist
+
+  pyodide:
+    name: Pyodide build (Webassembly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: pypa/cibuildwheel@v2.21.3
+        env:
+          CIBW_PLATFORM: pyodide
+        with:
+          output-dir: dist
+      # note that uploading this to PyPI is not yet supported
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-Pyodide
           path: dist
 
   # NOTE: release step only runs on tag builds
