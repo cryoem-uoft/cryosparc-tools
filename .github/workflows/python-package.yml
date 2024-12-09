@@ -79,12 +79,12 @@ jobs:
       fail-fast: true
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        python-version: ["3.7", "3.13"]
+        python-version: ["3.8", "3.13"]
         exclude:
           # Latest macos runner does not support older Python versions
           # https://github.com/actions/setup-python/issues/852
           - os: macos-latest
-            python-version: "3.7"
+            python-version: "3.8"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -100,10 +100,10 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install --editable .[dev]
       - name: Downgrade numpy
-        if: ${{ matrix.python-version == '3.7' }}
+        if: ${{ matrix.python-version == '3.8' }}
         run: |
           # test with older numpy version to ensure compatibility
-          python -m pip install numpy==1.15
+          python -m pip install numpy~=1.17.5
       - name: Test with pytest
         run: |
           pytest -v --benchmark-disable -n auto
@@ -129,7 +129,7 @@ jobs:
           platforms: arm64
       - uses: pypa/cibuildwheel@v2.21.3
         env:
-          CIBW_SKIP: cp36-* pp*-win* pp*-macosx* *_i686
+          CIBW_SKIP: cp36-* cp37-* pp*-win* pp*-macosx* *_i686
           CIBW_TEST_SKIP: "*-win_arm64"
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_ARCHS_MACOS: "x86_64 arm64 universal2"
