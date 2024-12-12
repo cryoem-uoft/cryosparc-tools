@@ -6,7 +6,7 @@ from pathlib import PurePath
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union, overload
 
 import numpy as n
-from typing_extensions import Literal
+from typing import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore

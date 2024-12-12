@@ -13,7 +13,7 @@ from time import sleep, time
 from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, Union, overload
 
 import numpy as n
-from typing_extensions import Literal
+from typing import Literal
 
 from .command import CommandError, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset

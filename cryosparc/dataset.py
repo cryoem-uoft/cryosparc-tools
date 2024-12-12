@@ -48,7 +48,7 @@ from typing import (
 )
 
 import numpy as n
-from typing_extensions import Literal, SupportsIndex
+from typing import Literal, SupportsIndex
 
 from .column import Column
 from .core import Data, DsetType, Stream

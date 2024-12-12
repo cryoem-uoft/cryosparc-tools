@@ -22,7 +22,7 @@ classifiers = [
 license = { file = "LICENSE" }
 dependencies = [
     "numpy >= 1.17, < 3.0",
-    "typing-extensions >= 3.8",
+    "typing-extensions >= 4.0",
 ]
 
 [project.optional-dependencies]

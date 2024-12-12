@@ -22,10 +22,7 @@ Examples:
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
-from typing_extensions import Literal, TypedDict
-
-if TYPE_CHECKING:
-    from typing_extensions import Self  # not present in typing-extensions=3.7
+from typing import Literal, TypedDict
 
 # Database document
 D = TypeVar("D")
@@ -964,6 +961,6 @@ class MongoController(ABC, Generic[D]):
         return self._doc
 
     @abstractmethod
-    def refresh(self) -> "Self":
+    def refresh(self):
         # Must be implemented in subclasses
         return self

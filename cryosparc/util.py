@@ -310,10 +310,7 @@ def default_rng(seed=None) -> "n.random.Generator":
     Returns:
         numpy.random.Generator: Random number generator
     """
-    try:
-        return n.random.default_rng(seed)
-    except AttributeError:
-        return n.random.RandomState(seed)  # type: ignore
+    return n.random.default_rng(seed)
 
 
 def random_integers(
@@ -337,11 +334,7 @@ def random_integers(
     Returns:
         NDArray: Numpy array of randomly-generated integers.
     """
-    try:
-        f = rng.integers
-    except AttributeError:
-        f = rng.randint  # type: ignore
-    return f(low=low, high=high, size=size, dtype=dtype)  # type: ignore
+    return rng.integers(low=low, high=high, size=size, dtype=dtype)  # type: ignore
 
 
 def print_table(headings: List[str], rows: List[List[str]]):
