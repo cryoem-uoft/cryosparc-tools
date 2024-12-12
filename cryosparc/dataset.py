@@ -75,8 +75,6 @@ from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray
 
-    from .core import MemoryView
-
 
 # Save format options
 NUMPY_FORMAT = 1
@@ -702,7 +700,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             if field[0] in header["compressed_fields"]:
                 loader.decompress_col(field[0], buffer)
             else:
-                data.getbuf(field[0])[:] = buffer
+                mem = data.getbuf(field[0])
+                assert mem is not None, f"Failed to get {field[0]} memory"
+                mem[:] = buffer
 
         # Read in the string heap (rest of stream)
         # NOTE: There will be a bug here for long column keys that are
@@ -733,9 +733,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             if field[0] in header["compressed_fields"]:
                 loader.decompress_col(field[0], buffer)
             else:
-                data.getbuf(field[0])[:] = buffer
+                mem = data.getbuf(field[0])
+                assert mem is not None, f"Failed to get {field[0]} memory"
+                mem[:] = buffer
 
-        heap = stream.read()
+        heap = await stream.read()
         data.setstrheap(heap)
 
         # Convert C strings to Python strings
@@ -807,12 +809,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             return  # empty dataset, don't yield anything
 
         for f in self:
-            fielddata: "MemoryView"
             if f in compressed_fields:
                 # obj columns added to strheap and loaded as indexes
                 fielddata = stream.compress_col(f)
             else:
                 fielddata = stream.stralloc_col(f) or data.getbuf(f)
+            assert fielddata is not None, f"Could not stream {f}"
             yield u32bytesle(len(fielddata))
             yield bytes(fielddata.memview)
 
@@ -1231,7 +1233,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if rename and rename != keep_prefix:
             new_fields = [f"{rename}/{f.split('/', 1)[1]}" for f in keep_fields]
 
-        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])
+        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])  # type: ignore
         return result if copy else self._reset(result._data)
 
     def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
