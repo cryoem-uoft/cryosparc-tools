@@ -320,7 +320,7 @@ def test_column_aggregation(t20s_dset):
     assert not isinstance(n.mean(t20s_dset["uid"]), n.ndarray)
 
 
-@pytest.mark.skipif(n.__version__.startswith("1.15."), reason="works with newer numpy versions, use case is limited")
+@pytest.mark.skipif(n.__version__.startswith("1.17."), reason="works with newer numpy versions, use case is limited")
 def test_row_array_type(t20s_dset):
     rowarr = n.array(t20s_dset.rows())
     assert isinstance(rowarr[0], Row)
