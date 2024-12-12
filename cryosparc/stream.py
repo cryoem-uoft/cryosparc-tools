@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
     IO,
-    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     AsyncIterable,
@@ -14,8 +13,8 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
-    Union,
     Protocol,
+    Union,
 )
 
 from typing_extensions import Self

@@ -20,9 +20,7 @@ Examples:
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
-
-from typing import Literal, TypedDict
+from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, TypedDict, TypeVar, Union
 
 # Database document
 D = TypeVar("D")

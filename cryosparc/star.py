@@ -3,10 +3,23 @@ Helper module for reading and writing relion star files.
 """
 
 from pathlib import PurePath
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Tuple, Type, Union, overload
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    overload,
+)
 
 import numpy as n
-from typing import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore

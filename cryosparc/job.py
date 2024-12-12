@@ -10,10 +10,9 @@ from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from time import sleep, time
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, Union, overload
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Pattern, Union, overload
 
 import numpy as n
-from typing import Literal
 
 from .command import CommandError, make_json_request, make_request
 from .dataset import DEFAULT_FORMAT, Dataset
