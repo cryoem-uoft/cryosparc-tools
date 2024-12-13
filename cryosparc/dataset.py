@@ -146,6 +146,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     __slots__ = ("_row_class", "_rows", "_data")
 
+    media_type = "application/x-cryosparc-dataset"
     _row_class: Type[R]
     _rows: Optional[Spool[R]]
     _data: Data
