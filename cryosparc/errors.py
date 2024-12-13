@@ -2,8 +2,8 @@
 Definitions for various error classes raised by cryosparc-tools functions
 """
 
+import json
 from typing import TYPE_CHECKING, Any, List, TypedDict
-
 
 from .spec import Datafield, Datatype, SlotSpec
 
@@ -17,7 +17,7 @@ class DatasetLoadError(Exception):
     pass
 
 
-class APIError(Exception):
+class APIError(ValueError):
     """
     Raised by failed request to a CryoSPARC API server.
     """
@@ -38,6 +38,13 @@ class APIError(Exception):
         self.res = res
         self.code = res.status_code
         self.data = data
+
+    def __str__(self):
+        s = super().__str__()
+        if self.data:
+            s += "\n"
+            s += json.dumps(self.data)
+        return s
 
 
 class CommandError(Exception):

@@ -1,20 +1,19 @@
-from contextlib import contextmanager
-from enum import Enum
 import json
 import re
 import urllib.parse
 import warnings
-import httpx
+from contextlib import contextmanager
+from enum import Enum
 from typing import Any, Dict, Iterator, Optional, Tuple, TypedDict, Union
+
+import httpx
 
 from cryosparc.errors import APIError
 
-
 from . import registry
-from .stream import Streamable
-from .models.auth import Token
 from .json_util import api_default, api_object_hook
-
+from .models.auth import Token
+from .stream import Streamable
 
 _BASE_RESPONSE_TYPES = {"string", "integer", "number", "boolean"}
 
@@ -138,12 +137,11 @@ class APINamespace:
         return _path, APIRequest(params=query_params, headers=headers, content=request_body, data=data, files=files)
 
     def _handle_response(self, schema, res: httpx.Response):
-        func_name = schema["summary"]
         responses_schema = schema.get("responses", {})
         response_schema = responses_schema.get(str(res.status_code))
         if not response_schema:
             res.raise_for_status()
-            raise APIError(f"Received unknown response", res=res)
+            raise APIError("Received unknown response", res=res)
 
         if "content" not in response_schema:
             res.raise_for_status()
@@ -204,7 +202,6 @@ class APINamespace:
     def _call(self, _method: str, _path: str, _schema, *args, **kwargs):
         """Meta-call method that runs whenever a named function is called on
         this namespace"""
-        func_name = _schema["summary"]
         responses_schema = _schema.get("responses", {})
         _path, req = self._construct_request(_path, _schema, *args, **kwargs)
 
@@ -234,8 +231,8 @@ class APIClient(APINamespace):
         self,
         base_url: Optional[str] = None,
         *,
-        timeout: float = 300,
         auth: Optional[Auth] = None,  # token or email/password
+        timeout: float = 300,
         http_client: Optional[httpx.Client] = None,
     ):
         if base_url and http_client:
@@ -264,7 +261,7 @@ class APIClient(APINamespace):
                 res.raise_for_status()
                 schema = res.json()
         except json.JSONDecodeError as e:
-            raise ValueError(f"Error reading JSON response") from e
+            raise ValueError("Error reading JSON response") from e
         self._process_schema(schema)
         if auth:
             self._authorize(auth)
