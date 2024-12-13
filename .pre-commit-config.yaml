@@ -28,4 +28,4 @@ repos:
     hooks:
       - id: pyright
         additional_dependencies:
-          [cython, httpx, numpy, pydantic, pytest, respx, setuptools]
+          [cython, httpretty, httpx, numpy, pydantic, pytest, setuptools]

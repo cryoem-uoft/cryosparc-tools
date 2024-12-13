@@ -31,12 +31,12 @@ dependencies = [
 dev = [
     "build",
     "cython",
+    "httpretty",
     "pre-commit",
     "pyright",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
     "pytest",
-    "respx",
     "ruff",
     "setuptools",
 ]
