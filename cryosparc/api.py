@@ -8,9 +8,8 @@ from typing import Any, Dict, Iterator, Optional, Tuple, TypedDict, Union
 
 import httpx
 
-from cryosparc.errors import APIError
-
 from . import registry
+from .errors import APIError
 from .json_util import api_default, api_object_hook
 from .models.auth import Token
 from .stream import Streamable
