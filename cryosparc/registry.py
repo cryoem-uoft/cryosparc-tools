@@ -3,16 +3,16 @@ Model registration functions used by API client to determine how to interpret
 JSON responses. Used for either cryosparc-tools or cryosparc models.
 """
 
-import os
-from collections.abc import Iterable
 import re
+from collections.abc import Iterable
 from enum import Enum
 from inspect import isclass
 from types import ModuleType
 from typing import Dict, Optional, Type
-from .stream import Streamable
 
 from pydantic import BaseModel
+
+from .stream import Streamable
 
 FINALIZED: bool = False
 REGISTERED_TYPED_DICTS: Dict[str, Type[dict]] = {}

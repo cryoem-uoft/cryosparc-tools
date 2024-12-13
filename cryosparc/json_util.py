@@ -1,9 +1,9 @@
-from pathlib import PurePath
 import base64
-from typing import Any, Mapping
-import numpy as n
 from datetime import datetime
+from pathlib import PurePath
+from typing import Any, Mapping
 
+import numpy as n
 from pydantic import BaseModel
 
 
