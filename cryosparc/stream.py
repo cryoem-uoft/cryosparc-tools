@@ -4,21 +4,20 @@ from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
     IO,
-    TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    AsyncIterable,
     AsyncIterator,
     BinaryIO,
     Generator,
+    Iterable,
     Iterator,
     Optional,
+    Protocol,
     Union,
 )
 
-from typing_extensions import Protocol
-
-if TYPE_CHECKING:
-    from typing_extensions import Self  # not present in typing-extensions=3.7
+from typing_extensions import Self
 
 
 class AsyncBinaryIO(Protocol):
@@ -93,7 +92,7 @@ class AsyncBinaryIteratorIO(AsyncBinaryIO):
         out = []
         if n is None or n < 0:
             while True:
-                m = self._read1()
+                m = await self._read1()
                 if not m:
                     break
                 out.append(m)
@@ -153,8 +152,8 @@ class Streamable(ABC):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator))
 
     @abstractmethod
-    def stream(self) -> Generator[bytes, None, None]: ...
+    def stream(self) -> Iterable[bytes]: ...
 
-    async def astream(self):
+    async def astream(self) -> AsyncIterable[bytes]:
         for chunk in self.stream():
             yield chunk

@@ -19,7 +19,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
 ### Prerequisites
 
 - Git and Git LFS
-- Python >= 3.7
+- Python >= 3.8
 - Miniconda3
 - C compiler such as GCC or Clang
 
