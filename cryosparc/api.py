@@ -58,7 +58,7 @@ class APINamespace:
         data = None
         files = None
 
-        for param_schema in _sort_params_schema(_path, _schema.get("parameters", [])):
+        for param_schema in sort_params_schema(_path, _schema.get("parameters", [])):
             # Compile function params
             param_name: str = param_schema["name"]
             param_in: str = param_schema["in"]
@@ -324,6 +324,16 @@ class APIClient(APINamespace):
         self._client.headers["Authorization"] = f"{token.token_type.title()} {token.access_token}"
 
 
+def sort_params_schema(path: str, param_schema: list[dict]):
+    """
+    Sort the OpenAPI endpoint parameters schema in order that path params appear
+    in the given URI.
+    """
+    path_params = {p["name"]: p for p in param_schema if p["in"] == "path"}
+    known_path_params = re.findall(r"{([^}]*)}", path)
+    return [path_params[name] for name in known_path_params] + [p for p in param_schema if p["in"] != "path"]
+
+
 def _get_schema_param_name(schema: dict, default: str = "param") -> str:
     """
     Given a parameter schema, convert its title to a valid python argument
@@ -399,11 +409,3 @@ def _decode_json_response(value: Any, schema: dict):
 def _uriencode(val: Any):
     # Encode any string-compatible value so that it may be used in a URI.
     return urllib.parse.quote(val if isinstance(val, (str, bytes)) else str(val))
-
-
-def _sort_params_schema(path: str, param_schema: list[dict]):
-    # Sort the OpenAPI endpoint parameters schema in order that path params
-    # appear in the given URI.
-    path_params = {p["name"]: p for p in param_schema if p["in"] == "path"}
-    known_path_params = re.findall(r"{([^}]*)}", path)
-    return [path_params[name] for name in known_path_params] + [p for p in param_schema if p["in"] != "path"]
