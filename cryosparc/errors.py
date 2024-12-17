@@ -2,15 +2,49 @@
 Definitions for various error classes raised by cryosparc-tools functions
 """
 
-from typing import Any, List, TypedDict
+import json
+from typing import TYPE_CHECKING, Any, List, TypedDict
 
 from .spec import Datafield, Datatype, SlotSpec
+
+if TYPE_CHECKING:
+    from httpx import Response
 
 
 class DatasetLoadError(Exception):
     """Exception type raised when a dataset cannot be loaded"""
 
     pass
+
+
+class APIError(ValueError):
+    """
+    Raised by failed request to a CryoSPARC API server.
+    """
+
+    code: int
+    res: "Response"
+    data: Any
+
+    def __init__(
+        self,
+        reason: str,
+        *args: object,
+        res: "Response",
+        data: Any = None,
+    ) -> None:
+        msg = f"*** [API] ({res.request.method} {res.url}, code {res.status_code}) {reason}"
+        super().__init__(msg, *args)
+        self.res = res
+        self.code = res.status_code
+        self.data = data
+
+    def __str__(self):
+        s = super().__str__()
+        if self.data:
+            s += "\n"
+            s += json.dumps(self.data)
+        return s
 
 
 class CommandError(Exception):

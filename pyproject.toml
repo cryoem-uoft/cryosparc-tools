@@ -22,6 +22,8 @@ classifiers = [
 license = { file = "LICENSE" }
 dependencies = [
     "numpy >= 1.17, < 3.0",
+    "httpx ~= 0.25",
+    "pydantic ~= 2.8",
     "typing-extensions >= 4.0",
 ]
 

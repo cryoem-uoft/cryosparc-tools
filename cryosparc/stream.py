@@ -107,13 +107,11 @@ class AsyncBinaryIteratorIO(AsyncBinaryIO):
 
 
 class Streamable(ABC):
-    @classmethod
-    def mime_type(cls) -> str:
-        """
-        Return the binary mime type to use in HTTP requests when streaming this
-        data e.g., "application/x-cryosparc-dataset"
-        """
-        return f"application/x-cryosparc-{cls.__name__.lower()}"
+    media_type = "application/octet-stream"
+    """
+    May override in subclasses to derive correct stream type, e.g.,
+    "application/x-cryosparc-dataset"
+    """
 
     @classmethod
     def api_schema(cls):
@@ -123,7 +121,7 @@ class Streamable(ABC):
         """
         return {
             "description": f"A binary stream representing a CryoSPARC {cls.__name__}",
-            "content": {cls.mime_type(): {"schema": {"title": cls.__name__, "type": "string", "format": "binary"}}},
+            "content": {cls.media_type: {"schema": {"title": cls.__name__, "type": "string", "format": "binary"}}},
         }
 
     @classmethod
