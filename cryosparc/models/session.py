@@ -14,7 +14,7 @@ from .workspace import WorkspaceStats
 
 class AbInitioVolumeInfo(BaseModel):
     vol_gname: str
-    fileid: str = ""
+    fileid: Optional[str] = None
     selected: bool = False
 
 
@@ -206,6 +206,7 @@ class Session(BaseModel):
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     dumped_at: Optional[datetime.datetime] = None
+    last_dumped_version: Optional[str] = None
     autodump: bool = True
     uid: str
     project_uid: str

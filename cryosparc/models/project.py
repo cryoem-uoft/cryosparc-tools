@@ -32,12 +32,13 @@ class Project(BaseModel):
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     dumped_at: Optional[datetime.datetime] = None
+    last_dumped_version: Optional[str] = None
     autodump: bool = True
     uid: str
     project_dir: str
     owner_user_id: str
     title: str
-    description: str
+    description: str = ""
     project_params_pdef: dict = {}
     queue_paused: bool = False
     deleted: bool = False

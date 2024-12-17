@@ -81,7 +81,7 @@ class MScopeParams(BaseModel):
     beam_shift: List[int] = [0, 0]
     beam_shift_known: int = 0
     cs_mm: float = 0
-    defect_path: str = "."
+    defect_path: Optional[str] = None
     exp_group_id: int = 0
     neg_stain: int = 0
     phase_plate: int = 0

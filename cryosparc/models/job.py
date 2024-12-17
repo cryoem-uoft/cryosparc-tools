@@ -49,6 +49,7 @@ class Job(BaseModel):
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     dumped_at: Optional[datetime.datetime] = None
+    last_dumped_version: Optional[str] = None
     autodump: bool = True
     uid: str
     project_uid: str
@@ -138,6 +139,7 @@ class Job(BaseModel):
     progress: List[dict] = []
     last_exported_at: Optional[datetime.datetime] = None
     last_exported_location: Optional[str] = None
+    last_exported_version: Optional[str] = None
     tags: List[str] = []
     imported: bool = False
     imported_at: Optional[datetime.datetime] = None
