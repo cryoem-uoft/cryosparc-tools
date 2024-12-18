@@ -75,9 +75,9 @@ class APINamespace:
             elif param_in == "query" and param_name in kwargs:
                 # query param must be in kwargs
                 query_params[param_name] = kwargs.pop(param_name)
-            elif param_in == "header" and param_name in kwargs:
+            elif param_in == "header" and (header_name := param_name.replace("-", "_")) in kwargs:
                 # header must be in kwargs
-                headers[param_name] = kwargs.pop(param_name)
+                headers[param_name] = kwargs.pop(header_name)
             elif param_in == "header" and param_name in client_headers:
                 pass  # in default headers, no action required
             elif param_schema["required"]:
@@ -231,6 +231,7 @@ class APIClient(APINamespace):
         base_url: Optional[str] = None,
         *,
         auth: Optional[Auth] = None,  # token or email/password
+        headers: Dict[str, str] | None = None,
         timeout: float = 300,
         http_client: Optional[httpx.Client] = None,
     ):
@@ -240,6 +241,7 @@ class APIClient(APINamespace):
             if not base_url:
                 raise TypeError(f"Must specify either base_url ({base_url}) or http_client ({http_client})")
             http_client = httpx.Client(base_url=base_url, timeout=timeout)
+        http_client.headers.update(headers)
         super().__init__(http_client)
         self._attrs = set()
         self(auth=auth)  # query the OpenAPI server and populate endpoint functions

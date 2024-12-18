@@ -1190,7 +1190,12 @@ class APIClient:
     developer: DeveloperNamespace
 
     def __init__(
-        self, base_url: Optional[str] = None, *, timeout: float = ..., auth: Union[str, tuple[str, str], None] = None
+        self,
+        base_url: Optional[str] = None,
+        *,
+        auth: Union[str, tuple[str, str], None] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: float = ...,
     ) -> None: ...
     def __call__(self, *, auth: Union[str, tuple[str, str], None] = None) -> Any: ...
     def read_root(self) -> Hello: ...
