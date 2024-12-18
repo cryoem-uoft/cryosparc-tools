@@ -4,21 +4,20 @@ from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
     IO,
-    TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    AsyncIterable,
     AsyncIterator,
     BinaryIO,
     Generator,
+    Iterable,
     Iterator,
     Optional,
+    Protocol,
     Union,
 )
 
-from typing_extensions import Protocol
-
-if TYPE_CHECKING:
-    from typing_extensions import Self  # not present in typing-extensions=3.7
+from typing_extensions import Self
 
 
 class AsyncBinaryIO(Protocol):
@@ -93,7 +92,7 @@ class AsyncBinaryIteratorIO(AsyncBinaryIO):
         out = []
         if n is None or n < 0:
             while True:
-                m = self._read1()
+                m = await self._read1()
                 if not m:
                     break
                 out.append(m)
@@ -108,13 +107,11 @@ class AsyncBinaryIteratorIO(AsyncBinaryIO):
 
 
 class Streamable(ABC):
-    @classmethod
-    def mime_type(cls) -> str:
-        """
-        Return the binary mime type to use in HTTP requests when streaming this
-        data e.g., "application/x-cryosparc-dataset"
-        """
-        return f"application/x-cryosparc-{cls.__name__.lower()}"
+    media_type = "application/octet-stream"
+    """
+    May override in subclasses to derive correct stream type, e.g.,
+    "application/x-cryosparc-dataset"
+    """
 
     @classmethod
     def api_schema(cls):
@@ -124,7 +121,7 @@ class Streamable(ABC):
         """
         return {
             "description": f"A binary stream representing a CryoSPARC {cls.__name__}",
-            "content": {cls.mime_type(): {"schema": {"title": cls.__name__, "type": "string", "format": "binary"}}},
+            "content": {cls.media_type: {"schema": {"title": cls.__name__, "type": "string", "format": "binary"}}},
         }
 
     @classmethod
@@ -153,8 +150,8 @@ class Streamable(ABC):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator))
 
     @abstractmethod
-    def stream(self) -> Generator[bytes, None, None]: ...
+    def stream(self) -> Iterable[bytes]: ...
 
-    async def astream(self):
+    async def astream(self) -> AsyncIterable[bytes]:
         for chunk in self.stream():
             yield chunk
