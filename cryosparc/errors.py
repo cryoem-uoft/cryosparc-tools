@@ -23,7 +23,7 @@ class APIError(ValueError):
     """
 
     code: int
-    data: Any
+    data: Any = None
 
     def __init__(
         self,
