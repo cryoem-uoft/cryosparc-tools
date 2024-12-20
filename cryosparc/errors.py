@@ -23,27 +23,28 @@ class APIError(ValueError):
     """
 
     code: int
-    res: "Response"
-    data: Any
+    data: Any = None
 
     def __init__(
         self,
         reason: str,
         *args: object,
         res: "Response",
-        data: Any = None,
+        data: Any = None,  # must be JSON-encodable if provided
     ) -> None:
         msg = f"*** [API] ({res.request.method} {res.url}, code {res.status_code}) {reason}"
         super().__init__(msg, *args)
-        self.res = res
         self.code = res.status_code
-        self.data = data
+        if data is not None:
+            self.data = data
+        elif res.headers.get("Content-Type") == "application/json":
+            self.data = res.json()
 
     def __str__(self):
         s = super().__str__()
         if self.data:
-            s += "\n"
-            s += json.dumps(self.data)
+            s += "\nResponse data:\n"
+            s += json.dumps(self.data, indent=4)
         return s
 
 
