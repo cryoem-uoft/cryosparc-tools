@@ -36,11 +36,13 @@ from typing import (
     Generator,
     Generic,
     List,
+    Literal,
     Mapping,
     MutableMapping,
     Optional,
     Sequence,
     Set,
+    SupportsIndex,
     Tuple,
     Type,
     Union,
@@ -48,7 +50,6 @@ from typing import (
 )
 
 import numpy as n
-from typing_extensions import Literal, SupportsIndex
 
 from .column import Column
 from .core import Data, DsetType, Stream
@@ -73,8 +74,6 @@ from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray
-
-    from .core import MemoryView
 
 
 # Save format options
@@ -147,6 +146,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     __slots__ = ("_row_class", "_rows", "_data")
 
+    media_type = "application/x-cryosparc-dataset"
     _row_class: Type[R]
     _rows: Optional[Spool[R]]
     _data: Data
@@ -682,16 +682,17 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
         field_names = {field[0] for field in descr}
 
-        # Calling addrows separately to minimizes column-based
-        # allocations, improves performance by ~20%
+        # Calling addrows separately to minimize column-based allocations,
+        # improves performance by ~20%
         dset = cls.allocate(0, descr)
-        if header["length"] == 0:
-            return dset  # no more data to load
-
         data = dset._data
         data.addrows(header["length"])
+
+        # If a dataset is empty, it won't have anything in its data section.
+        # Just the string heap at the end.
+        dtype = [] if header["length"] == 0 else header["dtype"]
         loader = Stream(data)
-        for field in header["dtype"]:
+        for field in dtype:
             colsize = u32intle(f.read(4))
             if field[0] not in field_names:
                 # try to seek instead of read to reduce memory usage
@@ -700,8 +701,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             buffer = f.read(colsize)
             if field[0] in header["compressed_fields"]:
                 loader.decompress_col(field[0], buffer)
-            else:
-                data.getbuf(field[0])[:] = buffer
+                continue
+            mem = data.getbuf(field[0])
+            assert mem is not None, f"Could not load stream (missing {field[0]} buffer)"
+            mem[:] = buffer
 
         # Read in the string heap (rest of stream)
         # NOTE: There will be a bug here for long column keys that are
@@ -725,16 +728,22 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dset = cls.allocate(0, header["dtype"])
         data = dset._data
         data.addrows(header["length"])
+
+        # If a dataset is empty, it won't have anything in its data section.
+        # Just the string heap at the end.
+        dtype = [] if header["length"] == 0 else header["dtype"]
         loader = Stream(data)
-        for field in header["dtype"]:
+        for field in dtype:
             colsize = u32intle(await stream.read(4))
             buffer = await stream.read(colsize)
             if field[0] in header["compressed_fields"]:
                 loader.decompress_col(field[0], buffer)
-            else:
-                data.getbuf(field[0])[:] = buffer
+                continue
+            mem = data.getbuf(field[0])
+            assert mem is not None, f"Could not load stream (missing {field[0]} buffer)"
+            mem[:] = buffer
 
-        heap = stream.read()
+        heap = await stream.read()
         data.setstrheap(heap)
 
         # Convert C strings to Python strings
@@ -802,16 +811,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         yield u32bytesle(len(header))
         yield header
 
-        if len(self) == 0:
-            return  # empty dataset, don't yield anything
-
-        for f in self:
-            fielddata: "MemoryView"
+        fields = [] if len(self) == 0 else self.fields()
+        for f in fields:
             if f in compressed_fields:
                 # obj columns added to strheap and loaded as indexes
                 fielddata = stream.compress_col(f)
             else:
                 fielddata = stream.stralloc_col(f) or data.getbuf(f)
+            assert fielddata is not None, f"Could not stream dataset (missing {f} buffer)"
             yield u32bytesle(len(fielddata))
             yield bytes(fielddata.memview)
 
@@ -1230,7 +1237,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if rename and rename != keep_prefix:
             new_fields = [f"{rename}/{f.split('/', 1)[1]}" for f in keep_fields]
 
-        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])
+        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])  # type: ignore
         return result if copy else self._reset(result._data)
 
     def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):

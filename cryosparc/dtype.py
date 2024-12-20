@@ -3,10 +3,9 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Tuple, Type, TypedDict, Union
 
 import numpy as n
-from typing_extensions import Literal, Sequence, TypedDict
 
 from .core import Data, DsetType
 

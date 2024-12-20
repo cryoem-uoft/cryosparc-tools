@@ -23,7 +23,7 @@ Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-to
 
 ## Pre-requisites
 
-- [Python ≥ 3.7](https://www.python.org/downloads/)
+- [Python ≥ 3.8](https://www.python.org/downloads/)
 - [CryoSPARC ≥ v4.1](https://cryosparc.com/download)
 
 CryoSPARC installation must be accessible via one of the following methods:
