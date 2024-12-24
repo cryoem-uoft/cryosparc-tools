@@ -10,7 +10,7 @@ import httpx
 
 from . import registry
 from .errors import APIError
-from .json_util import api_default, api_object_hook
+from .json_util import api_default, api_encode, api_object_hook
 from .models.auth import Token
 from .stream import Streamable
 
@@ -74,10 +74,10 @@ class APINamespace:
                 _path = _path.replace("{%s}" % param_name, _uriencode(param))
             elif param_in == "query" and param_name in kwargs:
                 # query param must be in kwargs
-                query_params[param_name] = kwargs.pop(param_name)
+                query_params[param_name] = api_encode(kwargs.pop(param_name))
             elif param_in == "header" and (header_name := param_name.replace("-", "_")) in kwargs:
                 # header must be in kwargs
-                headers[param_name] = kwargs.pop(header_name)
+                headers[param_name] = api_encode(kwargs.pop(header_name))
             elif param_in == "header" and param_name in client_headers:
                 pass  # in default headers, no action required
             elif param_schema["required"]:
