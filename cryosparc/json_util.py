@@ -1,10 +1,23 @@
 import base64
 from datetime import datetime
+from enum import Enum
 from pathlib import PurePath
 from typing import Any, Mapping
 
 import numpy as n
 from pydantic import BaseModel
+
+
+def api_encode(obj: Any):
+    """
+    Recursively encode any object for transmission through the API.
+    """
+    if isinstance(obj, dict):
+        return {k: api_encode(v) for k, v in obj}
+    elif isinstance(obj, list):
+        return [api_encode(v) for v in obj]
+    else:
+        return api_default(obj)
 
 
 def api_default(obj: Any) -> Any:
@@ -28,6 +41,8 @@ def api_default(obj: Any) -> Any:
         return binary_to_json(obj)
     elif isinstance(obj, datetime):
         return obj.isoformat()
+    elif isinstance(obj, Enum):
+        return obj.value
     elif isinstance(obj, PurePath):
         return str(obj)
     elif isinstance(obj, BaseModel):
