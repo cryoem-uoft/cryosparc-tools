@@ -72,12 +72,16 @@ class APINamespace:
                 # path param must be specified positionally
                 param, args = args[0], args[1:]
                 _path = _path.replace("{%s}" % param_name, _uriencode(param))
-            elif param_in == "query" and param_name in kwargs:
+            elif param_in == "query" and param_name in kwargs and (value := kwargs.pop(param_name)) is not None:
                 # query param must be in kwargs
-                query_params[param_name] = api_encode(kwargs.pop(param_name))
-            elif param_in == "header" and (header_name := param_name.replace("-", "_")) in kwargs:
+                query_params[param_name] = api_encode(value)
+            elif (
+                param_in == "header"
+                and (header_name := param_name.replace("-", "_")) in kwargs
+                and (value := kwargs.pop(header_name)) is not None
+            ):
                 # header must be in kwargs
-                headers[param_name] = api_encode(kwargs.pop(header_name))
+                headers[param_name] = api_encode(value)
             elif param_in == "header" and param_name in client_headers:
                 pass  # in default headers, no action required
             elif param_schema["required"]:
