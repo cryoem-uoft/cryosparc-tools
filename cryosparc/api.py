@@ -384,8 +384,11 @@ def _decode_json_response(value: Any, schema: dict):
         model_class = registry.model_for_ref(schema["$ref"])
         if model_class and issubclass(model_class, Enum):
             return model_class(value)
-        elif model_class:
+        elif model_class and issubclass(model_class, dict):  # typed dict
             return model_class(**value)
+        elif model_class:  # pydantic model
+            # use model_validate in case validator result derives from subtype, e.g., Event model
+            return model_class.model_validate(value)  # type: ignore
         warnings.warn(
             f"[API] Warning: Received API response with unregistered schema type {schema['$ref']}. "
             "Returning as plain object."
