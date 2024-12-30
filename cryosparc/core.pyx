@@ -142,7 +142,7 @@ cdef class Data:
         with nogil:
             mem = dataset.dset_get(self._handle, colkey_c)
             size = dataset.dset_getsz(self._handle, colkey_c)
-        return 0 if size == 0 else <unsigned char [:size]> mem
+        return None if size == 0 else <unsigned char [:size]> mem
 
     def getstr(self, str col, size_t index):
         return dataset.dset_getstr(self._handle, col.encode(), index)  # returns bytes
