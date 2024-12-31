@@ -1,58 +1,50 @@
-import httpretty
+from unittest import mock
 
-from cryosparc.job import Job
+from cryosparc.api import APIClient
+from cryosparc.job import Job, JobController
+from cryosparc.models.job_spec import Params
 from cryosparc.project import Project
 from cryosparc.tools import CryoSPARC
 
 
-def test_create_job_basic(cs: CryoSPARC, project: Project):
+def test_create_job_basic(cs: CryoSPARC, project: Project, mock_new_job: Job):
+    assert isinstance(mock_create_endpoint := APIClient.jobs.create, mock.Mock)
+    mock_create_endpoint.return_value = mock_new_job
+
     job = cs.create_job(project.uid, "W1", "homo_abinit")
-    assert isinstance(job, Job)
-    assert job.uid == "J1"
-
-    latest_requests = httpretty.latest_requests()
-    create_job_request = latest_requests[-3]
-    get_job_request = latest_requests[-1]
-    assert create_job_request.parsed_body["method"] == "make_job"
-    assert create_job_request.parsed_body["params"] == {
-        "job_type": "homo_abinit",
-        "project_uid": project.uid,
-        "workspace_uid": "W1",
-        "user_id": cs.user_id,
-        "params": {},
-        "input_group_connects": {},
-        "title": None,
-        "desc": None,
-    }
-    assert get_job_request.parsed_body["method"] == "get_job"
-    assert get_job_request.parsed_body["params"] == ["P1", "J1"]
+    assert isinstance(job, JobController)
+    assert job.uid == mock_new_job.uid
+    assert len(job.model.spec.params.model_dump(exclude_defaults=True, exclude_none=True)) == 0
+    mock_create_endpoint.assert_called_once_with(
+        project.uid, "W1", type="homo_abinit", title="", description="", params={}
+    )
 
 
-def test_create_job_connect_params(cs: CryoSPARC, project: Project):
+def test_create_job_connect_params(
+    cs: CryoSPARC,
+    project: Project,
+    mock_params: Params,
+    mock_new_job_with_params: Job,
+    mock_new_job_with_connection: Job,
+):
+    assert isinstance(mock_create_endpoint := APIClient.jobs.create, mock.Mock)
+    assert isinstance(mock_connect_endpoint := APIClient.jobs.connect, mock.Mock)
+    mock_create_endpoint.return_value = mock_new_job_with_params
+    mock_connect_endpoint.return_value = mock_new_job_with_connection
     job = cs.create_job(
         project.uid,
         "W1",
         "homo_abinit",
-        connections={"particles": ("J2", "particles_selected")},
-        params={"abinit_K": 3},
+        connections={"particles": ("J41", "particles")},
+        params=mock_params.model_dump(),
     )
-    assert isinstance(job, Job)
-    assert job.uid == "J1"
-
-    latest_requests = httpretty.latest_requests()
-    create_job_request = latest_requests[-3]
-    get_job_request = latest_requests[-1]
-
-    assert create_job_request.parsed_body["method"] == "make_job"
-    assert create_job_request.parsed_body["params"] == {
-        "job_type": "homo_abinit",
-        "project_uid": project.uid,
-        "workspace_uid": "W1",
-        "user_id": cs.user_id,
-        "params": {"abinit_K": 3},
-        "input_group_connects": {"particles": ["J2.particles_selected"]},
-        "title": None,
-        "desc": None,
-    }
-    assert get_job_request.parsed_body["method"] == "get_job"
-    assert get_job_request.parsed_body["params"] == ["P1", "J1"]
+    assert isinstance(job, JobController)
+    assert job.uid == mock_new_job_with_connection.uid
+    assert job.model.spec.params == mock_params
+    assert len(job.model.spec.inputs.root["particles"]) == 1
+    mock_create_endpoint.assert_called_once_with(
+        project.uid, "W1", type="homo_abinit", title="", description="", params=mock_params.model_dump()
+    )
+    mock_connect_endpoint.assert_called_once_with(
+        project.uid, job.uid, "particles", source_job_uid="J41", source_output_name="particles"
+    )
