@@ -31,7 +31,6 @@ dependencies = [
 dev = [
     "build",
     "cython",
-    "httpretty",
     "pre-commit",
     "pyright",
     "pytest-benchmark",
