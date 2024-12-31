@@ -59,6 +59,7 @@ class Project(BaseModel):
     last_detached_version: Optional[str] = None
     is_cleanup_in_progress: bool = False
     tags: List[str] = []
+    starred_by: List[str] = []
 
 
 class ProjectSymlink(BaseModel):

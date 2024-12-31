@@ -144,3 +144,4 @@ class Job(BaseModel):
     imported: bool = False
     imported_at: Optional[datetime.datetime] = None
     deleted_at: Optional[datetime.datetime] = None
+    starred_by: List[str] = []
