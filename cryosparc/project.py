@@ -1,19 +1,21 @@
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+from .controller import Controller, OutputSlotSpec
 from .dataset import DEFAULT_FORMAT, Dataset
-from .job import ExternalJob, Job
+from .job import ExternalJobController, JobController
+from .models.project import Project
 from .row import R
-from .spec import Datatype, MongoController, ProjectDocument, SlotSpec
-from .workspace import Workspace
+from .spec import Datatype
+from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray  # type: ignore
+    from numpy.typing import NDArray
 
     from .tools import CryoSPARC
 
 
-class Project(MongoController[ProjectDocument]):
+class ProjectController(Controller[Project]):
     """
     Accessor instance for CryoSPARC projects with ability to add workspaces, jobs
     and upload/download project files. Should be instantiated through
@@ -32,9 +34,14 @@ class Project(MongoController[ProjectDocument]):
         #cryosparc.project.Project.refresh
     """
 
-    def __init__(self, cs: "CryoSPARC", uid: str) -> None:
+    def __init__(self, cs: "CryoSPARC", project: Union[str, Project]) -> None:
         self.cs = cs
-        self.uid = uid
+        if isinstance(project, str):
+            self.uid = project
+            self._model = None
+        else:
+            self.uid = project.uid
+            self._model = project
 
     def refresh(self):
         """
@@ -43,7 +50,7 @@ class Project(MongoController[ProjectDocument]):
         Returns:
             Project: self
         """
-        self._doc = self.cs.cli.get_project(self.uid)  # type: ignore
+        self._model = self.cs.api.projects.find_one(self.uid)
         return self
 
     def dir(self) -> PurePosixPath:
@@ -53,10 +60,10 @@ class Project(MongoController[ProjectDocument]):
         Returns:
             Path: project directory Pure Path instance
         """
-        path: str = self.cs.cli.get_project_dir_abs(self.uid)  # type: ignore
+        path: str = self.cs.api.projects.get_directory(self.uid)
         return PurePosixPath(path)
 
-    def find_workspace(self, workspace_uid) -> Workspace:
+    def find_workspace(self, workspace_uid) -> WorkspaceController:
         """
         Get a workspace accessor instance for the workspace in this project
         with the given UID. Fails with an error if workspace does not exist.
@@ -67,10 +74,10 @@ class Project(MongoController[ProjectDocument]):
         Returns:
             Workspace: accessor instance
         """
-        workspace = Workspace(self.cs, self.uid, workspace_uid)
+        workspace = WorkspaceController(self.cs, (self.uid, workspace_uid))
         return workspace.refresh()
 
-    def find_job(self, job_uid: str) -> Job:
+    def find_job(self, job_uid: str) -> JobController:
         """
         Get a job accessor instance for the job in this project with the given
         UID. Fails with an error if job does not exist.
@@ -81,11 +88,11 @@ class Project(MongoController[ProjectDocument]):
         Returns:
             Job: accessor instance
         """
-        job = Job(self.cs, self.uid, job_uid)
+        job = JobController(self.cs, (self.uid, job_uid))
         job.refresh()
         return job
 
-    def find_external_job(self, job_uid: str) -> ExternalJob:
+    def find_external_job(self, job_uid: str) -> ExternalJobController:
         """
         Get the External job accessor instance for an External job in this
         project with the given UID. Fails if the job does not exist or is not an
@@ -102,7 +109,7 @@ class Project(MongoController[ProjectDocument]):
         """
         return self.cs.find_external_job(self.uid, job_uid)
 
-    def create_workspace(self, title: str, desc: Optional[str] = None) -> Workspace:
+    def create_workspace(self, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
         Create a new empty workspace in this project. At least a title must be
         provided.
@@ -124,7 +131,7 @@ class Project(MongoController[ProjectDocument]):
         params: Dict[str, Any] = {},
         title: Optional[str] = None,
         desc: Optional[str] = None,
-    ) -> Job:
+    ) -> JobController:
         """
         Create a new job with the given type. Use `CryoSPARC.get_job_sections`_
         to query available job types on the connected CryoSPARC instance.
@@ -174,7 +181,7 @@ class Project(MongoController[ProjectDocument]):
         workspace_uid: str,
         title: Optional[str] = None,
         desc: Optional[str] = None,
-    ) -> ExternalJob:
+    ) -> ExternalJobController:
         """
         Add a new External job to this project to save generated outputs to.
 
@@ -188,10 +195,7 @@ class Project(MongoController[ProjectDocument]):
         Returns:
             ExternalJob: created external job instance
         """
-        job_uid: str = self.cs.vis.create_external_job(  # type: ignore
-            project_uid=self.uid, workspace_uid=workspace_uid, user=self.cs.user_id, title=title, desc=desc
-        )
-        return self.find_external_job(job_uid)
+        return self.cs.create_external_job(self.uid, workspace_uid=workspace_uid, title=title, desc=desc)
 
     def save_external_result(
         self,
@@ -199,7 +203,7 @@ class Project(MongoController[ProjectDocument]):
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[SlotSpec]] = None,
+        slots: Optional[List[OutputSlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,

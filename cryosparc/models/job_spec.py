@@ -136,6 +136,7 @@ class Params(BaseModel):
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:
 
+        def __init__(self, **kwargs: Any) -> None: ...
         def __getattr__(self, key: str) -> Any: ...
 
 
@@ -244,3 +245,10 @@ class JobRegisterError(BaseModel):
     type: str
     message: str
     traceback: str
+
+
+class ResourceSpec(BaseModel):
+    cpu: int = 1
+    gpu: int = 0
+    ram: int = 1
+    ssd: bool = False

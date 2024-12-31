@@ -1,15 +1,17 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+from .controller import Controller, OutputSlotSpec
 from .dataset import Dataset
-from .job import ExternalJob, Job
+from .job import ExternalJobController, JobController
+from .models.workspace import Workspace
 from .row import R
-from .spec import Datatype, MongoController, SlotSpec, WorkspaceDocument
+from .spec import Datatype
 
 if TYPE_CHECKING:
     from .tools import CryoSPARC
 
 
-class Workspace(MongoController[WorkspaceDocument]):
+class WorkspaceController(Controller[Workspace]):
     """
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
     results. Should be instantiated through `CryoSPARC.find_workspace`_ or
@@ -32,10 +34,15 @@ class Workspace(MongoController[WorkspaceDocument]):
         #cryosparc.workspace.Workspace.refresh
     """
 
-    def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
+    def __init__(self, cs: "CryoSPARC", workspace: Union[tuple[str, str], Workspace]) -> None:
         self.cs = cs
-        self.project_uid = project_uid
-        self.uid = uid
+        if isinstance(workspace, tuple):
+            self.project_uid, self.uid = workspace
+            self._model = None  # populated when .model is accessed
+        else:
+            self.project_uid = workspace.project_uid
+            self.uid = workspace.uid
+            self._model = workspace
 
     def refresh(self):
         """
@@ -44,7 +51,7 @@ class Workspace(MongoController[WorkspaceDocument]):
         Returns:
             Workspace: self
         """
-        self._doc = self.cs.cli.get_workspace(self.project_uid, self.uid)  # type: ignore
+        self._model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
 
     def create_job(
@@ -54,7 +61,7 @@ class Workspace(MongoController[WorkspaceDocument]):
         params: Dict[str, Any] = {},
         title: Optional[str] = None,
         desc: Optional[str] = None,
-    ) -> Job:
+    ) -> JobController:
         """
         Create a new job with the given type. Use the
         `CryoSPARC.get_job_sections`_ method to query available job types on
@@ -73,7 +80,7 @@ class Workspace(MongoController[WorkspaceDocument]):
             desc (str, optional): Job markdown description. Defaults to None.
 
         Returns:
-            Job: created job instance. Raises error if job cannot be created.
+            JobController: created job instance. Raises error if job cannot be created.
 
         Examples:
 
@@ -104,7 +111,7 @@ class Workspace(MongoController[WorkspaceDocument]):
         self,
         title: Optional[str] = None,
         desc: Optional[str] = None,
-    ) -> ExternalJob:
+    ) -> ExternalJobController:
         """
         Add a new External job to this workspace to save generated outputs to.
 
@@ -116,7 +123,7 @@ class Workspace(MongoController[WorkspaceDocument]):
                 Defaults to None.
 
         Returns:
-            ExternalJob: created external job instance
+            ExternalJobController: created external job instance
         """
         return self.cs.create_external_job(self.project_uid, self.uid, title, desc)
 
@@ -125,7 +132,7 @@ class Workspace(MongoController[WorkspaceDocument]):
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[SlotSpec]] = None,
+        slots: Optional[List[OutputSlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
         title: Optional[str] = None,
         desc: Optional[str] = None,
@@ -138,7 +145,7 @@ class Workspace(MongoController[WorkspaceDocument]):
             type (Datatype): Type of output dataset.
             name (str, optional): Name of output on created External job. Same
                 as type if unspecified. Defaults to None.
-            slots (list[SlotSpec], optional): List of slots expected to
+            slots (list[OutputSlotSpec], optional): List of slots expected to
                 be created for this output such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to None.

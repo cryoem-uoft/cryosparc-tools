@@ -7,13 +7,13 @@ from .models import (
     diagnostics,
     event,
     exposure,
+    file,
     gpu,
     instance,
     job,
     job_register,
     job_spec,
     license,
-    mongo,
     notification,
     project,
     scheduler_lane,
@@ -42,7 +42,7 @@ register_model_module(event)
 register_model_module(user)
 register_model_module(session_params)
 register_model_module(project)
-register_model_module(mongo)
+register_model_module(file)
 register_model_module(signature)
 register_model_module(instance)
 register_model_module(job_register)

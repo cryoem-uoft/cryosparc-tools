@@ -155,7 +155,10 @@ class APINamespace:
         if stream_mime_type is not None:  # This is a streaming type
             stream_class = registry.get_stream_class(stream_mime_type)
             assert stream_class
-            return stream_class.from_iterator(res.iter_bytes())
+            return stream_class.from_iterator(
+                res.iter_bytes(),
+                media_type=res.headers.get("Content-Type", stream_mime_type),
+            )
         elif "text/plain" in content_schema:
             return res.text
         elif "application/json" in content_schema:
@@ -399,9 +402,10 @@ def _decode_json_response(value: Any, schema: dict):
     if "type" in schema and schema["type"] in _BASE_RESPONSE_TYPES:
         return value
 
-    # Recursively decode list
+    # Recursively decode list or tuple
     if "type" in schema and schema["type"] == "array":
-        return [_decode_json_response(item, schema["items"]) for item in value]
+        typ, items_key = (tuple, "prefixItems") if "prefixItems" in schema else (list, "items")
+        return typ(_decode_json_response(item, schema[items_key]) for item in value)
 
     # Recursively decode object
     if "type" in schema and schema["type"] == "object":

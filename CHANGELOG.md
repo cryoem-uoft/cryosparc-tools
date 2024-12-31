@@ -1,5 +1,19 @@
 # Changelog
 
+## Next
+
+- BREAKING: replaced CryoSPARC.cli, CryoSPARC.rtp and CryoSPARC.vis attributes with single unified CryoSPARC.api
+- BREAKING: removed CryoSPARC.get_job_specs. Use CryoSPARC.get_job_register instead
+- BREAKING: CryoSPARC.list_assets and Job.list_assets returns list of GridFSFile models instead of dictionaries.
+- BREAKING: CryoSPARC.download_asset no longer accepts a directory target. Must specify a filename.
+- Added: CryoSPARC.get_job_register function
+- Updated: CryoSPARC.get_lanes now returns a list of models instead of dictionaries
+- Updated: CryoSPARC.get_targets now returns a list of models instead of dictionaries
+- Updated: ExternalJob.stop now accepts error string instead of boolean
+- Updated: Job.load_input and Job.load_output now accept "default", "passthrough" and "all" keywords
+- Deprecated: CryoSPARC.get_job_sections (use CryoSPARC.get_job_register instead)
+- Deprecated: Job.set_param no longer required "refresh" argument
+
 ## v4.6.1
 
 - Added: Python 3.13 support

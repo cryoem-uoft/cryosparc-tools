@@ -19,9 +19,10 @@ from .models.auth import Token
 from .models.diagnostics import RuntimeDiagnostics
 from .models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
 from .models.exposure import Exposure
+from .models.file import GridFSAsset, GridFSFile
 from .models.job import Job, JobStatus
 from .models.job_register import JobRegister
-from .models.job_spec import Category, OutputResult
+from .models.job_spec import Category, InputSpec, InputSpecs, OutputResult, OutputSpec, OutputSpecs
 from .models.license import LicenseInstance, UpdateTag
 from .models.notification import Notification
 from .models.project import GenerateIntermediateResultsSettings, Project, ProjectSymlink
@@ -34,6 +35,7 @@ from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePrep
 from .models.tag import Tag
 from .models.user import User
 from .models.workspace import Workspace
+from .stream import Stream
 
 Auth = Union[str, Tuple[str, str]]
 """
@@ -79,6 +81,27 @@ class ConfigNamespace(APINamespace):
         """
         ...
 
+class FilesNamespace(APINamespace):
+    """
+    Methods available in api.files, e.g., api.files.find(...)
+    """
+    def find(self, *, project_uid: Optional[str] = ..., job_uid: Optional[str] = ...) -> List[GridFSFile]: ...
+    def upload(
+        self,
+        stream: Stream,
+        *,
+        project_uid: str,
+        job_uid: str,
+        filename: Optional[str] = ...,
+        format: Union[
+            Literal["txt", "csv", "html", "json", "xml", "bild", "bld", "log"],
+            Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"],
+            None,
+        ] = ...,
+    ) -> GridFSAsset: ...
+    def download(self, id: str = "000000000000000000000000", /) -> Stream: ...
+    def find_one(self, id: str = "000000000000000000000000", /) -> GridFSFile: ...
+
 class InstanceNamespace(APINamespace):
     """
     Methods available in api.instance, e.g., api.instance.get_update_tag(...)
@@ -90,7 +113,7 @@ class InstanceNamespace(APINamespace):
         self,
         type: str,
         /,
-        data: Any = {},
+        data: Any = ...,
         *,
         user_id: Optional[str] = ...,
         project_uid: Optional[str] = ...,
@@ -142,7 +165,7 @@ class CacheNamespace(APINamespace):
         Returns None if the value is not set or expired
         """
         ...
-    def set(self, key: str, /, value: Any = None, *, namespace: Optional[str] = ..., ttl: int = 60) -> None:
+    def set(self, key: str, /, value: Any = ..., *, namespace: Optional[str] = ..., ttl: int = 60) -> None:
         """
         Set the given key to the given value, with a ttl (Time-to-Live) in seconds
         """
@@ -266,7 +289,12 @@ class UsersNamespace(APINamespace):
         Get the lanes a user has access to
         """
         ...
-    def set_lanes(self, user_id: str, /, lanes: List[str]) -> User: ...
+    def set_lanes(self, user_id: str, /, lanes: List[str]) -> User:
+        """
+        Restrict lanes the given user ID may to queue to. Only admins and account
+        owners may access this function.
+        """
+        ...
 
 class ResourcesNamespace(APINamespace):
     """
@@ -399,7 +427,7 @@ class JobsNamespace(APINamespace):
         *,
         type: str,
         title: str = "",
-        description: str = "Enter a description.",
+        description: str = "",
         created_by_job_uid: Optional[str] = ...,
         enable_bench: bool = False,
     ) -> Job: ...
@@ -408,6 +436,42 @@ class JobsNamespace(APINamespace):
     def delete(self, project_uid: str, job_uid: str, /, *, force: bool = False) -> Job: ...
     def get_directory(self, project_uid: str, job_uid: str, /) -> str: ...
     def get_log(self, project_uid: str, job_uid: str, /) -> str: ...
+    def get_input_specs(self, project_uid: str, job_uid: str, /) -> InputSpecs: ...
+    def get_input_spec(self, project_uid: str, job_uid: str, input_name: str, /) -> InputSpec: ...
+    def add_input(self, project_uid: str, job_uid: str, input_name: str, /, body: InputSpec) -> Job:
+        """
+        Add or replace an input in an external job.
+        """
+        ...
+    def get_output_specs(self, project_uid: str, job_uid: str, /) -> OutputSpecs: ...
+    def get_output_fields(
+        self, project_uid: str, job_uid: str, output_name: str, /, dtype_params: dict = {}
+    ) -> List[Tuple[str, str]]:
+        """
+        Expected dataset column definitions for given job output.
+        """
+        ...
+    def get_output_spec(self, project_uid: str, job_uid: str, output_name: str, /) -> OutputSpec: ...
+    def add_output(self, project_uid: str, job_uid: str, output_name: str, /, body: OutputSpec) -> Job:
+        """
+        Add or replace an output in an external job.
+        """
+        ...
+    def create_external_result(
+        self,
+        project_uid: str,
+        workspace_uid: str,
+        /,
+        body: OutputSpec,
+        *,
+        name: str,
+        passthrough: Optional[Tuple[str, str]] = ...,
+    ) -> Job:
+        """
+        Create an external result with the given specification. Returns an external
+        job with the given output ready to be saved.
+        """
+        ...
     def get_status(self, project_uid: str, job_uid: str, /) -> JobStatus: ...
     def view(self, project_uid: str, workspace_uid: str, job_uid: str, /) -> Job:
         """
@@ -420,6 +484,7 @@ class JobsNamespace(APINamespace):
     def connect(
         self, project_uid: str, job_uid: str, input_name: str, /, *, source_job_uid: str, source_output_name: str
     ) -> Job: ...
+    def disconnect_all(self, project_uid: str, job_uid: str, input_name: str, /) -> Job: ...
     def disconnect(self, project_uid: str, job_uid: str, input_name: str, connection_index: int, /) -> Job: ...
     def find_output_result(
         self, project_uid: str, job_uid: str, output_name: str, result_name: str, /
@@ -468,6 +533,21 @@ class JobsNamespace(APINamespace):
         Load job output dataset. Raises exception if output is empty or does not exists.
         """
         ...
+    def save_output(
+        self,
+        project_uid: str,
+        job_uid: str,
+        output_name: str,
+        /,
+        dataset: Dataset,
+        *,
+        filename: Optional[str] = ...,
+        version: int = 0,
+    ) -> Job:
+        """
+        Save job output dataset. Job must be running or waiting.
+        """
+        ...
     def enqueue(
         self,
         project_uid: str,
@@ -494,13 +574,25 @@ class JobsNamespace(APINamespace):
     def interactive_post(
         self, project_uid: str, job_uid: str, /, body: dict, *, endpoint: str, timeout: int = 10
     ) -> Any: ...
+    def mark_running(
+        self, project_uid: str, job_uid: str, /, *, status: Literal["running", "waiting"] = "running"
+    ) -> Job:
+        """
+        Indicate that an external is running or waiting.
+        """
+        ...
     def mark_completed(self, project_uid: str, job_uid: str, /) -> Job: ...
+    def mark_failed(self, project_uid: str, job_uid: str, /, *, error: Optional[str] = ...) -> Job: ...
     def add_event_log(
-        self, project_uid: str, job_uid: str, /, message: str, *, type: Literal["text", "warning", "error"] = "text"
+        self, project_uid: str, job_uid: str, /, text: str, *, type: Literal["text", "warning", "error"] = "text"
     ) -> TextEvent: ...
     def get_event_logs(
         self, project_uid: str, job_uid: str, /
     ) -> List[Union[Event, CheckpointEvent, TextEvent, ImageEvent, InteractiveEvent]]: ...
+    def add_image_log(
+        self, project_uid: str, job_uid: str, /, images: List[GridFSAsset], *, text: str, flags: List[str] = ["plots"]
+    ) -> ImageEvent: ...
+    def add_checkpoint(self, project_uid: str, job_uid: str, /, meta: dict) -> CheckpointEvent: ...
     def recalculate_size(self, project_uid: str, job_uid: str, /) -> Job: ...
     def clear(self, project_uid: str, job_uid: str, /, *, force: bool = False) -> Job: ...
     def clear_many(
@@ -561,6 +653,8 @@ class JobsNamespace(APINamespace):
     def import_result_group(
         self, project_uid: str, workspace_uid: str, /, *, csg_path: str, lane: Optional[str] = ...
     ) -> Job: ...
+    def star_job(self, project_uid: str, job_uid: str, /) -> Job: ...
+    def unstar_job(self, project_uid: str, job_uid: str, /) -> Job: ...
 
 class WorkspacesNamespace(APINamespace):
     """
@@ -641,6 +735,8 @@ class WorkspacesNamespace(APINamespace):
     def find_workspace_descendant_uids(
         self, project_uid: str, workspace_uid: str, /, job_uids: List[str]
     ) -> WorkspaceDescendantUidsResponse: ...
+    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace: ...
+    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace: ...
 
 class SessionsNamespace(APINamespace):
     """
@@ -886,7 +982,7 @@ class ProjectsNamespace(APINamespace):
         self,
         *,
         sort: str = "created_at",
-        order: Literal[1, -1] = 1,
+        order: int = 1,
         uid: Optional[List[str]] = ...,
         project_dir: Optional[str] = ...,
         owner_user_id: Optional[str] = ...,
@@ -910,6 +1006,41 @@ class ProjectsNamespace(APINamespace):
     def set_title(self, project_uid: str, /, *, title: str) -> Project: ...
     def set_description(self, project_uid: str, /, description: str) -> Project: ...
     def view(self, project_uid: str, /) -> Project: ...
+    def mkdir(self, project_uid: str, /, *, parents: bool = False, exist_ok: bool = False, path: str = "") -> str:
+        """
+        Create a directory in the project directory at the given path.
+        """
+        ...
+    def cp(self, project_uid: str, /, *, source: str, path: str = "") -> str:
+        """
+        Copy the source file or directory to the project directory at the given
+        path. Returns the absolute path of the copied file.
+        """
+        ...
+    def symlink(self, project_uid: str, /, *, source: str, path: str = "") -> str:
+        """
+        Create a symlink from the source path in the project directory at the given path.
+        """
+        ...
+    def upload_file(self, project_uid: str, /, stream: Stream, *, overwrite: bool = False, path: str = "") -> str:
+        """
+        Upload a file to the project directory at the given path. Returns absolute
+        path of the uploaded file.
+
+        Path may be specified as a filename, a relative path inside the project
+        directory, or a full absolute path.
+        """
+        ...
+    def download_file(self, project_uid: str, /, *, path: str = "") -> Stream:
+        """
+        Download a file from the project directory at the given path.
+        """
+        ...
+    def ls(self, project_uid: str, /, *, recursive: bool = False, path: str = "") -> List[str]:
+        """
+        List files in the project directory.
+        """
+        ...
     def get_job_register(self, project_uid: str, /) -> JobRegister: ...
     def preview_delete(self, project_uid: str, /) -> DeleteProjectPreview: ...
     def find_one(self, project_uid: str, /) -> Project: ...
@@ -961,6 +1092,8 @@ class ProjectsNamespace(APINamespace):
     ) -> Project: ...
     def clear_intermediate_results(self, project_uid: str, /, *, always_keep_final: bool = True) -> Project: ...
     def get_generate_intermediate_results_job_types(self) -> List[str]: ...
+    def star_project(self, project_uid: str, /) -> Project: ...
+    def unstar_project(self, project_uid: str, /) -> Project: ...
 
 class ExposuresNamespace(APINamespace):
     """
@@ -1173,6 +1306,7 @@ class APIClient:
     """
 
     config: ConfigNamespace
+    files: FilesNamespace
     instance: InstanceNamespace
     cache: CacheNamespace
     users: UsersNamespace
@@ -1217,6 +1351,11 @@ class APIClient:
         ...
     def keycloak_login(self, *, keycloak_access_token: str) -> Token: ...
     def verify_app_session(self, body: AppSession) -> str: ...
+    def job_register(self) -> JobRegister:
+        """
+        Get a specification of available job types and their schemas.
+        """
+        ...
     def start_and_migrate(self, *, license_id: str) -> Any:
         """
         Start up CryoSPARC for the first time and perform database migrations
