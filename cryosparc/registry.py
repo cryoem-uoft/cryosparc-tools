@@ -5,11 +5,10 @@ JSON responses. Used for either cryosparc-tools or cryosparc models.
 
 import re
 import warnings
-from collections.abc import Iterable
 from enum import Enum
 from inspect import isclass
 from types import ModuleType
-from typing import Dict, Optional, Type
+from typing import Dict, Iterable, Optional, Type
 
 from pydantic import BaseModel
 
