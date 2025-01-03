@@ -101,7 +101,7 @@ class APINamespace:
                 else:
                     streamable = None
 
-                if streamable:
+                if streamable is not None:
                     if not isinstance(streamable, Streamable):
                         raise TypeError(f"[API] {func_name}() invalid argument {streamable}; expected Streamable type")
                     request_body = self._prepare_request_stream(streamable)
