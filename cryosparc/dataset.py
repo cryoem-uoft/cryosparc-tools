@@ -722,6 +722,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncBinaryIO, *, media_type: Optional[str] = None):
+        prefix = await stream.read(6)
+        if prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+            raise DatasetLoadError(
+                f"Incorrect async dataset stream format {prefix}. "
+                "Only CSDAT-formatted datasets may be loaded as async streams"
+            )
         headersize = u32intle(await stream.read(4))
         header = decode_dataset_header(await stream.read(headersize))
 

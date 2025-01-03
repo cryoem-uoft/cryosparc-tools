@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Type,
 import numpy as n
 
 from .core import Data, DsetType
+from .errors import DatasetLoadError
 from .spec import DType, Field
 
 if TYPE_CHECKING:
@@ -168,4 +169,6 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
             compressed_fields=compressed_fields,
         )
     except Exception as e:
-        raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e
+        raise DatasetLoadError(
+            f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}"
+        ) from e

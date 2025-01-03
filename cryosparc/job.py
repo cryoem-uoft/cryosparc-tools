@@ -1516,8 +1516,8 @@ class ExternalJobController(JobController):
 
         """
         error = ""
-        self.start("running")
         try:
+            self.start("running")
             yield self
         except Exception:
             error = traceback.format_exc()
