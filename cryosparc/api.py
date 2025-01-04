@@ -4,7 +4,7 @@ import urllib.parse
 import warnings
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Dict, Iterator, Optional, Tuple, TypedDict, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, TypedDict, Union
 
 import httpx
 
@@ -16,7 +16,7 @@ from .stream import Streamable
 
 _BASE_RESPONSE_TYPES = {"string", "integer", "number", "boolean"}
 
-Auth = Union[str, tuple[str, str]]
+Auth = Union[str, Tuple[str, str]]
 """
 Auth token or email/password.
 """
@@ -238,7 +238,7 @@ class APIClient(APINamespace):
         base_url: Optional[str] = None,
         *,
         auth: Optional[Auth] = None,  # token or email/password
-        headers: Dict[str, str] | None = None,
+        headers: Union[Dict[str, str], None] = None,
         timeout: float = 300,
         http_client: Optional[httpx.Client] = None,
     ):
@@ -333,7 +333,7 @@ class APIClient(APINamespace):
         self._client.headers["Authorization"] = f"{token.token_type.title()} {token.access_token}"
 
 
-def sort_params_schema(path: str, param_schema: list[dict]):
+def sort_params_schema(path: str, param_schema: List[dict]):
     """
     Sort the OpenAPI endpoint parameters schema in order that path params appear
     in the given URI.

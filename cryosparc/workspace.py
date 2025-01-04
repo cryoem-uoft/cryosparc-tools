@@ -34,7 +34,7 @@ class WorkspaceController(Controller[Workspace]):
         #cryosparc.workspace.Workspace.refresh
     """
 
-    def __init__(self, cs: "CryoSPARC", workspace: Union[tuple[str, str], Workspace]) -> None:
+    def __init__(self, cs: "CryoSPARC", workspace: Union[Tuple[str, str], Workspace]) -> None:
         self.cs = cs
         if isinstance(workspace, tuple):
             self.project_uid, self.uid = workspace
