@@ -3,17 +3,7 @@
 from typing import Literal
 
 LoggingService = Literal[
-    "app",
-    "database",
-    "cache",
-    "api",
-    "scheduler",
-    "command_core",
-    "command_rtp",
-    "command_vis",
-    "app_api",
-    "supervisord",
-    "update",
+    "app", "database", "cache", "api", "scheduler", "command_vis", "app_api", "supervisord", "update"
 ]
 """
 Same as Service, but also includes supervisord and update logs.

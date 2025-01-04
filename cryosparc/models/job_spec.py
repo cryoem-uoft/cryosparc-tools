@@ -5,17 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, RootModel
 
 BuilderTag = Literal[
-    "new",
-    "beta",
-    "legacy",
-    "interactive",
-    "gpuEnabled",
-    "multiGpu",
-    "utility",
-    "import",
-    "live",
-    "benchmark",
-    "wrapper",
+    "new", "interactive", "gpuEnabled", "multiGpu", "utility", "import", "live", "benchmark", "wrapper"
 ]
 """
 Visual indicators for jobs in the builder.

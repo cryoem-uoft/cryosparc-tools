@@ -85,7 +85,12 @@ class FilesNamespace(APINamespace):
     """
     Methods available in api.files, e.g., api.files.find(...)
     """
-    def find(self, *, project_uid: Optional[str] = ..., job_uid: Optional[str] = ...) -> List[GridFSFile]: ...
+    def find(self, *, project_uid: Optional[str] = ..., job_uid: Optional[str] = ...) -> List[GridFSFile]:
+        """
+        List assets associated with projects or jobs on the given instance.
+        Typically returns files creating during job runs, including plots and metadata.
+        """
+        ...
     def upload(
         self,
         stream: Stream,
@@ -98,9 +103,24 @@ class FilesNamespace(APINamespace):
             Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"],
             None,
         ] = ...,
-    ) -> GridFSAsset: ...
-    def download(self, id: str = "000000000000000000000000", /) -> Stream: ...
-    def find_one(self, id: str = "000000000000000000000000", /) -> GridFSFile: ...
+    ) -> GridFSAsset:
+        """
+        Upload a new assest associated with the given project/job. When calling
+        via HTTP, provide the contents of the file in the request body. At least
+        one of filename or format must be provided.
+        """
+        ...
+    def download(self, id: str = "000000000000000000000000", /) -> Stream:
+        """
+        Download the asset with the given ID. When calling via HTTP, file contents
+        will be in the response body.
+        """
+        ...
+    def find_one(self, id: str = "000000000000000000000000", /) -> GridFSFile:
+        """
+        Retrive the full details for an asset with the given ID.
+        """
+        ...
 
 class InstanceNamespace(APINamespace):
     """
@@ -448,7 +468,7 @@ class JobsNamespace(APINamespace):
         self, project_uid: str, job_uid: str, output_name: str, /, dtype_params: dict = {}
     ) -> List[Tuple[str, str]]:
         """
-        Expected dataset column definitions for given job output.
+        Expected dataset column definitions for given job output, excluding passthroughs.
         """
         ...
     def get_output_spec(self, project_uid: str, job_uid: str, output_name: str, /) -> OutputSpec: ...
@@ -469,7 +489,7 @@ class JobsNamespace(APINamespace):
     ) -> Job:
         """
         Create an external result with the given specification. Returns an external
-        job with the given output ready to be saved.
+        job with the given output ready to be saved. Used with cryosparc-tools
         """
         ...
     def get_status(self, project_uid: str, job_uid: str, /) -> JobStatus: ...
@@ -512,8 +532,8 @@ class JobsNamespace(APINamespace):
         input_name: str,
         /,
         *,
-        slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
         force_join: bool = False,
+        slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
     ) -> Dataset:
         """
         Load job input dataset. Raises exception if no inputs are connected.
@@ -526,8 +546,8 @@ class JobsNamespace(APINamespace):
         output_name: str,
         /,
         *,
-        slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
         version: Union[int, str] = "F",
+        slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
     ) -> Dataset:
         """
         Load job output dataset. Raises exception if output is empty or does not exists.
@@ -1038,7 +1058,8 @@ class ProjectsNamespace(APINamespace):
         ...
     def ls(self, project_uid: str, /, *, recursive: bool = False, path: str = "") -> List[str]:
         """
-        List files in the project directory.
+        List files in the project directory. Note that enabling recursive will
+        include parent directories in the result.
         """
         ...
     def get_job_register(self, project_uid: str, /) -> JobRegister: ...

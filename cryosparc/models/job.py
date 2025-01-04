@@ -141,7 +141,6 @@ class Job(BaseModel):
     last_exported_location: Optional[str] = None
     last_exported_version: Optional[str] = None
     tags: List[str] = []
-    imported: bool = False
     imported_at: Optional[datetime.datetime] = None
     deleted_at: Optional[datetime.datetime] = None
     starred_by: List[str] = []
