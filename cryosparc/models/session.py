@@ -221,7 +221,7 @@ class Session(BaseModel):
     workspace_stats: WorkspaceStats = WorkspaceStats()
     notes: str = ""
     notes_lock: Optional[str] = None
-    imported: bool = False
+    imported_at: Optional[datetime.datetime] = None
     workspace_type: str = "live"
     session_uid: str
     session_dir: str
