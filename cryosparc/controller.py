@@ -6,7 +6,7 @@ Core base classes and utilities for other cryosparc-tools modules.
 # CryoSPARC should not depend on anything in this file.
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Generic, List, Literal, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar, Union
 
 from pydantic import BaseModel
 
@@ -38,7 +38,7 @@ class Controller(ABC, Generic[M]):
         return self._model
 
     @property
-    def doc(self) -> dict[str, Any]:
+    def doc(self) -> Dict[str, Any]:
         warnings.warn(".doc attribute is deprecated. Use .model attribute instead.", DeprecationWarning)
         return self.model.model_dump(by_alias=True)
 

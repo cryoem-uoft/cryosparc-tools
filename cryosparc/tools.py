@@ -24,7 +24,7 @@ import re
 import tempfile
 import warnings
 from contextlib import contextmanager
-from functools import cache
+from functools import lru_cache
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Optional, Tuple, Union, get_args
@@ -141,13 +141,13 @@ class CryoSPARC:
 
     def __init__(
         self,
-        base_url: str | None = os.getenv("CRYOSPARC_BASE_URL"),
+        base_url: Optional[str] = os.getenv("CRYOSPARC_BASE_URL"),
         *,
-        license: str | None = os.getenv("CRYOSPARC_LICENSE_ID"),
-        host: str | None = os.getenv("CRYOSPARC_MASTER_HOSTNAME"),
-        base_port: int | str | None = os.getenv("CRYOSPARC_BASE_PORT"),
-        email: str | None = os.getenv("CRYOSPARC_EMAIL"),
-        password: str | None = os.getenv("CRYOSPARC_PASSWORD"),
+        license: Optional[str] = os.getenv("CRYOSPARC_LICENSE_ID"),
+        host: Optional[str] = os.getenv("CRYOSPARC_MASTER_HOSTNAME"),
+        base_port: Union[int, str, None] = os.getenv("CRYOSPARC_BASE_PORT"),
+        email: Optional[str] = os.getenv("CRYOSPARC_EMAIL"),
+        password: Optional[str] = os.getenv("CRYOSPARC_PASSWORD"),
         timeout: int = 300,
     ):
         if license:
@@ -246,7 +246,7 @@ class CryoSPARC:
         """
         return self.api.resources.find_targets(lane=lane)
 
-    @cache
+    @lru_cache(maxsize=1)
     def get_job_register(self) -> JobRegister:
         return self.api.job_register()
 
