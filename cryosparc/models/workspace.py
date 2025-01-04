@@ -39,10 +39,11 @@ class Workspace(BaseModel):
     workspace_stats: WorkspaceStats = WorkspaceStats()
     notes: str = ""
     notes_lock: Optional[str] = None
-    imported: bool = False
+    imported_at: Optional[datetime.datetime] = None
     workspace_type: Literal["base", "live"] = "base"
 
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:
 
+        def __init__(self, **kwargs: Any) -> None: ...
         def __getattr__(self, key: str) -> Any: ...

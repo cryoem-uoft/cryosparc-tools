@@ -4,11 +4,11 @@ JSON responses. Used for either cryosparc-tools or cryosparc models.
 """
 
 import re
-from collections.abc import Iterable
+import warnings
 from enum import Enum
 from inspect import isclass
 from types import ModuleType
-from typing import Dict, Optional, Type
+from typing import Dict, Iterable, Optional, Type
 
 from pydantic import BaseModel
 
@@ -80,8 +80,6 @@ def model_for_ref(schema_ref: str) -> Optional[Type]:
 
     Returns None if ref is not found.
     """
-    import warnings
-
     components = schema_ref.split("/")
     if len(components) != 4 or components[0] != "#" or components[1] != "components" or components[2] != "schemas":
         warnings.warn(f"Warning: Invalid schema reference {schema_ref}", stacklevel=2)

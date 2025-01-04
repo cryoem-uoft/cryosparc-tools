@@ -24,11 +24,13 @@ class BrowseFileResponse(BaseModel):
     type: str
 
 
-class DeleteProjectJobPreview(BaseModel):
+class DeleteJobPreview(BaseModel):
     project_uid: str
     uid: str
     workspace_uids: List[str]
     status: str
+    title: str
+    type: str
 
 
 class DeleteProjectWorkspacePreview(BaseModel):
@@ -38,13 +40,12 @@ class DeleteProjectWorkspacePreview(BaseModel):
 
 
 class DeleteProjectPreview(BaseModel):
-    jobs: List[DeleteProjectJobPreview]
+    jobs: List[DeleteJobPreview]
     workspaces: List[DeleteProjectWorkspacePreview]
 
 
 class DeleteWorkspacePreview(BaseModel):
-    jobs_in_one_workspace: List[str]
-    jobs_in_multiple_workspaces: List[str]
+    jobs: List[DeleteJobPreview]
 
 
 class GetFinalResultsResponse(BaseModel):

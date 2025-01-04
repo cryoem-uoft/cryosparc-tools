@@ -5,7 +5,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from .mongo import GridFSAsset
+from .file import GridFSAsset
 
 
 class CheckpointEvent(BaseModel):

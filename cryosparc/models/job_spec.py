@@ -5,17 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, RootModel
 
 BuilderTag = Literal[
-    "new",
-    "beta",
-    "legacy",
-    "interactive",
-    "gpuEnabled",
-    "multiGpu",
-    "utility",
-    "import",
-    "live",
-    "benchmark",
-    "wrapper",
+    "new", "interactive", "gpuEnabled", "multiGpu", "utility", "import", "live", "benchmark", "wrapper"
 ]
 """
 Visual indicators for jobs in the builder.
@@ -136,6 +126,7 @@ class Params(BaseModel):
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:
 
+        def __init__(self, **kwargs: Any) -> None: ...
         def __getattr__(self, key: str) -> Any: ...
 
 
@@ -244,3 +235,10 @@ class JobRegisterError(BaseModel):
     type: str
     message: str
     traceback: str
+
+
+class ResourceSpec(BaseModel):
+    cpu: int = 1
+    gpu: int = 0
+    ram: int = 1
+    ssd: bool = False

@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field
 
@@ -9,31 +9,31 @@ from .session_params import LivePreprocessingParams
 
 
 class CTF(BaseModel):
-    accel_kv: float = 0
-    amp_contrast: float = 0
-    cross_corr_ctffind4: float = 0
-    cs_mm: float = 0
-    ctf_fit_to_A: float = 0
-    df1_A: float = 0
-    df2_A: float = 0
-    df_angle_rad: float = 0
-    exp_group_id: int = 0
-    fig_of_merit_gctf: float = 0
-    path: str = "."
-    phase_shift_rad: float = 0
-    type: str = ""
+    accel_kv: float
+    amp_contrast: float
+    cross_corr_ctffind4: float
+    cs_mm: float
+    ctf_fit_to_A: float
+    df1_A: float
+    df2_A: float
+    df_angle_rad: float
+    exp_group_id: int
+    fig_of_merit_gctf: float
+    path: str
+    phase_shift_rad: float
+    type: str
 
 
 class CtfStats(BaseModel):
-    cross_corr: int = 0
-    ctf_fit_to_A: float = 0
-    df_range: List[Any] = [0, 0]
-    df_tilt_normal: List[Any] = [0, 0]
-    diag_image_path: str = "."
-    fit_data_path: str = "."
-    ice_thickness_rel: float = 0
-    spectrum_dim: int = 0
-    type: str = ""
+    cross_corr: int
+    ctf_fit_to_A: float
+    df_range: List[Any]
+    df_tilt_normal: List[Any]
+    diag_image_path: str
+    fit_data_path: str
+    ice_thickness_rel: float
+    spectrum_dim: int
+    type: str
 
 
 class ECLExposureProperties(BaseModel):
@@ -41,61 +41,61 @@ class ECLExposureProperties(BaseModel):
 
 
 class StatBlob(BaseModel):
-    binfactor: int = 0
-    idx: int = 0
-    path: str = "."
-    psize_A: float = 0
-    shape: List[int] = [0, 0]
+    binfactor: int
+    idx: int
+    path: str
+    psize_A: float
+    shape: Tuple[int, int]
 
 
 class GainRefBlob(BaseModel):
-    flip_x: int = 0
-    flip_y: int = 0
-    idx: int = 0
-    path: str = "."
-    rotate_num: int = 0
-    shape: List[int] = []
+    flip_x: int
+    flip_y: int
+    idx: int
+    path: str
+    rotate_num: int
+    shape: List[int]
 
 
 class MicrographBlob(BaseModel):
-    format: str = ""
-    idx: int = 0
-    is_background_subtracted: bool = False
-    path: str = "."
-    psize_A: float = 0
-    shape: List[int] = [0, 0]
+    format: str
+    idx: int
+    is_background_subtracted: bool
+    path: str
+    psize_A: float
+    shape: List[int]
 
 
 class MovieBlob(BaseModel):
-    format: str = ""
+    format: str
     has_defect_file: bool = False
     import_sig: int = 0
-    is_gain_corrected: bool = False
-    path: str = "."
-    psize_A: float = 0
-    shape: List[int] = []
+    is_gain_corrected: bool
+    path: str
+    psize_A: float
+    shape: List[int]
 
 
 class MScopeParams(BaseModel):
-    accel_kv: float = 0
+    accel_kv: float
     beam_shift: List[int] = [0, 0]
     beam_shift_known: int = 0
-    cs_mm: float = 0
+    cs_mm: float
     defect_path: Optional[str] = None
-    exp_group_id: int = 0
+    exp_group_id: int
     neg_stain: int = 0
-    phase_plate: int = 0
+    phase_plate: int
     total_dose_e_per_A2: float = 0
 
 
 class MotionData(BaseModel):
-    frame_end: int = 0
-    frame_start: int = 0
-    idx: int = 0
-    path: str = "."
-    psize_A: float = 0
-    type: str = ""
-    zero_shift_frame: int = 0
+    frame_end: int
+    frame_start: int
+    idx: int
+    path: str
+    psize_A: float
+    type: str
+    zero_shift_frame: int
 
 
 class ExposureElement(BaseModel):

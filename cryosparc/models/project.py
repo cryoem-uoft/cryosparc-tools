@@ -52,13 +52,14 @@ class Project(BaseModel):
     generate_intermediate_results_settings: GenerateIntermediateResultsSettings = GenerateIntermediateResultsSettings()
     last_exp_group_id_used: Optional[int] = None
     develop_run_as_user: Optional[str] = None
-    imported: bool = False
+    imported_at: Optional[datetime.datetime] = None
     import_status: Optional[Literal["importing", "complete", "failed"]] = None
     project_stats: ProjectStats = ProjectStats()
     last_archived_version: Optional[str] = None
     last_detached_version: Optional[str] = None
     is_cleanup_in_progress: bool = False
     tags: List[str] = []
+    starred_by: List[str] = []
 
 
 class ProjectSymlink(BaseModel):
