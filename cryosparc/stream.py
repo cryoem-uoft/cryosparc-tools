@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import PurePath
 from typing import (
     IO,
+    TYPE_CHECKING,
     AsyncIterator,
     Awaitable,
     BinaryIO,
@@ -14,7 +15,8 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+if TYPE_CHECKING:
+    from typing_extensions import Buffer, Self
 
 from .constants import EIGHT_MIB
 from .util import bopen
@@ -22,6 +24,10 @@ from .util import bopen
 
 class AsyncBinaryIO(Protocol):
     def read(self, size: int = ..., /) -> Awaitable[bytes]: ...
+
+
+class AsyncWritableIO(Protocol):
+    def write(self, b: "Buffer", /) -> Awaitable[int]: ...
 
 
 class AsyncBinaryIterator(Protocol):
@@ -188,6 +194,19 @@ class Streamable(ABC):
 
     def dumps(self) -> bytes:
         return b"".join(self.stream())
+
+    async def adump(self, file: Union[IO[bytes], AsyncWritableIO]):
+        async for chunk in self.astream():
+            result = file.write(chunk)
+            if isinstance(result, Awaitable):
+                await result
+
+    async def adumps(self) -> bytes:
+        from io import BytesIO
+
+        data = BytesIO()
+        await self.adump(data)
+        return data.getvalue()
 
 
 class Stream(Streamable):
