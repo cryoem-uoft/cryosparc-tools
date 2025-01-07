@@ -25,6 +25,7 @@ import tempfile
 import warnings
 from contextlib import contextmanager
 from functools import lru_cache
+from hashlib import sha256
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Optional, Tuple, Union, get_args
@@ -33,18 +34,18 @@ import numpy as n
 
 from . import __version__, model_registry, mrc, registry, stream_registry
 from .api import APIClient
-from .controller import OutputSlotSpec, as_output_slot
+from .controller import as_output_slot
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
 from .job import ExternalJobController, JobController
 from .models.file import GridFSFile
 from .models.job_register import JobRegister
-from .models.job_spec import Category, OutputSlot, OutputSpec
+from .models.job_spec import Category, OutputSpec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget
 from .models.user import User
 from .project import ProjectController
 from .row import R
-from .spec import Datatype, JobSection
+from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
 from .util import padarray, print_table, trimarray
 from .workspace import WorkspaceController
@@ -152,7 +153,9 @@ class CryoSPARC:
     ):
         if license:
             warnings.warn(
-                "CryoSPARC license argument is deprecated and will be removed in a future release", DeprecationWarning
+                "CryoSPARC license argument is deprecated and will be removed in a future release",
+                DeprecationWarning,
+                stacklevel=2,
             )
             if not LICENSE_REGEX.fullmatch(license):
                 raise ValueError(f"Invalid CryoSPARC license ID {license}")
@@ -160,7 +163,7 @@ class CryoSPARC:
         if host and base_port:
             if base_url:
                 raise TypeError("Cannot specify host and base_port when base_url is specified")
-            self.base_url = f"http://{host}:{int(base_port) + 4}"  # TODO: correct base port
+            self.base_url = f"http://{host}:{int(base_port) + 2}"
         elif base_url:
             self.base_url = f"{base_url}/api"  # app forwards to api service
         else:
@@ -168,14 +171,14 @@ class CryoSPARC:
 
         auth = None
         if email and password:
-            auth = (email, password)
+            auth = (email, sha256(password.encode()).hexdigest())
         elif license:
-            auth = ("cryosparc", license)
+            auth = ("cryosparc", sha256(license.encode()).hexdigest())
         # TODO: also load auth from config profile
         else:
             raise ValueError(
                 "CryoSPARC authentication not provided. "
-                "Please see documentation at https://tools.cryosparc.com/ for instructions."
+                "Please see documentation at https://tools.cryosparc.com for instructions."
             )
 
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
@@ -259,7 +262,7 @@ class CryoSPARC:
             list[JobSection]: List of job section dictionaries. Job types
                 are listed in the ``"contains"`` key in each dictionary.
         """
-        warnings.warn("Use get_job_register instead", DeprecationWarning)
+        warnings.warn("Use get_job_register instead", DeprecationWarning, stacklevel=2)
         job_register = self.get_job_register()
         job_types_by_category = {
             category: [spec.type for spec in job_register.specs if spec.category == category]
@@ -315,9 +318,7 @@ class CryoSPARC:
         Returns:
             Project: project instance
         """
-        project = ProjectController(self, project_uid)
-        project.refresh()
-        return project
+        return ProjectController(self, project_uid)
 
     def find_workspace(self, project_uid: str, workspace_uid: str) -> WorkspaceController:
         """
@@ -331,8 +332,7 @@ class CryoSPARC:
         Returns:
             WorkspaceController: accessor instance
         """
-        workspace = WorkspaceController(self, (project_uid, workspace_uid))
-        return workspace.refresh()
+        return WorkspaceController(self, (project_uid, workspace_uid))
 
     def find_job(self, project_uid: str, job_uid: str) -> JobController:
         """
@@ -345,9 +345,7 @@ class CryoSPARC:
         Returns:
             JobController: job instance
         """
-        job = JobController(self, (project_uid, job_uid))
-        job.refresh()
-        return job
+        return JobController(self, (project_uid, job_uid))
 
     def find_external_job(self, project_uid: str, job_uid: str) -> ExternalJobController:
         """
@@ -365,11 +363,7 @@ class CryoSPARC:
         Returns:
             ExternalJobController: accessor instance
         """
-        job = ExternalJobController(self, (project_uid, job_uid))
-        job.refresh()
-        if job.model.spec.type != "snowflake":
-            raise TypeError(f"Job {project_uid}-{job_uid} is not an external job")
-        return job
+        return ExternalJobController(self, (project_uid, job_uid))
 
     def create_workspace(self, project_uid: str, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
@@ -393,8 +387,8 @@ class CryoSPARC:
         type: str,
         connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> JobController:
         """
         Create a new job with the given type. Use `CryoSPARC.get_job_register`_
@@ -435,16 +429,7 @@ class CryoSPARC:
         .. _CryoSPARC.get_job_register:
             #cryosparc.tools.CryoSPARC.get_job_register
         """
-        conn = {k: (v if isinstance(v, list) else [v]) for k, v in connections.items()}
-        conn = {k: [".".join(i) for i in v] for k, v in conn.items()}
-        job = self.api.jobs.create(
-            project_uid,
-            workspace_uid,
-            type=type,
-            title=title or "",
-            description=desc or "",
-            params=params,
-        )
+        job = self.api.jobs.create(project_uid, workspace_uid, params=params, type=type, title=title, description=desc)
         for input_name, connection in connections.items():
             connection = [connection] if isinstance(connection, tuple) else connection
             for source_job_uid, source_output_name in connection:
@@ -461,8 +446,8 @@ class CryoSPARC:
         self,
         project_uid: str,
         workspace_uid: str,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> ExternalJobController:
         """
         Add a new External job to this project to save generated outputs to.
@@ -478,13 +463,7 @@ class CryoSPARC:
             Returns:
                 ExternalJob: created external job instance
         """
-        job = self.api.jobs.create(
-            project_uid,
-            workspace_uid,
-            type="snowflake",
-            title=title or "",
-            description=desc or "",
-        )
+        job = self.api.jobs.create(project_uid, workspace_uid, type="snowflake", title=title, description=desc)
         return ExternalJobController(self, job)
 
     def save_external_result(
@@ -494,10 +473,10 @@ class CryoSPARC:
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[OutputSlotSpec]] = None,
+        slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> str:
         """
         Save the given result dataset to the project. Specify at least the
@@ -553,14 +532,13 @@ class CryoSPARC:
             type (Datatype): Type of output dataset.
             name (str, optional): Name of output on created External job. Same
                 as type if unspecified. Defaults to None.
-            slots (list[OutputSlot], optional): List of slots expected to
+            slots (list[SlotSpec], optional): List of slots expected to
                 be created for this output such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to None.
             passthrough (tuple[str, str], optional): Indicates that this output
                 inherits slots from the specified output. e.g.,
                 ``("J1", "particles")``. Defaults to None.
-
             title (str, optional): Human-readable title for this output.
                 Defaults to None.
             desc (str, optional): Markdown description for this output. Defaults
@@ -579,10 +557,7 @@ class CryoSPARC:
         if slots is None:
             slots = list(prefixes)
         elif any(isinstance(s, dict) and "prefix" in s for s in slots):
-            warnings.warn(
-                f"Dictionary slot specification is deprecated. Use list of {OutputSlot} instead.",
-                DeprecationWarning,
-            )
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
 
         # Normalize slots to OutputSlot or strings
         output_slots = [s if isinstance(s, str) else as_output_slot(s) for s in slots]
@@ -591,25 +566,22 @@ class CryoSPARC:
         if missing_slot_names:
             raise ValueError(f"Given dataset missing required slots: {', '.join(missing_slot_names)}")
 
+        if not name:
+            name = type
+        if not title:
+            title = name.replace("_", " ").title()
+
         # Find the most recent workspace or create a new one if the project is empty
         if workspace_uid is None:
             # TODO: limit find to one workspace
             workspaces = self.api.workspaces.find(project_uid=[project_uid], order=-1)
-            workspace = (
-                workspaces[0] if workspaces else self.api.workspaces.create(project_uid, title=title or "Results")
-            )
+            workspace = workspaces[0] if workspaces else self.api.workspaces.create(project_uid, title=title)
             workspace_uid = workspace.uid
 
-        name = name or type
         job = self.api.jobs.create_external_result(
             project_uid,
             workspace_uid,
-            OutputSpec(
-                type=type,
-                title=title or name.replace("_", " ").title(),
-                description=desc or "",
-                slots=output_slots,
-            ),
+            OutputSpec(type=type, title=title, description=desc, slots=output_slots),
             name=name,
             passthrough=passthrough,
         )

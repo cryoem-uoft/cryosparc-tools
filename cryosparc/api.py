@@ -225,7 +225,7 @@ class APINamespace:
             with ctx as res:
                 return self._handle_response(_schema, res)
         except httpx.HTTPStatusError as err:
-            raise APIError("received error response", res=err.response)
+            raise APIError("received error response", res=err.response) from err
 
 
 class APIClient(APINamespace):
@@ -404,8 +404,8 @@ def _decode_json_response(value: Any, schema: dict):
 
     # Recursively decode list or tuple
     if "type" in schema and schema["type"] == "array":
-        typ, items_key = (tuple, "prefixItems") if "prefixItems" in schema else (list, "items")
-        return typ(_decode_json_response(item, schema[items_key]) for item in value)
+        collection_type, items_key = (tuple, "prefixItems") if "prefixItems" in schema else (list, "items")
+        return collection_type(_decode_json_response(item, schema[items_key]) for item in value)
 
     # Recursively decode object
     if "type" in schema and schema["type"] == "object":

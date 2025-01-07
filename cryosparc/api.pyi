@@ -501,30 +501,6 @@ class JobsNamespace(APINamespace):
         ...
     def set_param(self, project_uid: str, job_uid: str, param: str, /, *, value: Any) -> Job: ...
     def clear_param(self, project_uid: str, job_uid: str, param: str, /) -> Job: ...
-    def connect(
-        self, project_uid: str, job_uid: str, input_name: str, /, *, source_job_uid: str, source_output_name: str
-    ) -> Job: ...
-    def disconnect_all(self, project_uid: str, job_uid: str, input_name: str, /) -> Job: ...
-    def disconnect(self, project_uid: str, job_uid: str, input_name: str, connection_index: int, /) -> Job: ...
-    def find_output_result(
-        self, project_uid: str, job_uid: str, output_name: str, result_name: str, /
-    ) -> OutputResult: ...
-    def connect_result(
-        self,
-        project_uid: str,
-        job_uid: str,
-        input_name: str,
-        connection_index: int,
-        result_name: str,
-        /,
-        *,
-        source_job_uid: str,
-        source_output_name: str,
-        source_result_name: str,
-    ) -> Job: ...
-    def disconnect_result(
-        self, project_uid: str, job_uid: str, input_name: str, connection_index: int, result_name: str, /
-    ) -> Job: ...
     def load_input(
         self,
         project_uid: str,
@@ -568,6 +544,30 @@ class JobsNamespace(APINamespace):
         Save job output dataset. Job must be running or waiting.
         """
         ...
+    def connect(
+        self, project_uid: str, job_uid: str, input_name: str, /, *, source_job_uid: str, source_output_name: str
+    ) -> Job: ...
+    def disconnect_all(self, project_uid: str, job_uid: str, input_name: str, /) -> Job: ...
+    def disconnect(self, project_uid: str, job_uid: str, input_name: str, connection_index: int, /) -> Job: ...
+    def find_output_result(
+        self, project_uid: str, job_uid: str, output_name: str, result_name: str, /
+    ) -> OutputResult: ...
+    def connect_result(
+        self,
+        project_uid: str,
+        job_uid: str,
+        input_name: str,
+        connection_index: int,
+        result_name: str,
+        /,
+        *,
+        source_job_uid: str,
+        source_output_name: str,
+        source_result_name: str,
+    ) -> Job: ...
+    def disconnect_result(
+        self, project_uid: str, job_uid: str, input_name: str, connection_index: int, result_name: str, /
+    ) -> Job: ...
     def enqueue(
         self,
         project_uid: str,

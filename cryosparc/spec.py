@@ -183,20 +183,96 @@ KNOWN_CONTENT_TYPES: Dict[AnyFormat, AnyContentType] = {
 }
 
 
+# Slot is defined in two classes like this because it's the only way to
+# make the ``required`` key optional.
+class _Slot(TypedDict):
+    """
+    :meta private:
+    """
+
+    name: str
+    dtype: str
+
+
+class Slot(_Slot, total=False):
+    """
+    Full slot dictionary specification type for items in the slots=... argument
+    when creating inputs or outputs. e.g., ``{"name": "ctf", "dtype": "ctf"}``
+    or ``{"name": "background_blob", "dtype": "stat_blob", "required": False}``
+
+    See `Slot`_ for details.
+
+    Attributes:
+        name (str): where to find field in a corresponding .cs file e.g.,
+            ``"background_blob"``, ``"ctf"``, ``"alignments_class_0"``
+        dtype (str): name of known data type. e.g., ``"stat_blob"``, ``"ctf"``,
+            ``"alignments2D"``.
+        required (bool, optional): Whether this slot is required. Applies to
+            input specs only. Defaults to True.
+
+    .. _Slot:
+        #cryosparc.spec.Slot
+
+    """
+
+    required: bool
+
+
 class Datafield(TypedDict):
     """
-    Deprecated. Use `InputSlot`_ or `OutputSlot`_ instead.
+    Deprecated. Use `Slot`_ instead.
 
-    .. _InputSlot:
-        models/job_spec.html#cryosparc.models.job_spec.InputSlot
-
-    .. _OutputSlot:
-        models/job_spec.html#cryosparc.models.job_spec.OutputSlot
+    .. _Slot:
+        #cryosparc.spec.Slot
     """
 
     dtype: str
     prefix: str
     required: bool
+
+
+SlotSpec = Union[str, Slot, Datafield]
+"""
+A result slot specification for items in the slots=... argument when creating
+inputs or outputs. Could be either a string representing a name and datatype or
+a full dictionary specification.
+
+A string in the format ``"<slot>"`` is a shortcut for
+``{"name": "<slot>", "dtype": "<slot>", "required": True}``.
+
+A string in the format ``"?<slot>"`` is a shortcut for
+``{"name": "<slot>", "dtype": "<slot>", "required": False}``.
+
+
+Example strings::
+
+    "ctf"
+    "micrograph_blob"
+    "?background_blob"
+
+Example equivalent full specifications::
+
+    {"name": "ctf", "dtype": "ctf"}
+    {"name": "micrograph_blob", "dtype": "micrograph_blob", "required": True}
+    {"name": "background_blob", "dtype": "stat_blob", "required": False}
+
+
+Use the full specification when the ``dtype`` cannot be inferred from the
+``name`` string because it is dynamic, e.g., for slot named
+``"alignments_class_X"``, where ``X`` is a class number with dtype
+``"alignments2D"``. e.g.::
+
+    [
+        "blob",
+        "?locations",
+        {"name": "alignments_class_0", "dtype": "alignments2D"},
+        {"name": "alignments_class_1", "dtype": "alignments2D", "required": False},
+        {"name": "alignments_class_2", "dtype": "alignments2D", "required": False},
+    ]
+
+Note that the ``required`` key only applies to input slots.
+
+"""
 
 
 class JobSection(TypedDict):

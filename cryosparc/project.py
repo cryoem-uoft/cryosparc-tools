@@ -1,12 +1,13 @@
+import warnings
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from .controller import Controller, OutputSlotSpec
+from .controller import Controller, as_output_slot
 from .dataset import DEFAULT_FORMAT, Dataset
 from .job import ExternalJobController, JobController
 from .models.project import Project
 from .row import R
-from .spec import Datatype
+from .spec import Datatype, SlotSpec
 from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
@@ -38,10 +39,10 @@ class ProjectController(Controller[Project]):
         self.cs = cs
         if isinstance(project, str):
             self.uid = project
-            self._model = None
+            self.refresh()
         else:
             self.uid = project.uid
-            self._model = project
+            self.model = project
 
     def refresh(self):
         """
@@ -50,7 +51,7 @@ class ProjectController(Controller[Project]):
         Returns:
             Project: self
         """
-        self._model = self.cs.api.projects.find_one(self.uid)
+        self.model = self.cs.api.projects.find_one(self.uid)
         return self
 
     def dir(self) -> PurePosixPath:
@@ -74,8 +75,7 @@ class ProjectController(Controller[Project]):
         Returns:
             Workspace: accessor instance
         """
-        workspace = WorkspaceController(self.cs, (self.uid, workspace_uid))
-        return workspace.refresh()
+        return WorkspaceController(self.cs, (self.uid, workspace_uid))
 
     def find_job(self, job_uid: str) -> JobController:
         """
@@ -88,9 +88,7 @@ class ProjectController(Controller[Project]):
         Returns:
             Job: accessor instance
         """
-        job = JobController(self.cs, (self.uid, job_uid))
-        job.refresh()
-        return job
+        return JobController(self.cs, (self.uid, job_uid))
 
     def find_external_job(self, job_uid: str) -> ExternalJobController:
         """
@@ -129,8 +127,8 @@ class ProjectController(Controller[Project]):
         type: str,
         connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> JobController:
         """
         Create a new job with the given type. Use `CryoSPARC.get_job_sections`_
@@ -179,8 +177,8 @@ class ProjectController(Controller[Project]):
     def create_external_job(
         self,
         workspace_uid: str,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> ExternalJobController:
         """
         Add a new External job to this project to save generated outputs to.
@@ -203,10 +201,10 @@ class ProjectController(Controller[Project]):
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[OutputSlotSpec]] = None,
+        slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> str:
         """
         Save the given result dataset to the project. Specify at least the
@@ -279,6 +277,9 @@ class ProjectController(Controller[Project]):
         Returns:
             str: UID of created job where this output was saved
         """
+        if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+            slots = [as_output_slot(slot) for slot in slots]  # type: ignore
         return self.cs.save_external_result(
             self.uid,
             workspace_uid,

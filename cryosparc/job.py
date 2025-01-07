@@ -25,12 +25,12 @@ from typing import (
     overload,
 )
 
-from .controller import Controller, InputSlotSpec, OutputSlotSpec, as_input_slot, as_output_slot
+from .controller import Controller, as_input_slot, as_output_slot
 from .dataset import DEFAULT_FORMAT, Dataset
 from .errors import ExternalJobError
 from .models.file import GridFSAsset, GridFSFile
 from .models.job import Job, JobStatus
-from .models.job_spec import InputSlot, InputSpec, OutputSlot, OutputSpec
+from .models.job_spec import InputSpec, OutputSpec
 from .spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
@@ -39,6 +39,7 @@ from .spec import (
     Datatype,
     ImageFormat,
     LoadableSlots,
+    SlotSpec,
     TextFormat,
 )
 from .stream import Stream
@@ -107,11 +108,11 @@ class JobController(Controller[Job]):
         self.cs = cs
         if isinstance(job, tuple):
             self.project_uid, self.uid = job
-            self._model = None  # populated when .model is accessed
+            self.refresh()
         else:
             self.project_uid = job.project_uid
             self.uid = job.uid
-            self._model = job
+            self.model = job
 
     @property
     def type(self) -> str:
@@ -134,7 +135,7 @@ class JobController(Controller[Job]):
         Returns:
             Job: self
         """
-        self._model = self.cs.api.jobs.find_one(self.project_uid, self.uid)
+        self.model = self.cs.api.jobs.find_one(self.project_uid, self.uid)
         return self
 
     def dir(self) -> PurePosixPath:
@@ -195,13 +196,13 @@ class JobController(Controller[Job]):
         """
         if cluster_vars:
             self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, cluster_vars)
-        self._model = self.cs.api.jobs.enqueue(self.project_uid, self.uid, lane=lane, hostname=hostname, gpus=gpus)
+        self.model = self.cs.api.jobs.enqueue(self.project_uid, self.uid, lane=lane, hostname=hostname, gpus=gpus)
 
     def kill(self):
         """
         Kill this job.
         """
-        self._model = self.cs.api.jobs.kill(self.project_uid, self.uid)
+        self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
 
     def wait_for_status(self, status: Union[JobStatus, Iterable[JobStatus]], *, timeout: Optional[int] = None) -> str:
         """
@@ -280,7 +281,7 @@ class JobController(Controller[Job]):
         """
         Clear this job and reset to building status.
         """
-        self._model = self.cs.api.jobs.clear(self.project_uid, self.uid)
+        self.model = self.cs.api.jobs.clear(self.project_uid, self.uid)
 
     def set_param(self, name: str, value: Any, **kwargs) -> bool:
         """
@@ -304,10 +305,8 @@ class JobController(Controller[Job]):
             True
         """
         if "refresh" in kwargs:
-            warnings.warn(
-                "refresh argument no longer applies. Will be removed in a future release.", DeprecationWarning
-            )
-        self._model = self.cs.api.jobs.set_param(self.project_uid, self.uid, name, value=value)
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        self.model = self.cs.api.jobs.set_param(self.project_uid, self.uid, name, value=value)
         return True
 
     def connect(self, target_input: str, source_job_uid: str, source_output: str, **kwargs) -> bool:
@@ -337,13 +336,10 @@ class JobController(Controller[Job]):
 
         """
         if "refresh" in kwargs:
-            warnings.warn(
-                "refresh argument no longer applies. Will be removed in a future release.", DeprecationWarning
-            )
-
-        if source_job_uid != self.uid:
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        if source_job_uid == self.uid:
             raise ValueError(f"Cannot connect job {self.uid} to itself")
-        self._model = self.cs.api.jobs.connect(
+        self.model = self.cs.api.jobs.connect(
             self.project_uid, self.uid, target_input, source_job_uid=source_job_uid, source_output_name=source_output
         )
         return True
@@ -359,14 +355,12 @@ class JobController(Controller[Job]):
                 If unspecified, clears all connections. Defaults to None.
         """
         if "refresh" in kwargs:
-            warnings.warn(
-                "refresh argument no longer applies. Will be removed in a future release.", DeprecationWarning
-            )
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
 
         if connection_idx is None:  # Clear all input connections
-            self._model = self.cs.api.jobs.disconnect_all(self.project_uid, self.uid, target_input)
+            self.model = self.cs.api.jobs.disconnect_all(self.project_uid, self.uid, target_input)
         else:
-            self._model = self.cs.api.jobs.disconnect(self.project_uid, self.uid, target_input, connection_idx)
+            self.model = self.cs.api.jobs.disconnect(self.project_uid, self.uid, target_input, connection_idx)
 
     def load_input(self, name: str, slots: LoadableSlots = "all"):
         """
@@ -1136,13 +1130,18 @@ class ExternalJobController(JobController):
         project.html#cryosparc.project.Project.create_external_job
     """
 
+    def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
+        super().__init__(cs, job)
+        if self.model.spec.type != "snowflake":
+            raise TypeError(f"Job {self.model.project_uid}-{self.model.uid} is not an external job")
+
     def add_input(
         self,
         type: Datatype,
         name: Optional[str] = None,
         min: int = 0,
         max: Union[int, Literal["inf"]] = "inf",
-        slots: Sequence[InputSlotSpec] = [],
+        slots: Sequence[SlotSpec] = [],
         title: Optional[str] = None,
         desc: Optional[str] = None,
     ):
@@ -1153,14 +1152,16 @@ class ExternalJobController(JobController):
         Args:
             type (Datatype): cryo-EM data type for this output, e.g., "particle"
             name (str, optional): Output name key, e.g., "picked_particles".
-                Defaults to type.
+                Same as ``type`` if not specified. Defaults to None.
             min (int, optional): Minimum number of required input connections.
                 Defaults to 0.
             max (int | Literal["inf"], optional): Maximum number of input
                 connections. Specify ``"inf"`` for unlimited connections.
                 Defaults to "inf".
-            slots (list[str | InputSlot], optional): List of slots that should
-                be connected to this input, such as ``"location"`` or ``"blob"``
+            slots (list[SlotSpec], optional): List of slots that should
+                be connected to this input, such as ``"location"`` or  ``"blob"``.
+                When connecting the input, if the source job output is missing
+                these slots, the external job cannot start or accept outputs.
                 Defaults to [].
             title (str, optional): Human-readable title for this input. Defaults
                 to name.
@@ -1199,18 +1200,18 @@ class ExternalJobController(JobController):
                 "and must start with a letter"
             )
         if any(isinstance(s, dict) and "prefix" in s for s in slots):
-            warnings.warn(
-                f"Dictionary slot specification is deprecated. Use list of {InputSlot} instead.",
-                DeprecationWarning,
-            )
-        name = name or type
-        self._model = self.cs.api.jobs.add_input(
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+        if not name:
+            name = type
+        if not title:
+            title = name
+        self.model = self.cs.api.jobs.add_input(
             self.project_uid,
             self.uid,
-            name or type,
+            name,
             InputSpec(
                 type=type,
-                title=title or name,
+                title=title,
                 description=desc or "",
                 slots=[as_input_slot(slot) for slot in slots],
                 count_min=min,
@@ -1221,15 +1222,15 @@ class ExternalJobController(JobController):
 
     # fmt: off
     @overload
-    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[OutputSlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ...) -> str: ...
+    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[SlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ...) -> str: ...
     @overload
-    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[OutputSlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ..., *, alloc: Union[int, Dataset]) -> Dataset: ...
+    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[SlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ..., *, alloc: Union[int, Dataset]) -> Dataset: ...
     # fmt: on
     def add_output(
         self,
         type: Datatype,
         name: Optional[str] = None,
-        slots: Sequence[OutputSlotSpec] = [],
+        slots: Sequence[SlotSpec] = [],
         passthrough: Optional[str] = None,
         title: Optional[str] = None,
         *,
@@ -1243,7 +1244,7 @@ class ExternalJobController(JobController):
             type (Datatype): cryo-EM datatype for this output, e.g., "particle"
             name (str, optional): Output name key, e.g., "selected_particles".
                 Same as ``type`` if not specified. Defaults to None.
-            slots (list[str | OutputSlot], optional): List of slot expected to be
+            slots (list[SlotSpec], optional): List of slot expected to be
                 created for this output, such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to [].
@@ -1312,21 +1313,16 @@ class ExternalJobController(JobController):
                 "and must start with a letter"
             )
         if any(isinstance(s, dict) and "prefix" in s for s in slots):
-            warnings.warn(
-                f"Dictionary slot specification is deprecated. Use list of {OutputSlot} instead.",
-                DeprecationWarning,
-            )
-        name = name or type
-        self._model = self.cs.api.jobs.add_output(
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+        if not name:
+            name = type
+        if not title:
+            title = name
+        self.model = self.cs.api.jobs.add_output(
             self.project_uid,
             self.uid,
             name,
-            OutputSpec(
-                type=type,
-                title=title or name or type,
-                slots=[as_output_slot(slot) for slot in slots],
-                passthrough=passthrough,
-            ),
+            OutputSpec(type=type, title=title, slots=[as_output_slot(slot) for slot in slots], passthrough=passthrough),
         )
         return name if alloc is None else self.alloc_output(name, alloc)
 
@@ -1336,7 +1332,7 @@ class ExternalJobController(JobController):
         source_job_uid: str,
         source_output: str,
         *,
-        slots: Sequence[InputSlotSpec] = [],
+        slots: Sequence[SlotSpec] = [],
         title: Optional[str] = None,
         desc: Optional[str] = None,
         **kwargs,
@@ -1344,7 +1340,7 @@ class ExternalJobController(JobController):
         """
         Connect the given input for this job to an output with given job UID and
         name. If this input does not exist, it will be added with the given
-        slots. At least one slot must be specified if the input does not exist.
+        slots.
 
         Args:
             target_input (str): Input name to connect into. Will be created if
@@ -1352,15 +1348,14 @@ class ExternalJobController(JobController):
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
-            slots (list[str | InputSlots], optional): List of slots to add to
-                created input. Adds all parent output slots if not specified.
-                Defaults to [].
+            slots (list[SlotSpec], optional): List of input slots (e.g.,
+                "particle" or "blob") to explicitly required for the created
+                input. If the given source job is missing these slots, the
+                external job cannot start or accept outputs. Defaults to [].
             title (str, optional): Human readable title for created input.
                 Defaults to target input name.
             desc (str, optional): Human readable description for created input.
                 Defaults to "".
-            refresh (bool, optional): Auto-refresh job document after
-                connecting. Defaults to True.
 
         Raises:
             CommandError: General CryoSPARC network access error such as
@@ -1378,6 +1373,8 @@ class ExternalJobController(JobController):
             >>> job.connect("input_micrographs", "J2", "micrographs")
 
         """
+        if "refresh" in kwargs:
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
         if source_job_uid == self.uid:
             raise ValueError(f"Cannot connect job {self.uid} to itself")
         source_job = self.cs.api.jobs.find_one(self.project_uid, source_job_uid)
@@ -1385,10 +1382,12 @@ class ExternalJobController(JobController):
             raise ValueError(f"Source job {source_job_uid} does not have output {source_output}")
         output = source_job.spec.outputs.root[source_output]
         if target_input not in self.model.spec.inputs.root:
-            if not slots:  # adds every output slot from the parent
-                slots = [InputSlot(name=result.name, dtype=result.dtype, required=True) for result in output.results]
+            if any(isinstance(s, dict) and "prefix" in s for s in slots):
+                warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+                # convert to prevent from warning again
+                slots = [as_input_slot(slot) for slot in slots]  # type: ignore
             self.add_input(output.type, target_input, min=1, slots=slots, title=title, desc=desc)
-        return super().connect(target_input, source_job_uid, source_output, **kwargs)
+        return super().connect(target_input, source_job_uid, source_output)
 
     def alloc_output(
         self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: Dict[str, Any] = {}
@@ -1467,10 +1466,8 @@ class ExternalJobController(JobController):
 
         """
         if "refresh" in kwargs:
-            warnings.warn(
-                "refresh argument no longer applies. Will be removed in a future release.", DeprecationWarning
-            )
-        self._model = self.cs.api.jobs.save_output(self.project_uid, self.uid, name, dataset, version=version)
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        self.model = self.cs.api.jobs.save_output(self.project_uid, self.uid, name, dataset, version=version)
 
     def start(self, status: Literal["running", "waiting"] = "waiting"):
         """
@@ -1479,23 +1476,24 @@ class ExternalJobController(JobController):
         Args:
             status (str, optional): "running" or "waiting". Defaults to "waiting".
         """
-        self._model = self.cs.api.jobs.mark_running(self.project_uid, self.uid, status=status)
+        self.model = self.cs.api.jobs.mark_running(self.project_uid, self.uid, status=status)
 
     def stop(self, error: str = ""):
         """
-        Set job status to "completed" or "failed"
+        Set job status to "completed" or "failed" if there was an error.
 
         Args:
-            error (str, optional): Job completed with errors. Defaults to False.
+            error (str, optional): Error message, will add to event log and set
+                job to status to failed if specified. Defaults to "".
         """
         if isinstance(error, bool):  # allowed bool in previous version
-            warnings.warn("error should be specified as a string", DeprecationWarning)
+            warnings.warn("error should be specified as a string", DeprecationWarning, stacklevel=2)
             error = "An error occurred" if error else ""
-        self._model = self.cs.api.jobs.kill(self.project_uid, self.uid)
+        self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
         if error:
-            self._model = self.cs.api.jobs.mark_failed(self.project_uid, self.uid, error=error)
+            self.model = self.cs.api.jobs.mark_failed(self.project_uid, self.uid, error=error)
         else:
-            self._model = self.cs.api.jobs.mark_completed(self.project_uid, self.uid)
+            self.model = self.cs.api.jobs.mark_completed(self.project_uid, self.uid)
 
     @contextmanager
     def run(self):

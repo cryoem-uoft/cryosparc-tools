@@ -1,11 +1,12 @@
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from .controller import Controller, OutputSlotSpec
+from .controller import Controller, as_output_slot
 from .dataset import Dataset
 from .job import ExternalJobController, JobController
 from .models.workspace import Workspace
 from .row import R
-from .spec import Datatype
+from .spec import Datatype, SlotSpec
 
 if TYPE_CHECKING:
     from .tools import CryoSPARC
@@ -38,11 +39,11 @@ class WorkspaceController(Controller[Workspace]):
         self.cs = cs
         if isinstance(workspace, tuple):
             self.project_uid, self.uid = workspace
-            self._model = None  # populated when .model is accessed
+            self.refresh()
         else:
             self.project_uid = workspace.project_uid
             self.uid = workspace.uid
-            self._model = workspace
+            self.model = workspace
 
     def refresh(self):
         """
@@ -51,7 +52,7 @@ class WorkspaceController(Controller[Workspace]):
         Returns:
             Workspace: self
         """
-        self._model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
+        self.model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
 
     def create_job(
@@ -59,8 +60,8 @@ class WorkspaceController(Controller[Workspace]):
         type: str,
         connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> JobController:
         """
         Create a new job with the given type. Use the
@@ -109,8 +110,8 @@ class WorkspaceController(Controller[Workspace]):
 
     def create_external_job(
         self,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> ExternalJobController:
         """
         Add a new External job to this workspace to save generated outputs to.
@@ -132,10 +133,10 @@ class WorkspaceController(Controller[Workspace]):
         dataset: Dataset[R],
         type: Datatype,
         name: Optional[str] = None,
-        slots: Optional[List[OutputSlotSpec]] = None,
+        slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> str:
         """
         Save the given result dataset to a workspace.
@@ -145,7 +146,7 @@ class WorkspaceController(Controller[Workspace]):
             type (Datatype): Type of output dataset.
             name (str, optional): Name of output on created External job. Same
                 as type if unspecified. Defaults to None.
-            slots (list[OutputSlotSpec], optional): List of slots expected to
+            slots (list[SlotSpec], optional): List of slots expected to
                 be created for this output such as ``location`` or ``blob``. Do
                 not specify any slots that were passed through from an input
                 unless those slots are modified in the output. Defaults to None.
@@ -196,6 +197,10 @@ class WorkspaceController(Controller[Workspace]):
             ... )
             "J45"
         """
+        if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+            # convert to prevent from warning again
+            slots = [as_output_slot(slot) for slot in slots]  # type: ignore
         return self.cs.save_external_result(
             self.project_uid,
             self.uid,
