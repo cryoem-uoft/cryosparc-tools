@@ -2,9 +2,9 @@ from typing import Optional
 
 import numpy as n
 
+from ..util import hashcache, strencodenull
 from .core import Data
 from .dtype import Field, fielddtype
-from .util import hashcache, strencodenull
 
 
 class Column(n.ndarray):

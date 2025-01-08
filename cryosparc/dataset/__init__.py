@@ -51,6 +51,9 @@ from typing import (
 
 import numpy as n
 
+from ..errors import DatasetLoadError
+from ..stream import AsyncReadable, Streamable
+from ..util import bopen, default_rng, random_integers, u32bytesle, u32intle
 from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
@@ -67,10 +70,7 @@ from .dtype import (
     get_data_field_dtype,
     normalize_field,
 )
-from .errors import DatasetLoadError
 from .row import R, Row, Spool
-from .stream import AsyncReadable, Streamable
-from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray

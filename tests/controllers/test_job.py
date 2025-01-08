@@ -4,7 +4,8 @@ from unittest import mock
 import pytest
 
 from cryosparc.api import APIClient
-from cryosparc.job import ExternalJobController, JobController
+from cryosparc.controllers.job import ExternalJobController, JobController
+from cryosparc.controllers.project import ProjectController
 from cryosparc.models.job import Job
 from cryosparc.models.job_spec import (
     JobSpec,
@@ -14,10 +15,9 @@ from cryosparc.models.job_spec import (
     OutputSpec,
     Params,
 )
-from cryosparc.project import ProjectController
 from cryosparc.tools import CryoSPARC
 
-from .conftest import T20S_PARTICLES
+from ..conftest import T20S_PARTICLES
 
 
 @pytest.fixture
