@@ -60,7 +60,7 @@ class Job(BaseModel):
     job_dir_size_last_updated: Optional[datetime.datetime] = None
     run_as_user: Optional[str] = None
     title: str = ""
-    description: str = "Enter a description."
+    description: str = ""
     status: JobStatus = "building"
     created_by_user_id: Optional[str] = None
     created_by_job_uid: Optional[str] = None

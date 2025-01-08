@@ -150,7 +150,7 @@ def mock_external_job_with_saved_output(external_job_with_added_output: External
 
 
 def test_external_job_output(mock_external_job_with_saved_output: ExternalJobController):
-    assert isinstance(mock_add_output_endpoint := APIClient.jobs.add_output, mock.Mock)
+    assert isinstance(mock_add_output_endpoint := APIClient.jobs.add_external_output, mock.Mock)
     assert isinstance(mock_save_output_endpoint := APIClient.jobs.save_output, mock.Mock)
     j = mock_external_job_with_saved_output
 

@@ -1205,7 +1205,7 @@ class ExternalJobController(JobController):
             name = type
         if not title:
             title = name
-        self.model = self.cs.api.jobs.add_input(
+        self.model = self.cs.api.jobs.add_external_input(
             self.project_uid,
             self.uid,
             name,
@@ -1318,7 +1318,7 @@ class ExternalJobController(JobController):
             name = type
         if not title:
             title = name
-        self.model = self.cs.api.jobs.add_output(
+        self.model = self.cs.api.jobs.add_external_output(
             self.project_uid,
             self.uid,
             name,
