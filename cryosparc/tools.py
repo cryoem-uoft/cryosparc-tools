@@ -47,7 +47,7 @@ from .project import ProjectController
 from .row import R
 from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
-from .util import padarray, print_table, trimarray
+from .util import clear_cached_property, padarray, print_table, trimarray
 from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
@@ -234,13 +234,10 @@ class CryoSPARC:
         Reset cache and refresh instance details.
 
         Raises:
-            APIError: Instance cannot be refreshed.
+            APIError: cannot be refreshed.
         """
-        try:
-            del self.user
-            del self.job_register
-        except AttributeError:
-            pass
+        clear_cached_property(self, "user")
+        clear_cached_property(self, "job_register")
         assert self.user  # ensure we can still fetch a user
 
     def test_connection(self):

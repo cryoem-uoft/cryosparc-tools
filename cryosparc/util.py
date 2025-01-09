@@ -328,3 +328,12 @@ def print_table(headings: List[str], rows: List[List[str]]):
     print("=" * len(heading))
     for row in rows:
         print(" | ".join(f"{v:{p}s}" for v, p in zip(row, pad)))
+
+
+def clear_cached_property(obj: object, name: str):
+    """
+    Clear object's @cached_property without accessing it when it's never been cached.
+    Object must have __dict__ key.
+    """
+    if name in obj.__dict__:
+        delattr(obj, name)
