@@ -147,8 +147,8 @@ class ProjectController(Controller[Project]):
                 value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
-            title (str, optional): Job title. Defaults to None.
-            desc (str, optional): Job markdown description. Defaults to None.
+            title (str, optional): Job title. Defaults to "".
+            desc (str, optional): Job markdown description. Defaults to "".
 
         Returns:
             JobController: created job accessor object.
@@ -190,9 +190,9 @@ class ProjectController(Controller[Project]):
         Args:
             workspace_uid (str): Workspace UID to create job in, e.g., "W3".
             title (str, optional): Title for external job (recommended).
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for external job.
-                Defaults to None.
+                Defaults to "".
 
         Returns:
             ExternalJob: created external job instance
@@ -274,9 +274,9 @@ class ProjectController(Controller[Project]):
                 inherits slots from the specified output. e.g., ``("J1",
                 "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
-                to None.
+                to "".
 
         Returns:
             str: UID of created job where this output was saved

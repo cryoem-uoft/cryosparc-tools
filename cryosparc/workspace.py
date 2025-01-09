@@ -79,8 +79,8 @@ class WorkspaceController(Controller[Workspace]):
                 value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
-            title (str, optional): Job title. Defaults to None.
-            desc (str, optional): Job markdown description. Defaults to None.
+            title (str, optional): Job title. Defaults to "".
+            desc (str, optional): Job markdown description. Defaults to "".
 
         Returns:
             JobController: created job instance. Raises error if job cannot be created.
@@ -118,9 +118,9 @@ class WorkspaceController(Controller[Workspace]):
         Args:
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             title (str, optional): Title for external job (recommended).
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for external job.
-                Defaults to None.
+                Defaults to "".
 
         Returns:
             ExternalJobController: created external job instance
@@ -153,9 +153,9 @@ class WorkspaceController(Controller[Workspace]):
                 inherits slots from the specified output. e.g., ``("J1",
                 "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
-                to None.
+                to "".
 
         Returns:
             str: UID of created job where this output was saved.

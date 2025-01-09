@@ -428,8 +428,8 @@ class CryoSPARC:
                 value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
-            title (str, optional): Job title. Defaults to None.
-            desc (str, optional): Job markdown description. Defaults to None.
+            title (str, optional): Job title. Defaults to "".
+            desc (str, optional): Job markdown description. Defaults to "".
 
         Returns:
             JobController: created job accessor object.
@@ -481,9 +481,9 @@ class CryoSPARC:
                 project_uid (str): Project UID to create in, e.g., "P3"
                 workspace_uid (str): Workspace UID to create job in, e.g., "W1"
                 title (str, optional): Title for external job (recommended).
-                    Defaults to None.
+                    Defaults to "".
                 desc (str, optional): Markdown description for external job.
-                    Defaults to None.
+                    Defaults to "".
 
             Returns:
                 ExternalJobController: created external job accessor object
@@ -565,9 +565,9 @@ class CryoSPARC:
                 inherits slots from the specified output. e.g.,
                 ``("J1", "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
-                to None.
+                to "".
 
         Raises:
             APIError: General CryoSPARC network access error such as
@@ -625,7 +625,7 @@ class CryoSPARC:
         Get a list of files inside the project directory.
 
         Args:
-            project (str | Project): Project unique ID, e.g., "P3".
+            project_uid (str): Project unique ID, e.g., "P3".
             prefix (str | Path, optional): Subdirectory inside project to list.
                 Defaults to "".
             recursive (bool, optional): If True, lists files recursively.
