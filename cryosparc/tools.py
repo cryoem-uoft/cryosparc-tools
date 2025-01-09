@@ -24,7 +24,7 @@ import re
 import tempfile
 import warnings
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import cached_property
 from hashlib import sha256
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
@@ -138,7 +138,6 @@ class CryoSPARC:
 
     base_url: str
     api: APIClient
-    user: User
 
     def __init__(
         self,
@@ -184,7 +183,7 @@ class CryoSPARC:
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
             self.api = APIClient(self.base_url, auth=auth, timeout=timeout)
-            self.user = self.api.users.me()
+            assert self.user  # trigger user profile fetch
             cs_version = self.api.config.get_version()
         except Exception as e:
             raise RuntimeError(
@@ -209,9 +208,25 @@ class CryoSPARC:
                     stacklevel=2,
                 )
 
+    @cached_property
+    def user(self) -> User:
+        return self.api.users.me()
+
+    @cached_property
+    def job_register(self) -> JobRegister:
+        """
+        Information about jobs available on this instance.
+        """
+        return self.api.job_register()
+
     def refresh(self):
-        self.user = self.api.users.me()
-        self.get_job_register.cache_clear()
+        # reset cache
+        try:
+            del self.user
+            del self.job_register
+        except AttributeError:
+            pass
+        assert self.user  # ensure we can still fetch a user
 
     def test_connection(self):
         """
@@ -249,10 +264,6 @@ class CryoSPARC:
         """
         return self.api.resources.find_targets(lane=lane)
 
-    @lru_cache(maxsize=1)
-    def get_job_register(self) -> JobRegister:
-        return self.api.job_register()
-
     def get_job_sections(self) -> List[JobSection]:
         """
         (Deprecated) Get a summary of job types available for this instance,
@@ -262,10 +273,9 @@ class CryoSPARC:
             list[JobSection]: List of job section dictionaries. Job types
                 are listed in the ``"contains"`` key in each dictionary.
         """
-        warnings.warn("Use get_job_register instead", DeprecationWarning, stacklevel=2)
-        job_register = self.get_job_register()
+        warnings.warn("Use job_register property instead", DeprecationWarning, stacklevel=2)
         job_types_by_category = {
-            category: [spec.type for spec in job_register.specs if spec.category == category]
+            category: [spec.type for spec in self.job_register.specs if spec.category == category]
             for category in get_args(Category)
         }
         return [
@@ -289,7 +299,7 @@ class CryoSPARC:
                 Defaults to False.
         """
         allowed_categories = {category} if isinstance(category, str) else category
-        register = self.get_job_register()
+        register = self.job_register
         headings = ["Category", "Job", "Title"]
         rows = []
         prev_category = None

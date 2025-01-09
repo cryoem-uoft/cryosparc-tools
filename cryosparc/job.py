@@ -128,6 +128,17 @@ class JobController(Controller[Job]):
         """
         return self.model.status
 
+    @property
+    def full_spec(self):
+        """
+        The full specification for job inputs, outputs and parameters, as
+        defined in the job register.
+        """
+        spec = first(spec for spec in self.cs.job_register.specs if spec.type == self.type)
+        if not spec:
+            raise RuntimeError(f"Could not find job specification for type {type}")
+        return spec
+
     def refresh(self):
         """
         Reload this job from the CryoSPARC database.
@@ -610,8 +621,8 @@ class JobController(Controller[Job]):
 
         Args:
             fileid (str): GridFS file object ID
-            target (str | Path | IO): Local file path, directory path or
-                writeable file handle to write response data.
+            target (str | Path | IO): Local file path or writeable file handle
+                to write response data.
 
         Returns:
             Path | IO: resulting target path or file handle.
@@ -963,18 +974,6 @@ class JobController(Controller[Job]):
 
             self.log("─────────────────────── Subprocess complete. ─────────────────────────")
 
-    def get_full_spec(self):
-        """
-        Get the full specification for job inputs and outputs, as defined
-        in the job register.
-        """
-        type = self.type
-        register = self.cs.get_job_register()
-        spec = first(spec for spec in register.specs if spec.type == type)
-        if not spec:
-            raise RuntimeError(f"Could not find job specification for type {type}")
-        return spec
-
     def print_param_spec(self):
         """
         Print a table of parameter keys, their title, type and default to
@@ -995,10 +994,9 @@ class JobController(Controller[Job]):
             ...
 
         """
-        spec = self.get_full_spec()
         headings = ["Param", "Title", "Type", "Default"]
         rows = []
-        for key, details in spec.params:
+        for key, details in self.full_spec.params:
             if details.get("hidden") is True:
                 continue
             type = (details["anyOf"][0] if "anyOf" in details else details).get("type", "Any")
