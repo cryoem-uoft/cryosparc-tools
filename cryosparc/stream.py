@@ -22,15 +22,26 @@ from .constants import EIGHT_MIB
 from .util import bopen
 
 
-class AsyncBinaryIO(Protocol):
+class AsyncReadable(Protocol):
+    """Any object that has an async read(size) method"""
+
     def read(self, size: int = ..., /) -> Awaitable[bytes]: ...
 
 
-class AsyncWritableIO(Protocol):
+class AsyncWritable(Protocol):
+    """Any object that has an async write(buffer) method"""
+
     def write(self, b: "Buffer", /) -> Awaitable[int]: ...
 
 
 class AsyncBinaryIterator(Protocol):
+    """
+    Any object that asynchronously yields bytes when iterated e.g.::
+
+        async for chunk in obj:
+            print(chunk.decode())
+    """
+
     def __aiter__(self) -> AsyncIterator[bytes]: ...
     def __anext__(self) -> Awaitable[bytes]: ...
 
@@ -84,7 +95,7 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
         return b"".join(out)
 
 
-class AsyncBinaryIteratorIO(AsyncBinaryIO, AsyncBinaryIterator, AsyncIterator[bytes]):
+class AsyncBinaryIteratorIO(AsyncReadable, AsyncBinaryIterator, AsyncIterator[bytes]):
     """Similar to BinaryIteratorIO except the iterator yields bytes asynchronously"""
 
     def __init__(self, iter: AsyncBinaryIterator):
@@ -166,7 +177,7 @@ class Streamable(ABC):
 
     @classmethod
     @abstractmethod
-    async def from_async_stream(cls, stream: AsyncBinaryIO, *, media_type: Optional[str] = None) -> "Self":
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None) -> "Self":
         """
         Asynchronously load from the given binary stream. The given stream
         parameter must at least have ``async read(n: int | None) -> bytes`` method.
@@ -195,7 +206,7 @@ class Streamable(ABC):
     def dumps(self) -> bytes:
         return b"".join(self.stream())
 
-    async def adump(self, file: Union[IO[bytes], AsyncWritableIO]):
+    async def adump(self, file: Union[IO[bytes], AsyncWritable]):
         async for chunk in self.astream():
             result = file.write(chunk)
             if isinstance(result, Awaitable):
@@ -221,7 +232,7 @@ class Stream(Streamable):
     @overload
     def __init__(self, *, iterator: Iterator[bytes] = ..., media_type: Optional[str] = ...): ...
     @overload
-    def __init__(self, *, astream: AsyncBinaryIO = ..., media_type: Optional[str] = ...): ...
+    def __init__(self, *, astream: AsyncReadable = ..., media_type: Optional[str] = ...): ...
     @overload
     def __init__(self, *, aiterator: AsyncBinaryIterator = ..., media_type: Optional[str] = ...): ...
     def __init__(
@@ -229,7 +240,7 @@ class Stream(Streamable):
         *,
         stream: Optional[IO[bytes]] = None,
         iterator: Optional[Iterator[bytes]] = None,
-        astream: Optional[AsyncBinaryIO] = None,
+        astream: Optional[AsyncReadable] = None,
         aiterator: Optional[AsyncBinaryIterator] = None,
         media_type: Optional[str] = None,
     ):
@@ -255,7 +266,7 @@ class Stream(Streamable):
         return cls(iterator=source, media_type=media_type)
 
     @classmethod
-    async def from_async_stream(cls, stream: AsyncBinaryIO, *, media_type: Optional[str] = None):
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None):
         return cls(astream=stream, media_type=media_type)
 
     @classmethod

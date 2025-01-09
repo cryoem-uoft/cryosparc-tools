@@ -69,7 +69,7 @@ from .dtype import (
 )
 from .errors import DatasetLoadError
 from .row import R, Row, Spool
-from .stream import AsyncBinaryIO, Streamable
+from .stream import AsyncReadable, Streamable
 from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
@@ -721,7 +721,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return dset
 
     @classmethod
-    async def from_async_stream(cls, stream: AsyncBinaryIO, *, media_type: Optional[str] = None):
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None):
         prefix = await stream.read(6)
         if prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
             raise DatasetLoadError(
