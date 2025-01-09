@@ -492,9 +492,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         all_fields.reverse()
         fields_by_dataset.reverse()
 
-        assert len({f[0] for f in all_fields}) == len(
-            all_fields
-        ), "Cannot innerjoin datasets with fields of the same name but different types"
+        assert len({f[0] for f in all_fields}) == len(all_fields), (
+            "Cannot innerjoin datasets with fields of the same name but different types"
+        )
 
         # Set up smaller indexed datasets with just a "uid" and "idx#" columns
         # to perform the innerjoin. e.g., [Dataset({'uid': [x,y,z], 'idx0':
@@ -869,9 +869,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         nrows = 0
         if populate:
             nrows = len(populate[0][1])
-            assert all(
-                len(entry[1]) == nrows for entry in populate
-            ), "Target populate data does not all have the same length"
+            assert all(len(entry[1]) == nrows for entry in populate), (
+                "Target populate data does not all have the same length"
+            )
 
         # Add UID field at the beginning, if required
         if not any(entry[0][0] == "uid" for entry in populate):
