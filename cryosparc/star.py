@@ -543,16 +543,16 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
             dblk_start = line - 1  # which line is 'data_'
 
             num, val = _read_until(f, lambda x: x.strip().startswith("loop_"))
-            assert (
-                num is not None
-            ), f"Cannot find any 'loop_' in the data block starting at line {dblk_start} in the STAR file."
+            assert num is not None, (
+                f"Cannot find any 'loop_' in the data block starting at line {dblk_start} in the STAR file."
+            )
             line += num
             skiprows += num
 
             num, val = _read_until(f, lambda x: x.strip().startswith("_"))
-            assert (
-                num is not None
-            ), f"Cannot find start of label names in the data block starting at line {dblk_start} in the STAR file."
+            assert num is not None, (
+                f"Cannot find start of label names in the data block starting at line {dblk_start} in the STAR file."
+            )
             line += num
             skiprows += num
             dtype: List[Tuple[str, Type[object]]] = []

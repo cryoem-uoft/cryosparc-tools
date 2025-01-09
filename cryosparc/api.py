@@ -280,9 +280,9 @@ class APIClient(APINamespace):
     def _process_schema(self, schema):
         assert isinstance(schema, dict), "[API] Invalid OpenAPI schema response: Not a dictionary"
         for key in {"info", "paths", "components"}:
-            assert (
-                key in schema
-            ), f"[API] Invalid OpenAPI schema response: Missing '{key}' key, got keys {list(schema.keys())}"
+            assert key in schema, (
+                f"[API] Invalid OpenAPI schema response: Missing '{key}' key, got keys {list(schema.keys())}"
+            )
 
         for path, path_schema in schema["paths"].items():
             for method, endpoint_schema in path_schema.items():
@@ -316,9 +316,9 @@ class APIClient(APINamespace):
             setattr(self, name, self._namespace_class(self._client))
             self._attrs.add(name)
         namespace = getattr(self, name)
-        assert isinstance(
-            namespace, self._namespace_class
-        ), f"{self} name conflict with namespace '{name}'. This is likely a bug"
+        assert isinstance(namespace, self._namespace_class), (
+            f"{self} name conflict with namespace '{name}'. This is likely a bug"
+        )
         return namespace
 
     def _authorize(self, auth: Auth):
