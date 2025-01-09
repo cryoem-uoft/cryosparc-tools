@@ -15,24 +15,26 @@ if TYPE_CHECKING:
 class WorkspaceController(Controller[Workspace]):
     """
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
-    results. Should be instantiated through `CryoSPARC.find_workspace`_ or
-    `Project.find_workspace`_.
+    results. Should be created with`
+    :py:meth:`cs.find_workspace() <cryosparc.tools.CryoSPARC.find_workspace>` or
+    :py:meth:`project.find_workspace() <cryosparc.project.ProjectController.find_workspace>`.
+
+    Arguments:
+        workspace (tuple[str, str] | Workspace): either _(Project UID, Workspace UID)_
+            tuple or Workspace model, e.g. ``("P3", "W4")``
 
     Attributes:
-        uid (str): Workspace unique ID, e.g., "W42"
-        project_uid (str): Project unique ID, e.g., "P3"
-        doc (WorkspaceDocument): All workspace data from the CryoSPARC database.
-            Database contents may change over time, use the `refresh`_ method
-            to update.
+        model (Workspace): All workspace data from the CryoSPARC database.
+            Contents may change over time, use :py:method:`refresh` to update.
+    """
 
-    .. _CryoSPARC.find_workspace:
-        tools.html#cryosparc.tools.CryoSPARC.find_workspace
-
-    .. _Project.find_workspace:
-        project.html#cryosparc.project.Project.find_workspace
-
-    .. _refresh:
-        #cryosparc.workspace.Workspace.refresh
+    uid: str
+    """
+    Workspace unique ID, e.g., "W42"
+    """
+    project_uid: str
+    """
+    Project unique ID, e.g., "P3"
     """
 
     def __init__(self, cs: "CryoSPARC", workspace: Union[Tuple[str, str], Workspace]) -> None:
@@ -50,7 +52,7 @@ class WorkspaceController(Controller[Workspace]):
         Reload this workspace from the CryoSPARC database.
 
         Returns:
-            Workspace: self
+            WorkspaceController: self
         """
         self.model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
@@ -64,9 +66,9 @@ class WorkspaceController(Controller[Workspace]):
         desc: str = "",
     ) -> JobController:
         """
-        Create a new job with the given type. Use the
-        `CryoSPARC.get_job_sections`_ method to query available job types on
-        the connected CryoSPARC instance.
+        Create a new job with the given type. Use
+        :py:attr:`cs.job_register <cryosparc.tools.CryoSPARC.job_register>`
+        to find available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -100,9 +102,6 @@ class WorkspaceController(Controller[Workspace]):
             ...     connections={"particles": ("J20", "particles_selected")}
             ...     params={"abinit_K": 3}
             ... )
-
-        .. _CryoSPARC.get_job_sections:
-            tools.html#cryosparc.tools.CryoSPARC.get_job_sections
         """
         return self.cs.create_job(
             self.project_uid, self.uid, type, connections=connections, params=params, title=title, desc=desc

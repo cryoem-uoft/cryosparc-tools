@@ -19,20 +19,20 @@ if TYPE_CHECKING:
 class ProjectController(Controller[Project]):
     """
     Accessor instance for CryoSPARC projects with ability to add workspaces, jobs
-    and upload/download project files. Should be instantiated through
-    `CryoSPARC.find_project`_.
+    and upload/download project files. Should be created with
+    :py:meth:`cs.find_project() <cryosparc.tools.CryoSPARC.find_project>`.
+
+    Arguments:
+        project (str | Project): either Project UID or Project model, e.g. ``"P3"``
 
     Attributes:
-        uid (str): Project unique ID, e.g., "P3"
-        doc (ProjectDocument): All project data from the CryoSPARC database.
-            Database contents may change over time, use the `refresh`_ method
-            to update.
+        model (Project): All project data from the CryoSPARC database. Contents
+            may change over time, use :py:meth:`refresh` to update.
+    """
 
-    .. _CryoSPARC.find_project:
-        tools.html#cryosparc.tools.CryoSPARC.find_project
-
-    .. _refresh:
-        #cryosparc.project.Project.refresh
+    uid: str
+    """
+    Project unique ID, e.g., "P3"
     """
 
     def __init__(self, cs: "CryoSPARC", project: Union[str, Project]) -> None:
@@ -49,7 +49,7 @@ class ProjectController(Controller[Project]):
         Reload this project from the CryoSPARC database.
 
         Returns:
-            Project: self
+            ProjectController: self
         """
         self.model = self.cs.api.projects.find_one(self.uid)
         return self
@@ -73,7 +73,7 @@ class ProjectController(Controller[Project]):
             workspace_uid (str): Workspace unique ID, e.g., "W1"
 
         Returns:
-            Workspace: accessor instance
+            WorkspaceController: workspace accessor object
         """
         return WorkspaceController(self.cs, (self.uid, workspace_uid))
 
@@ -86,7 +86,7 @@ class ProjectController(Controller[Project]):
             job_uid (str): Job unique ID, e.g., "J42"
 
         Returns:
-            Job: accessor instance
+            JobController: job accessor instance
         """
         return JobController(self.cs, (self.uid, job_uid))
 
@@ -103,7 +103,7 @@ class ProjectController(Controller[Project]):
             TypeError: If job is not an external job
 
         Returns:
-            ExternalJob: accessor instance
+            ExternalJobController: external job accessor object
         """
         return self.cs.find_external_job(self.uid, job_uid)
 
@@ -117,7 +117,10 @@ class ProjectController(Controller[Project]):
             desc (str, optional): Markdown text description. Defaults to None.
 
         Returns:
-            Workspace: created workspace instance
+            WorkspaceController: created workspace accessor object
+
+        Raises:
+            APIError: Workspace cannot be created.
         """
         return self.cs.create_workspace(self.uid, title, desc)
 
@@ -131,8 +134,9 @@ class ProjectController(Controller[Project]):
         desc: str = "",
     ) -> JobController:
         """
-        Create a new job with the given type. Use `CryoSPARC.get_job_sections`_
-        to query available job types on the connected CryoSPARC instance.
+        Create a new job with the given type. Use
+        :py:attr:`cs.job_register <cryosparc.tools.CryoSPARC.job_register>`
+        to find available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -147,7 +151,10 @@ class ProjectController(Controller[Project]):
             desc (str, optional): Job markdown description. Defaults to None.
 
         Returns:
-            Job: created job instance. Raises error if job cannot be created.
+            JobController: created job accessor object.
+
+        Raises:
+            APIError: Job cannot be created.
 
         Examples:
 
@@ -166,9 +173,6 @@ class ProjectController(Controller[Project]):
             ...     connections={"particles": ("J20", "particles_selected")}
             ...     params={"abinit_K": 3}
             ... )
-
-        .. _CryoSPARC.get_job_sections:
-            tools.html#cryosparc.tools.CryoSPARC.get_job_sections
         """
         return self.cs.create_job(
             self.uid, workspace_uid, type, connections=connections, params=params, title=title, desc=desc

@@ -238,7 +238,7 @@ class APIClient(APINamespace):
         base_url: Optional[str] = None,
         *,
         auth: Optional[Auth] = None,  # token or email/password
-        headers: Union[Dict[str, str], None] = None,
+        headers: Optional[Dict[str, str]] = None,
         timeout: float = 300,
         http_client: Optional[httpx.Client] = None,
     ):

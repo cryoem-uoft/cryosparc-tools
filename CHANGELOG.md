@@ -5,28 +5,32 @@
 - BREAKING: replaced low-level `CryoSPARC.cli`, `CryoSPARC.rtp` and `CryoSPARC.vis` attributes with single unified `CryoSPARC.api`
 - BREAKING: `CryoSPARC.download_asset(fileid, target)` no longer accepts a directory target. Must specify a filename.
 - BREAKING: removed `CryoSPARC.get_job_specs()`. Use `CryoSPARC.job_register` instead
-- BREAKING: `CryoSPARC.list_assets` and `Job.list_assets` return list of models instead of list of dictionaries, accessible with dot-notation
+- BREAKING: `CryoSPARC.list_assets()` and `Job.list_assets()` return list of models instead of list of dictionaries, accessible with dot-notation
   - OLD: `job.list_assets()[0]['filename']`
   - NEW: `job.list_assets()[0].filename`
-- BREAKING: `CryoSPARC.get_lanes` now returns a list of models instead of dictionaries
+- BREAKING: `CryoSPARC.get_lanes()` now returns a list of models instead of dictionaries
   - OLD: `cs.get_lanes()[0]['name']`
   - NEW: `cs.get_lanes()[0].name`
 - BREAKING: `CryoSPARC.get_targets` now returns a list of models instead of dictionaries
-  - OLD: `cs.get_targets()[0]['name']`
-  - NEW: `cs.get_targets()[0].name`
+  - OLD: `cs.get_targets()[0]['hostname']`
+  - NEW: `cs.get_targets()[0].hostname`
+  - Some top-level target attributes have also been moved into the `.config` attribute
 - BREAKING: Restructured schema for Job models, many `Job.doc` properties have been internally rearranged
 - Added: `CryoSPARC.job_register` property
-- Added: `Job.load_input` and `Job.load_output` now accept `"default"`, `"passthrough"` and `"all"` keywords for their `slots` argument
-- Updated: Improved argument type definitions
-- Updated: Expanded slot definitions when adding External inputs and outputs now expect `"name"` key instead of `"prefix"`
-  Support for `"prefix"` will be removed in a future version
-- Deprecated: `ExternalJob.stop` now expects optional error string instead of boolean
-  Support for boolean errors will be removed in a future release
-- Deprecated: `CryoSPARC.get_job_sections()` will be removed in a future release
-  Use `CryoSPARC.job_register` instead
+- Added: `job.load_input()` and `job.load_output()` now accept `"default"`, `"passthrough"` and `"all"` keywords for their `slots` argument
+- Added: `job.alloc_output()` now accepts `dtype_params` argument for fields with dynamic shapes
+- Updated: Improved type definitions
+- Deprecated: When adding external inputs and outputs, expanded slot definitions now expect `"name"` key instead of `"prefix"`, support for which will be removed in a future release.
+  - OLD: `job.add_input("particle", slots=[{"prefix": "component_mode_1", "dtype": "component", "required": True}])`
+  - NEW: `job.add_input("particle", slots=[{"name": "component_mode_1", "dtype": "component", "required": True}])`
+- Deprecated: `license` argument no longer required when creating a `CryoSPARC`
+  instance, will be removed in a future release
+- Deprecated: `external_job.stop()` now expects optional error string instead of boolean, support for boolean errors will be removed in a future release
+- Deprecated: `CryoSPARC.get_job_sections()` will be removed in a future release,
+  use `CryoSPARC.job_register` instead
 - Deprecated: Most functions no longer require a `refresh` argument, including
-  `Job.set_param`, `Job.connect`, `Job.disconnect` and `ExternalJob.save_output`
-- Deprecated: Attributes `Project.doc`, `Workspace.doc` and `Job.doc` will be removed in a future release. Use `.model` attribute instead
+  `job.set_param()`, `job.connect()`, `job.disconnect()` and `external_job.save_output()`
+- Deprecated: Attributes `Project.doc`, `Workspace.doc` and `Job.doc` will be removed in a future release, use `.model` attribute instead
 
 ## v4.6.1
 

@@ -108,7 +108,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with CryoSPARC .cs files.
 
-    A dataset may be initialized with ``Dataset(data)`` where ``data`` is
+    Load a dataset from disk with ``Dataset.load("/path/to/dataset.cs")``.
+
+    Initialize a new dataset with ``Dataset(data)`` where ``data`` is
     one of the following:
 
     * A size of items to allocate (e.g., 42)

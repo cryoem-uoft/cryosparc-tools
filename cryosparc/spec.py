@@ -200,18 +200,15 @@ class Slot(_Slot, total=False):
     when creating inputs or outputs. e.g., ``{"name": "ctf", "dtype": "ctf"}``
     or ``{"name": "background_blob", "dtype": "stat_blob", "required": False}``
 
-    See `Slot`_ for details.
+    See :py:type:`SlotSpec` for details.
 
     Attributes:
         name (str): where to find field in a corresponding .cs file e.g.,
             ``"background_blob"``, ``"ctf"``, ``"alignments_class_0"``
         dtype (str): name of known data type. e.g., ``"stat_blob"``, ``"ctf"``,
-            ``"alignments2D"``.
+            ``"alignments3D"``.
         required (bool, optional): Whether this slot is required. Applies to
             input specs only. Defaults to True.
-
-    .. _Slot:
-        #cryosparc.spec.Slot
 
     """
 
@@ -220,10 +217,7 @@ class Slot(_Slot, total=False):
 
 class Datafield(TypedDict):
     """
-    Deprecated. Use `Slot`_ instead.
-
-    .. _Slot:
-        #cryosparc.spec.Slot
+    Deprecated. Use :py:class:`Slot` instead.
     """
 
     dtype: str
@@ -234,15 +228,28 @@ class Datafield(TypedDict):
 SlotSpec = Union[str, Slot, Datafield]
 """
 A result slot specification for items in the slots=... argument when creating
-inputs or outputs. Could be either a string representing a name and datatype or
-a full dictionary specification.
+inputs or outputs.
 
-A string in the format ``"<slot>"`` is a shortcut for
-``{"name": "<slot>", "dtype": "<slot>", "required": True}``.
+In CryoSPARC, all jobs have one or more inputs and outputs. An input or output
+has some broad :py:type:`Datatype`, such as ``"exposure"`` or ``"particle"``.
+Each input or output also has a list of associated "low-level" results created
+at various stages of processing, such as ``"location"`` for picked particles and
+``blob`` for extracted particles. A slot represents one of these low-level
+results.
 
-A string in the format ``"?<slot>"`` is a shortcut for
-``{"name": "<slot>", "dtype": "<slot>", "required": False}``.
+In the CryoSPARC interface, open a job's "Inputs" or "Outputs" tab to see the
+kinds of slots available. You may also download an output and load it with
+:py:type:`~cryosparc.dataset.Dataset` to inspect the infomation encoded in its
+results.
 
+Provide each slot as either a string representing a name and result type, or a
+full dictionary specification.
+
+A string in the format ``"<slot>"`` is a shortcut for ``{"name": "<slot>",
+"dtype": "<known slot type>", "required": True}``.
+
+A string in the format ``"?<slot>"`` is a shortcut for ``{"name": "<slot>",
+"dtype": "<known slot type>", "required": False}`` (input slots only).
 
 Example strings::
 
@@ -256,31 +263,27 @@ Example equivalent full specifications::
     {"name": "micrograph_blob", "dtype": "micrograph_blob", "required": True}
     {"name": "background_blob", "dtype": "stat_blob", "required": False}
 
-
 Use the full specification when the ``dtype`` cannot be inferred from the
-``name`` string because it is dynamic, e.g., for slot named
-``"alignments_class_X"``, where ``X`` is a class number with dtype
-``"alignments2D"``. e.g.::
+``name`` string because it is dynamic. For example, 3D Variability job
+``particles`` outputs have slots named ``"components_mode_X"`` with dtype
+``"components"`` where ``X`` is a mode number::
 
     [
         "blob",
         "?locations",
-        {"name": "alignments_class_0", "dtype": "alignments2D"},
-        {"name": "alignments_class_1", "dtype": "alignments2D", "required": False},
-        {"name": "alignments_class_2", "dtype": "alignments2D", "required": False},
+        {"name": "components_mode_0", "dtype": "components"},
+        {"name": "components_mode_1", "dtype": "components", "required": False},
+        {"name": "components_mode_2", "dtype": "components", "required": False},
     ]
 
 Note that the ``required`` key only applies to input slots.
-
 """
 
 
 class JobSection(TypedDict):
     """
-    Deprecated in favour of `JobRegister`_.
-
-    .. _Jobregister:
-        models/job_register.html#cryosparc.models.job_register.Jobregister
+    Deprecated. Use :py:class:`~cryosparc.models.job_register.JobRegister`
+    instead.
     """
 
     name: str

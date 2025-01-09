@@ -32,6 +32,10 @@ class Controller(ABC, Generic[M]):
 
     @property
     def model(self) -> M:
+        """
+        Representation of entitity data. Contents may change in CryoSPARC
+        over time, use use :py:meth:`refresh` to update.
+        """
         if not self._model:
             self.refresh()
         assert self._model, "Could not refresh database document"

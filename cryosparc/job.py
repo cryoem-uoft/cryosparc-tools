@@ -60,14 +60,17 @@ Input and output result groups may only contain, letters, numbers and underscore
 class JobController(Controller[Job]):
     """
     Accessor class to a job in CryoSPARC with ability to load inputs and
-    outputs, add to job log, download job files. Should be instantiated
-    through `CryoSPARC.find_job`_ or `Project.find_job`_.
+    outputs, add to job log, download job files. Should be created with
+    :py:meth:`cs.find_job() <cryosparc.tools.CryoSPARC.find_job>` or
+    :py:meth:`project.find_job() <cryosparc.project.ProjectController.find_job>`.
+
+    Arguments:
+        job (tuple[str, str] | Job): either _(Project UID, Job UID)_ tuple or
+            Job model, e.g. ``("P3", "J42")``
 
     Attributes:
-        uid (str): Job unique ID, e.g., "J42"
-        project_uid (str): Project unique ID, e.g., "P3"
-        doc (JobDocument): All job data from the CryoSPARC database. Database
-            contents may change over time, use the `refresh`_ method to update.
+        model (Workspace): All job data from the CryoSPARC database.
+            Contents may change over time, use :py:method:`refresh` to update.
 
     Examples:
 
@@ -93,15 +96,15 @@ class JobController(Controller[Job]):
         >>> job.queue()
         >>> job.status
         "queued"
+    """
 
-    .. _CryoSPARC.find_job:
-        tools.html#cryosparc.tools.CryoSPARC.find_job
-
-    .. _Project.find_job:
-        project.html#cryosparc.project.Project.find_job
-
-    .. _refresh:
-        #cryosparc.job.Job.refresh
+    uid: str
+    """
+    Job unique ID, e.g., "J42"
+    """
+    project_uid: str
+    """
+    Project unique ID, e.g., "P3"
     """
 
     def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
@@ -144,7 +147,7 @@ class JobController(Controller[Job]):
         Reload this job from the CryoSPARC database.
 
         Returns:
-            Job: self
+            JobController: self
         """
         self.model = self.cs.api.jobs.find_one(self.project_uid, self.uid)
         return self
@@ -167,13 +170,13 @@ class JobController(Controller[Job]):
     ):
         """
         Queue a job to a target lane. Available lanes may be queried with
-        `CryoSPARC.get_lanes`_.
+        `:py:meth:`cs.get_lanes() <cryosparc.tools.CryoSPARC.get_lanes>`.
 
         Optionally specify a hostname for a node or cluster in the given lane.
         Optionally specify specific GPUs indexes to use for computation.
 
         Available hostnames for a given lane may be queried with
-        `CryoSPARC.get_targets`_.
+        `:py:meth:`cs.get_targets() <cryosparc.tools.CryoSPARC.get_targets>`.
 
         Args:
             lane (str, optional): Configuried compute lane to queue to. Leave
@@ -199,11 +202,6 @@ class JobController(Controller[Job]):
             >>> job.queue("worker")
             >>> job.status
             "queued"
-
-        .. _CryoSPARC.get_lanes:
-            tools.html#cryosparc.tools.CryoSPARC.get_lanes
-        .. _CryoSPARC.get_targets:
-            tools.html#cryosparc.tools.CryoSPARC.get_targets
         """
         if cluster_vars:
             self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, cluster_vars)
@@ -625,7 +623,7 @@ class JobController(Controller[Job]):
                 to write response data.
 
         Returns:
-            Path | IO: resulting target path or file handle.
+            str | Path | IO: resulting target path or file handle.
 
         """
         return self.cs.download_asset(fileid, target)
@@ -1091,14 +1089,10 @@ class ExternalJobController(JobController):
     an input. Its outputs must be created manually and may be configured to
     passthrough inherited input fields, just as with regular CryoSPARC jobs.
 
-    Create a new External Job with `Project.create_external_job`_. ExternalJob
-    is a subclass of `Job`_ and inherits all its methods.
-
-    Attributes:
-        uid (str): Job unique ID, e.g., "J42"
-        project_uid (str): Project unique ID, e.g., "P3"
-        doc (JobDocument): All job data from the CryoSPARC database. Database
-            contents may change over time, use the `refresh`_ method to update.
+    Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.project.ProjectController.create_external_job>`.
+    or :py:meth:`workspace.create_external_job() <cryosparc.workspace.WorkspaceController.create_external_job>`.
+    ``ExternalJobController`` is a subclass of :py:class:`JobController`
+    and inherits all its methods and attributes.
 
     Examples:
 
@@ -1117,15 +1111,6 @@ class ExternalJobController(JobController):
         ...     )
         ...     dset['movie_blob/path'] = ...  # populate dataset
         ...     job.save_output(output_name, dset)
-
-    .. _Job:
-        #cryosparc.job.Job
-
-    .. _refresh:
-        #cryosparc.job.Job.refresh
-
-    .. _Project.create_external_job:
-        project.html#cryosparc.project.Project.create_external_job
     """
 
     def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:

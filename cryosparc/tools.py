@@ -87,24 +87,23 @@ class CryoSPARC:
     ``base_port + 5`` should be accessible on the network.
 
     Args:
-        license (str, optional): CryoSPARC license key. Defaults to
-            ``os.getenv("CRYOSPARC_LICENSE_ID")``.
+        base_url (str, optional): CryoSPARC instance URL, e.g.,
+            "http://localhost:39000" or "https://cryosparc.example.com".
+            Same URL used to access CryoSPARC from a web browser.
         host (str, optional): Hostname or IP address running CryoSPARC master.
-            Defaults to ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost")``.
-        base_port (int, optional): CryoSPARC services base port number. Defaults
-            to ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", 39000)``.
+            Cannot be specified with ``base_url``. Defaults to
+            ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost")``.
+        base_port (int, optional): CryoSPARC services base port number.
+            Cannot be specified with  ``base_url``. Defaults to
+            ``os.getenv("CRYOSPARC_BASE_PORT", 39000)``.
         email (str, optional): CryoSPARC user account email address. Defaults
             to ``os.getenv("CRYOSPARC_EMAIL")``.
         password (str, optional): CryoSPARC user account password address.
             Defaults to ``os.getenv("CRYOSPARC_PASSWORD")``.
+        license (str, optional): (Deprecated) CryoSPARC license key. Defaults to
+            ``os.getenv("CRYOSPARC_LICENSE_ID")``.
         timeout (int, optional): Timeout error for HTTP requests to CryoSPARC
             command services. Defaults to 300.
-
-    Attributes:
-        cli (CommandClient): HTTP/JSONRPC client for ``command_core`` service (port + 2).
-        vis (CommandClient): HTTP/JSONRPC client for ``command_vis`` service (port + 3).
-        rtp (CommandClient): HTTP/JSONRPC client for ``command_rtp`` service (port + 5).
-        user_id (str): Mongo object ID of user account performing operations for this session.
 
     Examples:
 
@@ -136,23 +135,31 @@ class CryoSPARC:
         "J43"
     """
 
-    base_url: str
     api: APIClient
+    """
+    HTTP REST API client for ``api`` service (port + 2).
+    """
+
+    base_url: str
+    """
+    URL used for communication CryoSPARC instance REST API.
+    """
 
     def __init__(
         self,
         base_url: Optional[str] = os.getenv("CRYOSPARC_BASE_URL"),
         *,
-        license: Optional[str] = os.getenv("CRYOSPARC_LICENSE_ID"),
         host: Optional[str] = os.getenv("CRYOSPARC_MASTER_HOSTNAME"),
         base_port: Union[int, str, None] = os.getenv("CRYOSPARC_BASE_PORT"),
         email: Optional[str] = os.getenv("CRYOSPARC_EMAIL"),
+        license: Optional[str] = os.getenv("CRYOSPARC_LICENSE_ID"),
         password: Optional[str] = os.getenv("CRYOSPARC_PASSWORD"),
         timeout: int = 300,
     ):
         if license:
             warnings.warn(
-                "CryoSPARC license argument is deprecated and will be removed in a future release",
+                "Support for license argument and CRYOSPARC_LICENSE_ID environment variable "
+                "will be removed in a future release",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -164,7 +171,7 @@ class CryoSPARC:
                 raise TypeError("Cannot specify host and base_port when base_url is specified")
             self.base_url = f"http://{host}:{int(base_port) + 2}"
         elif base_url:
-            self.base_url = f"{base_url}/api"  # app forwards to api service
+            self.base_url = f"{base_url}/api"  # app forwards to api service (TODO)
         else:
             raise TypeError("Must specify either base_url or host + base_port")
 
@@ -210,6 +217,9 @@ class CryoSPARC:
 
     @cached_property
     def user(self) -> User:
+        """
+        User account performing operations for this session.
+        """
         return self.api.users.me()
 
     @cached_property
@@ -220,7 +230,12 @@ class CryoSPARC:
         return self.api.job_register()
 
     def refresh(self):
-        # reset cache
+        """
+        Reset cache and refresh instance details.
+
+        Raises:
+            APIError: Instance cannot be refreshed.
+        """
         try:
             del self.user
             del self.job_register
@@ -326,7 +341,7 @@ class CryoSPARC:
             project_uid (str): Project unique ID, e.g., "P3"
 
         Returns:
-            Project: project instance
+            ProjectController: project accessor object
         """
         return ProjectController(self, project_uid)
 
@@ -340,7 +355,7 @@ class CryoSPARC:
             workspace_uid (str): Workspace unique ID, e.g., "W1"
 
         Returns:
-            WorkspaceController: accessor instance
+            WorkspaceController: workspace accessor object
         """
         return WorkspaceController(self, (project_uid, workspace_uid))
 
@@ -353,7 +368,7 @@ class CryoSPARC:
             job_uid (str): job unique ID, e.g., "J42"
 
         Returns:
-            JobController: job instance
+            JobController: job accessor object
         """
         return JobController(self, (project_uid, job_uid))
 
@@ -371,7 +386,7 @@ class CryoSPARC:
             TypeError: If job is not an external job
 
         Returns:
-            ExternalJobController: accessor instance
+            ExternalJobController: external job accessor object
         """
         return ExternalJobController(self, (project_uid, job_uid))
 
@@ -385,7 +400,10 @@ class CryoSPARC:
             desc (str, optional): Markdown text description. Defaults to None.
 
         Returns:
-            WorkspaceController: created workspace instance
+            WorkspaceController: created workspace accessor object
+
+        Raises:
+            APIError: Workspace cannot be created.
         """
         workspace = self.api.workspaces.create(project_uid, title=title, description=desc)
         return WorkspaceController(self, workspace)
@@ -401,8 +419,8 @@ class CryoSPARC:
         desc: str = "",
     ) -> JobController:
         """
-        Create a new job with the given type. Use `CryoSPARC.get_job_register`_
-        to query available job types on the connected CryoSPARC instance.
+        Create a new job with the given type. Use :py:attr:`job_register`
+        to find available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -417,7 +435,10 @@ class CryoSPARC:
             desc (str, optional): Job markdown description. Defaults to None.
 
         Returns:
-            JobController: created job instance. Raises error if job cannot be created.
+            JobController: created job accessor object.
+
+        Raises:
+            APIError: Job cannot be created.
 
         Examples:
 
@@ -435,9 +456,6 @@ class CryoSPARC:
             ...     connections={"particles": ("J20", "particles_selected")}
             ...     params={"abinit_K": 3}
             ... )
-
-        .. _CryoSPARC.get_job_register:
-            #cryosparc.tools.CryoSPARC.get_job_register
         """
         job = self.api.jobs.create(project_uid, workspace_uid, params=params, type=type, title=title, description=desc)
         for input_name, connection in connections.items():
@@ -471,7 +489,7 @@ class CryoSPARC:
                     Defaults to None.
 
             Returns:
-                ExternalJob: created external job instance
+                ExternalJobController: created external job accessor object
         """
         job = self.api.jobs.create(project_uid, workspace_uid, type="snowflake", title=title, description=desc)
         return ExternalJobController(self, job)
@@ -742,7 +760,7 @@ class CryoSPARC:
                 to write response data.
 
         Returns:
-            Path | IO: resulting target path or file handle.
+            str | Path | IO: resulting target path or file handle.
         """
         stream = self.api.files.download(fileid)
         stream.save(target)
