@@ -2,17 +2,27 @@
 
 ## Next
 
-- BREAKING: replaced CryoSPARC.cli, CryoSPARC.rtp and CryoSPARC.vis attributes with single unified CryoSPARC.api
-- BREAKING: removed CryoSPARC.get_job_specs. Use CryoSPARC.get_job_register instead
-- BREAKING: CryoSPARC.list_assets and Job.list_assets returns list of GridFSFile models instead of dictionaries.
-- BREAKING: CryoSPARC.download_asset no longer accepts a directory target. Must specify a filename.
-- Added: CryoSPARC.get_job_register function
-- Updated: CryoSPARC.get_lanes now returns a list of models instead of dictionaries
-- Updated: CryoSPARC.get_targets now returns a list of models instead of dictionaries
-- Updated: ExternalJob.stop now accepts error string instead of boolean
-- Updated: Job.load_input and Job.load_output now accept "default", "passthrough" and "all" keywords
-- Deprecated: CryoSPARC.get_job_sections (use CryoSPARC.get_job_register instead)
-- Deprecated: Job.set_param no longer required "refresh" argument
+- BREAKING: replaced low-level `CryoSPARC.cli`, `CryoSPARC.rtp` and `CryoSPARC.vis` attributes with single unified `CryoSPARC.api`
+- BREAKING: `CryoSPARC.download_asset` no longer accepts a directory target. Must specify a filename.
+- BREAKING: removed `CryoSPARC.get_job_specs`. Use `CryoSPARC.get_job_register` instead
+- BREAKING: `CryoSPARC.list_assets` and `Job.list_assets` return list of models (accessible with dot-notation, e.g., `cs.list_assets()[0].filename`) instead of list of dictionaries.
+- BREAKING: `CryoSPARC.get_lanes` now returns a list of models instead of dictionaries
+- BREAKING: `CryoSPARC.get_targets` now returns a list of models instead of dictionaries
+- BREAKING: Restructured schema for Job models, many `Job.doc` properties have been internally rearranged
+- Added: `CryoSPARC.get_job_register` function
+- Added: `Job.load_input` and `Job.load_output` now accept `"default"`, `"passthrough"` and `"all"` keywords for their `slots` argument.
+- Updated: Improved argument type definitions
+- Updated: Expanded slot definitions when adding External inputs and outputs now expect `"name"` key instead of `"prefix"`.
+  Support for `"prefix"` will be removed in a future version.
+- Deprecated: `ExternalJob.stop` now expects optional error string instead of boolean.
+  Support for boolean errors will be removed in a future release.
+- Deprecated: `CryoSPARC.get_job_sections` will be removed in a future release.
+  Use `CryoSPARC.get_job_register` instead.
+- Deprecated: Most functions no longer require a `refresh` argument, including
+  `Job.set_param`, `Job.connect`, `Job.disconnect` and `ExternalJob.save_output`.
+- Deprecated: Attributes `Project.doc`, `Workspace.doc` and `Job.doc` will be removed in a future release.
+  Use `.model` attribute instead.
+- Depe
 
 ## v4.6.1
 

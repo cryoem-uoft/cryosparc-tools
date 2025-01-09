@@ -255,8 +255,8 @@ class CryoSPARC:
 
     def get_job_sections(self) -> List[JobSection]:
         """
-        Get a summary of job types available for this instance, organized by
-        category.
+        (Deprecated) Get a summary of job types available for this instance,
+        organized by category.
 
         Returns:
             list[JobSection]: List of job section dictionaries. Job types
