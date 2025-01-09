@@ -143,19 +143,19 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
     try:
         header = json.loads(data) if isinstance(data, bytes) else data
         assert isinstance(header, dict), f"Incorrect decoded header type (expected dict, got {type(header)})"
-        assert "length" in header and isinstance(
-            header["length"], int
-        ), 'Dataset header "length" key missing or has incorrect type'
-        assert "dtype" in header and isinstance(
-            header["dtype"], list
-        ), 'Dataset header "dtype" key missing or has incorrect type'
+        assert "length" in header and isinstance(header["length"], int), (
+            'Dataset header "length" key missing or has incorrect type'
+        )
+        assert "dtype" in header and isinstance(header["dtype"], list), (
+            'Dataset header "dtype" key missing or has incorrect type'
+        )
         assert "compression" in header and header["compression"] in {
             None,
             "lz4",
         }, 'Dataset header "compression" key missing or has incorrect type'
-        assert "compressed_fields" in header or isinstance(
-            header["compressed_fields"], list
-        ), 'Dataset header "compressed_fields" key missing or has incorrect type'
+        assert "compressed_fields" in header or isinstance(header["compressed_fields"], list), (
+            'Dataset header "compressed_fields" key missing or has incorrect type'
+        )
 
         length: int = header["length"]
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]

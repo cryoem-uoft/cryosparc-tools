@@ -251,9 +251,9 @@ class JobController(Controller[Job]):
                 fails if ``error_on_incomplete`` is ``True``. Defaults to None.
         """
         status = self.wait_for_status({"completed", "killed", "failed"}, timeout=timeout)
-        assert (
-            not error_on_incomplete or status == "completed"
-        ), f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
+        assert not error_on_incomplete or status == "completed", (
+            f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
+        )
         return status
 
     def interact(self, action: str, body: Any = {}, *, timeout: int = 10, refresh: bool = False) -> Any:

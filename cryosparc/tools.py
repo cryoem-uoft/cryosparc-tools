@@ -951,9 +951,9 @@ def get_exposure_format(data_format: str, voxel_type: Optional[str] = None) -> s
     if data_format not in {"MRC", "MRCS"}:
         return data_format
 
-    assert (
-        voxel_type and voxel_type in mrc.VOXEL_TYPES
-    ), f'Unsupported voxel type "{voxel_type}" specified with MRC exposure format'
+    assert voxel_type and voxel_type in mrc.VOXEL_TYPES, (
+        f'Unsupported voxel type "{voxel_type}" specified with MRC exposure format'
+    )
     return f"MRC/{mrc.VOXEL_TYPES[voxel_type]}"
 
 
@@ -999,7 +999,7 @@ def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, o
     """
     assert cutoff_resolution_A > 0, "Lowpass filter amount must be non-negative"
     assert len(arr.shape) == 2 or (len(arr.shape) == 3 and arr.shape[0] == 1), (
-        f"Cannot apply low-pass filter on data with shape {arr.shape}; " "must be two-dimensional"
+        f"Cannot apply low-pass filter on data with shape {arr.shape}; must be two-dimensional"
     )
 
     arr = n.reshape(arr, arr.shape[-2:])
