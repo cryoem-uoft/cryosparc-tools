@@ -84,8 +84,8 @@ class CryoSPARC:
     High-level session class for interfacing with a CryoSPARC instance.
 
     Initialize with the host and base port of the running CryoSPARC instance.
-    This host and (at minimum) ``base_port + 2``, ``base_port + 3`` and
-    ``base_port + 5`` should be accessible on the network.
+    This host and (at minimum) ``base_port + 2`` should be accessible on the
+    network.
 
     Args:
         base_url (str, optional): CryoSPARC instance URL, e.g.,
