@@ -9,8 +9,7 @@ from .job_spec import OutputRef, OutputSpec
 
 class ExternalOutputSpec(BaseModel):
     """
-    Specification used to create an external job with an output defined by
-    the spec.
+    Specification for an external job with a single output.
     """
 
     name: str

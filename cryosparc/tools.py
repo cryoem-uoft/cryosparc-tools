@@ -37,8 +37,8 @@ from .api import APIClient
 from .controller import as_output_slot
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
 from .job import ExternalJobController, JobController
+from .models.asset import GridFSFile
 from .models.external import ExternalOutputSpec
-from .models.file import GridFSFile
 from .models.job_register import JobRegister
 from .models.job_spec import Category, OutputRef, OutputSpec
 from .models.scheduler_lane import SchedulerLane
@@ -748,7 +748,7 @@ class CryoSPARC:
         Returns:
             list[GridFSFile]: Asset details
         """
-        return self.api.files.find(project_uid=project_uid, job_uid=job_uid)
+        return self.api.assets.find(project_uid=project_uid, job_uid=job_uid)
 
     def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
         """
@@ -762,7 +762,7 @@ class CryoSPARC:
         Returns:
             str | Path | IO: resulting target path or file handle.
         """
-        stream = self.api.files.download(fileid)
+        stream = self.api.assets.download(fileid)
         stream.save(target)
         return target
 

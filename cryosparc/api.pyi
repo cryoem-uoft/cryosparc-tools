@@ -15,12 +15,12 @@ from .models.api_response import (
     WorkspaceAncestorUidsResponse,
     WorkspaceDescendantUidsResponse,
 )
+from .models.asset import GridFSAsset, GridFSFile
 from .models.auth import Token
 from .models.diagnostics import RuntimeDiagnostics
 from .models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
 from .models.exposure import Exposure
 from .models.external import ExternalOutputSpec
-from .models.file import GridFSAsset, GridFSFile
 from .models.job import Job, JobStatus
 from .models.job_register import JobRegister
 from .models.job_spec import Category, InputSpec, InputSpecs, OutputResult, OutputSpec, OutputSpecs
@@ -86,47 +86,6 @@ class ConfigNamespace(APINamespace):
         """
         Sets config collection entry. Specify `set_on_insert_only` to prevent
         overwriting when the value already exists.
-        """
-        ...
-
-class FilesNamespace(APINamespace):
-    """
-    Methods available in api.files, e.g., api.files.find(...)
-    """
-    def find(self, *, project_uid: Optional[str] = ..., job_uid: Optional[str] = ...) -> List[GridFSFile]:
-        """
-        List assets associated with projects or jobs on the given instance.
-        Typically returns files creating during job runs, including plots and metadata.
-        """
-        ...
-    def upload(
-        self,
-        stream: Stream,
-        *,
-        project_uid: str,
-        job_uid: str,
-        filename: Optional[str] = ...,
-        format: Union[
-            Literal["txt", "csv", "html", "json", "xml", "bild", "bld", "log"],
-            Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"],
-            None,
-        ] = ...,
-    ) -> GridFSAsset:
-        """
-        Upload a new asset associated with the given project/job. When calling
-        via HTTP, provide the contents of the file in the request body. At least
-        one of filename or format must be provided.
-        """
-        ...
-    def download(self, id: str = "000000000000000000000000", /) -> Stream:
-        """
-        Download the asset with the given ID. When calling via HTTP, file contents
-        will be in the response body.
-        """
-        ...
-    def find_one(self, id: str = "000000000000000000000000", /) -> GridFSFile:
-        """
-        Retrive the full details for an asset with the given ID.
         """
         ...
 
@@ -471,6 +430,48 @@ class ResourcesNamespace(APINamespace):
     def update_target_cache_path(self, name: str, /, value: Optional[str]) -> SchedulerTarget:
         """
         Changes the cache path on the given target (assumed to exist)
+        """
+        ...
+
+class AssetsNamespace(APINamespace):
+    """
+    Methods available in api.assets, e.g., api.assets.find(...)
+    """
+    def find(self, *, project_uid: Optional[str] = ..., job_uid: Optional[str] = ...) -> List[GridFSFile]:
+        """
+        List assets associated with projects or jobs on the given instance.
+        Typically returns files creating during job runs, including plots and metadata.
+        """
+        ...
+    def upload(
+        self,
+        project_uid: str,
+        job_uid: str,
+        /,
+        stream: Stream,
+        *,
+        filename: Optional[str] = ...,
+        format: Union[
+            Literal["txt", "csv", "html", "json", "xml", "bild", "bld", "log"],
+            Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"],
+            None,
+        ] = ...,
+    ) -> GridFSAsset:
+        """
+        Upload a new asset associated with the given project/job. When calling
+        via HTTP, provide the contents of the file in the request body. At least
+        one of filename or format must be provided.
+        """
+        ...
+    def download(self, id: str = "000000000000000000000000", /) -> Stream:
+        """
+        Download the asset with the given ID. When calling via HTTP, file contents
+        will be in the response body.
+        """
+        ...
+    def find_one(self, id: str = "000000000000000000000000", /) -> GridFSFile:
+        """
+        Retrive the full details for an asset with the given ID.
         """
         ...
 
@@ -826,7 +827,7 @@ class JobsNamespace(APINamespace):
         self, project_uid: str, job_uid: str, /, *, status: Literal["running", "waiting"] = "running"
     ) -> Job:
         """
-        Indicate that an external is running or waiting.
+        Indicate that an external job is running or waiting.
         """
         ...
     def mark_completed(self, project_uid: str, job_uid: str, /) -> Job:
@@ -2222,11 +2223,11 @@ class APIClient:
     """
 
     config: ConfigNamespace
-    files: FilesNamespace
     instance: InstanceNamespace
     cache: CacheNamespace
     users: UsersNamespace
     resources: ResourcesNamespace
+    assets: AssetsNamespace
     jobs: JobsNamespace
     workspaces: WorkspacesNamespace
     sessions: SessionsNamespace

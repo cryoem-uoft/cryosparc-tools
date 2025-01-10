@@ -28,7 +28,7 @@ from typing import (
 from .controller import Controller, as_input_slot, as_output_slot
 from .dataset import DEFAULT_FORMAT, Dataset
 from .errors import ExternalJobError
-from .models.file import GridFSAsset, GridFSFile
+from .models.asset import GridFSAsset, GridFSFile
 from .models.job import Job, JobStatus
 from .models.job_spec import InputSpec, OutputSpec
 from .spec import (
@@ -698,13 +698,7 @@ class JobController(Controller[Job]):
             raise ValueError("Must specify filename or format when saving binary asset")
         if ext not in ASSET_CONTENT_TYPES:
             raise ValueError(f"Invalid asset format {ext}")
-        return self.cs.api.files.upload(
-            Stream.load(file),
-            project_uid=self.project_uid,
-            job_uid=self.uid,
-            filename=filename,
-            format=ext,
-        )
+        return self.cs.api.assets.upload(self.project_uid, self.uid, Stream.load(file), filename=filename, format=ext)
 
     def upload_plot(
         self,

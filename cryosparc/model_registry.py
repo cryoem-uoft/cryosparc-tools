@@ -3,12 +3,12 @@
 from .models import (
     api_request,
     api_response,
+    asset,
     auth,
     diagnostics,
     event,
     exposure,
     external,
-    file,
     gpu,
     instance,
     job,
@@ -44,7 +44,7 @@ register_model_module(user)
 register_model_module(session_params)
 register_model_module(external)
 register_model_module(project)
-register_model_module(file)
+register_model_module(asset)
 register_model_module(signature)
 register_model_module(instance)
 register_model_module(job_register)
