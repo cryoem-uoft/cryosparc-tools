@@ -7,6 +7,7 @@ from .models import (
     diagnostics,
     event,
     exposure,
+    external,
     file,
     gpu,
     instance,
@@ -41,6 +42,7 @@ register_model_module(exposure)
 register_model_module(event)
 register_model_module(user)
 register_model_module(session_params)
+register_model_module(external)
 register_model_module(project)
 register_model_module(file)
 register_model_module(signature)

@@ -37,9 +37,10 @@ from .api import APIClient
 from .controller import as_output_slot
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
 from .job import ExternalJobController, JobController
+from .models.external import ExternalOutputSpec
 from .models.file import GridFSFile
 from .models.job_register import JobRegister
-from .models.job_spec import Category, OutputSpec
+from .models.job_spec import Category, OutputRef, OutputSpec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget
 from .models.user import User
@@ -606,9 +607,11 @@ class CryoSPARC:
         job = self.api.jobs.create_external_result(
             project_uid,
             workspace_uid,
-            OutputSpec(type=type, title=title, description=desc, slots=output_slots),
-            name=name,
-            passthrough=passthrough,
+            ExternalOutputSpec(
+                name=name,
+                spec=OutputSpec(type=type, title=title, description=desc, slots=output_slots),
+                connection=OutputRef(job_uid=passthrough[0], output=passthrough[1]) if passthrough else None,
+            ),
         )
         job = ExternalJobController(self, job)
         with job.run():

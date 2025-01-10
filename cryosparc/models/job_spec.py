@@ -53,6 +53,12 @@ class InputResult(BaseModel):
 
 
 class Connection(BaseModel):
+    """
+    Job input connection details.
+    """
+
+    job_uid: str
+    output: str
     type: Literal[
         "exposure",
         "particle",
@@ -69,9 +75,54 @@ class Connection(BaseModel):
         "denoise_model",
         "annotation_model",
     ]
+    results: List[InputResult] = []
+
+
+class OutputSlot(BaseModel):
+    """
+    Specification of an output slot in the job configuration. Part of a group
+    """
+
+    name: str
+    dtype: str
+
+
+class OutputSpec(BaseModel):
+    """
+    Used for outputs with some generated data based on data forwarded from
+    input inheritance
+    """
+
+    type: Literal[
+        "exposure",
+        "particle",
+        "template",
+        "volume",
+        "volume_multi",
+        "mask",
+        "live",
+        "ml_model",
+        "symmetry_candidate",
+        "flex_mesh",
+        "flex_model",
+        "hyperparameter",
+        "denoise_model",
+        "annotation_model",
+    ]
+    title: str
+    description: str = ""
+    slots: List[Union[OutputSlot, str]] = []
+    passthrough: Optional[str] = None
+    passthrough_exclude_slots: List[str] = []
+
+
+class OutputRef(BaseModel):
+    """
+    Minimal name reference to a specific job output
+    """
+
     job_uid: str
     output: str
-    results: List[InputResult] = []
 
 
 class InputSlot(BaseModel):
@@ -183,44 +234,6 @@ Stability = Literal["develop", "beta", "stable", "legacy", "obsolete"]
 Lifecycle/development stage for a job. Jobs will change stabilities as they
 are continually developed or replaced with other jobs.
 """
-
-
-class OutputSlot(BaseModel):
-    """
-    Specification of an output slot in the job configuration. Part of a group
-    """
-
-    name: str
-    dtype: str
-
-
-class OutputSpec(BaseModel):
-    """
-    Used for outputs with some generated data based on data forwarded from
-    input inheritance
-    """
-
-    type: Literal[
-        "exposure",
-        "particle",
-        "template",
-        "volume",
-        "volume_multi",
-        "mask",
-        "live",
-        "ml_model",
-        "symmetry_candidate",
-        "flex_mesh",
-        "flex_model",
-        "hyperparameter",
-        "denoise_model",
-        "annotation_model",
-    ]
-    title: str
-    description: str = ""
-    slots: List[Union[OutputSlot, str]] = []
-    passthrough: Optional[str] = None
-    passthrough_exclude_slots: List[str] = []
 
 
 class OutputSpecs(RootModel):
