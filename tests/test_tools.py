@@ -1,9 +1,9 @@
 from unittest import mock
 
 from cryosparc.api import APIClient
-from cryosparc.job import Job, JobController
+from cryosparc.controllers.job import Job, JobController
+from cryosparc.controllers.project import Project
 from cryosparc.models.job_spec import Params
-from cryosparc.project import Project
 from cryosparc.tools import CryoSPARC
 
 

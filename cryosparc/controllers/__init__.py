@@ -10,8 +10,8 @@ from typing import Any, Dict, Generic, Optional, TypeVar, Union
 
 from pydantic import BaseModel
 
-from .models.job_spec import InputSlot, OutputSlot
-from .spec import SlotSpec
+from ..models.job_spec import InputSlot, OutputSlot
+from ..spec import SlotSpec
 
 # API model
 M = TypeVar("M", bound=BaseModel)

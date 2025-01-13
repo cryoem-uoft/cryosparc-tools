@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Type,
 
 import numpy as n
 
+from ..errors import DatasetLoadError
+from ..spec import DType, Field
 from .core import Data, DsetType
-from .errors import DatasetLoadError
-from .spec import DType, Field
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray

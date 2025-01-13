@@ -9,6 +9,7 @@ import numpy as n
 import pytest
 
 from cryosparc.api import APIClient
+from cryosparc.controllers.project import ProjectController
 from cryosparc.dataset import Dataset as BaseDataset
 from cryosparc.dataset import Row
 from cryosparc.models.job import Job
@@ -24,7 +25,6 @@ from cryosparc.models.job_spec import (
 )
 from cryosparc.models.project import Project
 from cryosparc.models.user import Email, User
-from cryosparc.project import ProjectController
 from cryosparc.tools import CryoSPARC
 from cryosparc.util import default_rng
 

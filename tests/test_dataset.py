@@ -5,7 +5,7 @@ import numpy as n
 import pytest
 
 from cryosparc.dataset import CSDAT_FORMAT, Column
-from cryosparc.row import Row
+from cryosparc.dataset.row import Row
 
 from .conftest import Dataset
 

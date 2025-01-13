@@ -1,15 +1,15 @@
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from .controller import Controller, as_output_slot
-from .dataset import Dataset
+from ..dataset import Dataset
+from ..dataset.row import R
+from ..models.workspace import Workspace
+from ..spec import Datatype, SlotSpec
+from . import Controller, as_output_slot
 from .job import ExternalJobController, JobController
-from .models.workspace import Workspace
-from .row import R
-from .spec import Datatype, SlotSpec
 
 if TYPE_CHECKING:
-    from .tools import CryoSPARC
+    from ..tools import CryoSPARC
 
 
 class WorkspaceController(Controller[Workspace]):

@@ -2,18 +2,18 @@ import warnings
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from .controller import Controller, as_output_slot
-from .dataset import DEFAULT_FORMAT, Dataset
+from ..dataset import DEFAULT_FORMAT, Dataset
+from ..dataset.row import R
+from ..models.project import Project
+from ..spec import Datatype, SlotSpec
+from . import Controller, as_output_slot
 from .job import ExternalJobController, JobController
-from .models.project import Project
-from .row import R
-from .spec import Datatype, SlotSpec
 from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-    from .tools import CryoSPARC
+    from ..tools import CryoSPARC
 
 
 class ProjectController(Controller[Project]):

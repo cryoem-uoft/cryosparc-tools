@@ -25,13 +25,12 @@ from typing import (
     overload,
 )
 
-from .controller import Controller, as_input_slot, as_output_slot
-from .dataset import DEFAULT_FORMAT, Dataset
-from .errors import ExternalJobError
-from .models.asset import GridFSAsset, GridFSFile
-from .models.job import Job, JobStatus
-from .models.job_spec import InputSpec, OutputSpec
-from .spec import (
+from ..dataset import DEFAULT_FORMAT, Dataset
+from ..errors import ExternalJobError
+from ..models.asset import GridFSAsset, GridFSFile
+from ..models.job import Job, JobStatus
+from ..models.job_spec import InputSpec, OutputSpec
+from ..spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
     TEXT_CONTENT_TYPES,
@@ -42,13 +41,14 @@ from .spec import (
     SlotSpec,
     TextFormat,
 )
-from .stream import Stream
-from .util import first, print_table
+from ..stream import Stream
+from ..util import first, print_table
+from . import Controller, as_input_slot, as_output_slot
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
 
-    from .tools import CryoSPARC
+    from ..tools import CryoSPARC
 
 
 GROUP_NAME_PATTERN = r"^[A-Za-z][0-9A-Za-z_]*$"

@@ -34,9 +34,12 @@ import numpy as n
 
 from . import __version__, model_registry, mrc, registry, stream_registry
 from .api import APIClient
-from .controller import as_output_slot
+from .controllers import as_output_slot
+from .controllers.job import ExternalJobController, JobController
+from .controllers.project import ProjectController
+from .controllers.workspace import WorkspaceController
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
-from .job import ExternalJobController, JobController
+from .dataset.row import R
 from .models.asset import GridFSFile
 from .models.external import ExternalOutputSpec
 from .models.job_register import JobRegister
@@ -44,12 +47,9 @@ from .models.job_spec import Category, OutputRef, OutputSpec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget
 from .models.user import User
-from .project import ProjectController
-from .row import R
 from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
 from .util import clear_cached_property, padarray, print_table, trimarray
-from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
