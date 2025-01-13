@@ -5,9 +5,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    ContextManager,
     Dict,
-    Generator,
     Generic,
     Iterator,
     List,
@@ -26,7 +24,7 @@ from typing_extensions import Literal
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
 
-from .dtype import Shape
+from .spec import Shape
 
 OpenTextMode = Literal["r", "w", "x", "a", "r+", "w+", "x+", "a+"]
 """
@@ -227,24 +225,6 @@ def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
         yield file
 
 
-@overload
-def noopcontext() -> ContextManager[None]: ...
-@overload
-def noopcontext(x: T) -> ContextManager[T]: ...
-@contextmanager
-def noopcontext(x: Optional[T] = None) -> Generator[Optional[T], None, None]:
-    """
-    Context manager that yields the given argument without modification.
-
-    Args:
-        x (T, optional): Anything. Defaults to None.
-
-    Yields:
-        T: the given argument
-    """
-    yield x
-
-
 def padarray(arr: "NDArray", dim: Optional[int] = None, val: n.number = n.float32(0)):
     """
     Pad the given 2D or 3D array so that the x and y dimensions are equal to the
@@ -348,3 +328,12 @@ def print_table(headings: List[str], rows: List[List[str]]):
     print("=" * len(heading))
     for row in rows:
         print(" | ".join(f"{v:{p}s}" for v, p in zip(row, pad)))
+
+
+def clear_cached_property(obj: object, name: str):
+    """
+    Clear object's @cached_property without accessing it when it's never been cached.
+    Object must have __dict__ key.
+    """
+    if name in obj.__dict__:
+        delattr(obj, name)

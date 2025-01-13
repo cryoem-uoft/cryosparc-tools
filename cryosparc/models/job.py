@@ -60,7 +60,7 @@ class Job(BaseModel):
     job_dir_size_last_updated: Optional[datetime.datetime] = None
     run_as_user: Optional[str] = None
     title: str = ""
-    description: str = "Enter a description."
+    description: str = ""
     status: JobStatus = "building"
     created_by_user_id: Optional[str] = None
     created_by_job_uid: Optional[str] = None
@@ -141,6 +141,6 @@ class Job(BaseModel):
     last_exported_location: Optional[str] = None
     last_exported_version: Optional[str] = None
     tags: List[str] = []
-    imported: bool = False
     imported_at: Optional[datetime.datetime] = None
     deleted_at: Optional[datetime.datetime] = None
+    starred_by: List[str] = []

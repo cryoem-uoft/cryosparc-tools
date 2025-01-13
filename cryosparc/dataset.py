@@ -33,8 +33,8 @@ from typing import (
     Callable,
     Collection,
     Dict,
-    Generator,
     Generic,
+    Iterator,
     List,
     Literal,
     Mapping,
@@ -69,7 +69,7 @@ from .dtype import (
 )
 from .errors import DatasetLoadError
 from .row import R, Row, Spool
-from .stream import AsyncBinaryIO, Streamable
+from .stream import AsyncReadable, Streamable
 from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
@@ -108,7 +108,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with CryoSPARC .cs files.
 
-    A dataset may be initialized with ``Dataset(data)`` where ``data`` is
+    Load a dataset from disk with ``Dataset.load("/path/to/dataset.cs")``.
+
+    Initialize a new dataset with ``Dataset(data)`` where ``data`` is
     one of the following:
 
     * A size of items to allocate (e.g., 42)
@@ -570,6 +572,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         prefixes: Optional[Sequence[str]] = None,
         fields: Optional[Sequence[str]] = None,
         cstrs: bool = False,
+        media_type: Optional[str] = None,  # for interface, otherwise unused
     ):
         """
         Read a dataset from path or file handle.
@@ -720,7 +723,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return dset
 
     @classmethod
-    async def from_async_stream(cls, stream: AsyncBinaryIO):
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None):
+        prefix = await stream.read(6)
+        if prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+            raise DatasetLoadError(
+                f"Incorrect async dataset stream format {prefix}. "
+                "Only CSDAT-formatted datasets may be loaded as async streams"
+            )
         headersize = u32intle(await stream.read(4))
         header = decode_dataset_header(await stream.read(headersize))
 
@@ -751,7 +760,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dset.to_pystrs()
         return dset
 
-    def save(self, file: Union[str, PurePath, IO[bytes]], format: int = DEFAULT_FORMAT):
+    def save(self, file: Union[str, PurePath, IO[bytes]], *, format: int = DEFAULT_FORMAT):
         """
         Save a dataset to the given path or I/O buffer.
 
@@ -779,7 +788,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["lz4", None] = None) -> Generator[bytes, None, None]:
+    def stream(self, compression: Literal["lz4", None] = None) -> Iterator[bytes]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.

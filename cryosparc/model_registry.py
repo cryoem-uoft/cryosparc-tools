@@ -3,17 +3,18 @@
 from .models import (
     api_request,
     api_response,
+    asset,
     auth,
     diagnostics,
     event,
     exposure,
+    external,
     gpu,
     instance,
     job,
     job_register,
     job_spec,
     license,
-    mongo,
     notification,
     project,
     scheduler_lane,
@@ -41,8 +42,9 @@ register_model_module(exposure)
 register_model_module(event)
 register_model_module(user)
 register_model_module(session_params)
+register_model_module(external)
 register_model_module(project)
-register_model_module(mongo)
+register_model_module(asset)
 register_model_module(signature)
 register_model_module(instance)
 register_model_module(job_register)

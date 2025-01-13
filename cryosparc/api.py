@@ -4,7 +4,7 @@ import urllib.parse
 import warnings
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Dict, Iterator, Optional, Tuple, TypedDict, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, TypedDict, Union
 
 import httpx
 
@@ -16,7 +16,7 @@ from .stream import Streamable
 
 _BASE_RESPONSE_TYPES = {"string", "integer", "number", "boolean"}
 
-Auth = Union[str, tuple[str, str]]
+Auth = Union[str, Tuple[str, str]]
 """
 Auth token or email/password.
 """
@@ -101,7 +101,7 @@ class APINamespace:
                 else:
                     streamable = None
 
-                if streamable:
+                if streamable is not None:
                     if not isinstance(streamable, Streamable):
                         raise TypeError(f"[API] {func_name}() invalid argument {streamable}; expected Streamable type")
                     request_body = self._prepare_request_stream(streamable)
@@ -155,7 +155,10 @@ class APINamespace:
         if stream_mime_type is not None:  # This is a streaming type
             stream_class = registry.get_stream_class(stream_mime_type)
             assert stream_class
-            return stream_class.from_iterator(res.iter_bytes())
+            return stream_class.from_iterator(
+                res.iter_bytes(),
+                media_type=res.headers.get("Content-Type", stream_mime_type),
+            )
         elif "text/plain" in content_schema:
             return res.text
         elif "application/json" in content_schema:
@@ -222,7 +225,7 @@ class APINamespace:
             with ctx as res:
                 return self._handle_response(_schema, res)
         except httpx.HTTPStatusError as err:
-            raise APIError("received error response", res=err.response)
+            raise APIError("received error response", res=err.response) from err
 
 
 class APIClient(APINamespace):
@@ -235,7 +238,7 @@ class APIClient(APINamespace):
         base_url: Optional[str] = None,
         *,
         auth: Optional[Auth] = None,  # token or email/password
-        headers: Dict[str, str] | None = None,
+        headers: Optional[Dict[str, str]] = None,
         timeout: float = 300,
         http_client: Optional[httpx.Client] = None,
     ):
@@ -330,7 +333,7 @@ class APIClient(APINamespace):
         self._client.headers["Authorization"] = f"{token.token_type.title()} {token.access_token}"
 
 
-def sort_params_schema(path: str, param_schema: list[dict]):
+def sort_params_schema(path: str, param_schema: List[dict]):
     """
     Sort the OpenAPI endpoint parameters schema in order that path params appear
     in the given URI.
@@ -399,9 +402,10 @@ def _decode_json_response(value: Any, schema: dict):
     if "type" in schema and schema["type"] in _BASE_RESPONSE_TYPES:
         return value
 
-    # Recursively decode list
+    # Recursively decode list or tuple
     if "type" in schema and schema["type"] == "array":
-        return [_decode_json_response(item, schema["items"]) for item in value]
+        collection_type, items_key = (tuple, "prefixItems") if "prefixItems" in schema else (list, "items")
+        return collection_type(_decode_json_response(item, schema[items_key]) for item in value)
 
     # Recursively decode object
     if "type" in schema and schema["type"] == "object":
