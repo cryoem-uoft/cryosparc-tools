@@ -988,7 +988,7 @@ class JobController(Controller[Job]):
         """
         headings = ["Param", "Title", "Type", "Default"]
         rows = []
-        for key, details in self.full_spec.params:
+        for key, details in self.full_spec.params.items():
             if details.get("hidden") is True:
                 continue
             type = (details["anyOf"][0] if "anyOf" in details else details).get("type", "Any")
@@ -1062,13 +1062,16 @@ class JobController(Controller[Job]):
                                    |             |          | ctf                    | ctf
         """
         specs = self.cs.api.jobs.get_output_specs(self.project_uid, self.uid)
-        headings = ["Output", "Title", "Type", "Result Slots", "Result Types"]
+        headings = ["Output", "Title", "Type", "Result Slots", "Result Types", "Passthrough?"]
         rows = []
         for key, spec in specs.root.items():
+            output = self.model.spec.outputs.root.get(key)
+            if not output:
+                warnings.warn(f"No results for input {key}", stacklevel=2)
+                continue
             name, title, type = key, spec.title, spec.type
-            for slot in spec.slots:
-                slot = as_output_slot(slot)
-                rows.append([name, title, type, slot.name, slot.dtype])
+            for result in output.results:
+                rows.append([name, title, type, result.name, result.dtype, "✓" if result.passthrough else ""])
                 name, title, type = "", "", ""  # only these print once per group
         print_table(headings, rows)
 

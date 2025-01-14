@@ -26,7 +26,7 @@ import warnings
 from contextlib import contextmanager
 from functools import cached_property
 from hashlib import sha256
-from io import BytesIO
+from io import BytesIO, TextIOBase
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Optional, Tuple, Union, get_args
 
@@ -313,7 +313,7 @@ class CryoSPARC:
         """
         allowed_categories = {category} if isinstance(category, str) else category
         register = self.job_register
-        headings = ["Category", "Job", "Title"]
+        headings = ["Category", "Job", "Title", "Stability"]
         rows = []
         prev_category = None
         for job_spec in register.specs:
@@ -326,7 +326,7 @@ class CryoSPARC:
 
             category = job_spec.category
             display_category = "" if category == prev_category else category
-            rows.append([display_category, job_spec.type, job_spec.title])
+            rows.append([display_category, job_spec.type, job_spec.title, job_spec.stability])
             prev_category = category
 
         print_table(headings, rows)
@@ -782,13 +782,15 @@ class CryoSPARC:
             project_uid (str): Project unique ID, e.g., "P3"
             target_path (str | Path): Name or path of file to write in project
                 directory.
-            source (str | bytes | Path | IO | Stream): Local path or file handle to
-                upload. May also specified as raw bytes.
+            source (str | bytes | Path | IO | Stream): Local path or file handle
+                to upload. May also specified as raw bytes.
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
         if isinstance(source, bytes):
             source = BytesIO(source)
+        if isinstance(source, TextIOBase):  # e.g., open(p, "r") or StringIO()
+            source = Stream.from_iterator(s.encode() for s in source)
         if not isinstance(source, Stream):
             source = Stream.load(source)
         self.api.projects.upload_file(project_uid, source, path=str(target_path), overwrite=overwrite)
