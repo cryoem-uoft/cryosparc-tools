@@ -3,6 +3,7 @@
 ## Next
 
 - BREAKING: replaced low-level `CryoSPARC.cli`, `CryoSPARC.rtp` and `CryoSPARC.vis` attributes with single unified `CryoSPARC.api`
+- BREAKING: When a `job.start()` or `job.run()` is called for an external job, changing the job connections with `job.add_input`, `job.add_output` or `job.connect` will now trigger an error. Please add all inputs and outputs and connect all inputs before running an external job.
 - BREAKING: `CryoSPARC.download_asset(fileid, target)` no longer accepts a directory target. Must specify a filename.
 - BREAKING: removed `CryoSPARC.get_job_specs()`. Use `CryoSPARC.job_register` instead
 - BREAKING: `CryoSPARC.list_assets()` and `Job.list_assets()` return list of models instead of list of dictionaries, accessible with dot-notation
@@ -15,10 +16,15 @@
   - OLD: `cs.get_targets()[0]['hostname']`
   - NEW: `cs.get_targets()[0].hostname`
   - Some top-level target attributes have also been moved into the `.config` attribute
+- BREAKING: `CryoSPARC.print_job_types` `section` argument renamed to `category`
+  - OLD: `cs.print_job_types(section=["extraction", "refinement"])`
+  - NEW: `cs.print_job_types(category=["extraction", "refinement"])`
 - BREAKING: Restructured schema for Job models, many `Job.doc` properties have been internally rearranged
 - Added: `CryoSPARC.job_register` property
 - Added: `job.load_input()` and `job.load_output()` now accept `"default"`, `"passthrough"` and `"all"` keywords for their `slots` argument
 - Added: `job.alloc_output()` now accepts `dtype_params` argument for fields with dynamic shapes
+- Added: `CryoSPARC.print_job_types` now includes a job stability column
+- Added: `Job.print_output_spec` now includes a passthrough indicator column for results
 - Updated: Improved type definitions
 - Deprecated: When adding external inputs and outputs, expanded slot definitions now expect `"name"` key instead of `"prefix"`, support for which will be removed in a future release.
   - OLD: `job.add_input("particle", slots=[{"prefix": "component_mode_1", "dtype": "component", "required": True}])`

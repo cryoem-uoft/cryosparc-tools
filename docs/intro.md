@@ -188,7 +188,6 @@ environment variables. To do the same, define `CRYOSPARC_LICENSE`,
 CryoSPARC license and login credentials:
 
 ```sh
-CRYOSPARC_LICENSE_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
 CRYOSPARC_EMAIL="ali@example.com" \
 CRYOSPARC_PASSWORD="password123" \
 jupyter notebook --no-browser --ip=0.0.0.0 --port=8888
