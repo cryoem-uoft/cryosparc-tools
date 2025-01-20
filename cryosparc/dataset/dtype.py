@@ -3,41 +3,16 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Type, TypedDict, Union
 
 import numpy as n
-from typing_extensions import Literal, Sequence, TypedDict
 
+from ..errors import DatasetLoadError
+from ..spec import DType, Field
 from .core import Data, DsetType
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
-
-Shape = Tuple[int, ...]
-"""A numpy shape tuple from ndarray.shape"""
-
-DType = Union[str, Tuple[str, Shape]]
-"""
-
-    Can just be a single string such as "f4", "3u4" or "O".
-    A datatype description of a ndarray entry.
-
-    Can also be the a tuple with a string datatype name and its shape. For
-    example, the following dtypes are equivalent.
-
-    - "3u4"
-    - "<u4", (3,))
-"""
-
-Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
-"""
-    Description of a column in a numpy array with named fields
-
-    Examples:
-    - ("uid", "u8")
-    - ("coords", "3f4")
-    - ("coords", "<f4", (3,))
-"""
 
 
 class DatasetHeader(TypedDict):
@@ -194,4 +169,6 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
             compressed_fields=compressed_fields,
         )
     except Exception as e:
-        raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e
+        raise DatasetLoadError(
+            f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}"
+        ) from e

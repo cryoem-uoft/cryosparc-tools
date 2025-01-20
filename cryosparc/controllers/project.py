@@ -1,49 +1,57 @@
+import warnings
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from .dataset import DEFAULT_FORMAT, Dataset
-from .job import ExternalJob, Job
-from .row import R
-from .spec import Datatype, MongoController, ProjectDocument, SlotSpec
-from .workspace import Workspace
+from ..dataset import DEFAULT_FORMAT, Dataset
+from ..dataset.row import R
+from ..models.project import Project
+from ..spec import Datatype, SlotSpec
+from . import Controller, as_output_slot
+from .job import ExternalJobController, JobController
+from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray  # type: ignore
+    from numpy.typing import NDArray
 
-    from .tools import CryoSPARC
+    from ..tools import CryoSPARC
 
 
-class Project(MongoController[ProjectDocument]):
+class ProjectController(Controller[Project]):
     """
     Accessor instance for CryoSPARC projects with ability to add workspaces, jobs
-    and upload/download project files. Should be instantiated through
-    `CryoSPARC.find_project`_.
+    and upload/download project files. Should be created with
+    :py:meth:`cs.find_project() <cryosparc.tools.CryoSPARC.find_project>`.
+
+    Arguments:
+        project (str | Project): either Project UID or Project model, e.g. ``"P3"``
 
     Attributes:
-        uid (str): Project unique ID, e.g., "P3"
-        doc (ProjectDocument): All project data from the CryoSPARC database.
-            Database contents may change over time, use the `refresh`_ method
-            to update.
-
-    .. _CryoSPARC.find_project:
-        tools.html#cryosparc.tools.CryoSPARC.find_project
-
-    .. _refresh:
-        #cryosparc.project.Project.refresh
+        model (Project): All project data from the CryoSPARC database. Contents
+            may change over time, use :py:meth:`refresh` to update.
     """
 
-    def __init__(self, cs: "CryoSPARC", uid: str) -> None:
+    uid: str
+    """
+    Project unique ID, e.g., "P3"
+    """
+
+    def __init__(self, cs: "CryoSPARC", project: Union[str, Project]) -> None:
         self.cs = cs
-        self.uid = uid
+        if isinstance(project, str):
+            self.uid = project
+            self.refresh()
+        else:
+            self.uid = project.uid
+            self.model = project
 
     def refresh(self):
         """
         Reload this project from the CryoSPARC database.
 
         Returns:
-            Project: self
+            ProjectController: self
         """
-        self._doc = self.cs.cli.get_project(self.uid)  # type: ignore
+        self.model = self.cs.api.projects.find_one(self.uid)
         return self
 
     def dir(self) -> PurePosixPath:
@@ -53,10 +61,10 @@ class Project(MongoController[ProjectDocument]):
         Returns:
             Path: project directory Pure Path instance
         """
-        path: str = self.cs.cli.get_project_dir_abs(self.uid)  # type: ignore
+        path: str = self.cs.api.projects.get_directory(self.uid)
         return PurePosixPath(path)
 
-    def find_workspace(self, workspace_uid) -> Workspace:
+    def find_workspace(self, workspace_uid) -> WorkspaceController:
         """
         Get a workspace accessor instance for the workspace in this project
         with the given UID. Fails with an error if workspace does not exist.
@@ -65,12 +73,11 @@ class Project(MongoController[ProjectDocument]):
             workspace_uid (str): Workspace unique ID, e.g., "W1"
 
         Returns:
-            Workspace: accessor instance
+            WorkspaceController: workspace accessor object
         """
-        workspace = Workspace(self.cs, self.uid, workspace_uid)
-        return workspace.refresh()
+        return WorkspaceController(self.cs, (self.uid, workspace_uid))
 
-    def find_job(self, job_uid: str) -> Job:
+    def find_job(self, job_uid: str) -> JobController:
         """
         Get a job accessor instance for the job in this project with the given
         UID. Fails with an error if job does not exist.
@@ -79,13 +86,11 @@ class Project(MongoController[ProjectDocument]):
             job_uid (str): Job unique ID, e.g., "J42"
 
         Returns:
-            Job: accessor instance
+            JobController: job accessor instance
         """
-        job = Job(self.cs, self.uid, job_uid)
-        job.refresh()
-        return job
+        return JobController(self.cs, (self.uid, job_uid))
 
-    def find_external_job(self, job_uid: str) -> ExternalJob:
+    def find_external_job(self, job_uid: str) -> ExternalJobController:
         """
         Get the External job accessor instance for an External job in this
         project with the given UID. Fails if the job does not exist or is not an
@@ -98,11 +103,11 @@ class Project(MongoController[ProjectDocument]):
             TypeError: If job is not an external job
 
         Returns:
-            ExternalJob: accessor instance
+            ExternalJobController: external job accessor object
         """
         return self.cs.find_external_job(self.uid, job_uid)
 
-    def create_workspace(self, title: str, desc: Optional[str] = None) -> Workspace:
+    def create_workspace(self, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
         Create a new empty workspace in this project. At least a title must be
         provided.
@@ -112,7 +117,10 @@ class Project(MongoController[ProjectDocument]):
             desc (str, optional): Markdown text description. Defaults to None.
 
         Returns:
-            Workspace: created workspace instance
+            WorkspaceController: created workspace accessor object
+
+        Raises:
+            APIError: Workspace cannot be created.
         """
         return self.cs.create_workspace(self.uid, title, desc)
 
@@ -122,12 +130,13 @@ class Project(MongoController[ProjectDocument]):
         type: str,
         connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
-    ) -> Job:
+        title: str = "",
+        desc: str = "",
+    ) -> JobController:
         """
-        Create a new job with the given type. Use `CryoSPARC.get_job_sections`_
-        to query available job types on the connected CryoSPARC instance.
+        Create a new job with the given type. Use
+        :py:attr:`cs.job_register <cryosparc.tools.CryoSPARC.job_register>`
+        to find available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -138,11 +147,14 @@ class Project(MongoController[ProjectDocument]):
                 value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
-            title (str, optional): Job title. Defaults to None.
-            desc (str, optional): Job markdown description. Defaults to None.
+            title (str, optional): Job title. Defaults to "".
+            desc (str, optional): Job markdown description. Defaults to "".
 
         Returns:
-            Job: created job instance. Raises error if job cannot be created.
+            JobController: created job accessor object.
+
+        Raises:
+            APIError: Job cannot be created.
 
         Examples:
 
@@ -161,9 +173,6 @@ class Project(MongoController[ProjectDocument]):
             ...     connections={"particles": ("J20", "particles_selected")}
             ...     params={"abinit_K": 3}
             ... )
-
-        .. _CryoSPARC.get_job_sections:
-            tools.html#cryosparc.tools.CryoSPARC.get_job_sections
         """
         return self.cs.create_job(
             self.uid, workspace_uid, type, connections=connections, params=params, title=title, desc=desc
@@ -172,26 +181,23 @@ class Project(MongoController[ProjectDocument]):
     def create_external_job(
         self,
         workspace_uid: str,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
-    ) -> ExternalJob:
+        title: str = "",
+        desc: str = "",
+    ) -> ExternalJobController:
         """
         Add a new External job to this project to save generated outputs to.
 
         Args:
             workspace_uid (str): Workspace UID to create job in, e.g., "W3".
             title (str, optional): Title for external job (recommended).
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for external job.
-                Defaults to None.
+                Defaults to "".
 
         Returns:
             ExternalJob: created external job instance
         """
-        job_uid: str = self.cs.vis.create_external_job(  # type: ignore
-            project_uid=self.uid, workspace_uid=workspace_uid, user=self.cs.user_id, title=title, desc=desc
-        )
-        return self.find_external_job(job_uid)
+        return self.cs.create_external_job(self.uid, workspace_uid=workspace_uid, title=title, desc=desc)
 
     def save_external_result(
         self,
@@ -201,8 +207,8 @@ class Project(MongoController[ProjectDocument]):
         name: Optional[str] = None,
         slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> str:
         """
         Save the given result dataset to the project. Specify at least the
@@ -268,13 +274,16 @@ class Project(MongoController[ProjectDocument]):
                 inherits slots from the specified output. e.g., ``("J1",
                 "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
-                to None.
+                to "".
 
         Returns:
             str: UID of created job where this output was saved
         """
+        if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+            slots = [as_output_slot(slot) for slot in slots]  # type: ignore
         return self.cs.save_external_result(
             self.uid,
             workspace_uid,

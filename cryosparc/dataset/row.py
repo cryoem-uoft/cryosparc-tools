@@ -2,8 +2,8 @@ from typing import Any, Dict, Generic, Iterable, List, Mapping, Optional, Tuple,
 
 import numpy as n
 
+from ..util import default_rng, random_integers
 from .column import Column
-from .util import default_rng, random_integers
 
 
 class Row(Mapping):

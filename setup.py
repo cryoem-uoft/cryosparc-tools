@@ -30,11 +30,11 @@ setup(
     headers=["cryosparc/include/cryosparc-tools/dataset.h"],
     ext_modules=cythonize(
         Extension(
-            name="cryosparc.core",
+            name="cryosparc.dataset.core",
             sources=[
                 "cryosparc/include/lz4/lib/lz4.c",
-                "cryosparc/dataset.c",
-                "cryosparc/core.pyx",
+                "cryosparc/dataset/dataset.c",
+                "cryosparc/dataset/core.pyx",
             ],
             include_dirs=["cryosparc/include/"],
             libraries=libraries,
@@ -45,8 +45,8 @@ setup(
             depends=[
                 "cryosparc/include/lz4/lib/lz4.h",
                 "cryosparc/include/cryosparc-tools/dataset.h",
-                "cryosparc/lz4.pxd",
-                "cryosparc/dataset.pxd",
+                "cryosparc/dataset/lz4.pxd",
+                "cryosparc/dataset/dataset.pxd",
             ],
         ),
         language_level=3,

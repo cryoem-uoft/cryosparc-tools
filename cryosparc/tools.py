@@ -22,36 +22,41 @@ Examples:
 import os
 import re
 import tempfile
-from io import BytesIO
-from pathlib import Path, PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Optional, Tuple, Union
-from warnings import warn
+import warnings
+from contextlib import contextmanager
+from functools import cached_property
+from hashlib import sha256
+from io import BytesIO, TextIOBase
+from pathlib import PurePath, PurePosixPath
+from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Optional, Tuple, Union, get_args
 
 import numpy as n
 
-from .errors import InvalidSlotsError
+from . import __version__, model_registry, mrc, registry, stream_registry
+from .api import APIClient
+from .controllers import as_output_slot
+from .controllers.job import ExternalJobController, JobController
+from .controllers.project import ProjectController
+from .controllers.workspace import WorkspaceController
+from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
+from .dataset.row import R
+from .models.asset import GridFSFile
+from .models.external import ExternalOutputSpec
+from .models.job_register import JobRegister
+from .models.job_spec import Category, OutputRef, OutputSpec
+from .models.scheduler_lane import SchedulerLane
+from .models.scheduler_target import SchedulerTarget
+from .models.user import User
+from .spec import Datatype, JobSection, SlotSpec
+from .stream import BinaryIteratorIO, Stream
+from .util import clear_cached_property, padarray, print_table, trimarray
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray  # type: ignore
+    from numpy.typing import NDArray
 
-from . import __version__, mrc
-from .command import CommandClient, CommandError, make_json_request, make_request
-from .dataset import DEFAULT_FORMAT, Dataset
-from .job import ExternalJob, Job
-from .project import Project
-from .row import R
-from .spec import (
-    ASSET_EXTENSIONS,
-    AssetDetails,
-    Datatype,
-    JobSection,
-    JobSpecSection,
-    SchedulerLane,
-    SchedulerTarget,
-    SlotSpec,
-)
-from .util import bopen, noopcontext, padarray, print_table, trimarray
-from .workspace import Workspace
+assert stream_registry
+assert model_registry
+registry.finalize()  # no more models may be registered after this
 
 ONE_MIB = 2**20  # bytes in one mebibyte
 
@@ -79,28 +84,27 @@ class CryoSPARC:
     High-level session class for interfacing with a CryoSPARC instance.
 
     Initialize with the host and base port of the running CryoSPARC instance.
-    This host and (at minimum) ``base_port + 2``, ``base_port + 3`` and
-    ``base_port + 5`` should be accessible on the network.
+    This host and (at minimum) ``base_port + 2`` should be accessible on the
+    network.
 
     Args:
-        license (str, optional): CryoSPARC license key. Defaults to
-            ``os.getenv("CRYOSPARC_LICENSE_ID")``.
+        base_url (str, optional): CryoSPARC instance URL, e.g.,
+            "http://localhost:39000" or "https://cryosparc.example.com".
+            Same URL used to access CryoSPARC from a web browser.
         host (str, optional): Hostname or IP address running CryoSPARC master.
-            Defaults to ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost")``.
-        base_port (int, optional): CryoSPARC services base port number. Defaults
-            to ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", 39000)``.
+            Cannot be specified with ``base_url``. Defaults to
+            ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost")``.
+        base_port (int, optional): CryoSPARC services base port number.
+            Cannot be specified with  ``base_url``. Defaults to
+            ``os.getenv("CRYOSPARC_BASE_PORT", 39000)``.
         email (str, optional): CryoSPARC user account email address. Defaults
             to ``os.getenv("CRYOSPARC_EMAIL")``.
         password (str, optional): CryoSPARC user account password address.
             Defaults to ``os.getenv("CRYOSPARC_PASSWORD")``.
+        license (str, optional): (Deprecated) CryoSPARC license key. Defaults to
+            ``os.getenv("CRYOSPARC_LICENSE_ID")``.
         timeout (int, optional): Timeout error for HTTP requests to CryoSPARC
             command services. Defaults to 300.
-
-    Attributes:
-        cli (CommandClient): HTTP/JSONRPC client for ``command_core`` service (port + 2).
-        vis (CommandClient): HTTP/JSONRPC client for ``command_vis`` service (port + 3).
-        rtp (CommandClient): HTTP/JSONRPC client for ``command_rtp`` service (port + 5).
-        user_id (str): Mongo object ID of user account performing operations for this session.
 
     Examples:
 
@@ -132,65 +136,110 @@ class CryoSPARC:
         "J43"
     """
 
-    cli: CommandClient
-    vis: CommandClient
-    rtp: CommandClient
-    user_id: str  # session user ID
+    api: APIClient
+    """
+    HTTP REST API client for ``api`` service (port + 2).
+    """
+
+    base_url: str
+    """
+    URL used for communication CryoSPARC instance REST API.
+    """
 
     def __init__(
         self,
-        license: str = os.getenv("CRYOSPARC_LICENSE_ID", ""),
-        host: str = os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost"),
-        base_port: int = int(os.getenv("CRYOSPARC_BASE_PORT", 39000)),
-        email: str = os.getenv("CRYOSPARC_EMAIL", ""),
-        password: str = os.getenv("CRYOSPARC_PASSWORD", ""),
+        base_url: Optional[str] = os.getenv("CRYOSPARC_BASE_URL"),
+        *,
+        host: Optional[str] = os.getenv("CRYOSPARC_MASTER_HOSTNAME"),
+        base_port: Union[int, str, None] = os.getenv("CRYOSPARC_BASE_PORT"),
+        email: Optional[str] = os.getenv("CRYOSPARC_EMAIL"),
+        license: Optional[str] = os.getenv("CRYOSPARC_LICENSE_ID"),
+        password: Optional[str] = os.getenv("CRYOSPARC_PASSWORD"),
         timeout: int = 300,
     ):
-        assert LICENSE_REGEX.fullmatch(license), f"Invalid or unspecified CryoSPARC license ID {license}"
-        assert email, "Invalid or unspecified email"
-        assert password, "Invalid or unspecified password"
+        if license:
+            warnings.warn(
+                "Support for license argument and CRYOSPARC_LICENSE_ID environment variable "
+                "will be removed in a future release",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if not LICENSE_REGEX.fullmatch(license):
+                raise ValueError(f"Invalid CryoSPARC license ID {license}")
 
-        self.cli = CommandClient(
-            service="command_core",
-            host=host,
-            port=base_port + 2,
-            headers={"License-ID": license},
-            timeout=timeout,
-        )
-        self.vis = CommandClient(
-            service="command_vis",
-            host=host,
-            port=base_port + 3,
-            headers={"License-ID": license},
-            timeout=timeout,
-        )
-        self.rtp = CommandClient(
-            service="command_rtp",
-            host=host,
-            port=base_port + 5,
-            headers={"License-ID": license},
-            timeout=timeout,
-        )
+        if host and base_port:
+            if base_url:
+                raise TypeError("Cannot specify host and base_port when base_url is specified")
+            self.base_url = f"http://{host}:{int(base_port) + 2}"
+        elif base_url:
+            self.base_url = f"{base_url}/api"  # app forwards to api service (TODO)
+        else:
+            raise TypeError("Must specify either base_url or host + base_port")
+
+        auth = None
+        if email and password:
+            auth = (email, sha256(password.encode()).hexdigest())
+        elif license:
+            auth = ("cryosparc", sha256(license.encode()).hexdigest())
+        # TODO: also load auth from config profile
+        else:
+            raise ValueError(
+                "CryoSPARC authentication not provided. "
+                "Please see documentation at https://tools.cryosparc.com for instructions."
+            )
+
+        tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
-            self.user_id = self.cli.get_id_by_email_password(email, password)  # type: ignore
-            cs_version: str = self.cli.get_running_version()  # type: ignore
+            self.api = APIClient(self.base_url, auth=auth, timeout=timeout)
+            assert self.user  # trigger user profile fetch
+            cs_version = self.api.config.get_version()
         except Exception as e:
-            raise RuntimeError("Could not complete CryoSPARC authentication with given credentials") from e
+            raise RuntimeError(
+                f"Could not connect to CryoSPARC at {base_url} due to error:\n{e}\n"
+                "Please ensure your credentials are correct and that you are "
+                "connecting to a CryoSPARC version compatible with "
+                f"cryosparc-tools {tools_major_minor_version}. "
+                "Please see the documentation at https://tools.cryosparc.com for details."
+            ) from e
 
         if cs_version and VERSION_REGEX.match(cs_version):
             cs_major_minor_version = ".".join(cs_version[1:].split(".")[:2])  # e.g., v4.1.0 -> 4.1
-            tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
             tools_prerelease_url = "https://github.com/cryoem-uoft/cryosparc-tools/archive/refs/heads/develop.zip"
             if cs_major_minor_version != tools_major_minor_version:
-                warn(
-                    f"CryoSPARC instance {host}:{base_port} with version {cs_version} "
-                    f"may not be compatible with current cryosparc-tools version v{__version__}.\n\n"
+                warnings.warn(
+                    f"CryoSPARC at {self.base_url} with version {cs_version} "
+                    f"may not be compatible with current cryosparc-tools version {__version__}.\n\n"
                     "To install a compatible version of cryosparc-tools:\n\n"
                     f"    pip install --force cryosparc-tools~={cs_major_minor_version}.0\n\n"
                     "Or, if running a CryoSPARC pre-release or private beta:\n\n"
                     f"    pip install --no-cache --force {tools_prerelease_url}\n",
                     stacklevel=2,
                 )
+
+    @cached_property
+    def user(self) -> User:
+        """
+        User account performing operations for this session.
+        """
+        return self.api.users.me()
+
+    @cached_property
+    def job_register(self) -> JobRegister:
+        """
+        Information about jobs available on this instance.
+        """
+        return self.api.job_register()
+
+    def refresh(self):
+        """
+        Reset cache and refresh instance details.
+
+        Raises:
+            APIError: cannot be refreshed.
+        """
+        clear_cached_property(self, "user")
+        clear_cached_property(self, "job_register")
+        assert self.user  # ensure we can still fetch a user
 
     def test_connection(self):
         """
@@ -199,27 +248,12 @@ class CryoSPARC:
         Returns:
             bool: True if connection succeeded, False otherwise
         """
-        if self.cli.test_connection():  # type: ignore
-            print(f"Connection succeeded to CryoSPARC command_core at {self.cli._url}")
+        if self.api.health() == "OK":
+            print(f"Connection succeeded to CryoSPARC API at {self.base_url}")
+            return True
         else:
-            print(f"Connection FAILED to CryoSPARC command_core at {self.cli._url}")
+            print(f"Connection FAILED to CryoSPARC API at {self.base_url}")
             return False
-
-        with make_request(self.vis, method="GET") as response:
-            if response.read():
-                print(f"Connection succeeded to CryoSPARC command_vis at {self.vis._url}")
-            else:
-                print(f"Connection FAILED to CryoSPARC command_vis at {self.vis._url}")
-                return False
-
-        with make_request(self.rtp, method="GET") as response:
-            if response.read():
-                print(f"Connection succeeded to CryoSPARC command_rtp at {self.rtp._url}")
-            else:
-                print(f"Connection FAILED to CryoSPARC command_rtp at {self.rtp._url}")
-                return False
-
-        return True
 
     def get_lanes(self) -> List[SchedulerLane]:
         """
@@ -228,7 +262,7 @@ class CryoSPARC:
         Returns:
             list[SchedulerLane]: Details about available lanes.
         """
-        return self.cli.get_scheduler_lanes()  # type: ignore
+        return self.api.resources.find_lanes()
 
     def get_targets(self, lane: Optional[str] = None) -> List[SchedulerTarget]:
         """
@@ -241,60 +275,63 @@ class CryoSPARC:
         Returns:
             list[SchedulerTarget]: Details about available targets.
         """
-        targets: List[SchedulerTarget] = self.cli.get_scheduler_targets()  # type: ignore
-        if lane is not None:
-            targets = [t for t in targets if t["lane"] == lane]
-        return targets
+        return self.api.resources.find_targets(lane=lane)
 
     def get_job_sections(self) -> List[JobSection]:
         """
-        Get a summary of job types available for this instance, organized by
-        category.
+        (Deprecated) Get a summary of job types available for this instance,
+        organized by category.
 
         Returns:
             list[JobSection]: List of job section dictionaries. Job types
                 are listed in the ``"contains"`` key in each dictionary.
         """
-        return self.cli.get_job_sections()  # type: ignore
+        warnings.warn("Use job_register property instead", DeprecationWarning, stacklevel=2)
+        job_types_by_category = {
+            category: [spec.type for spec in self.job_register.specs if spec.category == category]
+            for category in get_args(Category)
+        }
+        return [
+            {"name": category, "title": category.replace("_", " ").title(), "description": "", "contains": job_types}
+            for category, job_types in job_types_by_category.items()
+        ]
 
-    def get_job_specs(self) -> List[JobSpecSection]:
-        """
-        Get a detailed summary of job and their specification available on
-        this instance, organized by category.
-
-        Returns:
-
-            list[JobSpecSection]: List of job section dictionaries. Job specs
-            are listed in the ``"contains"`` key in each dictionary
-        """
-        return self.cli.get_config_var("job_types_available")  # type: ignore
-
-    def print_job_types(self, section: Union[str, Container[str], None] = None, *, show_legacy: bool = False):
+    def print_job_types(
+        self,
+        category: Union[Category, Container[Category], None] = None,
+        *,
+        show_legacy: bool = False,
+    ):
         """
         Print a table of job types and their titles, organized by category.
 
         Args:
-            section (str | list[str], optional): Only show jobs from the given
-                section or list of sections. Defaults to None.
+            category (Category | list[Category], optional): Only show jobs from
+                the given category or list of categories. Defaults to None.
             show_legacy (bool, optional): If True, also show legacy jobs.
                 Defaults to False.
         """
-        allowed_sections = {section} if isinstance(section, str) else section
-        sections = self.get_job_specs()
-        headings = ["Section", "Job", "Title"]
+        allowed_categories = {category} if isinstance(category, str) else category
+        register = self.job_register
+        headings = ["Category", "Job", "Title", "Stability"]
         rows = []
-        for sec in sections:
-            if allowed_sections is not None and sec["name"] not in allowed_sections:
+        prev_category = None
+        for job_spec in register.specs:
+            if allowed_categories is not None and job_spec.category not in allowed_categories:
                 continue
-            sec_name = sec["name"]
-            for job in sec["contains"]:
-                if job["hidden"] or job["develop_only"] or not show_legacy and "(LEGACY)" in job["title"]:
-                    continue
-                rows.append([sec_name, job["name"], job["title"]])
-                sec_name = ""
+            if job_spec.hidden or job_spec.stability == "obsolete":
+                continue
+            if not show_legacy and job_spec.stability == "legacy":
+                continue
+
+            category = job_spec.category
+            display_category = "" if category == prev_category else category
+            rows.append([display_category, job_spec.type, job_spec.title, job_spec.stability])
+            prev_category = category
+
         print_table(headings, rows)
 
-    def find_project(self, project_uid: str) -> Project:
+    def find_project(self, project_uid: str) -> ProjectController:
         """
         Get a project by its unique ID.
 
@@ -302,13 +339,11 @@ class CryoSPARC:
             project_uid (str): Project unique ID, e.g., "P3"
 
         Returns:
-            Project: project instance
+            ProjectController: project accessor object
         """
-        project = Project(self, project_uid)
-        project.refresh()
-        return project
+        return ProjectController(self, project_uid)
 
-    def find_workspace(self, project_uid: str, workspace_uid: str) -> Workspace:
+    def find_workspace(self, project_uid: str, workspace_uid: str) -> WorkspaceController:
         """
         Get a workspace accessor instance for the workspace in the given project
         with the given UID. Fails with an error if workspace does not exist.
@@ -318,12 +353,11 @@ class CryoSPARC:
             workspace_uid (str): Workspace unique ID, e.g., "W1"
 
         Returns:
-            Workspace: accessor instance
+            WorkspaceController: workspace accessor object
         """
-        workspace = Workspace(self, project_uid, workspace_uid)
-        return workspace.refresh()
+        return WorkspaceController(self, (project_uid, workspace_uid))
 
-    def find_job(self, project_uid: str, job_uid: str) -> Job:
+    def find_job(self, project_uid: str, job_uid: str) -> JobController:
         """
         Get a job by its unique project and job ID.
 
@@ -332,13 +366,11 @@ class CryoSPARC:
             job_uid (str): job unique ID, e.g., "J42"
 
         Returns:
-            Job: job instance
+            JobController: job accessor object
         """
-        job = Job(self, project_uid, job_uid)
-        job.refresh()
-        return job
+        return JobController(self, (project_uid, job_uid))
 
-    def find_external_job(self, project_uid: str, job_uid: str) -> ExternalJob:
+    def find_external_job(self, project_uid: str, job_uid: str) -> ExternalJobController:
         """
         Get the External job accessor instance for an External job in this
         project with the given UID. Fails if the job does not exist or is not an
@@ -352,15 +384,11 @@ class CryoSPARC:
             TypeError: If job is not an external job
 
         Returns:
-            ExternalJob: accessor instance
+            ExternalJobController: external job accessor object
         """
-        job = ExternalJob(self, project_uid, job_uid)
-        job.refresh()
-        if job.doc["job_type"] != "snowflake":
-            raise TypeError(f"Job {project_uid}-{job_uid} is not an external job")
-        return job
+        return ExternalJobController(self, (project_uid, job_uid))
 
-    def create_workspace(self, project_uid: str, title: str, desc: Optional[str] = None) -> Workspace:
+    def create_workspace(self, project_uid: str, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
         Create a new empty workspace in the given project.
 
@@ -370,12 +398,13 @@ class CryoSPARC:
             desc (str, optional): Markdown text description. Defaults to None.
 
         Returns:
-            Workspace: created workspace instance
+            WorkspaceController: created workspace accessor object
+
+        Raises:
+            APIError: Workspace cannot be created.
         """
-        workspace_uid: str = self.cli.create_empty_workspace(  # type: ignore
-            project_uid=project_uid, created_by_user_id=self.user_id, title=title, desc=desc
-        )
-        return self.find_workspace(project_uid, workspace_uid)
+        workspace = self.api.workspaces.create(project_uid, title=title, description=desc)
+        return WorkspaceController(self, workspace)
 
     def create_job(
         self,
@@ -384,12 +413,12 @@ class CryoSPARC:
         type: str,
         connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
-    ) -> Job:
+        title: str = "",
+        desc: str = "",
+    ) -> JobController:
         """
-        Create a new job with the given type. Use `CryoSPARC.get_job_sections`_
-        to query available job types on the connected CryoSPARC instance.
+        Create a new job with the given type. Use :py:attr:`job_register`
+        to find available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -400,11 +429,14 @@ class CryoSPARC:
                 value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
-            title (str, optional): Job title. Defaults to None.
-            desc (str, optional): Job markdown description. Defaults to None.
+            title (str, optional): Job title. Defaults to "".
+            desc (str, optional): Job markdown description. Defaults to "".
 
         Returns:
-            Job: created job instance. Raises error if job cannot be created.
+            JobController: created job accessor object.
+
+        Raises:
+            APIError: Job cannot be created.
 
         Examples:
 
@@ -422,49 +454,43 @@ class CryoSPARC:
             ...     connections={"particles": ("J20", "particles_selected")}
             ...     params={"abinit_K": 3}
             ... )
-
-        .. _CryoSPARC.get_job_sections:
-            #cryosparc.tools.CryoSPARC.get_job_sections
         """
-        conn = {k: (v if isinstance(v, list) else [v]) for k, v in connections.items()}
-        conn = {k: [".".join(i) for i in v] for k, v in conn.items()}
-        job_uid: str = self.cli.make_job(  # type: ignore
-            job_type=type,
-            project_uid=project_uid,
-            workspace_uid=workspace_uid,
-            user_id=self.user_id,
-            title=title,
-            desc=desc,
-            params=params,
-            input_group_connects=conn,
-        )
-        return self.find_job(project_uid, job_uid)
+        job = self.api.jobs.create(project_uid, workspace_uid, params=params, type=type, title=title, description=desc)
+        for input_name, connection in connections.items():
+            connection = [connection] if isinstance(connection, tuple) else connection
+            for source_job_uid, source_output_name in connection:
+                job = self.api.jobs.connect(
+                    job.project_uid,
+                    job.uid,
+                    input_name,
+                    source_job_uid=source_job_uid,
+                    source_output_name=source_output_name,
+                )
+        return JobController(self, job)
 
     def create_external_job(
         self,
         project_uid: str,
         workspace_uid: str,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
-    ) -> ExternalJob:
+        title: str = "",
+        desc: str = "",
+    ) -> ExternalJobController:
         """
         Add a new External job to this project to save generated outputs to.
 
-        Args:
-            project_uid (str): Project UID to create in, e.g., "P3"
-            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
-            title (str, optional): Title for external job (recommended).
-                Defaults to None.
-            desc (str, optional): Markdown description for external job.
-                Defaults to None.
+            Args:
+                project_uid (str): Project UID to create in, e.g., "P3"
+                workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+                title (str, optional): Title for external job (recommended).
+                    Defaults to "".
+                desc (str, optional): Markdown description for external job.
+                    Defaults to "".
 
-        Returns:
-            ExternalJob: created external job instance
+            Returns:
+                ExternalJobController: created external job accessor object
         """
-        job_uid: str = self.vis.create_external_job(  # type: ignore
-            project_uid=project_uid, workspace_uid=workspace_uid, user=self.user_id, title=title, desc=desc
-        )
-        return self.find_external_job(project_uid, job_uid)
+        job = self.api.jobs.create(project_uid, workspace_uid, type="snowflake", title=title, description=desc)
+        return ExternalJobController(self, job)
 
     def save_external_result(
         self,
@@ -475,8 +501,8 @@ class CryoSPARC:
         name: Optional[str] = None,
         slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> str:
         """
         Save the given result dataset to the project. Specify at least the
@@ -539,16 +565,14 @@ class CryoSPARC:
             passthrough (tuple[str, str], optional): Indicates that this output
                 inherits slots from the specified output. e.g.,
                 ``("J1", "particles")``. Defaults to None.
-
             title (str, optional): Human-readable title for this output.
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
-                to None.
+                to "".
 
         Raises:
-            CommandError: General CryoSPARC network access error such as
+            APIError: General CryoSPARC network access error such as
                 timeout, URL or HTTP
-            InvalidSlotsError: slots argument is invalid
 
         Returns:
             str: UID of created job where this output was saved
@@ -558,35 +582,47 @@ class CryoSPARC:
         prefixes = dataset.prefixes()
         if slots is None:
             slots = list(prefixes)
-        slot_names = {s if isinstance(s, str) else s["prefix"] for s in slots}
-        assert slot_names.intersection(prefixes) == slot_names, "Given dataset missing required slots"
+        elif any(isinstance(s, dict) and "prefix" in s for s in slots):
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
 
-        passthrough_str = ".".join(passthrough) if passthrough else None
-        try:
-            job_uid, output = self.vis.create_external_result(  # type: ignore
-                project_uid=project_uid,
-                workspace_uid=workspace_uid,
-                type=type,
+        # Normalize slots to OutputSlot or strings
+        output_slots = [s if isinstance(s, str) else as_output_slot(s) for s in slots]
+        required_slot_names = {s if isinstance(s, str) else s.name for s in output_slots}
+        missing_slot_names = required_slot_names.difference(prefixes)
+        if missing_slot_names:
+            raise ValueError(f"Given dataset missing required slots: {', '.join(missing_slot_names)}")
+
+        if not name:
+            name = type
+        if not title:
+            title = name.replace("_", " ").title()
+
+        # Find the most recent workspace or create a new one if the project is empty
+        if workspace_uid is None:
+            # TODO: limit find to one workspace
+            workspaces = self.api.workspaces.find(project_uid=[project_uid], order=-1)
+            workspace = workspaces[0] if workspaces else self.api.workspaces.create(project_uid, title=title)
+            workspace_uid = workspace.uid
+
+        job = self.api.jobs.create_external_result(
+            project_uid,
+            workspace_uid,
+            ExternalOutputSpec(
                 name=name,
-                slots=slots,
-                passthrough=passthrough_str,
-                user=self.user_id,
-                title=title,
-                desc=desc,
-            )
-        except CommandError as err:
-            if err.code == 422 and err.data and "slots" in err.data:
-                raise InvalidSlotsError("save_external_result", err.data["slots"]) from err
-            raise
-
-        job = self.find_external_job(project_uid, job_uid)
+                spec=OutputSpec(type=type, title=title, description=desc, slots=output_slots),
+                connection=OutputRef(job_uid=passthrough[0], output=passthrough[1]) if passthrough else None,
+            ),
+        )
+        job = ExternalJobController(self, job)
         with job.run():
-            job.save_output(output, dataset)
-
+            job.save_output(name, dataset)
         return job.uid
 
     def list_files(
-        self, project_uid: str, prefix: Union[str, PurePosixPath] = "", recursive: bool = False
+        self,
+        project_uid: str,
+        prefix: Union[str, PurePosixPath] = "",
+        recursive: bool = False,
     ) -> List[str]:
         """
         Get a list of files inside the project directory.
@@ -601,12 +637,9 @@ class CryoSPARC:
         Returns:
             list[str]: List of file paths relative to the project directory.
         """
-        return self.vis.list_project_files(  # type: ignore
-            project_uid=project_uid,
-            prefix=str(prefix),
-            recursive=recursive,
-        )
+        return self.api.projects.ls(project_uid, path=str(prefix), recursive=recursive)
 
+    @contextmanager
     def download(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
         Open a file in the given project for reading. Use to get files from a
@@ -631,8 +664,9 @@ class CryoSPARC:
         """
         if not path:
             raise ValueError("Download path cannot be empty")
-        data = {"project_uid": project_uid, "path": str(path)}
-        return make_json_request(self.vis, "/get_project_file", data=data)
+        stream = self.api.projects.download_file(project_uid, path=str(path))
+        iterator = BinaryIteratorIO(stream.stream())
+        yield iterator
 
     def download_file(
         self,
@@ -655,16 +689,8 @@ class CryoSPARC:
         Returns:
             Path | IO: resulting target path or file handle.
         """
-        if isinstance(target, (str, PurePath)):
-            target = Path(target)
-            if target.is_dir():
-                target /= PurePath(path).name
-        with bopen(target, "wb") as f:
-            with self.download(project_uid, path) as response:
-                data = response.read(ONE_MIB)
-                while data:
-                    f.write(data)
-                    data = response.read(ONE_MIB)
+        stream = self.api.projects.download_file(project_uid, path=str(path))
+        stream.save(target)
         return target
 
     def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]):
@@ -679,26 +705,16 @@ class CryoSPARC:
         Returns:
             Dataset: Loaded dataset instance
         """
-        with self.download(project_uid, path) as response:
-            size = response.headers.get("Content-Length")
-            mime = response.headers.get("Content-Type")
-            if mime == "application/x-cryosparc-dataset":
-                # Stream format; can load directly without seek
-                return Dataset.load(response)
+        stream = self.api.projects.download_file(project_uid, path=str(path))
+        if stream.media_type == "application/x-cryosparc-dataset":
+            # Stream format; can load directly without seek
+            return Dataset.from_iterator(stream.stream())
 
-            # Numpy format, cannot load directly because requires seekable
-            if size and int(size) < ONE_MIB:
-                # Smaller than 1MiB, just read all into memory and load
-                return Dataset.load(BytesIO(response.read()))
-
-            # Read into temporary file in 1MiB chunks. Load from that temporary file
-            with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
-                data = response.read(ONE_MIB)
-                while data:
-                    f.write(data)
-                    data = response.read(ONE_MIB)
-                f.seek(0)
-                return Dataset.load(f)
+        # Numpy format, cannot load directly because requires seekable. Load from that temporary file
+        with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
+            stream.save(f)
+            f.seek(0)
+            return Dataset.load(f)
 
     def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
@@ -712,16 +728,13 @@ class CryoSPARC:
         Returns:
             tuple[Header, NDArray]: MRC file header and data as a numpy array
         """
-        with self.download(project_uid, path) as response:
-            with tempfile.TemporaryFile("w+b", suffix=".cs") as f:
-                data = response.read(ONE_MIB)
-                while data:
-                    f.write(data)
-                    data = response.read(ONE_MIB)
-                f.seek(0)
-                return mrc.read(f)  # FIXME: Optimize file reading
+        stream = self.api.projects.download_file(project_uid, path=str(path))
+        with tempfile.TemporaryFile("w+b", suffix=".mrc") as f:
+            stream.save(f)
+            f.seek(0)
+            return mrc.read(f)  # FIXME: Optimize file reading
 
-    def list_assets(self, project_uid: str, job_uid: str) -> List[AssetDetails]:
+    def list_assets(self, project_uid: str, job_uid: str) -> List[GridFSFile]:
         """
         Get a list of files available in the database for given job. Returns a
         list with details about the assets. Each entry is a dict with a ``_id``
@@ -733,9 +746,9 @@ class CryoSPARC:
             job_uid (str): job unique ID, e.g., "J42"
 
         Returns:
-            list[AssetDetails]: Asset details
+            list[GridFSFile]: Asset details
         """
-        return self.vis.list_job_files(project_uid=project_uid, job_uid=job_uid)  # type: ignore
+        return self.api.assets.find(project_uid=project_uid, job_uid=job_uid)
 
     def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
         """
@@ -743,34 +756,21 @@ class CryoSPARC:
 
         Args:
             fileid (str): GridFS file object ID
-            target (str | Path | IO): Local file path, directory path or
-                writeable file handle to write response data.
+            target (str | Path | IO): Local file path or writeable file handle
+                to write response data.
 
         Returns:
-            Path | IO: resulting target path or file handle.
+            str | Path | IO: resulting target path or file handle.
         """
-        with make_json_request(self.vis, url="/get_job_file", data={"fileid": fileid}) as response:
-            if isinstance(target, (str, PurePath)):
-                target = Path(target)
-                if target.is_dir():
-                    # Try to get download filename and content type from
-                    # headers. If cannot be determined, defaults to "file.dat"
-                    content_type: str = response.headers.get_content_type()
-                    attachment_filename: Optional[str] = response.headers.get_filename()
-                    target /= attachment_filename or f"file.{ASSET_EXTENSIONS.get(content_type, 'dat')}"  # type: ignore
-            with bopen(target, "wb") as f:
-                data = response.read(ONE_MIB)
-                while data:
-                    f.write(data)
-                    data = response.read(ONE_MIB)
-
-            return target
+        stream = self.api.assets.download(fileid)
+        stream.save(target)
+        return target
 
     def upload(
         self,
         project_uid: str,
         target_path: Union[str, PurePosixPath],
-        source: Union[str, bytes, PurePath, IO],
+        source: Union[str, bytes, PurePath, IO, Stream],
         *,
         overwrite: bool = False,
     ):
@@ -782,21 +782,18 @@ class CryoSPARC:
             project_uid (str): Project unique ID, e.g., "P3"
             target_path (str | Path): Name or path of file to write in project
                 directory.
-            source (str | bytes | Path | IO): Local path or file handle to
-                upload. May also specified as raw bytes.
+            source (str | bytes | Path | IO | Stream): Local path or file handle
+                to upload. May also specified as raw bytes.
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        url = f"/projects/{project_uid}/files"
-        query: dict = {"path": target_path}
-        if overwrite:
-            query["overwrite"] = 1
-        with open(source, "rb") if isinstance(source, (str, PurePath)) else noopcontext(source) as f:
-            with make_request(self.vis, url=url, query=query, data=f) as res:
-                assert res.status >= 200 and res.status < 300, (
-                    f"Could not upload project {project_uid} file {target_path}.\n"
-                    f"Response from CryoSPARC ({res.status}): {res.read().decode()}"
-                )
+        if isinstance(source, bytes):
+            source = BytesIO(source)
+        if isinstance(source, TextIOBase):  # e.g., open(p, "r") or StringIO()
+            source = Stream.from_iterator(s.encode() for s in source)
+        if not isinstance(source, Stream):
+            source = Stream.load(source)
+        self.api.projects.upload_file(project_uid, source, path=str(target_path), overwrite=overwrite)
 
     def upload_dataset(
         self,
@@ -821,6 +818,9 @@ class CryoSPARC:
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
+        if format == CSDAT_FORMAT:
+            return self.upload(project_uid, target_path, Stream.from_iterator(dset.stream()), overwrite=overwrite)
+
         if len(dset) < 100:
             # Probably small enough to upload from memory
             f = BytesIO()
@@ -881,8 +881,8 @@ class CryoSPARC:
                 existing directories. Still raises if the target path is not a
                 directory. Defaults to False.
         """
-        self.vis.project_mkdir(  # type: ignore
-            project_uid=project_uid,
+        self.api.projects.mkdir(
+            project_uid,
             path=str(target_path),
             parents=parents,
             exist_ok=exist_ok,
@@ -902,11 +902,7 @@ class CryoSPARC:
                 directory to copy into. If not specified, uses the same file
                 name as the source. Defaults to "".
         """
-        self.vis.project_cp(  # type: ignore
-            project_uid=project_uid,
-            source_path=str(source_path),
-            target_path=str(target_path),
-        )
+        self.api.projects.cp(project_uid, source=str(source_path), path=str(target_path))
 
     def symlink(
         self,
@@ -927,11 +923,7 @@ class CryoSPARC:
                 directory. If not specified, creates link with the same file
                 name as the source. Defaults to "".
         """
-        self.vis.project_symlink(  # type: ignore
-            project_uid=project_uid,
-            source_path=str(source_path),
-            target_path=str(target_path),
-        )
+        self.api.projects.symlink(project_uid, source=str(source_path), path=str(target_path))
 
 
 def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):

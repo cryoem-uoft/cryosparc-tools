@@ -9,10 +9,12 @@ on:
       - main
       - develop
       - release-*
+      - spm # TODO: remove before merging
   pull_request:
     branches:
       - develop
       - release-*
+      - spm # TODO: remove before merging
   release:
     types:
       - published

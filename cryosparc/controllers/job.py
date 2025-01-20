@@ -2,43 +2,53 @@
 Defines the Job and External job classes for accessing CryoSPARC jobs.
 """
 
-import json
-import math
 import re
-import urllib.parse
+import traceback
+import warnings
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from time import sleep, time
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Pattern, Union, overload
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Pattern,
+    Sequence,
+    Tuple,
+    Union,
+    overload,
+)
 
-import numpy as n
-from typing_extensions import Literal
-
-from .command import CommandError, make_json_request, make_request
-from .dataset import DEFAULT_FORMAT, Dataset
-from .errors import ExternalJobError, InvalidSlotsError
-from .spec import (
+from ..dataset import DEFAULT_FORMAT, Dataset
+from ..errors import ExternalJobError
+from ..models.asset import GridFSAsset, GridFSFile
+from ..models.job import Job, JobStatus
+from ..models.job_spec import InputSpec, OutputSpec
+from ..spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
     TEXT_CONTENT_TYPES,
-    AssetDetails,
     AssetFormat,
     Datatype,
-    EventLogAsset,
     ImageFormat,
-    JobDocument,
-    JobStatus,
-    MongoController,
+    LoadableSlots,
     SlotSpec,
     TextFormat,
 )
-from .util import bopen, first, print_table
+from ..stream import Stream
+from ..util import first, print_table
+from . import Controller, as_input_slot, as_output_slot
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
 
-    from .tools import CryoSPARC
+    from ..tools import CryoSPARC
 
 
 GROUP_NAME_PATTERN = r"^[A-Za-z][0-9A-Za-z_]*$"
@@ -47,17 +57,20 @@ Input and output result groups may only contain, letters, numbers and underscore
 """
 
 
-class Job(MongoController[JobDocument]):
+class JobController(Controller[Job]):
     """
     Accessor class to a job in CryoSPARC with ability to load inputs and
-    outputs, add to job log, download job files. Should be instantiated
-    through `CryoSPARC.find_job`_ or `Project.find_job`_.
+    outputs, add to job log, download job files. Should be created with
+    :py:meth:`cs.find_job() <cryosparc.tools.CryoSPARC.find_job>` or
+    :py:meth:`project.find_job() <cryosparc.project.ProjectController.find_job>`.
+
+    Arguments:
+        job (tuple[str, str] | Job): either _(Project UID, Job UID)_ tuple or
+            Job model, e.g. ``("P3", "J42")``
 
     Attributes:
-        uid (str): Job unique ID, e.g., "J42"
-        project_uid (str): Project unique ID, e.g., "P3"
-        doc (JobDocument): All job data from the CryoSPARC database. Database
-            contents may change over time, use the `refresh`_ method to update.
+        model (Workspace): All job data from the CryoSPARC database.
+            Contents may change over time, use :py:method:`refresh` to update.
 
     Examples:
 
@@ -83,44 +96,60 @@ class Job(MongoController[JobDocument]):
         >>> job.queue()
         >>> job.status
         "queued"
-
-    .. _CryoSPARC.find_job:
-        tools.html#cryosparc.tools.CryoSPARC.find_job
-
-    .. _Project.find_job:
-        project.html#cryosparc.project.Project.find_job
-
-    .. _refresh:
-        #cryosparc.job.Job.refresh
     """
 
-    def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
+    uid: str
+    """
+    Job unique ID, e.g., "J42"
+    """
+    project_uid: str
+    """
+    Project unique ID, e.g., "P3"
+    """
+
+    def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
         self.cs = cs
-        self.project_uid = project_uid
-        self.uid = uid
+        if isinstance(job, tuple):
+            self.project_uid, self.uid = job
+            self.refresh()
+        else:
+            self.project_uid = job.project_uid
+            self.uid = job.uid
+            self.model = job
 
     @property
     def type(self) -> str:
         """
         Job type key
         """
-        return self.doc["job_type"]
+        return self.model.spec.type
 
     @property
     def status(self) -> JobStatus:
         """
         JobStatus: scheduling status.
         """
-        return self.doc["status"]
+        return self.model.status
+
+    @property
+    def full_spec(self):
+        """
+        The full specification for job inputs, outputs and parameters, as
+        defined in the job register.
+        """
+        spec = first(spec for spec in self.cs.job_register.specs if spec.type == self.type)
+        if not spec:
+            raise RuntimeError(f"Could not find job specification for type {type}")
+        return spec
 
     def refresh(self):
         """
         Reload this job from the CryoSPARC database.
 
         Returns:
-            Job: self
+            JobController: self
         """
-        self._doc = self.cs.cli.get_job(self.project_uid, self.uid)  # type: ignore
+        self.model = self.cs.api.jobs.find_one(self.project_uid, self.uid)
         return self
 
     def dir(self) -> PurePosixPath:
@@ -130,7 +159,7 @@ class Job(MongoController[JobDocument]):
         Returns:
             Path: job directory Pure Path instance
         """
-        return PurePosixPath(self.cs.cli.get_job_dir_abs(self.project_uid, self.uid))  # type: ignore
+        return PurePosixPath(self.cs.api.jobs.get_directory(self.project_uid, self.uid))
 
     def queue(
         self,
@@ -141,13 +170,13 @@ class Job(MongoController[JobDocument]):
     ):
         """
         Queue a job to a target lane. Available lanes may be queried with
-        `CryoSPARC.get_lanes`_.
+        `:py:meth:`cs.get_lanes() <cryosparc.tools.CryoSPARC.get_lanes>`.
 
         Optionally specify a hostname for a node or cluster in the given lane.
         Optionally specify specific GPUs indexes to use for computation.
 
         Available hostnames for a given lane may be queried with
-        `CryoSPARC.get_targets`_.
+        `:py:meth:`cs.get_targets() <cryosparc.tools.CryoSPARC.get_targets>`.
 
         Args:
             lane (str, optional): Configuried compute lane to queue to. Leave
@@ -173,36 +202,16 @@ class Job(MongoController[JobDocument]):
             >>> job.queue("worker")
             >>> job.status
             "queued"
-
-        .. _CryoSPARC.get_lanes:
-            tools.html#cryosparc.tools.CryoSPARC.get_lanes
-        .. _CryoSPARC.get_targets:
-            tools.html#cryosparc.tools.CryoSPARC.get_targets
         """
         if cluster_vars:
-            self.cs.cli.set_cluster_job_custom_vars(  # type: ignore
-                project_uid=self.project_uid,
-                job_uid=self.uid,
-                cluster_job_custom_vars=cluster_vars,
-            )
-        self.cs.cli.enqueue_job(  # type: ignore
-            project_uid=self.project_uid,
-            job_uid=self.uid,
-            lane=lane,
-            user_id=self.cs.user_id,
-            hostname=hostname,
-            gpus=gpus if gpus else False,
-        )
-        self.refresh()
+            self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, cluster_vars)
+        self.model = self.cs.api.jobs.enqueue(self.project_uid, self.uid, lane=lane, hostname=hostname, gpus=gpus)
 
     def kill(self):
         """
         Kill this job.
         """
-        self.cs.cli.kill_job(  # type: ignore
-            project_uid=self.project_uid, job_uid=self.uid, killed_by_user_id=self.cs.user_id
-        )
-        self.refresh()
+        self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
 
     def wait_for_status(self, status: Union[JobStatus, Iterable[JobStatus]], *, timeout: Optional[int] = None) -> str:
         """
@@ -232,12 +241,10 @@ class Job(MongoController[JobDocument]):
         """
         statuses = {status} if isinstance(status, str) else set(status)
         tic = time()
-        self.refresh()
-        while self.status not in statuses:
+        while self.refresh().status not in statuses:
             if timeout is not None and time() - tic > timeout:
                 break
             sleep(5)
-            self.refresh()
         return self.status
 
     def wait_for_done(self, *, error_on_incomplete: bool = False, timeout: Optional[int] = None) -> str:
@@ -272,8 +279,8 @@ class Job(MongoController[JobDocument]):
             refresh (bool, optional): If True, refresh the job document after
                 posting. Defaults to False.
         """
-        result: Any = self.cs.cli.interactive_post(  # type: ignore
-            project_uid=self.project_uid, job_uid=self.uid, endpoint=action, body=body, timeout=timeout
+        result: Any = self.cs.api.jobs.interactive_post(
+            self.project_uid, self.uid, body=body, endpoint=action, timeout=timeout
         )
         if refresh:
             self.refresh()
@@ -283,10 +290,9 @@ class Job(MongoController[JobDocument]):
         """
         Clear this job and reset to building status.
         """
-        self.cs.cli.clear_job(self.project_uid, self.uid)  # type: ignore
-        self.refresh()
+        self.model = self.cs.api.jobs.clear(self.project_uid, self.uid)
 
-    def set_param(self, name: str, value: Any, *, refresh: bool = True) -> bool:
+    def set_param(self, name: str, value: Any, **kwargs) -> bool:
         """
         Set the given param name on the current job to the given value. Only
         works if the job is in "building" status.
@@ -294,8 +300,6 @@ class Job(MongoController[JobDocument]):
         Args:
             name (str): Param name, as defined in the job document's ``params_base``.
             value (any): Target parameter value.
-            refresh (bool, optional): Auto-refresh job document after
-                connecting. Defaults to True.
 
         Returns:
             bool: False if the job encountered a build error.
@@ -309,14 +313,12 @@ class Job(MongoController[JobDocument]):
             >>> job.set_param("compute_num_gpus", 4)
             True
         """
-        result: bool = self.cs.cli.job_set_param(  # type: ignore
-            project_uid=self.project_uid, job_uid=self.uid, param_name=name, param_new_value=value
-        )
-        if refresh:
-            self.refresh()
-        return result
+        if "refresh" in kwargs:
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        self.model = self.cs.api.jobs.set_param(self.project_uid, self.uid, name, value=value)
+        return True
 
-    def connect(self, target_input: str, source_job_uid: str, source_output: str, *, refresh: bool = True) -> bool:
+    def connect(self, target_input: str, source_job_uid: str, source_output: str, **kwargs) -> bool:
         """
         Connect the given input for this job to an output with given job UID and
         name.
@@ -327,8 +329,6 @@ class Job(MongoController[JobDocument]):
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
-            refresh (bool, optional): Auto-refresh job document after
-                connecting. Defaults to True.
 
         Returns:
             bool: False if the job encountered a build error.
@@ -344,17 +344,16 @@ class Job(MongoController[JobDocument]):
             >>> job.connect("input_micrographs", "J2", "micrographs")
 
         """
-        assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
-        result: bool = self.cs.cli.job_connect_group(  # type: ignore
-            project_uid=self.project_uid,
-            source_group=f"{source_job_uid}.{source_output}",
-            dest_group=f"{self.uid}.{target_input}",
+        if "refresh" in kwargs:
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        if source_job_uid == self.uid:
+            raise ValueError(f"Cannot connect job {self.uid} to itself")
+        self.model = self.cs.api.jobs.connect(
+            self.project_uid, self.uid, target_input, source_job_uid=source_job_uid, source_output_name=source_output
         )
-        if refresh:
-            self.refresh()
-        return result
+        return True
 
-    def disconnect(self, target_input: str, connection_idx: Optional[int] = None, *, refresh: bool = True):
+    def disconnect(self, target_input: str, connection_idx: Optional[int] = None, **kwargs):
         """
         Clear the given job input group.
 
@@ -363,39 +362,26 @@ class Job(MongoController[JobDocument]):
             connection_idx (int, optional): Connection index to clear.
                 Set to 0 to clear the first connection, 1 for the second, etc.
                 If unspecified, clears all connections. Defaults to None.
-            refresh (bool, optional): Auto-refresh job document after
-                connecting. Defaults to True.
         """
-        if connection_idx is None:
-            # Clear all input connections
-            input_group = first(group for group in self.doc["input_slot_groups"] if group["name"] == target_input)
-            if not input_group:
-                raise ValueError(f"Unknown input group {target_input} for job {self.project_uid}-{self.uid}")
-            for _ in input_group["connections"]:
-                self.cs.cli.job_connected_group_clear(  # type: ignore
-                    project_uid=self.project_uid,
-                    dest_group=f"{self.uid}.{target_input}",
-                    connect_idx=0,
-                )
+        if "refresh" in kwargs:
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+
+        if connection_idx is None:  # Clear all input connections
+            self.model = self.cs.api.jobs.disconnect_all(self.project_uid, self.uid, target_input)
         else:
-            self.cs.cli.job_connected_group_clear(  # type: ignore
-                project_uid=self.project_uid,
-                dest_group=f"{self.uid}.{target_input}",
-                connect_idx=connection_idx,
-            )
+            self.model = self.cs.api.jobs.disconnect(self.project_uid, self.uid, target_input, connection_idx)
 
-        if refresh:
-            self.refresh()
-
-    def load_input(self, name: str, slots: Iterable[str] = []):
+    def load_input(self, name: str, slots: LoadableSlots = "all"):
         """
         Load the dataset connected to the job's input with the given name.
 
         Args:
             name (str): Input to load
-            fields (list[str], optional): List of specific slots to load, such
-                as ``movie_blob`` or ``locations``, or all slots if not
-                specified. Defaults to [].
+            slots (Literal["default", "passthrough", "all"] | list[str], optional):
+                List of specific slots to load, such as ``movie_blob`` or
+                ``locations``, or all slots if not specified (including
+                passthrough). May also specify as keyword. Defaults to
+                "all".
 
         Raises:
             TypeError: If the job doesn't have the given input or the dataset
@@ -404,27 +390,19 @@ class Job(MongoController[JobDocument]):
         Returns:
             Dataset: Loaded dataset
         """
-        job = self.doc
-        group = first(s for s in job["input_slot_groups"] if s["name"] == name)
-        if not group:
-            raise TypeError(f"Job {self.project_uid}-{self.uid} does not have an input {name}")
+        return self.cs.api.jobs.load_input(self.project_uid, self.uid, name, slots=slots)
 
-        data = {"project_uid": self.project_uid, "job_uid": self.uid, "input_name": name, "slots": list(slots)}
-        with make_json_request(self.cs.vis, "/load_job_input", data=data) as response:
-            mime = response.headers.get("Content-Type")
-            if mime != "application/x-cryosparc-dataset":
-                raise TypeError(f"Unable to load dataset for job {self.project_uid}-{self.uid} input {name}")
-            return Dataset.load(response)
-
-    def load_output(self, name: str, slots: Iterable[str] = [], version: Union[int, Literal["F"]] = "F"):
+    def load_output(self, name: str, slots: LoadableSlots = "all", version: Union[int, Literal["F"]] = "F"):
         """
         Load the dataset for the job's output with the given name.
 
         Args:
             name (str): Output to load
-            slots (list[str], optional): List of specific slots to load,
-                such as ``movie_blob`` or ``locations``, or all slots if
-                not specified (including passthrough). Defaults to [].
+            slots (Literal["default", "passthrough", "all"] | list[str], optional):
+                List of specific slots to load, such as ``movie_blob`` or
+                ``locations``, or all slots if not specified (including
+                passthrough). May also specify as keyword. Defaults to
+                "all".
             version (int | Literal["F"], optional): Specific output version to
                 load. Use this to load the output at different stages of
                 processing. Leave unspecified to load final verion. Defaults to
@@ -436,38 +414,7 @@ class Job(MongoController[JobDocument]):
         Returns:
             Dataset: Loaded dataset
         """
-        job = self.doc
-        slots = set(slots)
-        version = -1 if version == "F" else version
-        results = [
-            result
-            for result in job["output_results"]
-            if result["group_name"] == name and (not slots or result["name"] in slots)
-        ]
-        if not slots:
-            # Requested all slots, but auto-filter results with no provided meta
-            # files
-            results = [result for result in results if result["metafiles"]]
-        if not results:
-            raise TypeError(f"Job {self.project_uid}-{self.uid} does not have any results for output {name}")
-
-        metafiles = []
-        for r in results:
-            if r["metafiles"]:
-                metafile = r["metafiles"][0 if r["passthrough"] else version]
-                if metafile not in metafiles:
-                    metafiles.append(metafile)
-            else:
-                raise ValueError(
-                    (
-                        f"Cannot load output {name} slot {r['name']} because "
-                        "output does not have an associated dataset file. "
-                        "Please exclude this output from the requested slots."
-                    )
-                )
-
-        datasets = [self.cs.download_dataset(self.project_uid, f) for f in metafiles]
-        return Dataset.innerjoin(*datasets)
+        return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
     def log(self, text: str, level: Literal["text", "warning", "error"] = "text"):
         """
@@ -481,9 +428,8 @@ class Job(MongoController[JobDocument]):
         Returns:
             str: Created log event ID
         """
-        return self.cs.cli.job_send_streamlog(  # type: ignore
-            project_uid=self.project_uid, job_uid=self.uid, message=text, error=level != "text"
-        )
+        event = self.cs.api.jobs.add_event_log(self.project_uid, self.uid, text, type=level)
+        return event.id
 
     def log_checkpoint(self, meta: dict = {}):
         """
@@ -495,9 +441,8 @@ class Job(MongoController[JobDocument]):
         Returns:
             str: Created checkpoint event ID
         """
-        return self.cs.cli.job_checkpoint_streamlog(  # type: ignore
-            project_uid=self.project_uid, job_uid=self.uid, meta=meta
-        )
+        event = self.cs.api.jobs.add_checkpoint(self.project_uid, self.uid, meta)
+        return event.id
 
     def log_plot(
         self,
@@ -564,10 +509,8 @@ class Job(MongoController[JobDocument]):
             raw_data_format=raw_data_format,
             savefig_kw=savefig_kw,
         )
-
-        return self.cs.cli.job_send_streamlog(  # type: ignore
-            project_uid=self.project_uid, job_uid=self.uid, message=text, flags=flags, imgfiles=imgfiles
-        )
+        event = self.cs.api.jobs.add_image_log(self.project_uid, self.uid, imgfiles, text=text, flags=flags)
+        return event.id
 
     def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:
         """
@@ -657,7 +600,7 @@ class Job(MongoController[JobDocument]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download_mrc(self.project_uid, path)
 
-    def list_assets(self) -> List[AssetDetails]:
+    def list_assets(self) -> List[GridFSFile]:
         """
         Get a list of files available in the database for this job. Returns a
         list with details about the assets. Each entry is a dict with a ``_id``
@@ -665,9 +608,9 @@ class Job(MongoController[JobDocument]):
         method.
 
         Returns:
-            list[AssetDetails]: Asset details
+            list[GridFSFile]: Asset details
         """
-        return self.cs.vis.list_job_files(project_uid=self.project_uid, job_uid=self.uid)  # type: ignore
+        return self.cs.list_assets(self.project_uid, self.uid)
 
     def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
         """
@@ -676,11 +619,11 @@ class Job(MongoController[JobDocument]):
 
         Args:
             fileid (str): GridFS file object ID
-            target (str | Path | IO): Local file path, directory path or
-                writeable file handle to write response data.
+            target (str | Path | IO): Local file path or writeable file handle
+                to write response data.
 
         Returns:
-            Path | IO: resulting target path or file handle.
+            str | Path | IO: resulting target path or file handle.
 
         """
         return self.cs.download_asset(fileid, target)
@@ -712,7 +655,7 @@ class Job(MongoController[JobDocument]):
         file: Union[str, PurePath, IO[bytes]],
         filename: Optional[str] = None,
         format: Optional[AssetFormat] = None,
-    ) -> EventLogAsset:
+    ) -> GridFSAsset:
         """
         Upload an image or text file to the current job. Specify either an image
         (PNG, JPG, GIF, PDF, SVG), text file (TXT, CSV, JSON, XML) or a binary
@@ -742,33 +685,20 @@ class Job(MongoController[JobDocument]):
         Returns:
             EventLogAsset: Dictionary including details about uploaded asset.
         """
+        ext = None
         if format:
-            assert format in ASSET_CONTENT_TYPES, f"Invalid asset format {format}"
+            ext = format
         elif filename:
-            ext = filename.split(".")[-1]
-            assert ext in ASSET_CONTENT_TYPES, f"Invalid asset format {ext}"
-            format = ext
+            ext = filename.split(".")[-1].lower()
         elif isinstance(file, (str, PurePath)):
             file = PurePath(file)
             filename = file.name
-            ext = filename.split(".")[-1]
-            assert ext in ASSET_CONTENT_TYPES, f"Invalid asset format {ext}"
-            format = ext
+            ext = file.suffix[1:].lower()
         else:
-            raise ValueError("Must specify filename or format when saving binary asset handle")
-
-        with bopen(file) as f:
-            url = f"/projects/{self.project_uid}/jobs/{self.uid}/files"
-            query = {"format": format}
-            if filename:
-                query["filename"] = filename
-
-            with make_request(self.cs.vis, url=url, query=query, data=f) as res:
-                assert res.status >= 200 and res.status < 300, (
-                    f"Could not upload project {self.project_uid} asset {file}.\n"
-                    f"Response from CryoSPARC: {res.read().decode()}"
-                )
-                return json.loads(res.read())
+            raise ValueError("Must specify filename or format when saving binary asset")
+        if ext not in ASSET_CONTENT_TYPES:
+            raise ValueError(f"Invalid asset format {ext}")
+        return self.cs.api.assets.upload(self.project_uid, self.uid, Stream.load(file), filename=filename, format=ext)
 
     def upload_plot(
         self,
@@ -779,7 +709,7 @@ class Job(MongoController[JobDocument]):
         raw_data_file: Union[str, PurePath, IO[bytes], None] = None,
         raw_data_format: Optional[TextFormat] = None,
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
-    ) -> List[EventLogAsset]:
+    ) -> List[GridFSAsset]:
         """
         Upload the given figure. Returns a list of the created asset objects.
         Avoid using directly; use ``log_plot`` instead. See ``log_plot``
@@ -815,7 +745,8 @@ class Job(MongoController[JobDocument]):
         basename = name or "figure"
         if hasattr(figure, "savefig"):  # matplotlib plot
             for fmt in formats:
-                assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
+                if fmt not in IMAGE_CONTENT_TYPES:
+                    raise ValueError(f"Invalid figure format {fmt}")
                 filename = f"{basename}.{fmt}"
                 data = BytesIO()
                 figure.savefig(data, format=fmt, **savefig_kw)  # type: ignore
@@ -824,13 +755,15 @@ class Job(MongoController[JobDocument]):
         elif isinstance(figure, (str, PurePath)):  # file path; assume format from filename
             path = PurePath(figure)
             basename = path.stem
-            fmt = str(figure).split(".")[-1]
-            assert fmt in IMAGE_CONTENT_TYPES, f"Invalid figure format {fmt}"
+            fmt = path.suffix[1:].lower()
+            if fmt not in IMAGE_CONTENT_TYPES:
+                raise ValueError(f"Invalid figure format {fmt}")
             filename = f"{name or path.stem}.{fmt}"
             figdata.append((figure, filename, fmt))
         else:  # Binary IO
             fmt = first(iter(formats))
-            assert fmt in IMAGE_CONTENT_TYPES, f"Invalid or unspecified figure format {fmt}"
+            if fmt not in IMAGE_CONTENT_TYPES:
+                raise ValueError(f"Invalid or unspecified figure format {fmt}")
             filename = f"{basename}.{fmt}"
             figdata.append((figure, filename, fmt))
 
@@ -845,17 +778,13 @@ class Job(MongoController[JobDocument]):
             raw_data_path = PurePath(raw_data_file)
             raw_data_filename = raw_data_path.name
             ext = raw_data_format or raw_data_filename.split(".")[-1]
-            assert ext in TEXT_CONTENT_TYPES, f"Invalid raw data filename {raw_data_file}"
+            if ext not in TEXT_CONTENT_TYPES:
+                raise ValueError(f"Invalid raw data filename {raw_data_file}")
             raw_data_format = ext
 
-        assets = []
-        for data, filename, fmt in figdata:
-            asset = self.upload_asset(data, filename=filename, format=fmt)
-            assets.append(asset)
-
+        assets = [self.upload_asset(data, filename, fmt) for data, filename, fmt in figdata]
         if raw_data_file:
-            raw_data_format = raw_data_format or "txt"
-            asset = self.upload_asset(raw_data_file, filename=raw_data_filename, format=raw_data_format)
+            asset = self.upload_asset(raw_data_file, raw_data_filename, raw_data_format or "txt")
             assets.append(asset)
 
         return assets
@@ -1011,13 +940,13 @@ class Job(MongoController[JobDocument]):
 
         args = args if isinstance(args, str) else list(map(str, args))
         with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **kwargs) as proc:
-            assert proc.stdout, f"Subprocess {args} has not standard output"
+            assert proc.stdout, f"Subprocess {args} has no standard output"
             if checkpoint:
                 self.log_checkpoint()
 
-            self.log("======= Forwarding subprocess output for the following command =======")
+            self.log("─────── Forwarding subprocess output for the following command ───────")
             self.log(str(args))
-            self.log("======================================================================")
+            self.log("──────────────────────────────────────────────────────────────────────")
 
             for line in proc.stdout:
                 line = line.rstrip()
@@ -1035,7 +964,7 @@ class Job(MongoController[JobDocument]):
                 self.log(msg, level="error")
                 raise RuntimeError(msg)
 
-            self.log("======================= Subprocess complete. =========================")
+            self.log("─────────────────────── Subprocess complete. ─────────────────────────")
 
     def print_param_spec(self):
         """
@@ -1059,10 +988,11 @@ class Job(MongoController[JobDocument]):
         """
         headings = ["Param", "Title", "Type", "Default"]
         rows = []
-        for key, details in self.doc["params_base"].items():
-            if details["hidden"]:
+        for key, details in self.full_spec.params.items():
+            if details.get("hidden") is True:
                 continue
-            rows.append([key, details["title"], details["type"], repr(details["value"])])
+            type = (details["anyOf"][0] if "anyOf" in details else details).get("type", "Any")
+            rows.append([key, details["title"], type, repr(details.get("default", None))])
         print_table(headings, rows)
 
     def print_input_spec(self):
@@ -1090,21 +1020,22 @@ class Job(MongoController[JobDocument]):
                         |             |          |           | alignments2D    | alignments2D    | ✕
                         |             |          |           | alignments3D    | alignments3D    | ✕
         """
+        specs = self.cs.api.jobs.get_input_specs(self.project_uid, self.uid)
         headings = ["Input", "Title", "Type", "Required?", "Input Slots", "Slot Types", "Slot Required?"]
         rows = []
-        for group in self.doc["input_slot_groups"]:
-            name, title, type = group["name"], group["title"], group["type"]
-            required = f"✓ ({group['count_min']}" if group["count_min"] else "✕ (0"
-            if group["count_max"] in {None, 0, 0.0, math.inf, n.inf}:
+        for key, spec in specs.root.items():
+            name, title, type = key, spec.title, spec.type
+            required = f"✓ ({spec.count_min}" if spec.count_min else "✕ (0"
+            if spec.count_max in (0, "inf"):
                 required += "+)"  # unlimited connections
-            elif group["count_min"] == group["count_max"]:
+            elif spec.count_min == spec.count_max:
                 required += ")"
             else:
-                required += f"-{group['count_max']})"
-            for slot in group["slots"]:
-                slot_required = "✕" if slot["optional"] else "✓"
-                rows.append([name, title, type, required, slot["name"], slot["type"].split(".").pop(), slot_required])
-                name, title, type, required = ("",) * 4
+                required += f"-{spec.count_max})"
+            for slot in spec.slots:
+                slot = as_input_slot(slot)
+                rows.append([name, title, type, required, slot.name, slot.dtype, "✓" if slot.required else "✕"])
+                name, title, type, required = ("",) * 4  # only show group info on first iter
         print_table(headings, rows)
 
     def print_output_spec(self):
@@ -1119,28 +1050,33 @@ class Job(MongoController[JobDocument]):
             >>> job.doc['type']
             'extract_micrographs_multi'
             >>> job.print_output_spec()
-            Output                 | Title       | Type     | Result Slots           | Result Types
-            ==========================================================================================
-            micrographs            | Micrographs | exposure | micrograph_blob        | micrograph_blob
-                                   |             |          | micrograph_blob_non_dw | micrograph_blob
-                                   |             |          | background_blob        | stat_blob
-                                   |             |          | ctf                    | ctf
-                                   |             |          | ctf_stats              | ctf_stats
-                                   |             |          | mscope_params          | mscope_params
-            particles              | Particles   | particle | blob                   | blob
-                                   |             |          | ctf                    | ctf
+            Output                 | Title       | Type     | Result Slots           | Result Types    | Passthrough?
+            =========================================================================================================
+            micrographs            | Micrographs | exposure | micrograph_blob        | micrograph_blob | ✕
+                                   |             |          | micrograph_blob_non_dw | micrograph_blob | ✓
+                                   |             |          | background_blob        | stat_blob       | ✓
+                                   |             |          | ctf                    | ctf             | ✓
+                                   |             |          | ctf_stats              | ctf_stats       | ✓
+                                   |             |          | mscope_params          | mscope_params   | ✓
+            particles              | Particles   | particle | blob                   | blob            | ✕
+                                   |             |          | ctf                    | ctf             | ✕
         """
-        headings = ["Output", "Title", "Type", "Result Slots", "Result Types"]
+        specs = self.cs.api.jobs.get_output_specs(self.project_uid, self.uid)
+        headings = ["Output", "Title", "Type", "Result Slots", "Result Types", "Passthrough?"]
         rows = []
-        for group in self.doc["output_result_groups"]:
-            name, title, type = group["name"], group["title"], group["type"]
-            for result in group["contains"]:
-                rows.append([name, title, type, result["name"], result["type"].split(".").pop()])
+        for key, spec in specs.root.items():
+            output = self.model.spec.outputs.root.get(key)
+            if not output:
+                warnings.warn(f"No results for input {key}", stacklevel=2)
+                continue
+            name, title, type = key, spec.title, spec.type
+            for result in output.results:
+                rows.append([name, title, type, result.name, result.dtype, "✓" if result.passthrough else "✕"])
                 name, title, type = "", "", ""  # only these print once per group
         print_table(headings, rows)
 
 
-class ExternalJob(Job):
+class ExternalJobController(JobController):
     """
     Mutable custom output job with customizeble input slots and output results.
     Use External jobs to save data save cryo-EM data generated by a software
@@ -1150,14 +1086,10 @@ class ExternalJob(Job):
     an input. Its outputs must be created manually and may be configured to
     passthrough inherited input fields, just as with regular CryoSPARC jobs.
 
-    Create a new External Job with `Project.create_external_job`_. ExternalJob
-    is a subclass of `Job`_ and inherits all its methods.
-
-    Attributes:
-        uid (str): Job unique ID, e.g., "J42"
-        project_uid (str): Project unique ID, e.g., "P3"
-        doc (JobDocument): All job data from the CryoSPARC database. Database
-            contents may change over time, use the `refresh`_ method to update.
+    Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.project.ProjectController.create_external_job>`.
+    or :py:meth:`workspace.create_external_job() <cryosparc.workspace.WorkspaceController.create_external_job>`.
+    ``ExternalJobController`` is a subclass of :py:class:`JobController`
+    and inherits all its methods and attributes.
 
     Examples:
 
@@ -1176,16 +1108,12 @@ class ExternalJob(Job):
         ...     )
         ...     dset['movie_blob/path'] = ...  # populate dataset
         ...     job.save_output(output_name, dset)
-
-    .. _Job:
-        #cryosparc.job.Job
-
-    .. _refresh:
-        #cryosparc.job.Job.refresh
-
-    .. _Project.create_external_job:
-        project.html#cryosparc.project.Project.create_external_job
     """
+
+    def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
+        super().__init__(cs, job)
+        if self.model.spec.type != "snowflake":
+            raise TypeError(f"Job {self.model.project_uid}-{self.model.uid} is not an external job")
 
     def add_input(
         self,
@@ -1193,8 +1121,9 @@ class ExternalJob(Job):
         name: Optional[str] = None,
         min: int = 0,
         max: Union[int, Literal["inf"]] = "inf",
-        slots: Iterable[SlotSpec] = [],
+        slots: Sequence[SlotSpec] = [],
         title: Optional[str] = None,
+        desc: Optional[str] = None,
     ):
         """
         Add an input slot to the current job. May be connected to zero or more
@@ -1203,17 +1132,21 @@ class ExternalJob(Job):
         Args:
             type (Datatype): cryo-EM data type for this output, e.g., "particle"
             name (str, optional): Output name key, e.g., "picked_particles".
-                Defaults to None.
+                Same as ``type`` if not specified. Defaults to None.
             min (int, optional): Minimum number of required input connections.
                 Defaults to 0.
             max (int | Literal["inf"], optional): Maximum number of input
                 connections. Specify ``"inf"`` for unlimited connections.
                 Defaults to "inf".
             slots (list[SlotSpec], optional): List of slots that should
-                be connected to this input, such as ``"location"`` or ``"blob"``
+                be connected to this input, such as ``"location"`` or  ``"blob"``.
+                When connecting the input, if the source job output is missing
+                these slots, the external job cannot start or accept outputs.
                 Defaults to [].
             title (str, optional): Human-readable title for this input. Defaults
-                to None.
+                to name.
+            desc (str, optional): Human-readable description for this input.
+                Defaults to None.
 
         Raises:
             CommandError: General CryoSPARC network access error such as
@@ -1246,51 +1179,38 @@ class ExternalJob(Job):
                 f'Invalid input name "{name}"; may only contain letters, numbers and underscores, '
                 "and must start with a letter"
             )
-        try:
-            self.cs.vis.add_external_job_input(  # type: ignore
-                project_uid=self.project_uid,
-                job_uid=self.uid,
+        if any(isinstance(s, dict) and "prefix" in s for s in slots):
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+        if not name:
+            name = type
+        if not title:
+            title = name
+        self.model = self.cs.api.jobs.add_external_input(
+            self.project_uid,
+            self.uid,
+            name,
+            InputSpec(
                 type=type,
-                name=name,
-                min=min,
-                max=max,
-                slots=slots,
                 title=title,
-            )
-        except CommandError as err:
-            if err.code == 422 and err.data and "slots" in err.data:
-                raise InvalidSlotsError("add_input", err.data["slots"]) from err
-            raise
-        self.refresh()
-        return self.doc["input_slot_groups"][-1]["name"]
+                description=desc or "",
+                slots=[as_input_slot(slot) for slot in slots],
+                count_min=min,
+                count_max=max,
+            ),
+        )
+        return name
 
+    # fmt: off
     @overload
-    def add_output(
-        self,
-        type: Datatype,
-        name: Optional[str] = ...,
-        slots: List[SlotSpec] = ...,
-        passthrough: Optional[str] = ...,
-        title: Optional[str] = ...,
-        *,
-        alloc: Literal[None] = None,
-    ) -> str: ...
+    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[SlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ...) -> str: ...
     @overload
-    def add_output(
-        self,
-        type: Datatype,
-        name: Optional[str] = ...,
-        slots: List[SlotSpec] = ...,
-        passthrough: Optional[str] = ...,
-        title: Optional[str] = ...,
-        *,
-        alloc: Union[int, Dataset] = ...,
-    ) -> Dataset: ...
+    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[SlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ..., *, alloc: Union[int, Dataset]) -> Dataset: ...
+    # fmt: on
     def add_output(
         self,
         type: Datatype,
         name: Optional[str] = None,
-        slots: List[SlotSpec] = [],
+        slots: Sequence[SlotSpec] = [],
         passthrough: Optional[str] = None,
         title: Optional[str] = None,
         *,
@@ -1360,9 +1280,9 @@ class ExternalJob(Job):
             ...     type="particle",
             ...     name="particle_alignments",
             ...     slots=[
-            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
-            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
-            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...         {"name": "alignments_class_0", "dtype": "alignments3D", "required": True},
+            ...         {"name": "alignments_class_1", "dtype": "alignments3D", "required": True},
+            ...         {"name": "alignments_class_2", "dtype": "alignments3D", "required": True},
             ...     ]
             ... )
             "particle_alignments"
@@ -1372,23 +1292,19 @@ class ExternalJob(Job):
                 f'Invalid output name "{name}"; may only contain letters, numbers and underscores, '
                 "and must start with a letter"
             )
-        try:
-            self.cs.vis.add_external_job_output(  # type: ignore
-                project_uid=self.project_uid,
-                job_uid=self.uid,
-                type=type,
-                name=name,
-                slots=slots,
-                passthrough=passthrough,
-                title=title,
-            )
-        except CommandError as err:
-            if err.code == 422 and err.data and "slots" in err.data:
-                raise InvalidSlotsError("add_output", err.data["slots"]) from err
-            raise
-        self.refresh()
-        result_name = self.doc["output_result_groups"][-1]["name"]
-        return result_name if alloc is None else self.alloc_output(result_name, alloc)
+        if any(isinstance(s, dict) and "prefix" in s for s in slots):
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+        if not name:
+            name = type
+        if not title:
+            title = name
+        self.model = self.cs.api.jobs.add_external_output(
+            self.project_uid,
+            self.uid,
+            name,
+            OutputSpec(type=type, title=title, slots=[as_output_slot(slot) for slot in slots], passthrough=passthrough),
+        )
+        return name if alloc is None else self.alloc_output(name, alloc)
 
     def connect(
         self,
@@ -1396,15 +1312,15 @@ class ExternalJob(Job):
         source_job_uid: str,
         source_output: str,
         *,
-        slots: List[SlotSpec] = [],
-        title: str = "",
-        desc: str = "",
-        refresh: bool = True,
+        slots: Sequence[SlotSpec] = [],
+        title: Optional[str] = None,
+        desc: Optional[str] = None,
+        **kwargs,
     ) -> bool:
         """
         Connect the given input for this job to an output with given job UID and
         name. If this input does not exist, it will be added with the given
-        slots. At least one slot must be specified if the input does not exist.
+        slots.
 
         Args:
             target_input (str): Input name to connect into. Will be created if
@@ -1412,14 +1328,14 @@ class ExternalJob(Job):
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
-            slots (list[SlotSpec], optional): List of slots to add to
-                created input. All if not specified. Defaults to [].
+            slots (list[SlotSpec], optional): List of input slots (e.g.,
+                "particle" or "blob") to explicitly required for the created
+                input. If the given source job is missing these slots, the
+                external job cannot start or accept outputs. Defaults to [].
             title (str, optional): Human readable title for created input.
-                Defaults to "".
+                Defaults to target input name.
             desc (str, optional): Human readable description for created input.
                 Defaults to "".
-            refresh (bool, optional): Auto-refresh job document after
-                connecting. Defaults to True.
 
         Raises:
             CommandError: General CryoSPARC network access error such as
@@ -1437,27 +1353,25 @@ class ExternalJob(Job):
             >>> job.connect("input_micrographs", "J2", "micrographs")
 
         """
-        assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
-        try:
-            self.cs.vis.connect_external_job(  # type: ignore
-                project_uid=self.project_uid,
-                source_job_uid=source_job_uid,
-                source_output=source_output,
-                target_job_uid=self.uid,
-                target_input=target_input,
-                slots=slots,
-                title=title,
-                desc=desc,
-            )
-        except CommandError as err:
-            if err.code == 422 and err.data and "slots" in err.data:
-                raise InvalidSlotsError("connect", err.data["slots"]) from err
-            raise
-        if refresh:
-            self.refresh()
-        return True
+        if "refresh" in kwargs:
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        if source_job_uid == self.uid:
+            raise ValueError(f"Cannot connect job {self.uid} to itself")
+        source_job = self.cs.api.jobs.find_one(self.project_uid, source_job_uid)
+        if source_output not in source_job.spec.outputs.root:
+            raise ValueError(f"Source job {source_job_uid} does not have output {source_output}")
+        output = source_job.spec.outputs.root[source_output]
+        if target_input not in self.model.spec.inputs.root:
+            if any(isinstance(s, dict) and "prefix" in s for s in slots):
+                warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+                # convert to prevent from warning again
+                slots = [as_input_slot(slot) for slot in slots]  # type: ignore
+            self.add_input(output.type, target_input, min=1, slots=slots, title=title, desc=desc)
+        return super().connect(target_input, source_job_uid, source_output)
 
-    def alloc_output(self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0) -> Dataset:
+    def alloc_output(
+        self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: Dict[str, Any] = {}
+    ) -> Dataset:
         """
         Allocate an empty dataset for the given output with the given name.
         Initialize with the given number of empty rows. The result may be
@@ -1470,6 +1384,9 @@ class ExternalJob(Job):
                 (B) a numpy array of numbers to use for UIDs in the allocated
                 dataset or (C) a dataset from which to inherit unique row IDs
                 (useful  for allocating passthrough outputs). Defaults to 0.
+            dtype_params (dict, optional): Data type parameters when allocating
+                results with dynamic column sizes such as ``particle`` ->
+                ``alignments3D_multi``. Defaults to {}.
 
         Returns:
             Dataset: Empty dataset with the given number of rows
@@ -1498,17 +1415,7 @@ class ExternalJob(Job):
             ])
 
         """
-        expected_fields = []
-        for result in self.doc["output_results"]:
-            if result["group_name"] != name or result["passthrough"]:
-                continue
-            prefix = result["name"]
-            for field, dtype in result["min_fields"]:
-                expected_fields.append((f"{prefix}/{field}", dtype))
-
-        if not expected_fields:
-            raise ValueError(f"No such output {name} on {self.project_uid}-{self.uid}")
-
+        expected_fields = self.cs.api.jobs.get_output_fields(self.project_uid, self.uid, name, dtype_params)
         if isinstance(alloc, int):
             return Dataset.allocate(alloc, expected_fields)
         elif isinstance(alloc, Dataset):
@@ -1516,15 +1423,16 @@ class ExternalJob(Job):
         else:
             return Dataset({"uid": alloc}).add_fields(expected_fields)
 
-    def save_output(self, name: str, dataset: Dataset, *, refresh: bool = True):
+    def save_output(self, name: str, dataset: Dataset, *, version: int = 0, **kwargs):
         """
         Save output dataset to external job.
 
         Args:
             name (str): Name of output on this job.
             dataset (Dataset): Value of output with only required fields.
-            refresh (bool, Optional): Auto-refresh job document after saving.
-                Defaults to True
+            version (int, optional): Version number, when saving multiple
+                intermediate iterations. Only the last saved version is kept.
+                Defaults to 0.
 
         Examples:
 
@@ -1537,13 +1445,9 @@ class ExternalJob(Job):
             >>> job.save_output("picked_particles", particles)
 
         """
-
-        url = f"/external/projects/{self.project_uid}/jobs/{self.uid}/outputs/{urllib.parse.quote_plus(name)}/dataset"
-        with make_request(self.cs.vis, url=url, data=dataset.stream(compression="lz4")) as res:
-            result = res.read().decode()
-            assert res.status >= 200 and res.status < 400, f"Save output failed with message: {result}"
-        if refresh:
-            self.refresh()
+        if "refresh" in kwargs:
+            warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        self.model = self.cs.api.jobs.save_output(self.project_uid, self.uid, name, dataset, version=version)
 
     def start(self, status: Literal["running", "waiting"] = "waiting"):
         """
@@ -1552,24 +1456,24 @@ class ExternalJob(Job):
         Args:
             status (str, optional): "running" or "waiting". Defaults to "waiting".
         """
-        assert status in {"running", "waiting"}, f"Invalid start status {status}"
-        assert self.doc["status"] not in {
-            "running",
-            "waiting",
-        }, f"Job {self.project_uid}-{self.uid} is already in running status"
-        self.cs.cli.run_external_job(self.project_uid, self.uid, status)  # type: ignore
-        self.refresh()
+        self.model = self.cs.api.jobs.mark_running(self.project_uid, self.uid, status=status)
 
-    def stop(self, error=False):
+    def stop(self, error: str = ""):
         """
-        Set job status to "completed" or "failed"
+        Set job status to "completed" or "failed" if there was an error.
 
         Args:
-            error (bool, optional): Job completed with errors. Defaults to False.
+            error (str, optional): Error message, will add to event log and set
+                job to status to failed if specified. Defaults to "".
         """
-        status = "failed" if error else "completed"
-        self.cs.cli.set_job_status(self.project_uid, self.uid, status)  # type: ignore
-        self.refresh()
+        if isinstance(error, bool):  # allowed bool in previous version
+            warnings.warn("error should be specified as a string", DeprecationWarning, stacklevel=2)
+            error = "An error occurred" if error else ""
+        self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
+        if error:
+            self.model = self.cs.api.jobs.mark_failed(self.project_uid, self.uid, error=error)
+        else:
+            self.model = self.cs.api.jobs.mark_completed(self.project_uid, self.uid)
 
     @contextmanager
     def run(self):
@@ -1589,21 +1493,21 @@ class ExternalJob(Job):
             ...     job.save_output(...)
 
         """
-        error = False
-        self.start("running")
+        error = ""
         try:
+            self.start("running")
             yield self
         except Exception:
-            error = True
+            error = traceback.format_exc()
             raise
         finally:
-            self.stop(error)  # TODO: Write Error to job log, if possible
+            self.stop(error=error)
 
     def queue(
         self,
         lane: Optional[str] = None,
         hostname: Optional[str] = None,
-        gpus: List[int] = [],
+        gpus: Sequence[int] = [],
         cluster_vars: Dict[str, Any] = {},
     ):
         raise ExternalJobError(
