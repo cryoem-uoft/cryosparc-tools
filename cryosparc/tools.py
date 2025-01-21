@@ -47,6 +47,7 @@ from .models.job_spec import Category, OutputRef, OutputSpec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget
 from .models.user import User
+from .session import InstanceSessions
 from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
 from .util import clear_cached_property, padarray, print_table, trimarray
@@ -172,7 +173,7 @@ class CryoSPARC:
                 raise TypeError("Cannot specify host and base_port when base_url is specified")
             self.base_url = f"http://{host}:{int(base_port) + 2}"
         elif base_url:
-            self.base_url = f"{base_url}/api"  # app forwards to api service (TODO)
+            self.base_url = f"{base_url}/api/cmd_spm"  # app forwards to api service (TODO)
         else:
             raise TypeError("Must specify either base_url or host + base_port")
 
@@ -181,10 +182,13 @@ class CryoSPARC:
             auth = (email, sha256(password.encode()).hexdigest())
         elif license:
             auth = ("cryosparc", sha256(license.encode()).hexdigest())
-        # TODO: also load auth from config profile
+        elif session := InstanceSessions.load().find(self.base_url, email):
+            auth = session.token.access_token
         else:
             raise ValueError(
-                "CryoSPARC authentication not provided. "
+                f"CryoSPARC authentication not provided or expired for {self.base_url}. "
+                "If required, create a new session with command\n\n"
+                "    python -m cryosparc.tools login\n\n"
                 "Please see documentation at https://tools.cryosparc.com for instructions."
             )
 
@@ -195,10 +199,12 @@ class CryoSPARC:
             cs_version = self.api.config.get_version()
         except Exception as e:
             raise RuntimeError(
-                f"Could not connect to CryoSPARC at {base_url} due to error:\n{e}\n"
-                "Please ensure your credentials are correct and that you are "
+                f"Could not connect to CryoSPARC at {self.base_url} due to error:\n{e}\n"
+                "Please ensure your credentials are valid and that you are "
                 "connecting to a CryoSPARC version compatible with "
-                f"cryosparc-tools {tools_major_minor_version}. "
+                f"cryosparc-tools {tools_major_minor_version}.\n\n"
+                "If required, create a new session with command\n\n"
+                "    python -m cryosparc.tools login\n\n"
                 "Please see the documentation at https://tools.cryosparc.com for details."
             ) from e
 
@@ -1060,3 +1066,9 @@ def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, o
 
     result = n.fft.irfft2(farr)
     return trimarray(result, shape) if result.shape != shape else result
+
+
+if __name__ == "__main__":
+    from .cli import run
+
+    run()

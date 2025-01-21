@@ -2254,6 +2254,7 @@ class APIClient:
     def login(
         self,
         *,
+        expires_in: float = 1209600,
         username: str,
         password: str,
         grant_type: Optional[str] = ...,
