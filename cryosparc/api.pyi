@@ -43,8 +43,14 @@ Auth = Union[str, Tuple[str, str]]
 Auth token or email/password.
 """
 
+FormEncoding = Literal["urlencoded", "json"]
+"""
+How form data should be transmitted over the API. Use "json" for normal
+connections to the CryoSPARC instance over the base port (e.g., 39000).
+"""
+
 class APINamespace:
-    def __init__(self, http_client: Any = None) -> None: ...
+    def __init__(self, http_client: Any = None, *, form_encoding: FormEncoding = "urlencoded") -> None: ...
 
 class ConfigNamespace(APINamespace):
     """
@@ -2247,6 +2253,7 @@ class APIClient:
         auth: Union[str, tuple[str, str], None] = None,
         headers: Optional[Dict[str, str]] = None,
         timeout: float = ...,
+        form_encoding: FormEncoding = "urlencoded",
     ) -> None: ...
     def __call__(self, *, auth: Union[str, tuple[str, str], None] = None) -> Any: ...
     def read_root(self) -> Hello: ...

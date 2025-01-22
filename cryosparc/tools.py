@@ -172,7 +172,7 @@ class CryoSPARC:
         if host and base_port:
             if base_url:
                 raise TypeError("Cannot specify host and base_port when base_url is specified")
-            self.base_url = f"http://{host}:{int(base_port) + 2}"  # TODO: use base_port + 0 when this works
+            self.base_url = f"http://{host}:{int(base_port)}"
         elif base_url:
             self.base_url = base_url
         else:
@@ -195,7 +195,7 @@ class CryoSPARC:
 
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
-            self.api = APIClient(f"{self.base_url}/{API_SUFFIX}", auth=auth, timeout=timeout)
+            self.api = APIClient(f"{self.base_url}/{API_SUFFIX}", auth=auth, timeout=timeout, form_encoding="json")
             assert self.user  # trigger user profile fetch
             cs_version = self.api.config.get_version()
         except Exception as e:
@@ -211,7 +211,7 @@ class CryoSPARC:
 
         if cs_version and VERSION_REGEX.match(cs_version):
             cs_major_minor_version = ".".join(cs_version[1:].split(".")[:2])  # e.g., v4.1.0 -> 4.1
-            tools_prerelease_url = "https://github.com/cryoem-uoft/cryosparc-tools/archive/refs/heads/develop.zip"
+            tools_git_clone_url = "https://github.com/cryoem-uoft/cryosparc-tools.git"
             if cs_major_minor_version != tools_major_minor_version:
                 warnings.warn(
                     f"CryoSPARC at {self.base_url} with version {cs_version} "
@@ -219,7 +219,7 @@ class CryoSPARC:
                     "To install a compatible version of cryosparc-tools:\n\n"
                     f"    pip install --force cryosparc-tools~={cs_major_minor_version}.0\n\n"
                     "Or, if running a CryoSPARC pre-release or private beta:\n\n"
-                    f"    pip install --no-cache --force {tools_prerelease_url}\n",
+                    f'    pip install --no-cache --force "cryosparc-tools @ git+{tools_git_clone_url}@develop\n',
                     stacklevel=2,
                 )
 
