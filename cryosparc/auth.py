@@ -69,6 +69,10 @@ class InstanceAuthSessions(RootModel):
 
     @classmethod
     def load(cls, path: Optional[Path] = None):
+        """
+        Read all auth tokens from the given path. Loads from the
+        user config directory if path is unspecified.
+        """
         if not path:
             path = get_default_auth_config_path()
         try:
@@ -83,6 +87,10 @@ class InstanceAuthSessions(RootModel):
             return cls({})
 
     def save(self, path: Optional[Path] = None):
+        """
+        Write all auth tokens to the given path. Writes to the user config
+        directory if path is unspecified.
+        """
         if not path:
             path = get_default_auth_config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -90,7 +98,7 @@ class InstanceAuthSessions(RootModel):
 
     def find(self, url: str, email: Optional[str] = None) -> Optional[AuthSession]:
         """
-        Find the first available session for the given instance URL and email.
+        Find the first available token for the given instance URL and email.
         If an email is not specified, returns the first existing session
         """
         if url in self.root:
@@ -100,6 +108,9 @@ class InstanceAuthSessions(RootModel):
                 return user_sessions.root[user_email]
 
     def insert(self, url: str, email: str, token: Token, expires: AwareDatetime):
+        """
+        Add or replace a new token for the given instance and user email.
+        """
         if url not in self.root:
             self.root[url] = UserAuthSessions({})
         self.root[url].root[email] = AuthSession(token=token, expires=expires)

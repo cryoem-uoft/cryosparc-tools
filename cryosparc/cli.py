@@ -13,14 +13,17 @@ from .errors import APIError
 
 
 def run(name: str = "cryosparc.tools"):
+    """
+    Run command line interface.
+    """
     parser = ArgumentParser(prog=name)
     parser.add_argument("-v", "--version", action="version", version=f"cryosparc-tools {__version__}")
-    subparsers = parser.add_subparsers(help="command help")
+    subparsers = parser.add_subparsers(help="Command help")
 
     # Login command
     parser_login = subparsers.add_parser(
         "login",
-        help="log in to CryoSPARC and store authentication token in the home directory for repeated script runs",
+        help="Log in to CryoSPARC and store authentication token in the home directory for repeated script runs.",
     )
     parser_login.add_argument(
         "--url",
@@ -28,12 +31,12 @@ def run(name: str = "cryosparc.tools"):
         required=False,
         help="CryoSPARC web URL, e.g., http://localhost:39000",
     )
-    parser_login.add_argument("--email", type=str, required=False, help="login email")
-    parser_login.add_argument("--password", type=str, required=False, help="login password")
+    parser_login.add_argument("--email", type=str, required=False, help="Login email. Prompts when unspecified")
+    parser_login.add_argument("--password", type=str, required=False, help="Login password. Prompts when unspecified")
     parser_login.add_argument(
         "--expires",
         type=valid_expiration_time,
-        help="token expiration date in format YYYY-MM-DD. Cannot be more than one year in the future. "
+        help="Token expiration date in format YYYY-MM-DD. Cannot be more than one year in the future. "
         "Defaults to 14 days from now.",
         required=False,
     )
@@ -44,13 +47,16 @@ def run(name: str = "cryosparc.tools"):
 
 
 def login(args: Namespace):
+    """
+    Log in to CryoSPARC via command line.
+    """
     expires_in = 60 * 60 * 24 * 14
     if args.expires:
         expires_in = args.expires
     if not args.url:
-        args.url = input("CryoSPARC URL: ")
+        args.url = input("CryoSPARC URL: ").strip()
     if not args.email:
-        args.email = input("Email: ")
+        args.email = input("Email: ").strip()
     if not args.password:
         args.password = getpass("Password: ")
 
@@ -58,7 +64,6 @@ def login(args: Namespace):
 
     expiration_date = datetime.now() + timedelta(seconds=expires_in)
     try:
-        # TODO: Correct URL
         api = APIClient(f"{args.url}{API_SUFFIX}")
         token = api.login(
             grant_type="password",
