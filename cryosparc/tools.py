@@ -34,6 +34,8 @@ import numpy as n
 
 from . import __version__, model_registry, mrc, registry, stream_registry
 from .api import APIClient
+from .auth import InstanceAuthSessions
+from .constants import API_SUFFIX
 from .controllers import as_output_slot
 from .controllers.job import ExternalJobController, JobController
 from .controllers.project import ProjectController
@@ -47,7 +49,6 @@ from .models.job_spec import Category, OutputRef, OutputSpec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget
 from .models.user import User
-from .session import InstanceSessions
 from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
 from .util import clear_cached_property, padarray, print_table, trimarray
@@ -171,9 +172,9 @@ class CryoSPARC:
         if host and base_port:
             if base_url:
                 raise TypeError("Cannot specify host and base_port when base_url is specified")
-            self.base_url = f"http://{host}:{int(base_port) + 2}"
+            self.base_url = f"http://{host}:{int(base_port) + 2}"  # TODO: use base_port + 0 when this works
         elif base_url:
-            self.base_url = f"{base_url}/api/cmd_spm"  # app forwards to api service (TODO)
+            self.base_url = base_url
         else:
             raise TypeError("Must specify either base_url or host + base_port")
 
@@ -182,7 +183,7 @@ class CryoSPARC:
             auth = (email, sha256(password.encode()).hexdigest())
         elif license:
             auth = ("cryosparc", sha256(license.encode()).hexdigest())
-        elif session := InstanceSessions.load().find(self.base_url, email):
+        elif session := InstanceAuthSessions.load().find(self.base_url, email):
             auth = session.token.access_token
         else:
             raise ValueError(
@@ -194,7 +195,7 @@ class CryoSPARC:
 
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
-            self.api = APIClient(self.base_url, auth=auth, timeout=timeout)
+            self.api = APIClient(f"{self.base_url}/{API_SUFFIX}", auth=auth, timeout=timeout)
             assert self.user  # trigger user profile fetch
             cs_version = self.api.config.get_version()
         except Exception as e:

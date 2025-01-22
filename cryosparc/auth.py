@@ -16,11 +16,11 @@ from .util import first
 
 
 @lru_cache(maxsize=1)
-def get_default_sessions_config_path():
-    return user_config_path() / "cryosparc-tools" / "sessions.json"
+def get_default_auth_config_path():
+    return user_config_path() / "cryosparc-tools" / "auth.json"
 
 
-class Session(BaseModel):
+class AuthSession(BaseModel):
     """
     A cryosparc-tools CLI session from a successful call to
     ``python -m cryosparc.tools login``.
@@ -30,37 +30,51 @@ class Session(BaseModel):
     expires: AwareDatetime
 
 
-class UserSessions(RootModel):
+class UserAuthSessions(RootModel):
     """
     Dictionary of CLI login sessions for a single instance organized by user ID.
     Only one session is allowed per-user.
     """
 
-    root: Dict[str, Session]
+    root: Dict[str, AuthSession]
 
     @field_validator("root", mode="after")
     @classmethod
-    def remove_expired_sessions(cls, value: Dict[str, Session]):
+    def remove_expired_tokens(cls, value: Dict[str, AuthSession]):
         now = datetime.now(timezone.utc)
         return {k: v for k, v in value.items() if v.expires > now}
 
 
-class InstanceSessions(RootModel):
+class InstanceAuthSessions(RootModel):
     """
     Dictionary of CLI multiple user sessions for multiple instances,
     organized by instance URL. Stored in ~/.config directory.
+
+    Example:
+
+        >>> {
+        ...     "https://cryosparc.example.com": {
+        ...         "ali@example.com": {
+        ...             "token": {
+        ...                 "access_token": "abc123",
+        ...                 "token_type": "bearer"
+        ...             },
+        ...             "expires": "2025-01-31T12:00:00.000000Z"
+        ...         }
+        ...     }
+        ... }
     """
 
-    root: Dict[str, UserSessions]
+    root: Dict[str, UserAuthSessions]
 
     @classmethod
     def load(cls, path: Optional[Path] = None):
         if not path:
-            path = get_default_sessions_config_path()
+            path = get_default_auth_config_path()
         try:
             return cls.model_validate_json(path.read_bytes())
         except FileNotFoundError:
-            if path != get_default_sessions_config_path():
+            if path != get_default_auth_config_path():
                 warn(f"Sessions file at {path} does not exist; load result is empty")
             return cls({})
         except ValidationError as err:
@@ -70,11 +84,11 @@ class InstanceSessions(RootModel):
 
     def save(self, path: Optional[Path] = None):
         if not path:
-            path = get_default_sessions_config_path()
+            path = get_default_auth_config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.model_dump_json(indent=4))
 
-    def find(self, url: str, email: Optional[str] = None) -> Optional[Session]:
+    def find(self, url: str, email: Optional[str] = None) -> Optional[AuthSession]:
         """
         Find the first available session for the given instance URL and email.
         If an email is not specified, returns the first existing session
@@ -87,5 +101,5 @@ class InstanceSessions(RootModel):
 
     def insert(self, url: str, email: str, token: Token, expires: AwareDatetime):
         if url not in self.root:
-            self.root[url] = UserSessions({})
-        self.root[url].root[email] = Session(token=token, expires=expires)
+            self.root[url] = UserAuthSessions({})
+        self.root[url].root[email] = AuthSession(token=token, expires=expires)

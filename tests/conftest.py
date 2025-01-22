@@ -12,6 +12,7 @@ from cryosparc.api import APIClient
 from cryosparc.controllers.project import ProjectController
 from cryosparc.dataset import Dataset as BaseDataset
 from cryosparc.dataset import Row
+from cryosparc.models.auth import Token
 from cryosparc.models.job import Job
 from cryosparc.models.job_spec import (
     Connection,
@@ -236,9 +237,10 @@ def mock_user():
 
 
 @pytest.fixture
-def cs(mock_user, monkeypatch):
+def mock_api_client_class(mock_user, monkeypatch):
     monkeypatch.setattr(APIClient, "__call__", mock.Mock(return_value=None))
     APIClient.health = mock.Mock(return_value="OK")
+    APIClient.login = mock.Mock(return_value=Token(access_token="abc123", token_type="bearer"))
     APIClient.users = mock.MagicMock()
     APIClient.config = mock.MagicMock()
     APIClient.projects = mock.MagicMock()
@@ -246,6 +248,11 @@ def cs(mock_user, monkeypatch):
     APIClient.jobs = mock.MagicMock()
     APIClient.users.me.return_value = mock_user
     APIClient.config.get_version.return_value = "develop"
+    return APIClient
+
+
+@pytest.fixture
+def cs(mock_api_client_class):
     return CryoSPARC("https://cryosparc.example.com", email="structura@example.com", password="password")
 
 

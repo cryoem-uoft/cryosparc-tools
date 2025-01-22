@@ -2,13 +2,14 @@ import hashlib
 import os
 import sys
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from getpass import getpass
 
 from . import __version__
 from .api import APIClient
+from .auth import InstanceAuthSessions, get_default_auth_config_path
+from .constants import API_SUFFIX
 from .errors import APIError
-from .session import InstanceSessions, get_default_sessions_config_path
 
 
 def run(name: str = "cryosparc.tools"):
@@ -53,12 +54,12 @@ def login(args: Namespace):
     if not args.password:
         args.password = getpass("Password: ")
 
-    sessions = InstanceSessions.load()
+    sessions = InstanceAuthSessions.load()
 
     expiration_date = datetime.now() + timedelta(seconds=expires_in)
     try:
         # TODO: Correct URL
-        api = APIClient(f"{args.url}")  # /api/cmd_spm")
+        api = APIClient(f"{args.url}{API_SUFFIX}")
         token = api.login(
             grant_type="password",
             username=args.email,
@@ -70,9 +71,9 @@ def login(args: Namespace):
         print("Login failed!", file=sys.stderr)
         os._exit(1)
 
-    sessions.insert(args.url, args.email, token, expiration_date.astimezone(UTC))
+    sessions.insert(args.url, args.email, token, expiration_date.astimezone(timezone.utc))
     sessions.save()
-    print(f"Success! Login token for {args.url} ({args.email}) saved to {get_default_sessions_config_path()}")
+    print(f"Success! Login token for {args.url} ({args.email}) saved to {get_default_auth_config_path()}")
 
 
 def valid_expiration_time(date_str: str) -> float:
