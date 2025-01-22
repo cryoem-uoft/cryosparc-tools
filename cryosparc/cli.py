@@ -23,7 +23,7 @@ def run(name: str = "cryosparc.tools"):
     # Login command
     parser_login = subparsers.add_parser(
         "login",
-        help="Log in to CryoSPARC and store authentication token in the home directory for repeated script runs.",
+        help="log in to CryoSPARC and store authentication token in the home directory for repeated script runs.",
     )
     parser_login.add_argument(
         "--url",
@@ -31,13 +31,13 @@ def run(name: str = "cryosparc.tools"):
         required=False,
         help="CryoSPARC web URL, e.g., http://localhost:39000",
     )
-    parser_login.add_argument("--email", type=str, required=False, help="Login email. Prompts when unspecified")
-    parser_login.add_argument("--password", type=str, required=False, help="Login password. Prompts when unspecified")
+    parser_login.add_argument("--email", type=str, required=False, help="login email, prompts when unspecified")
+    parser_login.add_argument("--password", type=str, required=False, help="login password, prompts when unspecified")
     parser_login.add_argument(
         "--expires",
         type=valid_expiration_time,
-        help="Token expiration date in format YYYY-MM-DD. Cannot be more than one year in the future. "
-        "Defaults to 14 days from now.",
+        help="token expiration date in format YYYY-MM-DD, cannot be more than one year in the future, "
+        "defaults to 14 days from now.",
         required=False,
     )
     parser_login.set_defaults(func=login)
@@ -62,7 +62,7 @@ def login(args: Namespace):
 
     sessions = InstanceAuthSessions.load()
 
-    expiration_date = datetime.now() + timedelta(seconds=expires_in)
+    expiration_date = datetime.now().replace(microsecond=0) + timedelta(seconds=expires_in)
     try:
         api = APIClient(f"{args.url}{API_SUFFIX}")
         token = api.login(
@@ -78,7 +78,10 @@ def login(args: Namespace):
 
     sessions.insert(args.url, args.email, token, expiration_date.astimezone(timezone.utc))
     sessions.save()
-    print(f"Success! Login token for {args.url} ({args.email}) saved to {get_default_auth_config_path()}")
+    print(
+        f"Success! Login token for {args.url} ({args.email}) saved to {get_default_auth_config_path()}, "
+        f"will expire at {expiration_date}"
+    )
 
 
 def valid_expiration_time(date_str: str) -> float:
