@@ -23,7 +23,8 @@ def run(name: str = "cryosparc.tools"):
     # Login command
     parser_login = subparsers.add_parser(
         "login",
-        help="log in to CryoSPARC and store authentication token in the home directory for repeated script runs.",
+        help=f"log in to CryoSPARC and save authentication token to {get_default_auth_config_path()} "
+        "for repeated script runs",
     )
     parser_login.add_argument(
         "--url",

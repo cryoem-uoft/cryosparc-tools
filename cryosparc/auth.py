@@ -103,9 +103,7 @@ class InstanceAuthSessions(RootModel):
         """
         if url in self.root:
             user_sessions = self.root[url]
-            user_email = first(e for e in user_sessions.root if not email or e == email)
-            if user_email:
-                return user_sessions.root[user_email]
+            return first(sess for e, sess in user_sessions.root.items() if not email or e == email)
 
     def insert(self, url: str, email: str, token: Token, expires: AwareDatetime):
         """
