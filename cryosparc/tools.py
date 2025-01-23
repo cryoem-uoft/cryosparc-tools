@@ -34,6 +34,8 @@ import numpy as n
 
 from . import __version__, model_registry, mrc, registry, stream_registry
 from .api import APIClient
+from .auth import InstanceAuthSessions
+from .constants import API_SUFFIX
 from .controllers import as_output_slot
 from .controllers.job import ExternalJobController, JobController
 from .controllers.project import ProjectController
@@ -170,9 +172,9 @@ class CryoSPARC:
         if host and base_port:
             if base_url:
                 raise TypeError("Cannot specify host and base_port when base_url is specified")
-            self.base_url = f"http://{host}:{int(base_port) + 2}"
+            self.base_url = f"http://{host}:{int(base_port) + 2}"  # TODO: use base_port + 0 when this works
         elif base_url:
-            self.base_url = f"{base_url}/api"  # app forwards to api service (TODO)
+            self.base_url = base_url
         else:
             raise TypeError("Must specify either base_url or host + base_port")
 
@@ -181,24 +183,29 @@ class CryoSPARC:
             auth = (email, sha256(password.encode()).hexdigest())
         elif license:
             auth = ("cryosparc", sha256(license.encode()).hexdigest())
-        # TODO: also load auth from config profile
+        elif session := InstanceAuthSessions.load().find(self.base_url, email):
+            auth = session.token.access_token
         else:
             raise ValueError(
-                "CryoSPARC authentication not provided. "
+                f"CryoSPARC authentication not provided or expired for {self.base_url}. "
+                "If required, create a new session with command\n\n"
+                "    python -m cryosparc.tools login\n\n"
                 "Please see documentation at https://tools.cryosparc.com for instructions."
             )
 
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
-            self.api = APIClient(self.base_url, auth=auth, timeout=timeout)
+            self.api = APIClient(f"{self.base_url}/{API_SUFFIX}", auth=auth, timeout=timeout)
             assert self.user  # trigger user profile fetch
             cs_version = self.api.config.get_version()
         except Exception as e:
             raise RuntimeError(
-                f"Could not connect to CryoSPARC at {base_url} due to error:\n{e}\n"
-                "Please ensure your credentials are correct and that you are "
+                f"Could not connect to CryoSPARC at {self.base_url} due to error:\n{e}\n"
+                "Please ensure your credentials are valid and that you are "
                 "connecting to a CryoSPARC version compatible with "
-                f"cryosparc-tools {tools_major_minor_version}. "
+                f"cryosparc-tools {tools_major_minor_version}.\n\n"
+                "If required, create a new session with command\n\n"
+                "    python -m cryosparc.tools login\n\n"
                 "Please see the documentation at https://tools.cryosparc.com for details."
             ) from e
 
@@ -1060,3 +1067,9 @@ def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, o
 
     result = n.fft.irfft2(farr)
     return trimarray(result, shape) if result.shape != shape else result
+
+
+if __name__ == "__main__":
+    from .cli import run
+
+    run()
