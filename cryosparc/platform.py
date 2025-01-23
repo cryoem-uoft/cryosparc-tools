@@ -44,7 +44,7 @@ def user_config_path() -> Path:
 # SOFTWARE.
 
 
-def get_win_appdata_folder_from_env_vars(csidl_name: str) -> str:
+def get_win_appdata_folder_from_env_vars() -> str:
     """Get folder from environment variables."""
     env_var_name = "APPDATA"
     result = os.environ.get(env_var_name)
@@ -53,7 +53,7 @@ def get_win_appdata_folder_from_env_vars(csidl_name: str) -> str:
     return result
 
 
-def get_win_appdata_folder_from_registry(csidl_name: str) -> str:
+def get_win_appdata_folder_from_registry() -> str:
     """
     Get folder from the registry.
 
@@ -73,7 +73,7 @@ def get_win_appdata_folder_from_registry(csidl_name: str) -> str:
     return str(directory)
 
 
-def get_win_appdata_folder_via_ctypes(csidl_name: str) -> str:
+def get_win_appdata_folder_via_ctypes() -> str:
     """Get folder with ctypes."""
     import ctypes
 
@@ -90,7 +90,7 @@ def get_win_appdata_folder_via_ctypes(csidl_name: str) -> str:
     return buf.value
 
 
-def _pick_get_win_appdata_folder() -> Callable[[str], str]:
+def _pick_get_win_appdata_folder() -> Callable[[], str]:
     try:
         import ctypes
     except ImportError:
