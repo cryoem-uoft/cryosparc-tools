@@ -49,7 +49,7 @@ Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
-packages = ["cryosparc"]
+packages = ["cryosparc", "cryosparc.dataset", "cryosparc.models", "cryosparc.controllers"]
 
 [build-system]
 requires = ["setuptools", "cython"]
