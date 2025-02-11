@@ -23,6 +23,7 @@ from cryosparc.models.job_spec import (
     OutputResult,
     Outputs,
     Params,
+    ResourceSpec,
 )
 from cryosparc.models.project import Project
 from cryosparc.models.user import Email, User
@@ -261,6 +262,7 @@ def mock_project(mock_user):
     return Project(
         _id="67292e95282b26b45d0e8fae",
         uid="P1",
+        uid_num=1,
         title="Test Project",
         project_dir="/home/cryosparc/projects",
         owner_user_id=mock_user.id,
@@ -279,10 +281,13 @@ def mock_new_job(mock_user, mock_project):
     return Job(
         _id="67743226e66c192db762b689",
         uid="J42",
+        uid_num=42,
         project_uid=mock_project.uid,
+        project_uid_num=mock_project.uid_num,
         workspace_uids=["W1"],
         job_dir="J42",
         status="building",
+        status_num=5,
         created_by_user_id=mock_user.id,
         spec=JobSpec(
             type="homo_abinit",
@@ -301,7 +306,11 @@ def mock_new_job(mock_user, mock_project):
                     "volume_class_0": Output(type="volume", results=[OutputResult(name="map", dtype="blob")]),
                 }
             ),
+            ui_tile_width=1,
+            ui_tile_height=1,
+            resource_spec=ResourceSpec(),
         ),
+        build_errors=[],
     )
 
 

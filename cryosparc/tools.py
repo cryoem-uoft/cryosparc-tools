@@ -331,7 +331,7 @@ class CryoSPARC:
             if not show_legacy and job_spec.stability == "legacy":
                 continue
 
-            category = job_spec.category
+            category = job_spec.category  # type: ignore
             display_category = "" if category == prev_category else category
             rows.append([display_category, job_spec.type, job_spec.title, job_spec.stability])
             prev_category = category

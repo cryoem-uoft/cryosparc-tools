@@ -14,6 +14,7 @@ from cryosparc.models.job_spec import (
     OutputSlot,
     OutputSpec,
     Params,
+    ResourceSpec,
 )
 from cryosparc.tools import CryoSPARC
 
@@ -102,13 +103,23 @@ def mock_external_job(mock_user, mock_project):
     return Job(
         _id="67292e95282b26b45d0e8fee",
         uid="J43",
+        uid_num=43,
         project_uid=mock_project.uid,
+        project_uid_num=mock_project.uid_num,
         workspace_uids=["W1"],
         job_dir="J43",
         title="Recenter Particles",
         status="building",
+        status_num=5,
         created_by_user_id=mock_user.id,
-        spec=JobSpec(type="snowflake", params=Params()),
+        spec=JobSpec(
+            type="snowflake",
+            params=Params(),
+            ui_tile_width=1,
+            ui_tile_height=1,
+            resource_spec=ResourceSpec(),
+        ),
+        build_errors=[],
     )
 
 
