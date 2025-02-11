@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
 from pydantic import BaseModel, Field
 
@@ -18,8 +18,6 @@ class GridFSAsset(BaseModel):
 
 class GridFSFile(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
-    updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
-    created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     filename: str
     contentType: Union[
         Literal["text/plain", "text/csv", "text/html", "application/json", "application/xml", "application/x-troff"],
@@ -29,6 +27,5 @@ class GridFSFile(BaseModel):
     uploadDate: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     length: int
     chunkSize: int
-    md5: Optional[str] = None
     project_uid: str
     job_uid: str

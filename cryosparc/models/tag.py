@@ -42,3 +42,4 @@ class Tag(BaseModel):
     description: Optional[str] = None
     created_by_workflow: Optional[str] = None
     counts: TagCounts = TagCounts()
+    uid_num: int

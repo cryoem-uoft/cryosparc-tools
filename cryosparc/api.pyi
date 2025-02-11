@@ -33,6 +33,7 @@ from .models.service import LoggingService, ServiceLogLevel
 from .models.session import DataManagementStats, ExposureGroup, ExposureGroupUpdate, LiveComputeResources, Session
 from .models.session_config_profile import SessionConfigProfile, SessionConfigProfileBody
 from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
+from .models.session_spec import SessionStatus
 from .models.tag import Tag
 from .models.user import User
 from .models.workspace import Workspace
@@ -482,8 +483,9 @@ class JobsNamespace(APINamespace):
     def find(
         self,
         *,
-        sort: str = "created_at",
-        order: Literal[1, -1] = 1,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         project_uid: Optional[List[str]] = ...,
         workspace_uid: Optional[List[str]] = ...,
         uid: Optional[List[str]] = ...,
@@ -511,6 +513,9 @@ class JobsNamespace(APINamespace):
     def count(
         self,
         *,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         project_uid: Optional[List[str]] = ...,
         workspace_uid: Optional[List[str]] = ...,
         uid: Optional[List[str]] = ...,
@@ -533,11 +538,6 @@ class JobsNamespace(APINamespace):
     def get_active_count(self) -> int:
         """
         Counts number of active jobs.
-        """
-        ...
-    def find_in_project(self, project_uid: str, /, *, sort: str = "created_at", order: Literal[1, -1] = 1) -> List[Job]:
-        """
-        Finds all jobs in project.
         """
         ...
     def clone_many(
@@ -574,32 +574,6 @@ class JobsNamespace(APINamespace):
     ) -> List[Job]:
         """
         Clones jobs that directly descend from the start job UID up to the end job UID.
-        """
-        ...
-    def find_in_workspace(
-        self, project_uid: str, workspace_uid: str, /, *, sort: str = "created_at", order: Literal[1, -1] = 1
-    ) -> List[Job]:
-        """
-        Finds all jobs in workspace.
-        """
-        ...
-    def create(
-        self,
-        project_uid: str,
-        workspace_uid: str,
-        /,
-        params: Optional[Dict[str, Union[bool, int, float, str, str, None]]] = ...,
-        *,
-        type: str,
-        title: str = "",
-        description: str = "",
-        created_by_job_uid: Optional[str] = ...,
-        enable_bench: bool = False,
-    ) -> Job:
-        """
-        Creates a new job with the given type in the project/workspace
-
-        To see all available job types and their parameters, see the `GET projects/{project_uid}:register` endpoint
         """
         ...
     def get_final_results(self, project_uid: str, /) -> GetFinalResultsResponse:
@@ -647,6 +621,25 @@ class JobsNamespace(APINamespace):
     def add_external_output(self, project_uid: str, job_uid: str, output_name: str, /, body: OutputSpec) -> Job:
         """
         Add or replace an external job's output.
+        """
+        ...
+    def create(
+        self,
+        project_uid: str,
+        workspace_uid: str,
+        /,
+        params: Optional[Dict[str, Union[bool, int, float, str, str, None]]] = ...,
+        *,
+        type: str,
+        title: str = "",
+        description: str = "",
+        created_by_job_uid: Optional[str] = ...,
+        enable_bench: bool = False,
+    ) -> Job:
+        """
+        Creates a new job with the given type in the project/workspace
+
+        To see all available job types and their parameters, see the `GET projects/{project_uid}:register` endpoint
         """
         ...
     def create_external_result(self, project_uid: str, workspace_uid: str, /, body: ExternalOutputSpec) -> Job:
@@ -881,6 +874,9 @@ class JobsNamespace(APINamespace):
     def clear_many(
         self,
         *,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         project_uid: Optional[List[str]] = ...,
         workspace_uid: Optional[List[str]] = ...,
         uid: Optional[List[str]] = ...,
@@ -1033,8 +1029,9 @@ class WorkspacesNamespace(APINamespace):
     def find(
         self,
         *,
-        sort: str = "created_at",
-        order: Literal[1, -1] = 1,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         uid: Optional[List[str]] = ...,
         project_uid: Optional[List[str]] = ...,
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
@@ -1053,6 +1050,9 @@ class WorkspacesNamespace(APINamespace):
     def count(
         self,
         *,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         uid: Optional[List[str]] = ...,
         project_uid: Optional[List[str]] = ...,
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
@@ -1061,26 +1061,6 @@ class WorkspacesNamespace(APINamespace):
     ) -> int:
         """
         Count all workspaces. Use a query to count workspaces in a specific project.
-        """
-        ...
-    def find_in_project(
-        self, project_uid: str, /, *, sort: str = "created_at", order: Literal[1, -1] = 1
-    ) -> List[Workspace]:
-        """
-        List all workspaces in a project with an optional filter.
-        """
-        ...
-    def create(
-        self,
-        project_uid: str,
-        /,
-        *,
-        title: str,
-        description: Optional[str] = ...,
-        created_by_job_uid: Optional[str] = ...,
-    ) -> Workspace:
-        """
-        Create a new workspace
         """
         ...
     def preview_delete(self, project_uid: str, workspace_uid: str, /) -> DeleteWorkspacePreview:
@@ -1097,6 +1077,19 @@ class WorkspacesNamespace(APINamespace):
         """
         Marks the workspace as "deleted". Deletes jobs that are only linked to this workspace
         and no other workspace.
+        """
+        ...
+    def create(
+        self,
+        project_uid: str,
+        /,
+        *,
+        title: str,
+        description: Optional[str] = ...,
+        created_by_job_uid: Optional[str] = ...,
+    ) -> Workspace:
+        """
+        Create a new workspace
         """
         ...
     def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Workspace:
@@ -1138,14 +1131,14 @@ class WorkspacesNamespace(APINamespace):
         """
         ...
     def find_workspace_ancestor_uids(
-        self, project_uid: str, workspace_uid: str, /, job_uids: List[str]
+        self, project_uid: str, workspace_uid: str, /, *, job_uids: List[str]
     ) -> WorkspaceAncestorUidsResponse:
         """
         Finds ancestors of jobs in the workspace
         """
         ...
     def find_workspace_descendant_uids(
-        self, project_uid: str, workspace_uid: str, /, job_uids: List[str]
+        self, project_uid: str, workspace_uid: str, /, *, job_uids: List[str]
     ) -> WorkspaceDescendantUidsResponse:
         """
         Finds descendants of jobs in the workspace
@@ -1153,12 +1146,12 @@ class WorkspacesNamespace(APINamespace):
         ...
     def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
         """
-        Stars a workspace for a given user
+        Stars a workspace for a user
         """
         ...
     def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
         """
-        Unstars a project for a given user
+        Unstars a workspace for a user
         """
         ...
 
@@ -1166,12 +1159,40 @@ class SessionsNamespace(APINamespace):
     """
     Methods available in api.sessions, e.g., api.sessions.find(...)
     """
-    def find(self, *, project_uid: Optional[str] = ...) -> List[Session]:
+    def find(
+        self,
+        *,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
+        uid: Optional[List[str]] = ...,
+        session_uid: Optional[List[str]] = ...,
+        project_uid: Optional[List[str]] = ...,
+        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        cleared_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        status: Optional[List[SessionStatus]] = ...,
+        deleted: Optional[bool] = False,
+    ) -> List[Session]:
         """
         Lists all sessions (optionally, in a project)
         """
         ...
-    def count(self, *, project_uid: Optional[str]) -> int:
+    def count(
+        self,
+        *,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
+        uid: Optional[List[str]] = ...,
+        session_uid: Optional[List[str]] = ...,
+        project_uid: Optional[List[str]] = ...,
+        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        cleared_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        status: Optional[List[SessionStatus]] = ...,
+        deleted: Optional[bool] = False,
+    ) -> int:
         """
         Counts all sessions in a project
         """
@@ -1655,6 +1676,16 @@ class SessionsNamespace(APINamespace):
         Gets base session parameters
         """
         ...
+    def star_session(self, project_uid: str, session_uid: str, /) -> Session:
+        """
+        Stars a session for a user
+        """
+        ...
+    def unstar_session(self, project_uid: str, session_uid: str, /) -> Session:
+        """
+        Stars a session for a user
+        """
+        ...
 
 class ProjectsNamespace(APINamespace):
     """
@@ -1673,8 +1704,9 @@ class ProjectsNamespace(APINamespace):
     def find(
         self,
         *,
-        sort: str = "created_at",
         order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         uid: Optional[List[str]] = ...,
         project_dir: Optional[str] = ...,
         owner_user_id: Optional[str] = ...,
@@ -1695,8 +1727,11 @@ class ProjectsNamespace(APINamespace):
         ...
     def count(
         self,
-        *,
         uid: Optional[List[str]] = ...,
+        *,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         project_dir: Optional[str] = ...,
         owner_user_id: Optional[str] = ...,
         deleted: Optional[bool] = False,
@@ -2035,8 +2070,9 @@ class TagsNamespace(APINamespace):
     def find(
         self,
         *,
-        sort: str = "created_at",
-        order: Literal["1", "-1"] = "1",
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
         created_by_user_id: Optional[str] = ...,
         type: Optional[List[Literal["general", "project", "workspace", "session", "job"]]] = ...,
         uid: Optional[str] = ...,

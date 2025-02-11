@@ -222,11 +222,129 @@ class Outputs(RootModel):
     root: Dict[str, Output] = {}
 
 
+class ResourceSpec(BaseModel):
+    cpu: int = 1
+    gpu: int = 0
+    ram: int = 1
+    ssd: bool = False
+
+
 class JobSpec(BaseModel):
     type: str
     params: Params
     inputs: Inputs = Inputs()
     outputs: Outputs = Outputs()
+    ui_tile_width: int
+    ui_tile_height: int
+    resource_spec: ResourceSpec
+
+
+class JobBuildError(BaseModel):
+    type: Literal[
+        "no_such_attribute",
+        "json_invalid",
+        "json_type",
+        "needs_python_object",
+        "recursion_loop",
+        "missing",
+        "frozen_field",
+        "frozen_instance",
+        "extra_forbidden",
+        "invalid_key",
+        "get_attribute_error",
+        "model_type",
+        "model_attributes_type",
+        "dataclass_type",
+        "dataclass_exact_type",
+        "none_required",
+        "greater_than",
+        "greater_than_equal",
+        "less_than",
+        "less_than_equal",
+        "multiple_of",
+        "finite_number",
+        "too_short",
+        "too_long",
+        "iterable_type",
+        "iteration_error",
+        "string_type",
+        "string_sub_type",
+        "string_unicode",
+        "string_too_short",
+        "string_too_long",
+        "string_pattern_mismatch",
+        "enum",
+        "dict_type",
+        "mapping_type",
+        "list_type",
+        "tuple_type",
+        "set_type",
+        "bool_type",
+        "bool_parsing",
+        "int_type",
+        "int_parsing",
+        "int_parsing_size",
+        "int_from_float",
+        "float_type",
+        "float_parsing",
+        "bytes_type",
+        "bytes_too_short",
+        "bytes_too_long",
+        "bytes_invalid_encoding",
+        "value_error",
+        "assertion_error",
+        "literal_error",
+        "date_type",
+        "date_parsing",
+        "date_from_datetime_parsing",
+        "date_from_datetime_inexact",
+        "date_past",
+        "date_future",
+        "time_type",
+        "time_parsing",
+        "datetime_type",
+        "datetime_parsing",
+        "datetime_object_invalid",
+        "datetime_from_date_parsing",
+        "datetime_past",
+        "datetime_future",
+        "timezone_naive",
+        "timezone_aware",
+        "timezone_offset",
+        "time_delta_type",
+        "time_delta_parsing",
+        "frozen_set_type",
+        "is_instance_of",
+        "is_subclass_of",
+        "callable_type",
+        "union_tag_invalid",
+        "union_tag_not_found",
+        "arguments_type",
+        "missing_argument",
+        "unexpected_keyword_argument",
+        "missing_keyword_only_argument",
+        "unexpected_positional_argument",
+        "missing_positional_only_argument",
+        "multiple_argument_values",
+        "url_type",
+        "url_parsing",
+        "url_syntax_violation",
+        "url_too_long",
+        "url_scheme",
+        "uuid_type",
+        "uuid_parsing",
+        "uuid_version",
+        "decimal_type",
+        "decimal_parsing",
+        "decimal_max_digits",
+        "decimal_max_places",
+        "decimal_whole_digits",
+        "complex_type",
+        "complex_str_parsing",
+    ]
+    loc: List[Union[str, int]]
+    input: Any
+    ctx: dict = {}
 
 
 Stability = Literal["develop", "beta", "stable", "legacy", "obsolete"]
@@ -248,10 +366,3 @@ class JobRegisterError(BaseModel):
     type: str
     message: str
     traceback: str
-
-
-class ResourceSpec(BaseModel):
-    cpu: int = 1
-    gpu: int = 0
-    ram: int = 1
-    ssd: bool = False

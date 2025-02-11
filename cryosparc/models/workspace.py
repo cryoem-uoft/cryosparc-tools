@@ -41,6 +41,8 @@ class Workspace(BaseModel):
     notes_lock: Optional[str] = None
     imported_at: Optional[datetime.datetime] = None
     workspace_type: Literal["base", "live"] = "base"
+    uid_num: int
+    project_uid_num: int
 
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:

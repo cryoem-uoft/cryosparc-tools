@@ -60,6 +60,7 @@ class Project(BaseModel):
     is_cleanup_in_progress: bool = False
     tags: List[str] = []
     starred_by: List[str] = []
+    uid_num: int
 
 
 class ProjectSymlink(BaseModel):
