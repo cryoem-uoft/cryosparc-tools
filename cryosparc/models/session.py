@@ -1,12 +1,12 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
 from .job import JobStatus, RunError
-from .session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
+from .session_params import LiveAbinitParams, LivePreprocessingParams
 from .session_spec import SessionStatus
 from .signature import ImportSignature
 from .workspace import WorkspaceStats
@@ -64,7 +64,6 @@ class ExposureGroup(BaseModel):
     file_engine_min_modified_time_delta: int = 0
     exp_group_id: int = 1
     num_exposures_found: int = 0
-    num_exposures_ready: int = 0
     file_engine_strategy: Literal["entity", "timestamp", "eclathena"] = "entity"
     file_engine_enable: bool = False
     final: bool = False
@@ -201,6 +200,12 @@ class SessionStats(BaseModel):
     avg_particles_extracted_per_hour: int = 0
 
 
+class SessionBuildError(BaseModel):
+    type: str
+    loc: List[Union[str, int]]
+    input_value: Any
+
+
 class Session(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
@@ -303,7 +308,7 @@ class Session(BaseModel):
     template_creation_project: Optional[str] = None
     template_creation_num_particles_in: int = 0
     template_creation_ready: bool = False
-    template_creation_info: List[TemplateClassInfo] = []
+    template_creation_info: Any = []
     exposure_groups: List[ExposureGroup] = []
     stats: SessionStats = SessionStats()
     data_management: DataManagementStats = DataManagementStats()
@@ -323,12 +328,12 @@ class Session(BaseModel):
     restoration_user_id: Optional[str] = None
     pre_restoration_size: int = 0
     phase2_class2D_restart: bool = False
-    phase2_class2D_params_spec: Optional[LiveClass2DParams] = None
-    phase2_class2D_params_spec_used: Optional[LiveClass2DParams] = None
+    phase2_class2D_params_spec: Optional[Dict[str, Any]] = None
+    phase2_class2D_params_spec_used: Optional[Dict[str, Any]] = None
     phase2_class2D_job: Optional[str] = None
     phase2_class2D_ready: bool = False
     phase2_class2D_ready_partial: bool = False
-    phase2_class2D_info: List[TemplateClassInfo] = []
+    phase2_class2D_info: Any = []
     phase2_class2D_num_particles_in: int = 0
     phase2_class2D_particles_out: Optional[Phase2ParticleOutputInfo] = None
     phase2_class2D_num_particles_seen: int = 0
@@ -343,8 +348,8 @@ class Session(BaseModel):
     phase2_abinit_info: List[AbInitioVolumeInfo] = []
     phase2_abinit_num_particles_in: int = 0
     phase2_refine_restart: bool = False
-    phase2_refine_params_spec: LiveRefineParams = LiveRefineParams()
-    phase2_refine_params_spec_used: Optional[LiveRefineParams] = None
+    phase2_refine_params_spec: Dict[str, Any] = {"refine_symmetry": "C1"}
+    phase2_refine_params_spec_used: Optional[Dict[str, Any]] = None
     phase2_refine_job: Optional[str] = None
     phase2_refine_ready: bool = False
     phase2_refine_ready_partial: bool = False
@@ -356,3 +361,6 @@ class Session(BaseModel):
     computed_stats_last_run_time: Optional[datetime.datetime] = None
     last_processed_exposure_priority: Literal["normal", "oldest", "latest", "alternate"] = "oldest"
     ecl: ECLSessionProperties = ECLSessionProperties()
+    uid_num: int
+    project_uid_num: int
+    errors: List[SessionBuildError]

@@ -77,5 +77,6 @@ class User(BaseModel):
     reset_token: Optional[str] = None
     services: Services = Services()
     state: UserState = UserState()
+    preferences: dict = {}
     allowed_prefix_dir: str = "/"
     lanes: List[str] = []

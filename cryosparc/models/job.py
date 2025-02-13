@@ -6,7 +6,7 @@ from typing import Dict, List, Literal, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from .instance import InstanceInformation
-from .job_spec import JobSpec
+from .job_spec import JobBuildError, JobSpec
 from .scheduler_target import FixedResourceSlots, ResourceSlots, SchedulerTarget
 
 
@@ -143,4 +143,9 @@ class Job(BaseModel):
     tags: List[str] = []
     imported_at: Optional[datetime.datetime] = None
     deleted_at: Optional[datetime.datetime] = None
+    import_status: Optional[Literal["importing", "complete", "failed"]] = None
     starred_by: List[str] = []
+    uid_num: int
+    project_uid_num: int
+    build_errors: List[JobBuildError]
+    status_num: int
