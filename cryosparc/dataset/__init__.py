@@ -51,6 +51,7 @@ from typing import (
 
 import numpy as n
 
+from ..constants import ONE_MIB
 from ..errors import DatasetLoadError
 from ..stream import AsyncReadable, Streamable
 from ..util import bopen, default_rng, random_integers, u32bytesle, u32intle
@@ -635,8 +636,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     ):
         import os
 
-        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false
-        if os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true" and isinstance(file, (str, PurePath)):
+        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false or dataset is small
+        if (
+            os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true"
+            and isinstance(file, (str, PurePath))
+            and os.stat(file).st_size > ONE_MIB
+        ):
             # Use mmap to avoid loading full record array into memory
             # cast path to a string for older numpy/python
             mmap_mode, f = "r", str(file)

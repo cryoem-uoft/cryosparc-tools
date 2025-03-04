@@ -394,3 +394,10 @@ def test_allocate_many_together():
             allocated.append(Dataset(1))
         assert len(allocated) == 66_000
         del allocated
+
+
+def test_load_4k():
+    # Check that a 4kiB dataset (same as linux page size) loads correctly
+    # (numpy bug https://github.com/numpy/numpy/pull/27723 fixed in 2.2)
+    d = Dataset.load("tests/data/4k_dataset.cs")
+    assert len(d) == 0

@@ -60,7 +60,6 @@ assert stream_registry
 assert model_registry
 registry.finalize()  # no more models may be registered after this
 
-ONE_MIB = 2**20  # bytes in one mebibyte
 
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 """Regular expression for matching CryoSPARC license IDs."""
