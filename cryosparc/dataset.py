@@ -633,7 +633,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     ):
         import os
 
-        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false
+        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false or dataset is small
         if (
             os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true"
             and isinstance(file, (str, PurePath))
