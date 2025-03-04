@@ -51,6 +51,7 @@ import numpy as n
 from typing_extensions import Literal, SupportsIndex
 
 from .column import Column
+from .constants import ONE_MIB
 from .core import Data, DsetType, Stream
 from .dtype import (
     NEVER_COMPRESS_FIELDS,
@@ -633,7 +634,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         import os
 
         # disable mmap by setting CRYOSPARC_DATASET_MMAP=false
-        if os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true" and isinstance(file, (str, PurePath)):
+        if (
+            os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true"
+            and isinstance(file, (str, PurePath))
+            and os.stat(file).st_size > ONE_MIB
+        ):
             # Use mmap to avoid loading full record array into memory
             # cast path to a string for older numpy/python
             mmap_mode, f = "r", str(file)
