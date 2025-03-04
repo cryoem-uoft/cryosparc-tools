@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 from . import __version__, mrc
 from .command import CommandClient, CommandError, make_json_request, make_request
+from .constants import ONE_MIB
 from .dataset import DEFAULT_FORMAT, Dataset
 from .job import ExternalJob, Job
 from .project import Project
@@ -52,8 +53,6 @@ from .spec import (
 )
 from .util import bopen, noopcontext, padarray, print_table, trimarray
 from .workspace import Workspace
-
-ONE_MIB = 2**20  # bytes in one mebibyte
 
 LICENSE_REGEX = re.compile(r"[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}")
 """Regular expression for matching CryoSPARC license IDs."""
