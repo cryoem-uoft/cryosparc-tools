@@ -253,9 +253,9 @@ class Job(MongoController[JobDocument]):
                 fails if ``error_on_incomplete`` is ``True``. Defaults to None.
         """
         status = self.wait_for_status({"completed", "killed", "failed"}, timeout=timeout)
-        assert not error_on_incomplete or status == "completed", (
-            f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
-        )
+        assert (
+            not error_on_incomplete or status == "completed"
+        ), f"Job {self.project_uid}-{self.uid} did not complete (status {status})"
         return status
 
     def interact(self, action: str, body: Any = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
@@ -1272,8 +1272,6 @@ class ExternalJob(Job):
         slots: List[SlotSpec] = ...,
         passthrough: Optional[str] = ...,
         title: Optional[str] = ...,
-        *,
-        alloc: Literal[None] = None,
     ) -> str: ...
     @overload
     def add_output(
@@ -1284,7 +1282,7 @@ class ExternalJob(Job):
         passthrough: Optional[str] = ...,
         title: Optional[str] = ...,
         *,
-        alloc: Union[int, Dataset] = ...,
+        alloc: Union[int, Dataset],
     ) -> Dataset: ...
     def add_output(
         self,
