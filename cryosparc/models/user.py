@@ -13,7 +13,7 @@ class Bookmark(BaseModel):
     description: str
     color: str
     last_accessed: datetime.datetime
-    created_at: datetime.datetime = datetime.datetime(2025, 3, 6, 16, 44, 32, 992643, tzinfo=datetime.timezone.utc)
+    created_at: datetime.datetime
 
 
 class Email(BaseModel):

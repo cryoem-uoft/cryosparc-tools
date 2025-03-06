@@ -134,6 +134,7 @@ def external_job_with_added_output(external_job: ExternalJobController, mock_ext
     mock_external_job = mock_external_job.model_copy(deep=True)
     mock_external_job.spec.outputs.root["particles"] = Output(
         type="particle",
+        title="Particles",
         results=[
             OutputResult(name="blob", dtype="blob"),
             OutputResult(name="ctf", dtype="ctf"),
@@ -150,6 +151,7 @@ def mock_external_job_with_saved_output(external_job_with_added_output: External
     mock_external_job = mock_external_job.model_copy(deep=True)
     mock_external_job.spec.outputs.root["particles"] = Output(
         type="particle",
+        title="Particles",
         results=[
             OutputResult(name="blob", dtype="blob", versions=[0], metafiles=[metafile], num_items=[10]),
             OutputResult(name="ctf", dtype="ctf", versions=[0], metafiles=[metafile], num_items=[10]),
