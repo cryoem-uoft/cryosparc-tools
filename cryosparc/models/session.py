@@ -9,7 +9,7 @@ from .job import JobStatus, RunError
 from .session_params import LiveAbinitParams, LivePreprocessingParams
 from .session_spec import SessionStatus
 from .signature import ImportSignature
-from .workspace import WorkspaceStats
+from .workspace import JobGroup, WorkspaceStats
 
 
 class AbInitioVolumeInfo(BaseModel):
@@ -222,12 +222,12 @@ class Session(BaseModel):
     tags: List[str] = []
     starred_by: List[str] = []
     deleted: bool = False
+    deleting: bool = False
     last_accessed: Optional[SessionLastAccessed] = None
     workspace_stats: WorkspaceStats = WorkspaceStats()
-    notes: str = ""
-    notes_lock: Optional[str] = None
     imported_at: Optional[datetime.datetime] = None
     workspace_type: str = "live"
+    groups: List[JobGroup] = []
     session_uid: str
     session_dir: str
     status: SessionStatus = "paused"
@@ -295,6 +295,8 @@ class Session(BaseModel):
     ]
     picking_thresholds: PickingThresholds = PickingThresholds()
     compute_resources: LiveComputeResources = LiveComputeResources()
+    notes: str = ""
+    notes_lock: Optional[str] = None
     phase_one_workers: Dict[str, RtpWorkerState] = {}
     phase_one_workers_soft_kill: List[Any] = []
     live_session_job_uid: Optional[str] = None

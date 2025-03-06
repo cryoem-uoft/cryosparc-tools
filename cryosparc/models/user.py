@@ -6,9 +6,29 @@ from typing import Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 
+class Bookmark(BaseModel):
+    id: str
+    path: str
+    name: str
+    description: str
+    color: str
+    last_accessed: datetime.datetime
+    created_at: datetime.datetime = datetime.datetime(2025, 3, 6, 16, 44, 32, 992643, tzinfo=datetime.timezone.utc)
+
+
 class Email(BaseModel):
     address: str
     verified: bool = False
+
+
+class RecentPath(BaseModel):
+    path: str
+    last_accessed: datetime.datetime
+
+
+class FileBrowserState(BaseModel):
+    recentPaths: List[RecentPath] = []
+    bookmarks: List[Bookmark] = []
 
 
 class LoginToken(BaseModel):
@@ -52,13 +72,13 @@ class Services(BaseModel):
 class UserState(BaseModel):
     licenseAccepted: bool = False
     userCanSetJobPriority: bool = False
-    userCanModifyLiveDataManagement: bool = False
     recentProjects: List[str] = []
     recentWorkspaces: List[RecentWorkspace] = []
     recentSessions: List[RecentSession] = []
     recentJobs: List[RecentJob] = []
     browserPath: Optional[str] = None
-    defaultJobPriority: int = 0
+    defaultJobPriority: Optional[int] = None
+    userFileBrowserState: FileBrowserState = FileBrowserState()
 
 
 class User(BaseModel):

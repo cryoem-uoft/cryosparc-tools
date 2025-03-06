@@ -586,7 +586,7 @@ class JobsNamespace(APINamespace):
         Finds the job.
         """
         ...
-    def delete(self, project_uid: str, job_uid: str, /, *, force: bool = False) -> None:
+    def delete(self, project_uid: str, job_uid: str, /, *, force: bool = False) -> Any:
         """
         Deletes a job. Will kill (if running) and clearing the job before deleting.
         """
@@ -1073,7 +1073,7 @@ class WorkspacesNamespace(APINamespace):
         Find a specific workspace in a project
         """
         ...
-    def delete(self, project_uid: str, workspace_uid: str, /) -> None:
+    def delete(self, project_uid: str, workspace_uid: str, /) -> Any:
         """
         Marks the workspace as "deleted". Deletes jobs that are only linked to this workspace
         and no other workspace.
@@ -1105,12 +1105,6 @@ class WorkspacesNamespace(APINamespace):
     def view(self, project_uid: str, workspace_uid: str, /) -> Workspace:
         """
         Adds a workspace uid to a user's recently viewed workspaces list.
-        """
-        ...
-    def delete_async(self, project_uid: str, workspace_uid: str, /) -> Any:
-        """
-        Starts the workspace deletion task.  Deletes jobs that are only linked to this workspace
-        and no other workspace.
         """
         ...
     def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> None:
@@ -1202,7 +1196,7 @@ class SessionsNamespace(APINamespace):
         Finds a session
         """
         ...
-    def delete(self, project_uid: str, session_uid: str, /) -> None:
+    def delete(self, project_uid: str, session_uid: str, /) -> Any:
         """
         Sets the session document as "deleted"
         Will throw an error if any undeleted jobs exist within the session.
@@ -1809,12 +1803,7 @@ class ProjectsNamespace(APINamespace):
         Finds a project by its UID
         """
         ...
-    def delete(self, project_uid: str, /) -> None:
-        """
-        Deletes the project, its full directory, and all associated workspaces, sessions, jobs and results.
-        """
-        ...
-    def delete_async(self, project_uid: str, /) -> Any:
+    def delete(self, project_uid: str, /) -> Any:
         """
         Starts project deletion task. Will delete the project, its full directory, and all associated workspaces, sessions, jobs and results.
         """
@@ -1846,13 +1835,7 @@ class ProjectsNamespace(APINamespace):
         Removes a user's access from a project.
         """
         ...
-    def refresh_size(self, project_uid: str, /) -> Project:
-        """
-        Walks the project directory and update the project size with the sum
-        of all the file sizes.
-        """
-        ...
-    def refresh_size_async(self, project_uid: str, /) -> Any:
+    def refresh_size(self, project_uid: str, /) -> Any:
         """
         Starts project size recalculation asynchronously.
         """
@@ -1970,6 +1953,13 @@ class ProjectsNamespace(APINamespace):
     def unstar_project(self, project_uid: str, /) -> Project:
         """
         Unstars a project for a user
+        """
+        ...
+    def reset_autodump(self, project_uid: str, /) -> Project:
+        """
+        Clear project directory write failures. After calling this endpoint,
+        CryoSPARC's scheduler will attempt to write modified jobs and workspaces to
+        the project directory that previously could not be saved.
         """
         ...
 
@@ -2244,7 +2234,7 @@ class DeveloperNamespace(APINamespace):
         Restarts API service and scheduler.
         """
         ...
-    def save_job_registers(self) -> List[JobRegister]:
+    def save_job_registers(self, *, developer_name: Optional[str] = ...) -> List[JobRegister]:
         """
         Re-saves the current job registers. Call this when restarting the api
         service without executing the /startup route, as we do during developer

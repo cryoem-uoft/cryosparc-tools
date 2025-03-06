@@ -24,7 +24,7 @@ JobStatus = Literal["building", "queued", "launched", "started", "running", "wai
 
 
 class JobLastAccessed(BaseModel):
-    name: str = ""
+    name: str
     accessed_at: datetime.datetime = datetime.datetime(1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 
 
@@ -38,6 +38,12 @@ class UiTileImage(BaseModel):
     fileid: str
     num_rows: Optional[int] = None
     num_cols: Optional[int] = None
+
+
+class JobWorkflowInfo(BaseModel):
+    id: str
+    jobId: str
+    run: int
 
 
 class Job(BaseModel):
@@ -84,6 +90,7 @@ class Job(BaseModel):
     version: Optional[str] = None
     priority: int = 0
     deleted: bool = False
+    deleting: bool = False
     parents: List[str] = []
     children: List[str] = []
     resources_allocated: Optional[AllocatedResources] = None
@@ -141,6 +148,7 @@ class Job(BaseModel):
     last_exported_location: Optional[str] = None
     last_exported_version: Optional[str] = None
     tags: List[str] = []
+    workflow: Optional[JobWorkflowInfo] = None
     imported_at: Optional[datetime.datetime] = None
     deleted_at: Optional[datetime.datetime] = None
     import_status: Optional[Literal["importing", "complete", "failed"]] = None

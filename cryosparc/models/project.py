@@ -27,6 +27,11 @@ class ProjectStats(BaseModel):
     updated_at: Optional[datetime.datetime] = None
 
 
+class ProjectWorkflowInfo(BaseModel):
+    latest_workflow_uid: str
+    runs: Dict[str, int] = {}
+
+
 class Project(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
@@ -42,6 +47,7 @@ class Project(BaseModel):
     project_params_pdef: dict = {}
     queue_paused: bool = False
     deleted: bool = False
+    deleting: bool = False
     users_with_access: List[str] = []
     size: int = 0
     size_last_updated: datetime.datetime
@@ -55,11 +61,15 @@ class Project(BaseModel):
     imported_at: Optional[datetime.datetime] = None
     import_status: Optional[Literal["importing", "complete", "failed"]] = None
     project_stats: ProjectStats = ProjectStats()
+    created_at_version: str = "unknown"
     last_archived_version: Optional[str] = None
     last_detached_version: Optional[str] = None
     is_cleanup_in_progress: bool = False
     tags: List[str] = []
     starred_by: List[str] = []
+    autodump_failed: bool = False
+    autodump_errors: List[str] = []
+    workflows: Optional[ProjectWorkflowInfo] = None
     uid_num: int
 
 

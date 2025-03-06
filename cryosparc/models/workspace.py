@@ -6,6 +6,14 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class JobGroup(BaseModel):
+    id: int
+    jobs: List[str]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+
+
 class WorkspaceStats(BaseModel):
     updated_at: Optional[datetime.datetime] = None
     job_count: int = 0
@@ -35,12 +43,12 @@ class Workspace(BaseModel):
     tags: List[str] = []
     starred_by: List[str] = []
     deleted: bool = False
+    deleting: bool = False
     last_accessed: Optional[WorkspaceLastAccessed] = None
     workspace_stats: WorkspaceStats = WorkspaceStats()
-    notes: str = ""
-    notes_lock: Optional[str] = None
     imported_at: Optional[datetime.datetime] = None
     workspace_type: Literal["base", "live"] = "base"
+    groups: List[JobGroup] = []
     uid_num: int
     project_uid_num: int
 

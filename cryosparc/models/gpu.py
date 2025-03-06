@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -20,7 +20,7 @@ class GpuInfo(BaseModel):
     name: str
     mem: int
     bus_id: str = ""
-    compute_mode: Literal["Default", "Exclusive Thread", "Prohibited", "Exclusive Process"] = "Default"
+    compute_mode: Any = "Default"
     persistence_mode: Literal["Disabled", "Enabled"] = "Disabled"
     power_limit: float = 0.0
     sw_power_limit: Literal["Not Active", "Active"] = "Not Active"
