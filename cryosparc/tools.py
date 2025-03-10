@@ -154,19 +154,16 @@ class CryoSPARC:
         host: Optional[str] = os.getenv("CRYOSPARC_MASTER_HOSTNAME"),
         base_port: Union[int, str, None] = os.getenv("CRYOSPARC_BASE_PORT"),
         email: Optional[str] = os.getenv("CRYOSPARC_EMAIL"),
-        license: Optional[str] = os.getenv("CRYOSPARC_LICENSE_ID"),
         password: Optional[str] = os.getenv("CRYOSPARC_PASSWORD"),
+        license: Optional[str] = None,
         timeout: int = 300,
     ):
         if license:
             warnings.warn(
-                "Support for license argument and CRYOSPARC_LICENSE_ID environment variable "
-                "will be removed in a future release",
+                "Support for license argument will be removed in a future release",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            if not LICENSE_REGEX.fullmatch(license):
-                raise ValueError(f"Invalid CryoSPARC license ID {license}")
 
         if host and base_port:
             if base_url:
@@ -180,15 +177,15 @@ class CryoSPARC:
         auth = None
         if email and password:
             auth = (email, sha256(password.encode()).hexdigest())
-        elif license:
-            auth = ("cryosparc", sha256(license.encode()).hexdigest())
         elif session := InstanceAuthSessions.load().find(self.base_url, email):
             auth = session.token.access_token
+        elif license:
+            auth = ("cryosparc", sha256(license.encode()).hexdigest())
         else:
             raise ValueError(
                 f"CryoSPARC authentication not provided or expired for {self.base_url}. "
                 "If required, create a new session with command\n\n"
-                "    python -m cryosparc.tools login\n\n"
+                "    python3 -m cryosparc.tools login\n\n"
                 "Please see documentation at https://tools.cryosparc.com for instructions."
             )
 
