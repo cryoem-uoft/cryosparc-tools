@@ -1690,8 +1690,32 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return self
 
+    # Autocomplete fields for ipython/jupyter
     def _ipython_key_completions_(self):
         return self.fields()
+
+    # Represent as HTML for jupyter
+    def _repr_html_(self):
+        length = len(self)
+        fields = self.fields()
+        tr_open = "    <tr>"
+        tr_close = "    </tr>"
+        th = "      <th>{}</th>"
+        td = "      <td>{}</td>"
+
+        html = ["<table>", "  <thead>"]
+        html += [tr_open, th.format("")] + [th.format(field) for field in fields] + [tr_close]
+        html += ["  </thead>", "  <tbody>"]
+        gap_start = min(length, 5)  # "..." row begins after this index
+        gap_stop = max(length - (5 if length == 10 else 4), gap_start)  # proceed from this index after "..." row
+        for i in range(0, gap_start):
+            html += [tr_open, td.format(i)] + [td.format(self[field][i]) for field in fields] + [tr_close]
+        if length > 10:  # draw the "..." gap row
+            html += [tr_open, td.format("...")] + [td.format("...") for field in fields] + [tr_close]
+        for i in range(gap_stop, length):
+            html += [tr_open, td.format(i)] + [td.format(self[field][i]) for field in fields] + [tr_close]
+        html += ["  </body>", "</table>"]
+        return "\n".join(html)
 
 
 def generate_uids(num: int = 0):
