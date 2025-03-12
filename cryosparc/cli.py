@@ -65,7 +65,7 @@ def login(args: Namespace):
 
     expiration_date = datetime.now().replace(microsecond=0) + timedelta(seconds=expires_in)
     try:
-        api = APIClient(f"{args.url}{API_SUFFIX}")
+        api = APIClient(f"{args.url}{API_SUFFIX}", form_encoding="json")
         token = api.login(
             grant_type="password",
             username=args.email,

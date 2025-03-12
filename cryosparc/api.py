@@ -4,7 +4,7 @@ import urllib.parse
 import warnings
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypedDict, Union
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Type, TypedDict, Union
 
 import httpx
 
@@ -14,11 +14,17 @@ from .json_util import api_default, api_encode, api_object_hook
 from .models.auth import Token
 from .stream import Streamable
 
-_BASE_RESPONSE_TYPES = {"string", "integer", "number", "boolean"}
+_BASE_RESPONSE_TYPES = ("string", "integer", "number", "boolean")
 
 Auth = Union[str, Tuple[str, str]]
 """
 Auth token or email/password.
+"""
+
+FormEncoding = Literal["urlencoded", "json"]
+"""
+How form data should be transmitted over the API. Use "json" for normal
+connections to the CryoSPARC instance over the base port (e.g., 39000).
 """
 
 
@@ -37,9 +43,11 @@ class APINamespace:
     """
 
     _client: httpx.Client
+    _form_encoding: FormEncoding
 
-    def __init__(self, http_client: httpx.Client):
+    def __init__(self, http_client: httpx.Client, form_encoding: FormEncoding = "urlencoded"):
         self._client = http_client
+        self._form_encoding = form_encoding
 
     def _set_headers(self, update: Dict[str, str]):
         """For testing only, reset client headers"""
@@ -121,7 +129,10 @@ class APINamespace:
                     f"[API] {func_name}() requires x-www-form-urlencoded which "
                     "does not yet support positional arguments for the content body."
                 )
-                data, kwargs = kwargs, {}
+                if self._form_encoding == "json":
+                    request_body, kwargs = json.dumps(kwargs, default=api_default), {}
+                else:
+                    data, kwargs = kwargs, {}
             elif "multipart/form-data" in content_schema:
                 assert kwargs, (
                     f"[API] {func_name}() requires multipart/form-data which "
@@ -231,7 +242,7 @@ class APINamespace:
 class APIClient(APINamespace):
     """Root API namespace interface for an OpenAPI server"""
 
-    _namespace_class = APINamespace
+    _namespace_class: Type[APINamespace] = APINamespace
 
     def __init__(
         self,
@@ -241,6 +252,7 @@ class APIClient(APINamespace):
         headers: Optional[Dict[str, str]] = None,
         timeout: float = 300,
         http_client: Optional[httpx.Client] = None,
+        form_encoding: FormEncoding = "urlencoded",
     ):
         if base_url and http_client:
             raise TypeError(f"Cannot specify both base_url ({base_url}) and http_client ({http_client})")
@@ -249,7 +261,7 @@ class APIClient(APINamespace):
                 raise TypeError(f"Must specify either base_url ({base_url}) or http_client ({http_client})")
             http_client = httpx.Client(base_url=base_url, timeout=timeout)
         http_client.headers.update(headers)
-        super().__init__(http_client)
+        super().__init__(http_client, form_encoding=form_encoding)
         self._attrs = set()
         self(auth=auth)  # query the OpenAPI server and populate endpoint functions
 
@@ -316,7 +328,7 @@ class APIClient(APINamespace):
 
     def _get_namespace(self, name: str):
         if not hasattr(self, name):
-            setattr(self, name, self._namespace_class(self._client))
+            setattr(self, name, self._namespace_class(self._client, form_encoding=self._form_encoding))
             self._attrs.add(name)
         namespace = getattr(self, name)
         assert isinstance(namespace, self._namespace_class), (
