@@ -23,7 +23,7 @@ from .models.exposure import Exposure
 from .models.external import ExternalOutputSpec
 from .models.job import Job, JobStatus
 from .models.job_register import JobRegister
-from .models.job_spec import Category, InputSpec, InputSpecs, OutputResult, OutputSpec, OutputSpecs
+from .models.job_spec import Category, InputSpec, OutputResult, OutputSpec
 from .models.license import LicenseInstance, UpdateTag
 from .models.notification import Notification
 from .models.project import GenerateIntermediateResultsSettings, Project, ProjectSymlink
@@ -602,25 +602,11 @@ class JobsNamespace(APINamespace):
         """
         ...
     def get_log_path(self, project_uid: str, job_uid: str, /) -> str: ...
-    def get_input_specs(self, project_uid: str, job_uid: str, /) -> InputSpecs: ...
-    def get_input_spec(self, project_uid: str, job_uid: str, input_name: str, /) -> InputSpec: ...
-    def add_external_input(self, project_uid: str, job_uid: str, input_name: str, /, body: InputSpec) -> Job:
-        """
-        Add or replace an external job's input.
-        """
-        ...
-    def get_output_specs(self, project_uid: str, job_uid: str, /) -> OutputSpecs: ...
     def get_output_fields(
         self, project_uid: str, job_uid: str, output_name: str, /, dtype_params: dict = {}
     ) -> List[Tuple[str, str]]:
         """
         Expected dataset column definitions for given job output, excluding passthroughs.
-        """
-        ...
-    def get_output_spec(self, project_uid: str, job_uid: str, output_name: str, /) -> OutputSpec: ...
-    def add_external_output(self, project_uid: str, job_uid: str, output_name: str, /, body: OutputSpec) -> Job:
-        """
-        Add or replace an external job's output.
         """
         ...
     def create(
@@ -756,6 +742,16 @@ class JobsNamespace(APINamespace):
     ) -> Job:
         """
         Removes an output result connected within the given input connection.
+        """
+        ...
+    def add_external_input(self, project_uid: str, job_uid: str, input_name: str, /, body: InputSpec) -> Job:
+        """
+        Add or replace an external job's input.
+        """
+        ...
+    def add_external_output(self, project_uid: str, job_uid: str, output_name: str, /, body: OutputSpec) -> Job:
+        """
+        Add or replace an external job's output.
         """
         ...
     def enqueue(

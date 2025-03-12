@@ -59,22 +59,6 @@ class Connection(BaseModel):
 
     job_uid: str
     output: str
-    type: Literal[
-        "exposure",
-        "particle",
-        "template",
-        "volume",
-        "volume_multi",
-        "mask",
-        "live",
-        "ml_model",
-        "symmetry_candidate",
-        "flex_mesh",
-        "flex_model",
-        "hyperparameter",
-        "denoise_model",
-        "annotation_model",
-    ]
     results: List[InputResult] = []
 
 
@@ -135,6 +119,32 @@ class InputSlot(BaseModel):
     required: bool = False
 
 
+class Input(BaseModel):
+    type: Literal[
+        "exposure",
+        "particle",
+        "template",
+        "volume",
+        "volume_multi",
+        "mask",
+        "live",
+        "ml_model",
+        "symmetry_candidate",
+        "flex_mesh",
+        "flex_model",
+        "hyperparameter",
+        "denoise_model",
+        "annotation_model",
+    ]
+    title: str
+    description: str = ""
+    slots: List[InputSlot] = []
+    count_min: int = 0
+    count_max: Union[int, str] = "inf"
+    repeat_allowed: bool = False
+    connections: List[Connection] = []
+
+
 class InputSpec(BaseModel):
     type: Literal[
         "exposure",
@@ -165,7 +175,7 @@ class InputSpecs(RootModel):
 
 
 class Inputs(RootModel):
-    root: Dict[str, List[Connection]] = {}
+    root: Dict[str, Input] = {}
 
 
 class Params(BaseModel):
@@ -211,6 +221,11 @@ class Output(BaseModel):
         "denoise_model",
         "annotation_model",
     ]
+    title: str
+    description: str = ""
+    slots: List[OutputSlot] = []
+    passthrough: Optional[str] = None
+    passthrough_exclude_slots: List[str] = []
     results: List[OutputResult] = []
     num_items: int = 0
     image: Optional[str] = None

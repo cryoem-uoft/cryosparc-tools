@@ -16,6 +16,7 @@ from cryosparc.models.auth import Token
 from cryosparc.models.job import Job
 from cryosparc.models.job_spec import (
     Connection,
+    Input,
     InputResult,
     Inputs,
     JobSpec,
@@ -292,18 +293,26 @@ def mock_new_job(mock_user, mock_project):
         spec=JobSpec(
             type="homo_abinit",
             params=Params(),
-            inputs=Inputs({"particles": []}),
+            inputs=Inputs({"particles": Input(type="particle", title="Particles")}),
             outputs=Outputs(
                 {
                     "particles_class_0": Output(
                         type="particle",
+                        title="Particles Class 1",
+                        passthrough="particles",
                         results=[
                             OutputResult(name="blob", dtype="blob"),
                             OutputResult(name="ctf", dtype="ctf"),
                             OutputResult(name="alignments3D", dtype="alignments3D"),
                         ],
                     ),
-                    "volume_class_0": Output(type="volume", results=[OutputResult(name="map", dtype="blob")]),
+                    "volume_class_0": Output(
+                        type="volume",
+                        title="Volume Class 0",
+                        results=[
+                            OutputResult(name="map", dtype="blob"),
+                        ],
+                    ),
                 }
             ),
             ui_tile_width=1,
@@ -330,7 +339,6 @@ def mock_new_job_with_params(mock_new_job: Job, mock_params: Params):
 def mock_new_job_with_connection(mock_new_job_with_params: Job):
     job = mock_new_job_with_params.model_copy(deep=True)
     input_particles = Connection(
-        type="particle",
         job_uid="J41",
         output="particles",
         results=[
@@ -341,7 +349,7 @@ def mock_new_job_with_connection(mock_new_job_with_params: Job):
         ],
     )
     passthrough_result = OutputResult(name="location", dtype="location", passthrough=True)
-    job.spec.inputs.root["particles"] = [input_particles]
+    job.spec.inputs.root["particles"] = Input(type="particle", title="Particles", connections=[input_particles])
     job.spec.outputs.root["particles_class_0"].results.append(passthrough_result)
     return job
 
@@ -352,6 +360,8 @@ def mock_job(mock_new_job_with_connection: Job):  # completed
     # fmt: off
     output_particles_class_0 = Output(
         type="particle",
+        title="Particles Class 0",
+        passthrough="particles",
         results=[
             OutputResult(
                 name="blob",
@@ -387,6 +397,7 @@ def mock_job(mock_new_job_with_connection: Job):  # completed
     )
     output_volume_class_0 = Output(
         type="volume",
+        title="Volume Class 0",
         results=[
             OutputResult(
                 name="map",

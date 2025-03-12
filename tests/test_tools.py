@@ -41,7 +41,7 @@ def test_create_job_connect_params(
     assert isinstance(job, JobController)
     assert job.uid == mock_new_job_with_connection.uid
     assert job.model.spec.params == mock_params
-    assert len(job.model.spec.inputs.root["particles"]) == 1
+    assert len(job.model.spec.inputs.root["particles"].connections) == 1
     mock_create_endpoint.assert_called_once_with(
         project.uid, "W1", type="homo_abinit", title="", description="", params=mock_params.model_dump()
     )

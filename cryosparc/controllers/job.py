@@ -1020,19 +1020,18 @@ class JobController(Controller[Job]):
                         |             |          |           | alignments2D    | alignments2D    | ✕
                         |             |          |           | alignments3D    | alignments3D    | ✕
         """
-        specs = self.cs.api.jobs.get_input_specs(self.project_uid, self.uid)
         headings = ["Input", "Title", "Type", "Required?", "Input Slots", "Slot Types", "Slot Required?"]
         rows = []
-        for key, spec in specs.root.items():
-            name, title, type = key, spec.title, spec.type
-            required = f"✓ ({spec.count_min}" if spec.count_min else "✕ (0"
-            if spec.count_max in (0, "inf"):
+        for key, input in self.model.spec.inputs.root.items():
+            name, title, type = key, input.title, input.type
+            required = f"✓ ({input.count_min}" if input.count_min else "✕ (0"
+            if input.count_max in (0, "inf"):
                 required += "+)"  # unlimited connections
-            elif spec.count_min == spec.count_max:
+            elif input.count_min == input.count_max:
                 required += ")"
             else:
-                required += f"-{spec.count_max})"
-            for slot in spec.slots:
+                required += f"-{input.count_max})"
+            for slot in input.slots:
                 slot = as_input_slot(slot)
                 rows.append([name, title, type, required, slot.name, slot.dtype, "✓" if slot.required else "✕"])
                 name, title, type, required = ("",) * 4  # only show group info on first iter
@@ -1061,15 +1060,10 @@ class JobController(Controller[Job]):
             particles              | Particles   | particle | blob                   | blob            | ✕
                                    |             |          | ctf                    | ctf             | ✕
         """
-        specs = self.cs.api.jobs.get_output_specs(self.project_uid, self.uid)
         headings = ["Output", "Title", "Type", "Result Slots", "Result Types", "Passthrough?"]
         rows = []
-        for key, spec in specs.root.items():
-            output = self.model.spec.outputs.root.get(key)
-            if not output:
-                warnings.warn(f"No results for input {key}", stacklevel=2)
-                continue
-            name, title, type = key, spec.title, spec.type
+        for key, output in self.model.spec.outputs.root.items():
+            name, title, type = key, output.title, output.type
             for result in output.results:
                 rows.append([name, title, type, result.name, result.dtype, "✓" if result.passthrough else "✕"])
                 name, title, type = "", "", ""  # only these print once per group
