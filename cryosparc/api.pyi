@@ -786,14 +786,14 @@ class JobsNamespace(APINamespace):
         ...
     def export_output_results(
         self, project_uid: str, job_uid: str, output_name: str, /, result_names: Optional[List[str]] = ...
-    ) -> str:
+    ) -> Any:
         """
         Prepares a job's output for import to another project or instance. Creates a folder in the project directory → exports subfolder,
         then links the output's associated files there..
         Note that the returned .csg file's parent folder must be manually copied with symlinks resolved into the target project folder before importing.
         """
         ...
-    def export(self, project_uid: str, job_uid: str, /) -> Job:
+    def export_job(self, project_uid: str, job_uid: str, /) -> Any:
         """
         Start export for the job into the project's exports directory
         """
@@ -993,7 +993,7 @@ class JobsNamespace(APINamespace):
         Removes the given tag a job.
         """
         ...
-    def import_job(self, project_uid: str, workspace_uid: str, /, *, exported_job_dir_abs: str) -> Job:
+    def import_job(self, project_uid: str, workspace_uid: str, /, *, path: str = "") -> Any:
         """
         Imports the exported job directory into the project. Exported job
         directory must be copied to the target project directory with all its symbolic links resolved.
@@ -1001,10 +1001,10 @@ class JobsNamespace(APINamespace):
         """
         ...
     def import_result_group(
-        self, project_uid: str, workspace_uid: str, /, *, csg_path: str, lane: Optional[str] = ...
+        self, project_uid: str, workspace_uid: str, /, *, lane: Optional[str] = ..., path: str = ""
     ) -> Job:
         """
-        Creates and enqueues an import result group job.
+        Creates and enqueues an Import Result Group job with the given path
         """
         ...
     def star_job(self, project_uid: str, job_uid: str, /) -> Job:
