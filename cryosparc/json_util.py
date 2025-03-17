@@ -5,6 +5,7 @@ from pathlib import PurePath
 from typing import Any, Mapping
 
 import numpy as n
+from bson import ObjectId
 from pydantic import BaseModel
 
 
@@ -44,6 +45,8 @@ def api_default(obj: Any) -> Any:
     elif isinstance(obj, Enum):
         return obj.value
     elif isinstance(obj, PurePath):
+        return str(obj)
+    elif isinstance(obj, ObjectId):
         return str(obj)
     elif isinstance(obj, BaseModel):
         return obj.model_dump(exclude_none=True)

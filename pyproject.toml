@@ -25,6 +25,7 @@ dependencies = [
     "httpx ~= 0.25",
     "pydantic ~= 2.8",
     "typing-extensions >= 4.0",
+    "bson ~= 0.5.10",
 ]
 
 [project.optional-dependencies]
