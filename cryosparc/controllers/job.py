@@ -42,7 +42,7 @@ from ..spec import (
     TextFormat,
 )
 from ..stream import Stream
-from ..util import first, print_table
+from ..util import PurePosixPathProperty, first, print_table
 from . import Controller, as_input_slot, as_output_slot
 
 if TYPE_CHECKING:
@@ -119,17 +119,28 @@ class JobController(Controller[Job]):
 
     @property
     def type(self) -> str:
-        """
-        Job type key
-        """
+        """Job type key"""
         return self.model.spec.type
 
     @property
+    def title(self) -> str:
+        """Job title"""
+        return self.model.title
+
+    @property
+    def desc(self) -> str:
+        """Job description"""
+        return self.model.description
+
+    @property
     def status(self) -> JobStatus:
-        """
-        JobStatus: scheduling status.
-        """
+        """Job scheduling status."""
         return self.model.status
+
+    @property
+    def dir(self) -> PurePosixPath:
+        """Full path to the job directory."""
+        return PurePosixPathProperty(self.cs.api.jobs.get_directory(self.project_uid, self.uid))
 
     @property
     def full_spec(self):
@@ -151,15 +162,6 @@ class JobController(Controller[Job]):
         """
         self.model = self.cs.api.jobs.find_one(self.project_uid, self.uid)
         return self
-
-    def dir(self) -> PurePosixPath:
-        """
-        Get the path to the job directory.
-
-        Returns:
-            Path: job directory Pure Path instance
-        """
-        return PurePosixPath(self.cs.api.jobs.get_directory(self.project_uid, self.uid))
 
     def queue(
         self,
