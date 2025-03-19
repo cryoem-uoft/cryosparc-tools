@@ -1198,6 +1198,8 @@ class ExternalJobController(JobController):
                 f'Invalid input name "{name}"; may only contain letters, numbers and underscores, '
                 "and must start with a letter"
             )
+        if not slots:
+            raise ValueError("Must must provide slots=[...] argument with at least one slot")
         if any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
         if not name:
@@ -1311,6 +1313,8 @@ class ExternalJobController(JobController):
                 f'Invalid output name "{name}"; may only contain letters, numbers and underscores, '
                 "and must start with a letter"
             )
+        if not slots:
+            raise ValueError("Must must provide slots=[...] argument with at least one slot")
         if any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
         if not name:

@@ -112,11 +112,10 @@ class hashcache(Dict[K, V], Generic[K, V]):
         return new
 
 
+# PurePosixPath with a __call__ method that returns itself for legacy purposes.
 class PurePosixPathProperty(PurePosixPath):
-    """PurePosixPath with a __call__ method that returns itself for legacy purposes."""
-
     def __call__(self, *args: Any, **kwds: Any) -> Any:
-        warnings.warn("Use .dir instead of .dir()", DeprecationWarning)
+        warnings.warn("Use .dir instead of .dir()", DeprecationWarning, stacklevel=2)
         return self
 
 
