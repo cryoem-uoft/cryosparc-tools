@@ -29,7 +29,7 @@ from ..dataset import DEFAULT_FORMAT, Dataset
 from ..errors import ExternalJobError
 from ..models.asset import GridFSAsset, GridFSFile
 from ..models.job import Job, JobStatus
-from ..models.job_spec import InputSpec, OutputSpec
+from ..models.job_spec import Input, InputSpec, Output, OutputSpec, Params
 from ..spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
@@ -141,6 +141,29 @@ class JobController(Controller[Job]):
     def dir(self) -> PurePosixPath:
         """Full path to the job directory."""
         return PurePosixPathProperty(self.cs.api.jobs.get_directory(self.project_uid, self.uid))
+
+    @property
+    def params(self) -> Params:
+        """
+        Job parameter values object.
+
+        Example:
+            >>> cs = CryoSPARC(...)
+            >>> job = cs.find_job("P3", "J42")
+            >>> print(job.type)
+            "homo_abinit"
+            >>> print(job.params.abinit_K)
+            3
+        """
+        return self.model.spec.params
+
+    @property
+    def inputs(self) -> Dict[str, Input]:
+        return self.model.spec.inputs.root
+
+    @property
+    def outputs(self) -> Dict[str, Output]:
+        return self.model.spec.outputs.root
 
     @property
     def full_spec(self):
