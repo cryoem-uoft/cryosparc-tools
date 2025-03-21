@@ -1463,7 +1463,6 @@ class ExternalJobController(JobController):
         if isinstance(error, bool):  # allowed bool in previous version
             warnings.warn("error should be specified as a string", DeprecationWarning, stacklevel=2)
             error = "An error occurred" if error else ""
-        self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
         if error:
             self.model = self.cs.api.jobs.mark_failed(self.project_uid, self.uid, error=error)
         else:
