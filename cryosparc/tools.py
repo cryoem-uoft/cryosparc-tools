@@ -602,8 +602,7 @@ class CryoSPARC:
 
         # Find the most recent workspace or create a new one if the project is empty
         if workspace_uid is None:
-            # TODO: limit find to one workspace
-            workspaces = self.api.workspaces.find(project_uid=[project_uid], order=-1)
+            workspaces = self.api.workspaces.find(project_uid=[project_uid], order=-1, limit=1)
             workspace = workspaces[0] if workspaces else self.api.workspaces.create(project_uid, title=title)
             workspace_uid = workspace.uid
 
