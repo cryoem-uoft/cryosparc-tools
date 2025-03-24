@@ -4,7 +4,7 @@ import urllib.parse
 import warnings
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypedDict, Union
+from typing import Any, Callable, ClassVar, Dict, Iterator, List, Optional, Tuple, TypedDict, Union
 
 import httpx
 
@@ -35,6 +35,9 @@ class APINamespace:
     Collection of API methods that call a certain namespace, e.g., only the
     methods under http://master:39004/pipelines/
     """
+
+    _json_encoder: ClassVar[Callable] = api_encode
+    _json_decoder: ClassVar[Callable] = api_default
 
     _client: httpx.Client
 
@@ -74,14 +77,14 @@ class APINamespace:
                 _path = _path.replace("{%s}" % param_name, _uriencode(param))
             elif param_in == "query" and param_name in kwargs and (value := kwargs.pop(param_name)) is not None:
                 # query param must be in kwargs
-                query_params[param_name] = api_encode(value)
+                query_params[param_name] = APINamespace._json_encoder(value)
             elif (
                 param_in == "header"
                 and (header_name := param_name.replace("-", "_")) in kwargs
                 and (value := kwargs.pop(header_name)) is not None
             ):
                 # header must be in kwargs
-                headers[param_name] = api_encode(value)
+                headers[param_name] = APINamespace._json_encoder(value)
             elif param_in == "header" and param_name in client_headers:
                 pass  # in default headers, no action required
             elif param_schema["required"]:
@@ -110,10 +113,10 @@ class APINamespace:
                 headers["Content-Type"] = "application/json"
                 if args:
                     request_body, args = args[0], args[1:]
-                    request_body = json.dumps(request_body, default=api_default)
+                    request_body = json.dumps(request_body, default=APINamespace._json_decoder)
                 elif body_name in kwargs:
                     request_body = kwargs.pop(body_name)
-                    request_body = json.dumps(request_body, default=api_default)
+                    request_body = json.dumps(request_body, default=APINamespace._json_decoder)
                 elif content_schema.get("required", False):
                     raise TypeError(f"[API] {func_name}() missing required argument: {body_name}")
             elif "application/x-www-form-urlencoded" in content_schema:
