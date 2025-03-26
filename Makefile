@@ -14,7 +14,13 @@ $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset/dataset.c cry
 #    Docs
 # -----------------------------------------------------------------------------
 docs:
-	jupyter-book build docs
+	# API documentation is generated from the `cryosparc/api.pyi` type stubs file,
+	# but sphinx expects a `.py` file.
+	mv cryosparc/api.py cryosparc/api.py.bak
+	mv cryosparc/api.pyi cryosparc/api.py
+	-jupyter-book build docs
+	mv cryosparc/api.py cryosparc/api.pyi
+	mv cryosparc/api.py.bak cryosparc/api.py
 
 # -----------------------------------------------------------------------------
 #    Vercel deployment-related targets
