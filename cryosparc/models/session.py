@@ -305,7 +305,6 @@ class Session(BaseModel):
     max_timestamps: List[Any] = []
     known_files: List[Any] = []
     rtp_childs: List[RTPChild] = []
-    avg_usage: List[Any] = []
     template_creation_job: Optional[str] = None
     template_creation_project: Optional[str] = None
     template_creation_num_particles_in: int = 0
@@ -365,4 +364,5 @@ class Session(BaseModel):
     ecl: ECLSessionProperties = ECLSessionProperties()
     uid_num: int
     project_uid_num: int
+    session_uid_num: int
     errors: List[SessionBuildError]

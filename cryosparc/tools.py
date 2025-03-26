@@ -28,9 +28,10 @@ from functools import cached_property
 from hashlib import sha256
 from io import BytesIO, TextIOBase
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Optional, Tuple, Union, get_args
+from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Literal, Optional, Tuple, Union, get_args
 
 import numpy as n
+from typing_extensions import Unpack
 
 from . import __version__, model_registry, mrc, registry, stream_registry
 from .api import APIClient
@@ -49,6 +50,7 @@ from .models.job_spec import Category, OutputRef, OutputSpec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget
 from .models.user import User
+from .search import JobSearch
 from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
 from .util import clear_cached_property, padarray, print_table, trimarray
@@ -334,6 +336,26 @@ class CryoSPARC:
 
         print_table(headings, rows)
 
+    def find_projects(self, *, order: Literal[1, -1] = 1) -> Iterable[ProjectController]:
+        """
+        Get all projects available to the current user.
+
+        Args:
+            order (int, optional): Sort order for projects, 1 for ascending, -1
+                for descending. Defaults to 1.
+
+        Returns:
+            Iterable[ProjectController]: project accessor objects
+        """
+        after = None
+        limit = 10
+        while projects := self.api.projects.find(order=order, after=after, limit=limit):
+            for project in projects:
+                yield ProjectController(self, project)
+            if len(projects) < limit:
+                break
+            after = projects[-1].id
+
     def find_project(self, project_uid: str) -> ProjectController:
         """
         Get a project by its unique ID.
@@ -345,6 +367,31 @@ class CryoSPARC:
             ProjectController: project accessor object
         """
         return ProjectController(self, project_uid)
+
+    def find_workspaces(
+        self, project_uid: str | List[str] | None = None, order: Literal[1, -1] = 1
+    ) -> Iterable[WorkspaceController]:
+        """
+        Get all workspaces available in the given project.
+
+        Args:
+            project_uid (str | list[str] | None): Project unique ID, e.g., "P3".
+                If not specified, returns workspaces from all projects.
+        Returns:
+            Iterable[WorkspaceController]: workspace accessor objects
+        """
+        after = None
+        limit = 100
+        while workspaces := self.api.workspaces.find(
+            project_uid=[project_uid] if isinstance(project_uid, str) else project_uid,
+            after=after,
+            limit=limit,
+        ):
+            for workspace in workspaces:
+                yield WorkspaceController(self, workspace)
+            if len(workspaces) < limit:
+                break
+            after = workspaces[-1].id
 
     def find_workspace(self, project_uid: str, workspace_uid: str) -> WorkspaceController:
         """
@@ -359,6 +406,55 @@ class CryoSPARC:
             WorkspaceController: workspace accessor object
         """
         return WorkspaceController(self, (project_uid, workspace_uid))
+
+    def find_jobs(
+        self,
+        project_uid: str | List[str] | None = None,
+        workspace_uid: str | List[str] | None = None,
+        *,
+        order: Literal[1, -1] = 1,
+        **search: Unpack[JobSearch],
+    ) -> Iterable[JobController]:
+        """
+        Get available jobs.
+
+        Args:
+            project_uid (str | list[str] | None): Project unique ID, e.g., "P3".
+                If not specified, returns jobs from all projects. Defaults to None.
+            workspace_uid (str | list[str] | None): Workspace unique ID, e.g., "W1".
+                If not specified, returns jobs from all workspaces. Defaults to None.
+            **search (JobSearch): Additional search parameters to filter jobs,
+                specified as keyword arguments.
+
+        Returns:
+            Iterable[JobController]: job accessor objects
+        """
+        after = None
+        limit = 100
+        while jobs := self.api.jobs.find(
+            project_uid=[project_uid] if isinstance(project_uid, str) else project_uid,
+            workspace_uid=[workspace_uid] if isinstance(workspace_uid, str) else workspace_uid,
+            type=[type] if isinstance(type := search.get("type"), str) else type,
+            status=[status] if isinstance(status := search.get("status"), str) else status,
+            category=[category] if isinstance(category := search.get("category"), str) else category,
+            created_at=search.get("created_at"),
+            updated_at=search.get("updated_at"),
+            queued_at=search.get("queued_at"),
+            started_at=search.get("started_at"),
+            completed_at=search.get("completed_at"),
+            waiting_at=search.get("waiting_at"),
+            killed_at=search.get("killed_at"),
+            failed_at=search.get("failed_at"),
+            exported_at=search.get("exported_at"),
+            order=order,
+            after=after,
+            limit=limit,
+        ):
+            for job in jobs:
+                yield JobController(self, job)
+            if len(jobs) < limit:
+                break
+            after = jobs[-1].id
 
     def find_job(self, project_uid: str, job_uid: str) -> JobController:
         """

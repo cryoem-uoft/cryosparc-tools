@@ -1,9 +1,12 @@
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+
+from typing_extensions import Unpack
 
 from ..dataset import Dataset
 from ..dataset.row import R
 from ..models.workspace import Workspace
+from ..search import JobSearch
 from ..spec import Datatype, SlotSpec
 from . import Controller, as_output_slot
 from .job import ExternalJobController, JobController
@@ -56,6 +59,19 @@ class WorkspaceController(Controller[Workspace]):
         """
         self.model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
+
+    def find_jobs(self, **search: Unpack[JobSearch]) -> Iterable[JobController]:
+        """
+        Get jobs in the current workspace.
+
+        Args:
+            **search (JobSearch): Additional search parameters to filter jobs,
+                specified as keyword arguments.
+
+        Returns:
+            Iterable[JobController]: job accessor objects
+        """
+        return self.cs.find_jobs(self.project_uid, workspace_uid=self.uid, **search)
 
     def create_job(
         self,

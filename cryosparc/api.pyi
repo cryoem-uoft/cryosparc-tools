@@ -495,9 +495,11 @@ class JobsNamespace(APINamespace):
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         queued_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        waiting_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         completed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         killed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
-        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         deleted: Optional[bool] = False,
     ) -> List[Job]:
@@ -525,9 +527,11 @@ class JobsNamespace(APINamespace):
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         queued_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        waiting_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         completed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         killed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
-        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         deleted: Optional[bool] = False,
     ) -> int:
@@ -746,12 +750,14 @@ class JobsNamespace(APINamespace):
         ...
     def add_external_input(self, project_uid: str, job_uid: str, input_name: str, /, body: InputSpec) -> Job:
         """
-        Add or replace an external job's input.
+        Add or replace an external job's input. This action is available while the
+        job is building, running or waiting for results.
         """
         ...
     def add_external_output(self, project_uid: str, job_uid: str, output_name: str, /, body: OutputSpec) -> Job:
         """
-        Add or replace an external job's output.
+        Add or replace an external job's output. This action is available while the
+        job is building, running or waiting for results.
         """
         ...
     def enqueue(
@@ -821,7 +827,7 @@ class JobsNamespace(APINamespace):
         ...
     def mark_completed(self, project_uid: str, job_uid: str, /) -> Job:
         """
-        Mark a killed or failed job as completed.
+        Mark a killed or failed job, or an active external job, as completed.
         """
         ...
     def mark_failed(self, project_uid: str, job_uid: str, /, *, error: Optional[str] = ...) -> Job:
@@ -882,9 +888,11 @@ class JobsNamespace(APINamespace):
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         queued_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        waiting_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         completed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         killed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
-        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
         deleted: Optional[bool] = False,
     ) -> List[Job]:

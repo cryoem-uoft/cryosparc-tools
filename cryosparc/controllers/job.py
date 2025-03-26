@@ -62,7 +62,7 @@ class JobController(Controller[Job]):
     Accessor class to a job in CryoSPARC with ability to load inputs and
     outputs, add to job log, download job files. Should be created with
     :py:meth:`cs.find_job() <cryosparc.tools.CryoSPARC.find_job>` or
-    :py:meth:`project.find_job() <cryosparc.project.ProjectController.find_job>`.
+    :py:meth:`project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`.
 
     Arguments:
         job (tuple[str, str] | Job): either _(Project UID, Job UID)_ tuple or
