@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Callable, ClassVar, Dict, Iterator, List, Optional, Tuple, TypedDict, Union
 
 import httpx
+from pydantic import BaseModel
 
 from . import registry
 from .errors import APIError
@@ -392,9 +393,9 @@ def _decode_json_response(value: Any, schema: dict):
             return model_class(value)
         elif model_class and issubclass(model_class, dict):  # typed dict
             return model_class(**value)
-        elif model_class:  # pydantic model
+        elif model_class and issubclass(model_class, BaseModel):  # pydantic model
             # use model_validate in case validator result derives from subtype, e.g., Event model
-            return model_class.model_validate(value)  # type: ignore
+            return model_class.model_validate(value)
         warnings.warn(
             f"[API] Warning: Received API response with unregistered schema type {schema['$ref']}. "
             "Returning as plain object."
