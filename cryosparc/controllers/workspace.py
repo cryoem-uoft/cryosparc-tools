@@ -20,7 +20,7 @@ class WorkspaceController(Controller[Workspace]):
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
     results. Should be created with`
     :py:meth:`cs.find_workspace() <cryosparc.tools.CryoSPARC.find_workspace>` or
-    :py:meth:`project.find_workspace() <cryosparc.project.ProjectController.find_workspace>`.
+    :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`.
 
     Arguments:
         workspace (tuple[str, str] | Workspace): either _(Project UID, Workspace UID)_
@@ -72,6 +72,21 @@ class WorkspaceController(Controller[Workspace]):
             Iterable[JobController]: job accessor objects
         """
         return self.cs.find_jobs(self.project_uid, workspace_uid=self.uid, **search)
+
+    def find_job(self, job_uid: str) -> JobController:
+        """
+        Find a job in the current workspace by its UID.
+
+        Args:
+            job_uid (str): Job UID to find, e.g., "J42"
+
+        Returns:
+            JobController: job accessor object
+        """
+        jobs = self.cs.api.jobs.find(project_uid=[self.project_uid], workspace_uid=[self.uid], uid=[job_uid], limit=1)
+        if len(jobs) == 0:
+            raise ValueError(f"Job {job_uid} not found in workspace {self.project_uid}-{self.uid}")
+        return JobController(self.cs, jobs[0])
 
     def create_job(
         self,
