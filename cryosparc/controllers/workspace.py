@@ -62,7 +62,17 @@ class WorkspaceController(Controller[Workspace]):
 
     def find_jobs(self, **search: Unpack[JobSearch]) -> Iterable[JobController]:
         """
-        Get jobs in the current workspace.
+        Search jobs in the current workspace.
+
+        Example:
+            >>> jobs = workspace.find_jobs()  # all jobs in workspace
+            >>> jobs = workspace.find_jobs(
+            ...     type="homo_reconstruct",
+            ...     completed_at=(datetime(2025, 3, 1), datetime(2025, 3, 31)),
+            ...     order=-1,
+            ... )
+            >>> for job in jobs:
+            ...     print(job.uid)
 
         Args:
             **search (JobSearch): Additional search parameters to filter jobs,

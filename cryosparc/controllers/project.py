@@ -95,7 +95,18 @@ class ProjectController(Controller[Project]):
         **search: Unpack[JobSearch],
     ) -> Iterable[JobController]:
         """
-        Get jobs available in the current project.
+        Search jobs available in the current project.
+
+        Example:
+            >>> jobs = project.find_jobs("W3")
+            >>> jobs = project.find_jobs(["W3", "W4"])
+            >>> jobs = project.find_jobs(
+            ...     type="homo_reconstruct",
+            ...     completed_at=(datetime(2025, 3, 1), datetime(2025, 3, 31)),
+            ...     order=-1,
+            ... )
+            >>> for job in jobs:
+            ...     print(job.uid)
 
         Args:
             workspace_uid (str | list[str] | None): Workspace unique ID, e.g.,

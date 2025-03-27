@@ -416,7 +416,18 @@ class CryoSPARC:
         **search: Unpack[JobSearch],
     ) -> Iterable[JobController]:
         """
-        Get available jobs.
+        Search available jobs.
+
+        Example:
+            >>> jobs = cs.find_jobs("P3", "W3")
+            >>> jobs = cs.find_jobs(["P42", "P43"])
+            >>> jobs = cs.find_jobs(
+            ...     type="homo_reconstruct",
+            ...     completed_at=(datetime(2025, 3, 1), datetime(2025, 3, 31)),
+            ...     order=-1,
+            ... )
+            >>> for job in jobs:
+            ...     print(job.uid)
 
         Args:
             project_uid (str | list[str] | None): Project unique ID, e.g., "P3".
