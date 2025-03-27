@@ -6,11 +6,8 @@ from typing_extensions import TypedDict
 from .models.job import JobStatus
 from .models.job_spec import Category
 
-F = TypeVar("F", bound=bool | int | float | str)
-"""Type variable for allowed scalar query types for FastAPI"""
-R = TypeVar("R", bound=int | float | datetime)
-"""Type variable for range types for FastAPI"""
-
+F = TypeVar("F", bool, int, float, str)  # filter value
+R = TypeVar("R", int, float, datetime)  # range
 Eq = F
 In = F | list[F]
 Range = tuple[R, R]
