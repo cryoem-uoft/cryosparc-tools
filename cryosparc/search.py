@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, TypeVar
+from typing import List, Tuple, TypeVar, Union
 
 from typing_extensions import TypedDict
 
@@ -8,8 +8,8 @@ from .models.job_spec import Category
 
 T = TypeVar("T")
 Eq = T
-In = T | List[T]
-Range = tuple[T, T]
+In = Union[T, List[T]]
+Range = Tuple[T, T]
 
 
 class JobSearch(TypedDict, total=False):
