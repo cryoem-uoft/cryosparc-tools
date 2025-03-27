@@ -31,7 +31,7 @@ def test_cli_login(mock_api_client_class, mock_auth_path):
 
 
 def test_cli_login_auth(mock_user, mock_api_client_class, mock_auth_path):
-    cs = CryoSPARC("https://cryosparc.example.com", email="structura@example.com")
+    cs = CryoSPARC("https://cryosparc.example.com", email="structura@example.com", host=None, base_port=None)
     mock_api_client_class.__call__.assert_called_with(auth="abc123")  # called with token
     assert cs.user == mock_user
     assert cs.test_connection()
