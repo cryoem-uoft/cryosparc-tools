@@ -1309,7 +1309,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         prefix_map = {old_prefix: new_prefix}
 
-        def field_map(name):
+        def field_map(name: str):
             prefix, base = name.split("/")
             return prefix_map.get(prefix, prefix) + "/" + base
 
