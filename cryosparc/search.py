@@ -1,16 +1,15 @@
 from datetime import datetime
-from typing import TypeVar
+from typing import List, TypeVar
 
 from typing_extensions import TypedDict
 
 from .models.job import JobStatus
 from .models.job_spec import Category
 
-F = TypeVar("F", bool, int, float, str)  # filter value
-R = TypeVar("R", int, float, datetime)  # range
-Eq = F
-In = F | list[F]
-Range = tuple[R, R]
+T = TypeVar("T")
+Eq = T
+In = T | List[T]
+Range = tuple[T, T]
 
 
 class JobSearch(TypedDict, total=False):
