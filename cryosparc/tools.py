@@ -50,7 +50,7 @@ from .models.job_spec import Category, OutputRef, OutputSpec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget
 from .models.user import User
-from .search import JobSearch
+from .search import In, JobSearch
 from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
 from .util import clear_cached_property, padarray, print_table, trimarray
@@ -369,7 +369,10 @@ class CryoSPARC:
         return ProjectController(self, project_uid)
 
     def find_workspaces(
-        self, project_uid: str | List[str] | None = None, order: Literal[1, -1] = 1
+        self,
+        project_uid: Optional[In[str]] = None,
+        *,
+        order: Literal[1, -1] = 1,
     ) -> Iterable[WorkspaceController]:
         """
         Get all workspaces available in the given project.
@@ -409,8 +412,8 @@ class CryoSPARC:
 
     def find_jobs(
         self,
-        project_uid: str | List[str] | None = None,
-        workspace_uid: str | List[str] | None = None,
+        project_uid: Optional[In[str]] = None,
+        workspace_uid: Optional[In[str]] = None,
         *,
         order: Literal[1, -1] = 1,
         **search: Unpack[JobSearch],

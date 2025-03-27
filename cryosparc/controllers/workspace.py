@@ -1,5 +1,5 @@
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 from typing_extensions import Unpack
 
@@ -60,7 +60,7 @@ class WorkspaceController(Controller[Workspace]):
         self.model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
 
-    def find_jobs(self, **search: Unpack[JobSearch]) -> Iterable[JobController]:
+    def find_jobs(self, *, order: Literal[1, -1] = 1, **search: Unpack[JobSearch]) -> Iterable[JobController]:
         """
         Search jobs in the current workspace.
 
@@ -81,7 +81,7 @@ class WorkspaceController(Controller[Workspace]):
         Returns:
             Iterable[JobController]: job accessor objects
         """
-        return self.cs.find_jobs(self.project_uid, workspace_uid=self.uid, **search)
+        return self.cs.find_jobs(self.project_uid, workspace_uid=self.uid, order=order, **search)
 
     def find_job(self, job_uid: str) -> JobController:
         """
