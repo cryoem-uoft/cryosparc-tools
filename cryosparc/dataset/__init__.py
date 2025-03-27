@@ -1270,7 +1270,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: current dataset or copy with fields removed
         """
-        test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))  # type: ignore
+        test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))
         return self.filter_fields(test, copy=copy)
 
     def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], *, copy: bool = False):
@@ -1286,8 +1286,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: current dataset or copy with fields renamed
         """
+        fm: Callable[[str], str]
         if isinstance(field_map, dict):
-            fm = lambda x: field_map.get(x, x)  # noqa
+            fm = lambda x: field_map.get(x, x)  # noqa: E731
         else:
             fm = field_map
 
@@ -1325,7 +1326,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         prefix_map = {old_prefix: new_prefix}
 
-        def field_map(name):
+        def field_map(name: str):
             prefix, base = name.split("/")
             return prefix_map.get(prefix, prefix) + "/" + base
 
