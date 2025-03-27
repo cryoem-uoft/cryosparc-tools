@@ -35,7 +35,7 @@ class DatasetHeader(TypedDict):
     """Field names that require decompression."""
 
 
-DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
+DSET_TO_TYPE_MAP: Dict[DsetType, Type[n.number | n.object_]] = {
     DsetType.T_F32: n.float32,
     DsetType.T_F64: n.float64,
     DsetType.T_C32: n.complex64,
@@ -111,7 +111,7 @@ def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
         raise KeyError(f"Unknown dataset field {field}")
     elif t not in DSET_TO_TYPE_MAP:
         raise KeyError(f"Unknown dataset field type {t}")
-    dt = n.dtype(DSET_TO_TYPE_MAP[t])  # type: ignore
+    dt = n.dtype(DSET_TO_TYPE_MAP[t])
     shape = data.getshp(field)
     return (dt.str, shape) if shape else dt.str
 
