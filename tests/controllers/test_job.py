@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
@@ -120,6 +121,7 @@ def mock_external_job(mock_user, mock_project):
             resource_spec=ResourceSpec(),
         ),
         build_errors=[],
+        job_dir_size_last_updated=datetime.now(timezone.utc),
     )
 
 

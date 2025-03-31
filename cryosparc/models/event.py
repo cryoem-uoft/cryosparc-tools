@@ -48,6 +48,12 @@ class ImageEvent(BaseModel):
     imgfiles: List[GridFSAsset] = []
 
 
+class InteractiveGridFSAsset(BaseModel):
+    fileid: str = "000000000000000000000000"
+    filename: str
+    filetype: str
+
+
 class InteractiveImgfile(BaseModel):
     imgfiles: List[GridFSAsset]
     components: List[int] = []
@@ -66,7 +72,7 @@ class InteractiveEvent(BaseModel):
     type: str
     subtype: str = "3dscatter"
     text: str
-    datafile: GridFSAsset
+    datafile: InteractiveGridFSAsset
     preview_imgfiles: List[InteractiveImgfile] = []
     components: List[int] = []
 

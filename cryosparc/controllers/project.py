@@ -1,10 +1,13 @@
 import warnings
 from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+
+from typing_extensions import Unpack
 
 from ..dataset import DEFAULT_FORMAT, Dataset
 from ..dataset.row import R
 from ..models.project import Project
+from ..search import In, JobSearch
 from ..spec import Datatype, SlotSpec
 from . import Controller, as_output_slot
 from .job import ExternalJobController, JobController
@@ -64,7 +67,16 @@ class ProjectController(Controller[Project]):
         path: str = self.cs.api.projects.get_directory(self.uid)
         return PurePosixPath(path)
 
-    def find_workspace(self, workspace_uid) -> WorkspaceController:
+    def find_workspaces(self, *, order: Literal[1, -1] = 1) -> Iterable[WorkspaceController]:
+        """
+        Get all workspaces available in the current project.
+
+        Returns:
+            Iterable[WorkspaceController]: workspace accessor objects
+        """
+        return self.cs.find_workspaces(self.uid, order=order)
+
+    def find_workspace(self, workspace_uid: str) -> WorkspaceController:
         """
         Get a workspace accessor instance for the workspace in this project
         with the given UID. Fails with an error if workspace does not exist.
@@ -76,6 +88,39 @@ class ProjectController(Controller[Project]):
             WorkspaceController: workspace accessor object
         """
         return WorkspaceController(self.cs, (self.uid, workspace_uid))
+
+    def find_jobs(
+        self,
+        workspace_uid: Optional[In[str]] = None,
+        *,
+        order: Literal[1, -1] = 1,
+        **search: Unpack[JobSearch],
+    ) -> Iterable[JobController]:
+        """
+        Search jobs available in the current project.
+
+        Example:
+            >>> jobs = project.find_jobs("W3")
+            >>> jobs = project.find_jobs(["W3", "W4"])
+            >>> jobs = project.find_jobs(
+            ...     type="homo_reconstruct",
+            ...     completed_at=(datetime(2025, 3, 1), datetime(2025, 3, 31)),
+            ...     order=-1,
+            ... )
+            >>> for job in jobs:
+            ...     print(job.uid)
+
+        Args:
+            workspace_uid (str | list[str] | None): Workspace unique ID, e.g.,
+                "W1". If not specified, returns jobs from all workspaces.
+                Defaults to None.
+            **search (JobSearch): Additional search parameters to filter jobs,
+                specified as keyword arguments.
+
+        Returns:
+            Iterable[JobController]: job accessor objects
+        """
+        return self.cs.find_jobs(self.uid, workspace_uid, order=order, **search)
 
     def find_job(self, job_uid: str) -> JobController:
         """

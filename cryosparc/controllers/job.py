@@ -62,7 +62,7 @@ class JobController(Controller[Job]):
     Accessor class to a job in CryoSPARC with ability to load inputs and
     outputs, add to job log, download job files. Should be created with
     :py:meth:`cs.find_job() <cryosparc.tools.CryoSPARC.find_job>` or
-    :py:meth:`project.find_job() <cryosparc.project.ProjectController.find_job>`.
+    :py:meth:`project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`.
 
     Arguments:
         job (tuple[str, str] | Job): either _(Project UID, Job UID)_ tuple or
@@ -1463,7 +1463,6 @@ class ExternalJobController(JobController):
         if isinstance(error, bool):  # allowed bool in previous version
             warnings.warn("error should be specified as a string", DeprecationWarning, stacklevel=2)
             error = "An error occurred" if error else ""
-        self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
         if error:
             self.model = self.cs.api.jobs.mark_failed(self.project_uid, self.uid, error=error)
         else:

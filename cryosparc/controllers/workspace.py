@@ -1,9 +1,12 @@
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+
+from typing_extensions import Unpack
 
 from ..dataset import Dataset
 from ..dataset.row import R
 from ..models.workspace import Workspace
+from ..search import JobSearch
 from ..spec import Datatype, SlotSpec
 from . import Controller, as_output_slot
 from .job import ExternalJobController, JobController
@@ -17,7 +20,7 @@ class WorkspaceController(Controller[Workspace]):
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
     results. Should be created with`
     :py:meth:`cs.find_workspace() <cryosparc.tools.CryoSPARC.find_workspace>` or
-    :py:meth:`project.find_workspace() <cryosparc.project.ProjectController.find_workspace>`.
+    :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`.
 
     Arguments:
         workspace (tuple[str, str] | Workspace): either _(Project UID, Workspace UID)_
@@ -56,6 +59,44 @@ class WorkspaceController(Controller[Workspace]):
         """
         self.model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
+
+    def find_jobs(self, *, order: Literal[1, -1] = 1, **search: Unpack[JobSearch]) -> Iterable[JobController]:
+        """
+        Search jobs in the current workspace.
+
+        Example:
+            >>> jobs = workspace.find_jobs()  # all jobs in workspace
+            >>> jobs = workspace.find_jobs(
+            ...     type="homo_reconstruct",
+            ...     completed_at=(datetime(2025, 3, 1), datetime(2025, 3, 31)),
+            ...     order=-1,
+            ... )
+            >>> for job in jobs:
+            ...     print(job.uid)
+
+        Args:
+            **search (JobSearch): Additional search parameters to filter jobs,
+                specified as keyword arguments.
+
+        Returns:
+            Iterable[JobController]: job accessor objects
+        """
+        return self.cs.find_jobs(self.project_uid, workspace_uid=self.uid, order=order, **search)
+
+    def find_job(self, job_uid: str) -> JobController:
+        """
+        Find a job in the current workspace by its UID.
+
+        Args:
+            job_uid (str): Job UID to find, e.g., "J42"
+
+        Returns:
+            JobController: job accessor object
+        """
+        jobs = self.cs.api.jobs.find(project_uid=[self.project_uid], workspace_uid=[self.uid], uid=[job_uid], limit=1)
+        if len(jobs) == 0:
+            raise ValueError(f"Job {job_uid} not found in workspace {self.project_uid}-{self.uid}")
+        return JobController(self.cs, jobs[0])
 
     def create_job(
         self,

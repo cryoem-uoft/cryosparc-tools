@@ -326,6 +326,7 @@ def mock_new_job(mock_user, mock_project):
             resource_spec=ResourceSpec(),
         ),
         build_errors=[],
+        job_dir_size_last_updated=datetime.now(timezone.utc),
     )
 
 

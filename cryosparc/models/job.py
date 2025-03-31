@@ -63,7 +63,7 @@ class Job(BaseModel):
     spec: JobSpec
     job_dir: str
     job_dir_size: int = 0
-    job_dir_size_last_updated: Optional[datetime.datetime] = None
+    job_dir_size_last_updated: datetime.datetime
     run_as_user: Optional[str] = None
     title: str = ""
     description: str = ""
