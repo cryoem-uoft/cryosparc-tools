@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.7.0
+
+- Added: Datasets appear as tables in a Jupyter notebook without requiring pandas or similar
+- Updated: Dropped official support for Python 3.7
+- Fixed: Prevent dataset load or save error when dataset is empty
+- Fixed: Prevent dataset load error on Linux when dataset file is exactly 4 kiB
+
 ## v4.6.1
 
 - Added: Python 3.13 support
