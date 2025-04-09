@@ -1,6 +1,6 @@
 # Changelog
 
-## Next
+## v5.0.0
 
 - BREAKING: replaced low-level `CryoSPARC.cli`, `CryoSPARC.rtp` and `CryoSPARC.vis` attributes with single unified `CryoSPARC.api`
 - BREAKING: When a `job.start()` or `job.run()` is called for an external job, changing the job connections with `job.add_input`, `job.add_output` or `job.connect` will now trigger an error. Please add all inputs and outputs and connect all inputs before running an external job.
@@ -37,6 +37,13 @@
 - Deprecated: Most functions no longer require a `refresh` argument, including
   `job.set_param()`, `job.connect()`, `job.disconnect()` and `external_job.save_output()`
 - Deprecated: Attributes `Project.doc`, `Workspace.doc` and `Job.doc` will be removed in a future release, use `.model` attribute instead
+
+## v4.7.0
+
+- Added: Datasets appear as tables in a Jupyter notebook without requiring pandas or similar
+- Updated: Dropped official support for Python 3.7
+- Fixed: Prevent dataset load or save error when dataset is empty
+- Fixed: Prevent dataset load error on Linux when dataset file is exactly 4 kiB
 
 ## v4.6.1
 
