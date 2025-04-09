@@ -129,7 +129,7 @@ def write(file: Union[str, PurePath, IO[bytes]], data: "NDArray", psize: float):
 
     with bopen(file, "wb") as f:
         _write_header(f, data, psize)
-        n.require(data, requirements="C").ravel().tofile(f)
+        n.require(data, dtype=n.float32, requirements="C").ravel().tofile(f)
 
 
 def _read_header(file: IO) -> Header:
