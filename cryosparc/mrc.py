@@ -128,8 +128,12 @@ def write(file: Union[str, PurePath, IO[bytes]], data: "NDArray", psize: float):
     assert data.ndim == 3, "Cannot write an array in MRC file"
 
     with bopen(file, "wb") as f:
+        if data.dtype.type == DT.FLOAT16:
+            data = n.require(data, requirements="C")
+        else:
+            data = n.require(data, dtype=n.float32, requirements="C")
         _write_header(f, data, psize)
-        n.require(data, dtype=n.float32, requirements="C").ravel().tofile(f)
+        data.ravel().tofile(f)
 
 
 def _read_header(file: IO) -> Header:
