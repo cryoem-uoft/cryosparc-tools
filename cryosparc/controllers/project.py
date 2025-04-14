@@ -9,6 +9,7 @@ from ..dataset.row import R
 from ..models.project import Project
 from ..search import In, JobSearch
 from ..spec import Datatype, SlotSpec
+from ..util import PurePosixPathProperty
 from . import Controller, as_output_slot
 from .job import ExternalJobController, JobController
 from .workspace import WorkspaceController
@@ -57,15 +58,20 @@ class ProjectController(Controller[Project]):
         self.model = self.cs.api.projects.find_one(self.uid)
         return self
 
-    def dir(self) -> PurePosixPath:
-        """
-        Get the path to the project directory.
+    @property
+    def title(self) -> str:
+        """Project title"""
+        return self.model.title
 
-        Returns:
-            Path: project directory Pure Path instance
-        """
-        path: str = self.cs.api.projects.get_directory(self.uid)
-        return PurePosixPath(path)
+    @property
+    def desc(self) -> str:
+        """Project description"""
+        return self.model.description
+
+    @property
+    def dir(self) -> PurePosixPath:
+        """Full path to project directory."""
+        return PurePosixPathProperty(self.cs.api.projects.get_directory(self.uid))
 
     def find_workspaces(self, *, order: Literal[1, -1] = 1) -> Iterable[WorkspaceController]:
         """

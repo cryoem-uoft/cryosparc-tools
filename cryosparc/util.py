@@ -1,5 +1,6 @@
+import warnings
 from contextlib import contextmanager
-from pathlib import PurePath
+from pathlib import PurePath, PurePosixPath
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -109,6 +110,13 @@ class hashcache(Dict[K, V], Generic[K, V]):
         new = self.factory(key)
         self.__setitem__(key, new)
         return new
+
+
+# PurePosixPath with a __call__ method that returns itself for legacy purposes.
+class PurePosixPathProperty(PurePosixPath):
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        warnings.warn("Use .dir instead of .dir()", DeprecationWarning, stacklevel=2)
+        return self
 
 
 @overload
