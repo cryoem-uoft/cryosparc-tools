@@ -128,7 +128,7 @@ def write(file: Union[str, PurePath, IO[bytes]], data: "NDArray", psize: float):
     assert data.ndim == 3, "Cannot write an array in MRC file"
 
     with bopen(file, "wb") as f:
-        if data.dtype.type == DT.FLOAT16:
+        if data.dtype.type == n.float16:
             data = n.require(data, requirements="C")
         else:
             data = n.require(data, dtype=n.float32, requirements="C")
