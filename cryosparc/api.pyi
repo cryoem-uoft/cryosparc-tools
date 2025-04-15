@@ -30,7 +30,14 @@ from .models.project import GenerateIntermediateResultsSettings, Project, Projec
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import Cluster, Node, SchedulerTarget
 from .models.service import LoggingService, ServiceLogLevel
-from .models.session import DataManagementStats, ExposureGroup, ExposureGroupUpdate, LiveComputeResources, Session
+from .models.session import (
+    DataManagementStats,
+    ExposureGroup,
+    ExposureGroupUpdate,
+    LiveComputeResources,
+    Session,
+    TemplateSelectionThreshold,
+)
 from .models.session_config_profile import SessionConfigProfile, SessionConfigProfileBody
 from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
 from .models.session_spec import SessionStatus
@@ -73,7 +80,7 @@ class ConfigNamespace(APINamespace):
         Gets the current CryoSPARC version (with patch suffix, if available)
         """
         ...
-    def get_system_info(self) -> dict:
+    def get_system_info(self) -> Dict[str, Any]:
         """
         System information related to the CryoSPARC application
         """
@@ -607,7 +614,7 @@ class JobsNamespace(APINamespace):
         ...
     def get_log_path(self, project_uid: str, job_uid: str, /) -> str: ...
     def get_output_fields(
-        self, project_uid: str, job_uid: str, output_name: str, /, dtype_params: dict = {}
+        self, project_uid: str, job_uid: str, output_name: str, /, dtype_params: Dict[str, Any] = {}
     ) -> List[Tuple[str, str]]:
         """
         Expected dataset column definitions for given job output, excluding passthroughs.
@@ -618,7 +625,7 @@ class JobsNamespace(APINamespace):
         project_uid: str,
         workspace_uid: str,
         /,
-        params: Optional[Dict[str, Union[bool, int, float, str, str, None]]] = ...,
+        params: Dict[str, Union[bool, int, float, str, str, None]] = {},
         *,
         type: str,
         title: str = "",
@@ -812,7 +819,7 @@ class JobsNamespace(APINamespace):
         """
         ...
     def interactive_post(
-        self, project_uid: str, job_uid: str, /, body: dict, *, endpoint: str, timeout: int = 10
+        self, project_uid: str, job_uid: str, /, body: Dict[str, Any], *, endpoint: str, timeout: int = 10
     ) -> Any:
         """
         Sends a message to an interactive job.
@@ -858,7 +865,7 @@ class JobsNamespace(APINamespace):
         Add an image or figure to the target job's event log.
         """
         ...
-    def add_checkpoint(self, project_uid: str, job_uid: str, /, meta: dict) -> CheckpointEvent:
+    def add_checkpoint(self, project_uid: str, job_uid: str, /, meta: Dict[str, Any]) -> CheckpointEvent:
         """
         Add a checkpoint the target job's event log.
         """
@@ -938,7 +945,7 @@ class JobsNamespace(APINamespace):
         Sets job priority
         """
         ...
-    def set_cluster_custom_vars(self, project_uid: str, job_uid: str, /, cluster_custom_vars: dict) -> Job:
+    def set_cluster_custom_vars(self, project_uid: str, job_uid: str, /, cluster_custom_vars: Dict[str, Any]) -> Job:
         """
         Sets cluster custom variables for job
         """
@@ -991,12 +998,12 @@ class JobsNamespace(APINamespace):
         Rewrites all symbolic links in the job directory, modifying links prefixed with `prefix_cut` to instead be prefixed with `prefix_new`.
         """
         ...
-    def add_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> None:
+    def add_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> Tag:
         """
         Tags a job with the given tag.
         """
         ...
-    def remove_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> None:
+    def remove_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> Job:
         """
         Removes the given tag a job.
         """
@@ -1111,12 +1118,12 @@ class WorkspacesNamespace(APINamespace):
         Adds a workspace uid to a user's recently viewed workspaces list.
         """
         ...
-    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> None:
+    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Tag:
         """
         Tag the given workspace with the given tag.
         """
         ...
-    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> None:
+    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
         """
         Removes a tag from a workspace.
         """
@@ -1270,12 +1277,12 @@ class SessionsNamespace(APINamespace):
         Updates compute configuration for a session.
         """
         ...
-    def add_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> None:
+    def add_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> Tag:
         """
         Tags a session with the given tag.
         """
         ...
-    def remove_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> None:
+    def remove_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> Session:
         """
         Removes the given tag from a session.
         """
@@ -1358,35 +1365,42 @@ class SessionsNamespace(APINamespace):
         Updates streaming 2D Classification job params for session
         """
         ...
-    def invert_template_phase2_class2D(self, project_uid: str, session_uid: str, template_idx: int, /) -> Session:
+    def toggle_class2d_template(self, project_uid: str, session_uid: str, template_idx: int, /) -> Session:
         """
         Inverts selected template for the streaming 2D Classification job of a job
         """
         ...
-    def invert_all_templates_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Session:
+    def toggle_all_class2d_templates(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Inverts all templates for a session's streaming 2D classification job
         """
         ...
-    def set_all_templates_phase2_class2D(
+    def select_all_class2d_templates(
         self, project_uid: str, session_uid: str, direction: Literal["select", "deselect"], /
     ) -> Session:
         """
         Sets all templates in the session's streaming 2D Classification job
         """
         ...
-    def select_direction_template_phase2_class2D(
+    def select_class2d_templates_with_threshold_index(
         self,
         project_uid: str,
         session_uid: str,
         template_idx: int,
         /,
         *,
-        dimension: str,
+        dimension: Literal["num_particles_total", "res_A", "class_ess"],
         direction: Literal["above", "below"] = "above",
     ) -> Session:
         """
         Sets all templates above or below an index for a session's streaming 2D Classification
+        """
+        ...
+    def select_class2d_templates_with_thresholds(
+        self, project_uid: str, session_uid: str, /, template_selection_thresholds: List[TemplateSelectionThreshold]
+    ) -> Session:
+        """
+        Selects all templates above or below an index in a template creation job for a session
         """
         ...
     def start_extract_manual(self, project_uid: str, session_uid: str, /) -> None:
@@ -1442,19 +1456,16 @@ class SessionsNamespace(APINamespace):
         num_mics: int,
         override_particle_diameter_A: Optional[float] = ...,
         uid_lte: Optional[int] = ...,
-    ) -> Session:
+    ) -> Job:
         """
         Setup template creation class2D job for a session
         """
         ...
-    def set_template_creation_job(self, project_uid: str, session_uid: str, /, *, job_uid: str) -> Session:
+    def set_template_creation_job(
+        self, project_uid: str, session_uid: str, /, *, job_uid: str, template_creation_project_uid: Optional[str] = ...
+    ) -> Session:
         """
         Set template creation class2D job for a session
-        """
-        ...
-    def enqueue_template_creation_class2D(self, project_uid: str, session_uid: str, /) -> Job:
-        """
-        Enqueues template creation class2D job for a session
         """
         ...
     def clear_template_creation_class2D(self, project_uid: str, session_uid: str, /) -> Session:
@@ -1462,25 +1473,39 @@ class SessionsNamespace(APINamespace):
         Clears template creation class2D job for a session
         """
         ...
-    def toggle_template_creation_template(self, project_uid: str, session_uid: str, template_idx: int, /) -> Session:
+    def toggle_picking_template(self, project_uid: str, session_uid: str, template_idx: int, /) -> Session:
         """
         Toggles template for template creation job at a specific index for a session's template creation job
         """
         ...
-    def toggle_template_creation_all_templates(self, project_uid: str, session_uid: str, /) -> Session:
+    def toggle_all_picking_templates(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Toggles templates for all templates for a session's template creation job
         """
         ...
-    def select_template_creation_all(
+    def select_all_picking_templates(
         self, project_uid: str, session_uid: str, direction: Literal["select", "deselect"], /
     ) -> Session:
         """
         Selects or deselects all templates for a template creation job in a session
         """
         ...
-    def select_template_creation_in_direction(
-        self, project_uid: str, session_uid: str, template_idx: int, direction: Literal["above", "below"], /
+    def select_picking_templates_with_threshold_index(
+        self,
+        project_uid: str,
+        session_uid: str,
+        template_idx: int,
+        direction: Literal["above", "below"],
+        /,
+        *,
+        dimension: Literal["num_particles_total", "res_A", "class_ess"],
+    ) -> Session:
+        """
+        Selects all templates above or below an index in a template creation job for a session
+        """
+        ...
+    def select_picking_templates_with_thresholds(
+        self, project_uid: str, session_uid: str, /, template_selection_thresholds: List[TemplateSelectionThreshold]
     ) -> Session:
         """
         Selects all templates above or below an index in a template creation job for a session
@@ -1493,7 +1518,7 @@ class SessionsNamespace(APINamespace):
         ...
     def set_phase2_abinit_job(self, project_uid: str, session_uid: str, /, *, job_uid: str) -> Session:
         """
-        Sets an Ab-Initio Reconstruction job for the session
+        Sets a Live Ab-Initio Reconstruction job for the session. May specify any job with volume outputs.
         """
         ...
     def enqueue_phase2_abinit(self, project_uid: str, session_uid: str, /) -> Job:
@@ -1682,6 +1707,132 @@ class SessionsNamespace(APINamespace):
     def unstar_session(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Stars a session for a user
+        """
+        ...
+
+class ExposuresNamespace(APINamespace):
+    """
+    Methods available in api.exposures, e.g., api.exposures.find(...)
+    """
+    def find(
+        self,
+        *,
+        order: int = 1,
+        after: Optional[str] = ...,
+        limit: int = 100,
+        uid: Optional[List[str]] = ...,
+        session_uid: Optional[List[str]] = ...,
+        project_uid: Optional[List[str]] = ...,
+        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = ...,
+        stage: Optional[
+            List[
+                Literal[
+                    "go_to_found",
+                    "found",
+                    "check",
+                    "motion",
+                    "ctf",
+                    "thumbs",
+                    "pick",
+                    "extract",
+                    "extract_manual",
+                    "ready",
+                    "restoring",
+                    "restoring_motion",
+                    "restoring_thumbs",
+                    "restoring_ctf",
+                    "restoring_extract",
+                    "restoring_extract_manual",
+                    "compacted",
+                ]
+            ]
+        ] = ...,
+        deleted: Optional[bool] = False,
+    ) -> List[Exposure]: ...
+    def reset_manual_reject_exposures(self, project_uid: str, session_uid: str, /) -> List[Exposure]:
+        """
+        Resets manual rejection status on all exposures in a session.
+        """
+        ...
+    def reset_all_exposures(self, project_uid: str, session_uid: str, /) -> None:
+        """
+        Resets all exposures in a session to initial state.
+        """
+        ...
+    def reset_failed_exposures(self, project_uid: str, session_uid: str, /) -> None:
+        """
+        Resets all failed exposures in a session to initial state.
+        """
+        ...
+    def reset_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
+        """
+        Resets exposure to intial state.
+        """
+        ...
+    def manual_reject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
+        """
+        Manually rejects exposure.
+        """
+        ...
+    def manual_unreject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
+        """
+        Manually unrejects exposure.
+        """
+        ...
+    def toggle_manual_reject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
+        """
+        Toggles manual rejection state on exposure.
+        """
+        ...
+    def reprocess_single_exposure(
+        self,
+        project_uid: str,
+        session_uid: str,
+        exposure_uid: int,
+        /,
+        body: LivePreprocessingParams,
+        *,
+        picker_type: Literal["blob", "template"],
+    ) -> Exposure:
+        """
+        Reprocesses a single micrograph with the passed parameters. If there is a test micrograph
+        in the session already that is not the same micrograph that the user is currently trying to test, it will be reset
+        back to the "ctf" stage without the test flag.
+        """
+        ...
+    def add_manual_pick(
+        self, project_uid: str, session_uid: str, exposure_uid: int, /, *, x_frac: float, y_frac: float
+    ) -> Exposure:
+        """
+        Adds a manual pick to an exposure.
+        """
+        ...
+    def remove_manual_pick(
+        self,
+        project_uid: str,
+        session_uid: str,
+        exposure_uid: int,
+        /,
+        *,
+        x_frac: float,
+        y_frac: float,
+        dist_frac: float = 0.02,
+    ) -> Exposure:
+        """
+        Removes manual pick from an exposure
+        """
+        ...
+    def get_individual_picks(
+        self,
+        project_uid: str,
+        session_uid: str,
+        exposure_uid: int,
+        picker_type: Literal["blob", "template", "manual"],
+        /,
+    ) -> List[List[float]]:
+        """
+        Gets list of picks from an exposure
         """
         ...
 
@@ -1917,12 +2068,12 @@ class ProjectsNamespace(APINamespace):
         Cleanup project or workspace data, clearing/deleting jobs based on final result status, sections, types, or job status
         """
         ...
-    def add_tag(self, project_uid: str, tag_uid: str, /) -> None:
+    def add_tag(self, project_uid: str, tag_uid: str, /) -> Tag:
         """
         Tags a project with the given tag.
         """
         ...
-    def remove_tag(self, project_uid: str, tag_uid: str, /) -> None:
+    def remove_tag(self, project_uid: str, tag_uid: str, /) -> Project:
         """
         Removes the given tag from a project.
         """
@@ -1964,96 +2115,6 @@ class ProjectsNamespace(APINamespace):
         Clear project directory write failures. After calling this endpoint,
         CryoSPARC's scheduler will attempt to write modified jobs and workspaces to
         the project directory that previously could not be saved.
-        """
-        ...
-
-class ExposuresNamespace(APINamespace):
-    """
-    Methods available in api.exposures, e.g., api.exposures.reset_manual_reject_exposures(...)
-    """
-    def reset_manual_reject_exposures(self, project_uid: str, session_uid: str, /) -> List[Exposure]:
-        """
-        Resets manual rejection status on all exposures in a session.
-        """
-        ...
-    def reset_all_exposures(self, project_uid: str, session_uid: str, /) -> None:
-        """
-        Resets all exposures in a session to initial state.
-        """
-        ...
-    def reset_failed_exposures(self, project_uid: str, session_uid: str, /) -> None:
-        """
-        Resets all failed exposures in a session to initial state.
-        """
-        ...
-    def reset_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
-        """
-        Resets exposure to intial state.
-        """
-        ...
-    def manual_reject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
-        """
-        Manually rejects exposure.
-        """
-        ...
-    def manual_unreject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
-        """
-        Manually unrejects exposure.
-        """
-        ...
-    def toggle_manual_reject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
-        """
-        Toggles manual rejection state on exposure.
-        """
-        ...
-    def reprocess_single_exposure(
-        self,
-        project_uid: str,
-        session_uid: str,
-        exposure_uid: int,
-        /,
-        body: LivePreprocessingParams,
-        *,
-        picker_type: Literal["blob", "template"],
-    ) -> Exposure:
-        """
-        Reprocesses a single micrograph with the passed parameters. If there is a test micrograph
-        in the session already that is not the same micrograph that the user is currently trying to test, it will be reset
-        back to the "ctf" stage without the test flag.
-        """
-        ...
-    def add_manual_pick(
-        self, project_uid: str, session_uid: str, exposure_uid: int, /, *, x_frac: float, y_frac: float
-    ) -> Exposure:
-        """
-        Adds a manual pick to an exposure.
-        """
-        ...
-    def remove_manual_pick(
-        self,
-        project_uid: str,
-        session_uid: str,
-        exposure_uid: int,
-        /,
-        *,
-        x_frac: float,
-        y_frac: float,
-        dist_frac: float = 0.02,
-    ) -> Exposure:
-        """
-        Removes manual pick from an exposure
-        """
-        ...
-    def get_individual_picks(
-        self,
-        project_uid: str,
-        session_uid: str,
-        exposure_uid: int,
-        picker_type: Literal["blob", "template", "manual"],
-        /,
-    ) -> List[List[float]]:
-        """
-        Gets list of picks from an exposure
         """
         ...
 
@@ -2164,14 +2225,21 @@ class BlueprintsNamespace(APINamespace):
     Methods available in api.blueprints, e.g., api.blueprints.create_blueprint(...)
     """
     def create_blueprint(
-        self, schema: dict, *, blueprint_id: str, imported: bool, project_uid: str, job_uid: str, job_type: str
+        self,
+        schema: Dict[str, Any],
+        *,
+        blueprint_id: str,
+        imported: bool,
+        project_uid: str,
+        job_uid: str,
+        job_type: str,
     ) -> None:
         """
         For cryosparc app only
         """
         ...
     def edit_blueprint(
-        self, blueprint_id: str, /, schema: dict, *, project_uid: str, job_uid: str, job_type: str
+        self, blueprint_id: str, /, schema: Dict[str, Any], *, project_uid: str, job_uid: str, job_type: str
     ) -> None:
         """
         For cryosparc app only
@@ -2183,7 +2251,7 @@ class BlueprintsNamespace(APINamespace):
         """
         ...
     def apply_blueprint(
-        self, blueprint_id: str, /, schema: dict, *, project_uid: str, job_uid: str, job_type: str
+        self, blueprint_id: str, /, schema: Dict[str, Any], *, project_uid: str, job_uid: str, job_type: str
     ) -> None:
         """
         For cryosparc app only
@@ -2195,13 +2263,19 @@ class WorkflowsNamespace(APINamespace):
     Methods available in api.workflows, e.g., api.workflows.create_workflow(...)
     """
     def create_workflow(
-        self, schema: dict, *, workflow_id: str, forked: bool = False, imported: bool = False, rebuilt: bool = False
+        self,
+        schema: Dict[str, Any],
+        *,
+        workflow_id: str,
+        forked: bool = False,
+        imported: bool = False,
+        rebuilt: bool = False,
     ) -> None:
         """
         For cryosparc app only
         """
         ...
-    def edit_workflow(self, workflow_id: str, /, schema: dict) -> None:
+    def edit_workflow(self, workflow_id: str, /, schema: Dict[str, Any]) -> None:
         """
         For cryosparc app only
         """
@@ -2211,7 +2285,7 @@ class WorkflowsNamespace(APINamespace):
         For cryosparc app only
         """
         ...
-    def apply_workflow(self, workflow_id: str, /, schema: dict) -> None:
+    def apply_workflow(self, workflow_id: str, /, schema: Dict[str, Any]) -> None:
         """
         For cryosparc app only
         """
@@ -2221,12 +2295,12 @@ class ExternalNamespace(APINamespace):
     """
     Methods available in api.external, e.g., api.external.get_empiar_latest_entries(...)
     """
-    def get_empiar_latest_entries(self) -> dict: ...
-    def get_emdb_latest_entries(self) -> List[dict]: ...
-    def get_discuss_top(self) -> dict: ...
-    def get_discuss_categories(self) -> dict: ...
-    def get_tutorials(self) -> dict: ...
-    def get_changelog(self) -> dict: ...
+    def get_empiar_latest_entries(self) -> Dict[str, Any]: ...
+    def get_emdb_latest_entries(self) -> List[Dict[str, Any]]: ...
+    def get_discuss_top(self) -> Dict[str, Any]: ...
+    def get_discuss_categories(self) -> Dict[str, Any]: ...
+    def get_tutorials(self) -> Dict[str, Any]: ...
+    def get_changelog(self) -> Dict[str, Any]: ...
 
 class DeveloperNamespace(APINamespace):
     """
@@ -2261,8 +2335,8 @@ class APIClient:
     jobs: JobsNamespace
     workspaces: WorkspacesNamespace
     sessions: SessionsNamespace
-    projects: ProjectsNamespace
     exposures: ExposuresNamespace
+    projects: ProjectsNamespace
     tags: TagsNamespace
     notifications: NotificationsNamespace
     blueprints: BlueprintsNamespace

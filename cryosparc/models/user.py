@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -45,7 +45,7 @@ class PasswordService(BaseModel):
 
 
 class Profile(BaseModel):
-    name: Union[str, dict] = ""
+    name: Union[str, Dict[str, Any]] = ""
 
 
 class RecentJob(BaseModel):
@@ -97,6 +97,6 @@ class User(BaseModel):
     reset_token: Optional[str] = None
     services: Services = Services()
     state: UserState = UserState()
-    preferences: dict = {}
+    preferences: Dict[str, Any] = {}
     allowed_prefix_dir: str = "/"
     lanes: List[str] = []

@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field
 
@@ -69,7 +69,7 @@ class MicrographBlob(BaseModel):
 class MovieBlob(BaseModel):
     format: str
     has_defect_file: bool = False
-    import_sig: int = 0
+    import_sig: str = "0"
     is_gain_corrected: bool
     path: str
     psize_A: float
@@ -110,7 +110,7 @@ class ExposureElement(BaseModel):
     mscope_params: Optional[MScopeParams] = None
     rigid_motion: Optional[MotionData] = None
     spline_motion: Optional[MotionData] = None
-    uid: int = 0
+    uid: str = "0"
 
 
 class PickerLocations(BaseModel):
@@ -148,7 +148,7 @@ class ExposureGroups(BaseModel):
     particle_manual: ParticleManual = ParticleManual()
     particle_blob: ParticleInfo = ParticleInfo()
     particle_template: ParticleInfo = ParticleInfo()
-    particle_deep: dict = {}
+    particle_deep: Dict[str, Any] = {}
     particle_extracted: Union[List[PickerInfoElement], ParticleInfo] = ParticleInfo()
     particle_manual_extracted: PickerInfoElement = PickerInfoElement()
 

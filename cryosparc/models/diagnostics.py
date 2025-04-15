@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -28,5 +28,5 @@ class RuntimeDiagnostics(BaseModel):
     cryosparc_patch: str
     instance_information: InstanceInformation
     scheduler_targets: List[SchedulerTargetInformation]
-    db_stats: dict
+    db_stats: Dict[str, Any]
     date_generated: datetime.datetime

@@ -6,16 +6,10 @@ from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 from .job import JobStatus, RunError
-from .session_params import LiveAbinitParams, LivePreprocessingParams
+from .session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
 from .session_spec import SessionStatus
 from .signature import ImportSignature
 from .workspace import JobGroup, WorkspaceStats
-
-
-class AbInitioVolumeInfo(BaseModel):
-    vol_gname: str
-    fileid: Optional[str] = None
-    selected: bool = False
 
 
 class AthenaVolumeUploadParams(BaseModel):
@@ -96,6 +90,13 @@ class LiveComputeResources(BaseModel):
     auxiliary_gpus: int = 1
     auxiliary_ssd: bool = True
     priority: int = 0
+
+
+class LiveVolumeInfo(BaseModel):
+    vol_gname: str
+    fileid: Optional[str] = None
+    selected: bool = False
+    num_particles: Optional[int] = None
 
 
 class Phase2ParticleOutputInfo(BaseModel):
@@ -203,7 +204,8 @@ class SessionStats(BaseModel):
 class SessionBuildError(BaseModel):
     type: str
     loc: List[Union[str, int]]
-    input_value: Any
+    input: Any
+    input_type: str
 
 
 class Session(BaseModel):
@@ -298,7 +300,7 @@ class Session(BaseModel):
     notes: str = ""
     notes_lock: Optional[str] = None
     phase_one_workers: Dict[str, RtpWorkerState] = {}
-    phase_one_workers_soft_kill: List[Any] = []
+    phase_one_workers_soft_kill: List[str] = []
     live_session_job_uid: Optional[str] = None
     file_engine_status: Literal["inactive", "running"] = "inactive"
     file_engine_last_run: Optional[datetime.datetime] = None
@@ -309,13 +311,13 @@ class Session(BaseModel):
     template_creation_project: Optional[str] = None
     template_creation_num_particles_in: int = 0
     template_creation_ready: bool = False
-    template_creation_info: Any = []
+    template_creation_info: List[TemplateClassInfo] = []
     exposure_groups: List[ExposureGroup] = []
     stats: SessionStats = SessionStats()
     data_management: DataManagementStats = DataManagementStats()
     import_signatures: ImportSignature = ImportSignature()
-    exposure_summary: dict = {}
-    particle_summary: dict = {}
+    exposure_summary: Dict[str, Any] = {}
+    particle_summary: Dict[str, Any] = {}
     exposure_processing_priority: Literal["normal", "oldest", "latest", "alternate"] = "normal"
     cleared_extractions_at: Optional[datetime.datetime] = None
     cleared_extractions_size: float = 0.0
@@ -329,12 +331,12 @@ class Session(BaseModel):
     restoration_user_id: Optional[str] = None
     pre_restoration_size: int = 0
     phase2_class2D_restart: bool = False
-    phase2_class2D_params_spec: Optional[Dict[str, Any]] = None
-    phase2_class2D_params_spec_used: Optional[Dict[str, Any]] = None
+    phase2_class2D_params_spec: Optional[LiveClass2DParams] = None
+    phase2_class2D_params_spec_used: Optional[LiveClass2DParams] = None
     phase2_class2D_job: Optional[str] = None
     phase2_class2D_ready: bool = False
     phase2_class2D_ready_partial: bool = False
-    phase2_class2D_info: Any = []
+    phase2_class2D_info: List[TemplateClassInfo] = []
     phase2_class2D_num_particles_in: int = 0
     phase2_class2D_particles_out: Optional[Phase2ParticleOutputInfo] = None
     phase2_class2D_num_particles_seen: int = 0
@@ -346,11 +348,11 @@ class Session(BaseModel):
     phase2_abinit_params_spec: LiveAbinitParams = LiveAbinitParams()
     phase2_abinit_job: Optional[str] = None
     phase2_abinit_ready: bool = False
-    phase2_abinit_info: List[AbInitioVolumeInfo] = []
+    phase2_abinit_info: List[LiveVolumeInfo] = []
     phase2_abinit_num_particles_in: int = 0
     phase2_refine_restart: bool = False
-    phase2_refine_params_spec: Dict[str, Any] = {"refine_symmetry": "C1"}
-    phase2_refine_params_spec_used: Optional[Dict[str, Any]] = None
+    phase2_refine_params_spec: LiveRefineParams = LiveRefineParams()
+    phase2_refine_params_spec_used: Optional[LiveRefineParams] = None
     phase2_refine_job: Optional[str] = None
     phase2_refine_ready: bool = False
     phase2_refine_ready_partial: bool = False
@@ -366,3 +368,9 @@ class Session(BaseModel):
     project_uid_num: int
     session_uid_num: int
     errors: List[SessionBuildError]
+
+
+class TemplateSelectionThreshold(BaseModel):
+    field: Literal["num_particles_total", "res_A", "class_ess"]
+    direction: Literal["above", "below"]
+    threshold: Union[int, float]

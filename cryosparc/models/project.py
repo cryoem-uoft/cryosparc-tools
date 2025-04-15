@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -44,7 +44,7 @@ class Project(BaseModel):
     owner_user_id: str
     title: str
     description: str = ""
-    project_params_pdef: dict = {}
+    project_params_pdef: Dict[str, Any] = {}
     queue_paused: bool = False
     deleted: bool = False
     deleting: bool = False
