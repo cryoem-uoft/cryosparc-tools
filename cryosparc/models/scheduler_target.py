@@ -53,6 +53,8 @@ class Cluster(BaseModel):
     type: str
     script_tpl: str = ""
     custom_vars: Dict[str, str] = {}
+    tpl_vars: List[str]
+    custom_var_names: List[str]
 
 
 class SchedulerTarget(BaseModel):

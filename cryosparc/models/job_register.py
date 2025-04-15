@@ -1,11 +1,11 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from .job_spec import BuilderTag, InputSpecs, JobRegisterError, OutputSpecs, Stability
+from .job_spec import BuilderTag, Category, InputSpecs, JobRegisterError, OutputSpecs, Stability
 
 
 class JobRegisterJobSpec(BaseModel):
@@ -14,14 +14,14 @@ class JobRegisterJobSpec(BaseModel):
     shorttitle: str
     description: str
     stability: Stability
-    category: str
+    category: Category
     tags: List[BuilderTag] = []
     hidden: bool = False
     interactive: bool = False
     lightweight: bool = False
     inputs: InputSpecs
     outputs: OutputSpecs
-    params: dict
+    params: Dict[str, Any]
 
 
 class JobRegister(BaseModel):

@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,7 @@ class CheckpointEvent(BaseModel):
     cpumem_mb: Optional[float] = None
     avail_mb: Optional[float] = None
     flags: List[str] = []
-    meta: dict = {}
+    meta: Dict[str, Any] = {}
     type: str
 
 
@@ -30,7 +30,7 @@ class Event(BaseModel):
     cpumem_mb: Optional[float] = None
     avail_mb: Optional[float] = None
     flags: List[str] = []
-    meta: dict = {}
+    meta: Dict[str, Any] = {}
 
 
 class ImageEvent(BaseModel):
@@ -42,7 +42,7 @@ class ImageEvent(BaseModel):
     cpumem_mb: Optional[float] = None
     avail_mb: Optional[float] = None
     flags: List[str] = []
-    meta: dict = {}
+    meta: Dict[str, Any] = {}
     type: str
     text: str
     imgfiles: List[GridFSAsset] = []
@@ -68,7 +68,7 @@ class InteractiveEvent(BaseModel):
     cpumem_mb: Optional[float] = None
     avail_mb: Optional[float] = None
     flags: List[str] = []
-    meta: dict = {}
+    meta: Dict[str, Any] = {}
     type: str
     subtype: str = "3dscatter"
     text: str
@@ -91,6 +91,6 @@ class TextEvent(BaseModel):
     cpumem_mb: Optional[float] = None
     avail_mb: Optional[float] = None
     flags: List[str] = []
-    meta: dict = {}
+    meta: Dict[str, Any] = {}
     type: Literal["text", "warning", "error"]
     text: str

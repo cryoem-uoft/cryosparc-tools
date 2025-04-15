@@ -31,11 +31,11 @@ from .models import (
 )
 from .registry import register_model_module
 
-register_model_module(session)
 register_model_module(job)
 register_model_module(scheduler_target)
 register_model_module(gpu)
 register_model_module(api_request)
+register_model_module(session)
 register_model_module(user)
 register_model_module(api_response)
 register_model_module(job_spec)
