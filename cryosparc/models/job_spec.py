@@ -244,7 +244,7 @@ class ResourceSpec(BaseModel):
 
 class JobSpec(BaseModel):
     type: str
-    params: Params
+    params: Params = Params()
     inputs: Inputs = Inputs()
     outputs: Outputs = Outputs()
     ui_tile_width: int

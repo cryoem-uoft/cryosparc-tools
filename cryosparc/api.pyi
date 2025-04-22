@@ -672,7 +672,7 @@ class JobsNamespace(APINamespace):
         input_name: str,
         /,
         *,
-        force_join: bool = False,
+        force_join: Union[bool, str] = "auto",
         slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
     ) -> Dataset:
         """

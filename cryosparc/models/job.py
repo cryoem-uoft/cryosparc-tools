@@ -152,6 +152,7 @@ class Job(BaseModel):
     imported_at: Optional[datetime.datetime] = None
     deleted_at: Optional[datetime.datetime] = None
     import_status: Optional[Literal["importing", "complete", "failed"]] = None
+    attach_status: Optional[Literal["attaching", "complete", "failed"]] = None
     starred_by: List[str] = []
     uid_num: int
     project_uid_num: int
