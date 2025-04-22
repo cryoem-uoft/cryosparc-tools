@@ -18,7 +18,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Libraries",
 ]
-license = "BSD-3-Clause"
+license = { file = "LICENSE" }
+# license = "BSD-3-Clause"  # Note: replace line above with this when supported
 dependencies = ["numpy >= 1.15, < 3.0", "typing-extensions >= 3.7"]
 
 [project.optional-dependencies]
