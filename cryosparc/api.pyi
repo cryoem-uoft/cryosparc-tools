@@ -514,7 +514,7 @@ class JobsNamespace(APINamespace):
         Finds all jobs that match the supplied query
         """
         ...
-    def delete_many(self, project_job_uids: List[Tuple[str, str]], *, force: bool = False) -> None:
+    def delete_many(self, project_job_uids: List[Tuple[str, str]], *, force: bool = False) -> Any:
         """
         Deletes the given jobs. Ignores protected jobs if `force` is `True`.
         """
@@ -998,7 +998,7 @@ class JobsNamespace(APINamespace):
         Rewrites all symbolic links in the job directory, modifying links prefixed with `prefix_cut` to instead be prefixed with `prefix_new`.
         """
         ...
-    def add_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> Tag:
+    def add_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> Job:
         """
         Tags a job with the given tag.
         """
@@ -1118,7 +1118,7 @@ class WorkspacesNamespace(APINamespace):
         Adds a workspace uid to a user's recently viewed workspaces list.
         """
         ...
-    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Tag:
+    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
         """
         Tag the given workspace with the given tag.
         """
@@ -1277,7 +1277,7 @@ class SessionsNamespace(APINamespace):
         Updates compute configuration for a session.
         """
         ...
-    def add_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> Tag:
+    def add_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> Session:
         """
         Tags a session with the given tag.
         """
@@ -2068,7 +2068,7 @@ class ProjectsNamespace(APINamespace):
         Cleanup project or workspace data, clearing/deleting jobs based on final result status, sections, types, or job status
         """
         ...
-    def add_tag(self, project_uid: str, tag_uid: str, /) -> Tag:
+    def add_tag(self, project_uid: str, tag_uid: str, /) -> Project:
         """
         Tags a project with the given tag.
         """
