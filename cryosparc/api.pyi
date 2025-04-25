@@ -743,6 +743,7 @@ class JobsNamespace(APINamespace):
         source_job_uid: str,
         source_output_name: str,
         source_result_name: str,
+        source_result_version: Union[int, str] = "F",
     ) -> Job:
         """
         Adds or replaces a result within an input connection with the given output result from a different job.

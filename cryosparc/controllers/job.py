@@ -989,10 +989,12 @@ class JobController(Controller[Job]):
         headings = ["Param", "Title", "Type", "Default"]
         rows = []
         for key, details in self.full_spec.params.items():
-            if details.get("hidden") is True:
+            if details.hidden is True:
                 continue
-            type = (details["anyOf"][0] if "anyOf" in details else details).get("type", "Any")
-            rows.append([key, details["title"], type, repr(details.get("default", None))])
+            type, format = (details.type, details.format)
+            if details.anyOf:
+                type, format = (details.anyOf[0].type, details.anyOf[0].format)
+            rows.append([key, details.title or key, format or type or "any", repr(details.default)])
         print_table(headings, rows)
 
     def print_input_spec(self):

@@ -63,7 +63,7 @@ def login(args: Namespace):
 
     sessions = InstanceAuthSessions.load()
 
-    expiration_date = datetime.now().replace(microsecond=0) + timedelta(seconds=expires_in)
+    expiration_date = (datetime.now() + timedelta(seconds=expires_in)).replace(microsecond=0)
     try:
         api = APIClient(f"{args.url}{API_SUFFIX}")
         token = api.login(

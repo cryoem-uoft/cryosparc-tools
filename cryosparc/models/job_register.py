@@ -10,19 +10,30 @@ from .params import ParamSection
 from .when import When
 
 
+class JobRegisterParamTypeSpec(BaseModel):
+    type: Literal["string", "integer", "number", "boolean", "null", "array"]
+    format: Optional[Literal["path", "resources"]] = None
+
+
 class JobRegisterParamSpec(BaseModel):
-    default: Optional[Any] = None
+    type: Optional[Literal["string", "integer", "number", "boolean", "null", "array"]] = None
+    anyOf: List[JobRegisterParamTypeSpec] = []
+    items: Optional[JobRegisterParamTypeSpec] = None
+    format: Optional[Literal["path", "resources"]] = None
+    default: Union[str, int, float, str, List[str], None] = None
     title: Optional[str]
     description: Optional[str] = None
     examples: Optional[List[Any]] = None
-    pattern: Optional[str] = None
     gt: Optional[float] = None
     ge: Optional[float] = None
     lt: Optional[float] = None
     le: Optional[float] = None
     multiple_of: Optional[float] = None
-    hidden: Union[bool, When]
-    advanced: bool
+    enum: Optional[List[Union[str, int, float, str, List[str]]]] = None
+    labels: Optional[List[str]] = None
+    pattern: Optional[str] = None
+    hidden: Union[bool, When] = False
+    advanced: bool = False
     section: Optional[ParamSection] = None
     allowed: List[Literal["dir", "file", "glob"]] = []
     validate_path: bool = True
