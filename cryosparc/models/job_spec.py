@@ -97,7 +97,6 @@ class OutputSpec(BaseModel):
     description: str = ""
     slots: List[Union[OutputSlot, str]] = []
     passthrough: Optional[str] = None
-    passthrough_exclude_slots: List[str] = []
 
 
 class OutputRef(BaseModel):
@@ -225,12 +224,11 @@ class Output(BaseModel):
     description: str = ""
     slots: List[OutputSlot] = []
     passthrough: Optional[str] = None
-    passthrough_exclude_slots: List[str] = []
     results: List[OutputResult] = []
     num_items: int = 0
     image: Optional[str] = None
-    summary: dict = {}
-    latest_summary_stats: dict = {}
+    summary: Dict[str, Any] = {}
+    latest_summary_stats: Dict[str, Any] = {}
 
 
 class Outputs(RootModel):
@@ -246,7 +244,7 @@ class ResourceSpec(BaseModel):
 
 class JobSpec(BaseModel):
     type: str
-    params: Params
+    params: Params = Params()
     inputs: Inputs = Inputs()
     outputs: Outputs = Outputs()
     ui_tile_width: int
@@ -294,6 +292,7 @@ class JobBuildError(BaseModel):
         "list_type",
         "tuple_type",
         "set_type",
+        "set_item_not_hashable",
         "bool_type",
         "bool_parsing",
         "int_type",
@@ -359,7 +358,8 @@ class JobBuildError(BaseModel):
     ]
     loc: List[Union[str, int]]
     input: Any
-    ctx: dict = {}
+    ctx: Dict[str, Any] = {}
+    input_type: str
 
 
 Stability = Literal["develop", "beta", "stable", "legacy", "obsolete"]

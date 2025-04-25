@@ -16,6 +16,7 @@ from .models import (
     job_spec,
     license,
     notification,
+    params,
     project,
     scheduler_lane,
     scheduler_target,
@@ -27,15 +28,16 @@ from .models import (
     signature,
     tag,
     user,
+    when,
     workspace,
 )
 from .registry import register_model_module
 
-register_model_module(session)
 register_model_module(job)
 register_model_module(scheduler_target)
 register_model_module(gpu)
 register_model_module(api_request)
+register_model_module(session)
 register_model_module(user)
 register_model_module(api_response)
 register_model_module(job_spec)
@@ -49,6 +51,8 @@ register_model_module(signature)
 register_model_module(instance)
 register_model_module(workspace)
 register_model_module(job_register)
+register_model_module(when)
+register_model_module(params)
 register_model_module(license)
 register_model_module(service)
 register_model_module(notification)

@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +18,7 @@ class SessionConfigProfile(BaseModel):
     last_applied_at: Optional[datetime.datetime] = None
     compute_resources: Optional[LiveComputeResources] = None
     exp_groups: List[ExposureGroup] = []
-    session_params: dict = {}
+    session_params: Dict[str, Any] = {}
 
 
 class SessionConfigProfileBody(BaseModel):

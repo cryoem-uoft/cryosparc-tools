@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -59,7 +59,7 @@ class Job(BaseModel):
     autodump: bool = True
     uid: str
     project_uid: str
-    workspace_uids: List[str]
+    workspace_uids: List[str] = ["W1"]
     spec: JobSpec
     job_dir: str
     job_dir_size: int = 0
@@ -130,7 +130,7 @@ class Job(BaseModel):
     ui_tile_images: List[UiTileImage] = []
     is_experiment: bool = False
     enable_bench: bool = False
-    bench: dict = {}
+    bench: Dict[str, Any] = {}
     bench_timings: Dict[str, List[Tuple[datetime.datetime, Optional[datetime.datetime]]]] = {}
     completed_count: int = 0
     instance_information: InstanceInformation = InstanceInformation()
@@ -142,8 +142,8 @@ class Job(BaseModel):
     is_final_result: bool = False
     is_ancestor_of_final_result: bool = False
     no_check_inputs_ready: bool = False
-    ui_layouts: Optional[dict] = None
-    progress: List[dict] = []
+    ui_layouts: Optional[Dict[str, Any]] = None
+    progress: List[Dict[str, Any]] = []
     last_exported_at: Optional[datetime.datetime] = None
     last_exported_location: Optional[str] = None
     last_exported_version: Optional[str] = None
@@ -152,8 +152,9 @@ class Job(BaseModel):
     imported_at: Optional[datetime.datetime] = None
     deleted_at: Optional[datetime.datetime] = None
     import_status: Optional[Literal["importing", "complete", "failed"]] = None
+    attach_status: Optional[Literal["attaching", "complete", "failed"]] = None
     starred_by: List[str] = []
     uid_num: int
     project_uid_num: int
-    build_errors: List[JobBuildError]
     status_num: int
+    build_errors: List[JobBuildError]
