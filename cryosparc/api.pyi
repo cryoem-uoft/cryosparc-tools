@@ -717,6 +717,22 @@ class JobsNamespace(APINamespace):
         """
         ...
     def disconnect_all(self, project_uid: str, job_uid: str, input_name: str, /) -> Job: ...
+    def reconnect(
+        self,
+        project_uid: str,
+        job_uid: str,
+        input_name: str,
+        connection_index: int,
+        /,
+        *,
+        source_job_uid: str,
+        source_output_name: str,
+    ) -> Job:
+        """
+        Replace the connection at the given index with a new connection.
+        Specify index -1 to replace the last connection.
+        """
+        ...
     def disconnect(self, project_uid: str, job_uid: str, input_name: str, connection_index: int, /) -> Job:
         """
         Removes connected inputs on the given input.
