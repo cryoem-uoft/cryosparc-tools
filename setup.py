@@ -1,6 +1,6 @@
 import sys
 
-from Cython.Build import cythonize
+from Cython.Build import cythonize  # type: ignore
 from setuptools import Extension, setup
 
 DEBUG = False  # set to True to enable debugging
@@ -25,7 +25,7 @@ elif DEBUG:
 
 setup(
     name="cryosparc_tools",
-    version="4.7.0",
+    version="5.0.0",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["cryosparc/include/cryosparc-tools/dataset.h"],
     ext_modules=cythonize(
