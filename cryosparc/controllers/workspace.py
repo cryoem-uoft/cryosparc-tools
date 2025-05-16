@@ -51,12 +51,12 @@ class WorkspaceController(Controller[Workspace]):
             self.model = workspace
 
     @property
-    def title(self) -> str | None:
+    def title(self) -> Optional[str]:
         """Workspace title"""
         return self.model.title
 
     @property
-    def desc(self) -> str | None:
+    def desc(self) -> Optional[str]:
         """Workspace description"""
         return self.model.description
 
