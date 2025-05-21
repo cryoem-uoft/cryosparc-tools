@@ -50,6 +50,16 @@ class WorkspaceController(Controller[Workspace]):
             self.uid = workspace.uid
             self.model = workspace
 
+    @property
+    def title(self) -> Optional[str]:
+        """Workspace title"""
+        return self.model.title
+
+    @property
+    def desc(self) -> Optional[str]:
+        """Workspace description"""
+        return self.model.description
+
     def refresh(self):
         """
         Reload this workspace from the CryoSPARC database.

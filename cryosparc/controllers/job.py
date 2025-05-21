@@ -29,7 +29,7 @@ from ..dataset import DEFAULT_FORMAT, Dataset
 from ..errors import ExternalJobError
 from ..models.asset import GridFSAsset, GridFSFile
 from ..models.job import Job, JobStatus
-from ..models.job_spec import InputSpec, OutputSpec
+from ..models.job_spec import Input, InputSpec, Output, OutputSpec, Params
 from ..spec import (
     ASSET_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
@@ -42,7 +42,7 @@ from ..spec import (
     TextFormat,
 )
 from ..stream import Stream
-from ..util import first, print_table
+from ..util import PurePosixPathProperty, first, print_table
 from . import Controller, as_input_slot, as_output_slot
 
 if TYPE_CHECKING:
@@ -119,17 +119,51 @@ class JobController(Controller[Job]):
 
     @property
     def type(self) -> str:
-        """
-        Job type key
-        """
+        """Job type key"""
         return self.model.spec.type
 
     @property
+    def title(self) -> str:
+        """Job title"""
+        return self.model.title
+
+    @property
+    def desc(self) -> str:
+        """Job description"""
+        return self.model.description
+
+    @property
     def status(self) -> JobStatus:
-        """
-        JobStatus: scheduling status.
-        """
+        """Job scheduling status."""
         return self.model.status
+
+    @property
+    def dir(self) -> PurePosixPath:
+        """Full path to the job directory."""
+        return PurePosixPathProperty(self.cs.api.jobs.get_directory(self.project_uid, self.uid))
+
+    @property
+    def params(self) -> Params:
+        """
+        Job parameter values object.
+
+        Example:
+            >>> cs = CryoSPARC(...)
+            >>> job = cs.find_job("P3", "J42")
+            >>> print(job.type)
+            "homo_abinit"
+            >>> print(job.params.abinit_K)
+            3
+        """
+        return self.model.spec.params
+
+    @property
+    def inputs(self) -> Dict[str, Input]:
+        return self.model.spec.inputs.root
+
+    @property
+    def outputs(self) -> Dict[str, Output]:
+        return self.model.spec.outputs.root
 
     @property
     def full_spec(self):
@@ -151,15 +185,6 @@ class JobController(Controller[Job]):
         """
         self.model = self.cs.api.jobs.find_one(self.project_uid, self.uid)
         return self
-
-    def dir(self) -> PurePosixPath:
-        """
-        Get the path to the job directory.
-
-        Returns:
-            Path: job directory Pure Path instance
-        """
-        return PurePosixPath(self.cs.api.jobs.get_directory(self.project_uid, self.uid))
 
     def queue(
         self,
@@ -1175,6 +1200,8 @@ class ExternalJobController(JobController):
                 f'Invalid input name "{name}"; may only contain letters, numbers and underscores, '
                 "and must start with a letter"
             )
+        if not slots:
+            raise ValueError("Must must provide slots=[...] argument with at least one slot")
         if any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
         if not name:
@@ -1288,6 +1315,8 @@ class ExternalJobController(JobController):
                 f'Invalid output name "{name}"; may only contain letters, numbers and underscores, '
                 "and must start with a letter"
             )
+        if not slots:
+            raise ValueError("Must must provide slots=[...] argument with at least one slot")
         if any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
         if not name:
