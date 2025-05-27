@@ -9,6 +9,7 @@ from typing import (
     Awaitable,
     BinaryIO,
     Iterator,
+    List,
     Optional,
     Protocol,
     Union,
@@ -67,6 +68,9 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
     def seekable(self) -> bool:
         return False
 
+    def writable(self) -> bool:
+        return False
+
     def _read1(self, n: Optional[int] = None):
         while not self._left:
             try:
@@ -93,6 +97,45 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
                 n -= len(m)
                 out.append(m)
         return b"".join(out)
+
+    def close(self) -> None:
+        raise NotImplementedError
+
+    def fileno(self) -> int:
+        raise NotImplementedError
+
+    def flush(self) -> None:
+        raise NotImplementedError
+
+    def isatty(self) -> bool:
+        raise NotImplementedError
+
+    def readline(self, limit: int = -1, /) -> bytes:
+        raise NotImplementedError
+
+    def readlines(self, hint: int = -1, /) -> List[bytes]:
+        raise NotImplementedError
+
+    def write(self, s, /) -> int:
+        raise NotImplementedError
+
+    def writelines(self, lines, /) -> None:
+        raise NotImplementedError
+
+    def seek(self, offset: int, whence: int = 0, /) -> int:
+        raise NotImplementedError
+
+    def tell(self) -> int:
+        raise NotImplementedError
+
+    def truncate(self, size: Optional[int] = None, /) -> int:
+        raise NotImplementedError
+
+    def __enter__(self) -> BinaryIO:
+        raise NotImplementedError
+
+    def __exit__(self, *args) -> None:
+        raise NotImplementedError
 
 
 class AsyncBinaryIteratorIO(AsyncReadable, AsyncBinaryIterator, AsyncIterator[bytes]):
