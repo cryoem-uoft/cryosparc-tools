@@ -2,11 +2,9 @@
 # SEE dev/api_generate_models.py
 from typing import Literal
 
-LoggingService = Literal[
-    "app", "database", "cache", "api", "scheduler", "command_vis", "app_api", "supervisord", "update"
-]
+LoggingService = Literal["app", "database", "cache", "api", "scheduler", "command_vis", "app_api", "supervisord"]
 """
-Same as Service, but also includes supervisord and update logs.
+Same as Service, but also includes supervisord.
 """
 
 ServiceLogLevel = Literal["ERROR", "WARNING", "INFO", "DEBUG"]

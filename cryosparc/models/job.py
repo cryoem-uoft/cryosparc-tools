@@ -43,7 +43,7 @@ class UiTileImage(BaseModel):
 class JobWorkflowInfo(BaseModel):
     id: str
     jobId: str
-    run: int
+    run: int = 0
 
 
 class Job(BaseModel):
@@ -142,7 +142,6 @@ class Job(BaseModel):
     is_final_result: bool = False
     is_ancestor_of_final_result: bool = False
     no_check_inputs_ready: bool = False
-    ui_layouts: Optional[Dict[str, Any]] = None
     progress: List[Dict[str, Any]] = []
     last_exported_at: Optional[datetime.datetime] = None
     last_exported_location: Optional[str] = None

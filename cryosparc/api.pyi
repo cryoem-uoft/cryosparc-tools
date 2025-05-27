@@ -738,8 +738,6 @@ class JobsNamespace(APINamespace):
         Removes connected inputs on the given input.
 
         Optionally specify an index to disconnect a specific connection.
-
-        Optionally provide specific results to disconnect from matching connections (other results will be preserved).
         """
         ...
     def find_output_result(self, project_uid: str, job_uid: str, output_name: str, result_name: str, /) -> OutputResult:
@@ -962,7 +960,7 @@ class JobsNamespace(APINamespace):
         Sets job priority
         """
         ...
-    def set_cluster_custom_vars(self, project_uid: str, job_uid: str, /, cluster_custom_vars: Dict[str, Any]) -> Job:
+    def set_cluster_custom_vars(self, project_uid: str, job_uid: str, /, cluster_custom_vars: Dict[str, str]) -> Job:
         """
         Sets cluster custom variables for job
         """
@@ -1767,6 +1765,7 @@ class ExposuresNamespace(APINamespace):
         ] = ...,
         deleted: Optional[bool] = False,
     ) -> List[Exposure]: ...
+    def find_one(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure: ...
     def reset_manual_reject_exposures(self, project_uid: str, session_uid: str, /) -> List[Exposure]:
         """
         Resets manual rejection status on all exposures in a session.
@@ -1879,7 +1878,6 @@ class ProjectsNamespace(APINamespace):
         deleted: Optional[bool] = False,
         archived: Optional[bool] = ...,
         detached: Optional[bool] = ...,
-        hidden: Optional[bool] = ...,
     ) -> List[Project]:
         """
         Finds projects matching the filter.
@@ -1903,7 +1901,6 @@ class ProjectsNamespace(APINamespace):
         deleted: Optional[bool] = False,
         archived: Optional[bool] = ...,
         detached: Optional[bool] = ...,
-        hidden: Optional[bool] = ...,
     ) -> int:
         """
         Counts the number of projects matching the filter.
@@ -2045,7 +2042,7 @@ class ProjectsNamespace(APINamespace):
         Reverses archive operation.
         """
         ...
-    def detach(self, project_uid: str, /) -> Project:
+    def detach(self, project_uid: str, /) -> Any:
         """
         Detaches a project, removing its lockfile. This hides the project from the interface and allows other
         instances to attach and run this project.

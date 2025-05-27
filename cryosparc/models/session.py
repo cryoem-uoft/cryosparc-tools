@@ -17,8 +17,8 @@ class AthenaVolumeUploadParams(BaseModel):
     name: str
     path_rel: str
     symmetry: str = "C1"
-    psize_A: float = 1.0
-    res_A: Optional[float] = None
+    psize_A: Union[float, Literal["inf", "-inf", "nan"]] = 1.0
+    res_A: Union[float, Literal["inf", "-inf", "nan"], None] = None
 
 
 class DataManagementStat(BaseModel):
@@ -159,12 +159,12 @@ class SessionAttribute(BaseModel):
 class TemplateClassInfo(BaseModel):
     class_idx: int
     fileid: str
-    res_A: float
+    res_A: Union[float, Literal["inf", "-inf", "nan"]]
     selected: bool = False
     num_particles_selected: int = 0
     num_particles_total: int = 0
-    mean_prob: float = 0.0
-    class_ess: float = 0.0
+    mean_prob: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
+    class_ess: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
 
 
 class SessionStats(BaseModel):
@@ -189,7 +189,7 @@ class SessionStats(BaseModel):
     total_extracted_particles_deep: int = 0
     total_extracted_particles: int = 0
     total_manual_picked_exposures: int = 0
-    gsfsc: float = 0.0
+    gsfsc: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
     frames: int = 0
     nx: int = 0
     ny: int = 0
@@ -319,8 +319,6 @@ class Session(BaseModel):
     exposure_summary: Dict[str, Any] = {}
     particle_summary: Dict[str, Any] = {}
     exposure_processing_priority: Literal["normal", "oldest", "latest", "alternate"] = "normal"
-    cleared_extractions_at: Optional[datetime.datetime] = None
-    cleared_extractions_size: float = 0.0
     last_compacted_amount: int = 0
     last_compacted_at: Optional[datetime.datetime] = None
     last_compacted_version: Optional[str] = None

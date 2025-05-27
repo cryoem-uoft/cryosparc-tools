@@ -28,7 +28,7 @@ class ProjectStats(BaseModel):
 
 
 class ProjectWorkflowInfo(BaseModel):
-    latest_workflow_uid: str
+    latest_workflow_uid: str = "WF1"
     runs: Dict[str, int] = {}
 
 
@@ -54,7 +54,6 @@ class Project(BaseModel):
     last_accessed: Optional[ProjectLastAccessed] = None
     archived: bool = False
     detached: bool = False
-    hidden: bool = False
     generate_intermediate_results_settings: GenerateIntermediateResultsSettings = GenerateIntermediateResultsSettings()
     last_exp_group_id_used: Optional[int] = None
     develop_run_as_user: Optional[str] = None
