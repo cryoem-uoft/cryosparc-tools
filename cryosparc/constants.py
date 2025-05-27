@@ -8,9 +8,7 @@ EIGHT_MIB = 2**23
 Bytes in 8 mebibytes
 """
 
-# TODO: Correct suffix when app updates
-# API_SUFFIX = "/api/cmd_spm"
-API_SUFFIX = ""
+API_SUFFIX = "/api/cmd"
 """
 Path to API for CryoSPARC app URL
 """
