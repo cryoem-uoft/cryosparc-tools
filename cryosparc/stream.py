@@ -128,7 +128,7 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
     def tell(self) -> int:
         raise NotImplementedError
 
-    def truncate(self, size: int | None = None, /) -> int:
+    def truncate(self, size: Optional[int] = None, /) -> int:
         raise NotImplementedError
 
     def __enter__(self) -> BinaryIO:
