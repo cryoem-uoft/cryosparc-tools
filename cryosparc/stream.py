@@ -9,6 +9,7 @@ from typing import (
     Awaitable,
     BinaryIO,
     Iterator,
+    List,
     Optional,
     Protocol,
     Union,
@@ -112,7 +113,7 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
     def readline(self, limit: int = -1, /) -> bytes:
         raise NotImplementedError
 
-    def readlines(self, hint: int = -1, /) -> list[bytes]:
+    def readlines(self, hint: int = -1, /) -> List[bytes]:
         raise NotImplementedError
 
     def write(self, s, /) -> int:
