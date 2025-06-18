@@ -109,7 +109,7 @@ jobs:
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci test build]" for testing
   build:
-    needs: [meta]
+    needs: [meta, test]
     if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.meta.outputs.commit-message, '[ci test build]') }}"
     runs-on: ${{ matrix.os }}
     strategy:
@@ -140,17 +140,17 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs: [build]
     steps:
       - uses: actions/download-artifact@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-      # - name: Publish to PyPI
-      #   env:
-      #     TWINE_USERNAME: __token__
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      #   run: |
-      #     python -m pip install --upgrade twine
-      #     twine upload --skip-existing *
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          python -m pip install --upgrade twine
+          twine upload --skip-existing *
