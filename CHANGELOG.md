@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.7.1
+
+- Added: `job.connect_result` and `job.disconnect_result` for connecting and disconnecting low-level results
+
 ## v4.7.0
 
 - Added: Datasets appear as tables in a Jupyter notebook without requiring pandas or similar
