@@ -115,28 +115,25 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: ["ubuntu-20.04", "macos-13", "windows-2019"]
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - windows-latest
+          - windows-11-arm
+          - macos-latest
+          - macos-13 # Intel builds
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-      - uses: pypa/cibuildwheel@v2.23.3
+      - uses: pypa/cibuildwheel@v3.0.0
         env:
-          CIBW_SKIP: cp36-* cp37-* pp*-win* pp*-macosx* *_i686
-          CIBW_TEST_SKIP: "*-win_arm64"
-          CIBW_ARCHS_LINUX: "x86_64 aarch64"
-          CIBW_ARCHS_MACOS: "x86_64 arm64 universal2"
-          CIBW_ARCHS_WINDOWS: "AMD64 ARM64"
+          CIBW_ARCHS_MACOS: ${{ runner.arch == 'ARM64' && 'auto universal2' || 'auto' }}
         with:
           output-dir: dist
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ runner.os }}
+          name: wheels-${{ runner.os }}-${{ runner.arch }}
           path: dist
 
   # NOTE: release step only runs on tag builds
@@ -147,17 +144,6 @@ jobs:
     needs: [build]
     steps:
       - uses: actions/download-artifact@v4
-        with:
-          name: wheels
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheels-Linux
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheels-macOS
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheels-Windows
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
