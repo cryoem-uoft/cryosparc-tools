@@ -378,6 +378,54 @@ class JobController(Controller[Job]):
         )
         return True
 
+    def connect_result(
+        self,
+        target_input: str,
+        connection_idx: int,
+        slot: str,
+        source_job_uid: str,
+        source_output: str,
+        source_result: str,
+        source_version: Union[int, Literal["F"]] = "F",
+    ):
+        """
+        Connect a low-level input result slot with a result from another job.
+
+        Args:
+            target_input (str): Input name to connect into, e.g., "particles"
+            connection_idx (int): Connection index to connect into, use 0 for
+                the job's first connection on that input, 1 for the second, etc.
+            slot (str): Input slot name to connect into, e.g., "location"
+            source_job_uid (str): Job UID to connect from, e.g., "J42"
+            source_output (str): Job output name to connect from , e.g.,
+                "particles_selected"
+            source_result (str): Result name to connect from, e.g., "location"
+
+        Returns:
+            bool: False if the job encountered a build error.
+
+        Examples:
+
+            Connect J3 to the first connection of J2's ``particles`` input.
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.find_job("J3")
+            >>> job.connect_result("particles", 0, "location", "J2", "particles_selected", "location")
+        """
+        assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
+        self.model = self.cs.api.jobs.connect_result(
+            self.project_uid,
+            self.uid,
+            target_input,
+            connection_idx,
+            slot,
+            source_job_uid=source_job_uid,
+            source_output_name=source_output,
+            source_result_name=source_result,
+            source_result_version=source_version,
+        )
+        return True
+
     def disconnect(self, target_input: str, connection_idx: Optional[int] = None, **kwargs):
         """
         Clear the given job input group.
@@ -395,6 +443,22 @@ class JobController(Controller[Job]):
             self.model = self.cs.api.jobs.disconnect_all(self.project_uid, self.uid, target_input)
         else:
             self.model = self.cs.api.jobs.disconnect(self.project_uid, self.uid, target_input, connection_idx)
+
+    def disconnect_result(self, target_input: str, connection_idx: int, slot: str):
+        """
+        Clear the job's given input result slot.
+
+        Args:
+            target_input (str): Name of input to disconnect
+            connection_idx (int): Connection index to modify. Set to 0 for the
+                first connection, 1 for the second, etc.
+            slot (str): Input slot name to disconnect, e.g., "location"
+
+        Returns:
+            bool: False if the job encountered a build error.
+        """
+        self.model = self.cs.api.jobs.disconnect_result(self.project_uid, self.uid, target_input, connection_idx, slot)
+        return True
 
     def load_input(self, name: str, slots: LoadableSlots = "all"):
         """

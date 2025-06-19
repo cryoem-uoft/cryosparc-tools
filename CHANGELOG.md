@@ -38,6 +38,10 @@
   `job.set_param()`, `job.connect()`, `job.disconnect()` and `external_job.save_output()`
 - Deprecated: Attributes `Project.doc`, `Workspace.doc` and `Job.doc` will be removed in a future release, use `.model` attribute instead
 
+## v4.7.1
+
+- Added: `job.connect_result` and `job.disconnect_result` for connecting and disconnecting low-level results
+
 ## v4.7.0
 
 - Added: Datasets appear as tables in a Jupyter notebook without requiring pandas or similar

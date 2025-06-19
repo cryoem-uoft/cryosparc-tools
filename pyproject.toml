@@ -9,7 +9,6 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "License :: OSI Approved :: BSD License",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
@@ -20,6 +19,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 license = { file = "LICENSE" }
+# license = "BSD-3-Clause"  # Note: replace line above with this when supported
 dependencies = [
     "numpy >= 1.17, < 3.0",
     "httpx ~= 0.25",
