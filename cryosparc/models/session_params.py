@@ -1,8 +1,8 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class LivePreprocessingParams(BaseModel):
@@ -75,11 +75,23 @@ class LivePreprocessingParams(BaseModel):
     extract_f16: bool = False
     do_plotting: bool = False
 
+    model_config = ConfigDict(extra="allow")
+    if TYPE_CHECKING:
+
+        def __init__(self, **kwargs: Any) -> None: ...
+        def __getattr__(self, key: str) -> Any: ...
+
 
 class LiveAbinitParams(BaseModel):
     abinit_symmetry: str = "C1"
     abinit_K: int = 1
     abinit_num_particles: Optional[int] = None
+
+    model_config = ConfigDict(extra="allow")
+    if TYPE_CHECKING:
+
+        def __init__(self, **kwargs: Any) -> None: ...
+        def __getattr__(self, key: str) -> Any: ...
 
 
 class LiveClass2DParams(BaseModel):
@@ -89,7 +101,19 @@ class LiveClass2DParams(BaseModel):
     compute_use_ssd: bool = True
     psize_mic: Optional[float] = None
 
+    model_config = ConfigDict(extra="allow")
+    if TYPE_CHECKING:
+
+        def __init__(self, **kwargs: Any) -> None: ...
+        def __getattr__(self, key: str) -> Any: ...
+
 
 class LiveRefineParams(BaseModel):
     refine_symmetry: str = "C1"
     psize_mic: Optional[float] = None
+
+    model_config = ConfigDict(extra="allow")
+    if TYPE_CHECKING:
+
+        def __init__(self, **kwargs: Any) -> None: ...
+        def __getattr__(self, key: str) -> Any: ...

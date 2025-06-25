@@ -85,7 +85,7 @@ class User(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
-    emails: List[Email]
+    emails: List[Email] = []
     created_by_user_id: Optional[str] = None
     name: str
     first_name: str

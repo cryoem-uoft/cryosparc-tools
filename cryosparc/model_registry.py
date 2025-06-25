@@ -5,6 +5,7 @@ from .models import (
     api_response,
     asset,
     auth,
+    config,
     diagnostics,
     event,
     exposure,
@@ -20,7 +21,7 @@ from .models import (
     project,
     scheduler_lane,
     scheduler_target,
-    service,
+    services,
     session,
     session_config_profile,
     session_params,
@@ -54,11 +55,12 @@ register_model_module(job_register)
 register_model_module(when)
 register_model_module(params)
 register_model_module(license)
-register_model_module(service)
+register_model_module(services)
 register_model_module(notification)
 register_model_module(diagnostics)
 register_model_module(scheduler_lane)
 register_model_module(session_spec)
 register_model_module(session_config_profile)
+register_model_module(config)
 register_model_module(tag)
 register_model_module(auth)

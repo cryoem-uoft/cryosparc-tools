@@ -17,6 +17,7 @@ from .models.api_response import (
 )
 from .models.asset import GridFSAsset, GridFSFile
 from .models.auth import Token
+from .models.config import SystemInfo
 from .models.diagnostics import RuntimeDiagnostics
 from .models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
 from .models.exposure import Exposure
@@ -29,7 +30,7 @@ from .models.notification import Notification
 from .models.project import GenerateIntermediateResultsSettings, Project, ProjectSymlink
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import Cluster, Node, SchedulerTarget
-from .models.service import LoggingService, ServiceLogLevel
+from .models.services import LoggingService
 from .models.session import (
     DataManagementStats,
     ExposureGroup,
@@ -56,8 +57,14 @@ class APINamespace:
 
 class ConfigNamespace(APINamespace):
     """
-    Methods available in api.config, e.g., api.config.get_instance_uid(...)
+    Methods available in api.config, e.g., api.config.set_instance_banner(...)
     """
+    def set_instance_banner(
+        self, *, active: bool = False, title: Optional[str] = ..., body: Optional[str] = ...
+    ) -> Any: ...
+    def set_login_message(
+        self, *, active: bool = False, title: Optional[str] = ..., body: Optional[str] = ...
+    ) -> Any: ...
     def get_instance_uid(self) -> str:
         """
         Gets this CryoSPARC instance's unique UID.
@@ -80,7 +87,7 @@ class ConfigNamespace(APINamespace):
         Gets the current CryoSPARC version (with patch suffix, if available)
         """
         ...
-    def get_system_info(self) -> Dict[str, Any]:
+    def get_system_info(self) -> SystemInfo:
         """
         System information related to the CryoSPARC application
         """
@@ -140,16 +147,7 @@ class InstanceNamespace(APINamespace):
         """
         ...
     def get_service_log(
-        self,
-        service: LoggingService,
-        /,
-        *,
-        days: int = 7,
-        date: Optional[str] = ...,
-        log_name: str = "",
-        func_name: str = "",
-        level: Optional[ServiceLogLevel] = ...,
-        max_lines: Optional[int] = ...,
+        self, service: LoggingService, /, *, days: int = 30, date: Optional[str] = ..., max_lines: Optional[int] = ...
     ) -> str:
         """
         Gets cryosparc service logs, filterable by date, name, function, and level
@@ -160,6 +158,7 @@ class InstanceNamespace(APINamespace):
         Gets runtime diagnostics for the CryoSPARC instance
         """
         ...
+    def audit_dump(self) -> str | None: ...
 
 class CacheNamespace(APINamespace):
     """
@@ -797,7 +796,7 @@ class JobsNamespace(APINamespace):
         Adds the job to the queue for the given worker lane (default lane if not specified)
         """
         ...
-    def recalculate_intermediate_results_size(self, project_uid: str, job_uid: str, /) -> Any:
+    def recalculate_size_async(self, project_uid: str, job_uid: str, /) -> Any:
         """
         For a job, find intermediate results and recalculate their total size.
         """
@@ -2337,7 +2336,7 @@ class DeveloperNamespace(APINamespace):
 class APIClient:
     """
     Top-level API client class. e.g., ``api.read_root(...)``
-    or ``api.config.get_instance_uid(...)``
+    or ``api.config.set_instance_banner(...)``
     """
 
     config: ConfigNamespace
