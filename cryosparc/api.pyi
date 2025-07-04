@@ -513,7 +513,7 @@ class JobsNamespace(APINamespace):
         Finds all jobs that match the supplied query
         """
         ...
-    def delete_many(self, project_job_uids: List[Tuple[str, str]], *, force: bool = False) -> Any:
+    def delete_many(self, project_job_uids: List[Tuple[str, str]]) -> Any:
         """
         Deletes the given jobs. Ignores protected jobs if `force` is `True`.
         """
@@ -596,7 +596,7 @@ class JobsNamespace(APINamespace):
         Finds the job.
         """
         ...
-    def delete(self, project_uid: str, job_uid: str, /, *, force: bool = False) -> Any:
+    def delete(self, project_uid: str, job_uid: str, /) -> Any:
         """
         Deletes a job. Will kill (if running) and clearing the job before deleting.
         """
@@ -889,7 +889,7 @@ class JobsNamespace(APINamespace):
         Recalculates the size of a given job's directory.
         """
         ...
-    def clear(self, project_uid: str, job_uid: str, /, *, force: bool = False) -> Job:
+    def clear(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Clears a job to get it back to building state (do not clear params or inputs).
         """
