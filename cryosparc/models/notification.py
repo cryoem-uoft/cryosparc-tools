@@ -21,4 +21,4 @@ class Notification(BaseModel):
     icon: str = "flag"
     hide: bool = False
     job_status: Optional[JobStatus] = None
-    ttl_seconds: int = 7
+    ttl_seconds: Optional[int] = 7

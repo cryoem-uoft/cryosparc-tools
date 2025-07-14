@@ -271,28 +271,28 @@ class Session(BaseModel):
             name="template_pick_score_median", title="Median Template Pick Score", min=None, max=None, round=3
         ),
         SessionAttribute(
-            name="total_extracted_particles",
+            name="total_extracted_particles", title="Total Particles Extracted", min=None, max=None, round=0
+        ),
+        SessionAttribute(
+            name="total_extracted_particles_manual",
             title="Total Manual Picker Particles Extracted",
             min=None,
             max=None,
             round=0,
         ),
         SessionAttribute(
-            name="total_extracted_particles_manual",
+            name="total_extracted_particles_blob",
             title="Total Blob Picker Particles Extracted",
             min=None,
             max=None,
             round=0,
         ),
         SessionAttribute(
-            name="total_extracted_particles_blob",
+            name="total_extracted_particles_template",
             title="Total Template Picker Particles Extracted",
             min=None,
             max=None,
             round=0,
-        ),
-        SessionAttribute(
-            name="total_extracted_particles_template", title="Total Particles Extracted", min=None, max=None, round=0
         ),
     ]
     picking_thresholds: PickingThresholds = PickingThresholds()

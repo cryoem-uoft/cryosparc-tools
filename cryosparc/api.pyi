@@ -150,7 +150,7 @@ class InstanceNamespace(APINamespace):
         self, service: LoggingService, /, *, days: int = 30, date: Optional[str] = ..., max_lines: Optional[int] = ...
     ) -> str:
         """
-        Gets cryosparc service logs, filterable by date, name, function, and level
+        Gets cryosparc service logs, filterable by date. Only lines with a date are counted for max_lines.
         """
         ...
     def get_runtime_diagnostics(self) -> RuntimeDiagnostics:
@@ -1315,19 +1315,6 @@ class SessionsNamespace(APINamespace):
         Updates a session's params. Updates each exposure inside the session with the new stage to start processing at (if there is one).
         """
         ...
-    def update_session_picker(
-        self,
-        project_uid: str,
-        session_uid: str,
-        /,
-        *,
-        activate_picker_type: Literal["blob", "template", "deep"],
-        use_thresholds: bool = True,
-    ) -> Session:
-        """
-        Updates a session's picker.
-        """
-        ...
     def update_attribute_threshold(
         self,
         project_uid: str,
@@ -1581,7 +1568,7 @@ class SessionsNamespace(APINamespace):
         Updates parameters for a streaming Homogenous Refinement job for a session
         """
         ...
-    def create_and_enqueue_dump_particles(
+    def create_and_enqueue_export_particles(
         self,
         project_uid: str,
         session_uid: str,
@@ -1593,14 +1580,14 @@ class SessionsNamespace(APINamespace):
         test_only: bool = False,
     ) -> Job:
         """
-        Creates and enqueues a dump particles job for a session
+        Creates and enqueues a Live Particle Export job for a session
         """
         ...
-    def create_and_enqueue_dump_exposures(
+    def create_and_enqueue_export_exposures(
         self, project_uid: str, session_uid: str, /, *, export_ignored: bool = False
     ) -> Job:
         """
-        Creates and enqueues a dump exposures job for a session
+        Creates and enqueues a Live Exposure Export job for a session
         """
         ...
     def get_data_management_stats(self, project_uid: str, /) -> Dict[str, DataManagementStats]:
