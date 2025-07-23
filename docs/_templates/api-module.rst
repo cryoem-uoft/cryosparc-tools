@@ -3,6 +3,7 @@
 .. automodule:: {{ fullname }}
     :autosummary:
     :members:
+    :exclude-members: model_config
 
 {%- block modules %}
 {%- if modules %}
