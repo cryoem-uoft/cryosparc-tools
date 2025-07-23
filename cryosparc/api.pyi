@@ -130,13 +130,13 @@ class InstanceNamespace(APINamespace):
     def get_license_usage(self) -> List[LicenseInstance]: ...
     def browse_files(self, *, abs_path_glob: str) -> BrowseFileResponse:
         """
-        Backend for the file browser in the cryosparc UI.
+        Request details for a set of files or directories available to CryoSPARC,
+        given an absolute path or glob expression. If the given path is a directory,
+        returns a list all files in that directory.
+
         .. note::
-                abs_path_glob could have shell vars in it (i.e. $HOME, $SCRATCH)
-                0. expand vars
-                1. if abs path is already a dir: just list the dir
-                2. else: expand the glob
-                3. if the glob returns empty: return empty
+            ``abs_path_glob`` may have shell variables in it (e.g., ``$HOME``, ``$SCRATCH``)
+            Variables are expanded before glob expansion.
         """
         ...
     def get_service_log(

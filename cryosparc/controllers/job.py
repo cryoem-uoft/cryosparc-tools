@@ -29,6 +29,7 @@ from ..dataset import DEFAULT_FORMAT, Dataset
 from ..errors import ExternalJobError
 from ..models.asset import GridFSAsset, GridFSFile
 from ..models.job import Job, JobStatus
+from ..models.job_register import JobRegisterJobSpec
 from ..models.job_spec import Input, InputSpec, Output, OutputSpec, Params
 from ..spec import (
     ASSET_CONTENT_TYPES,
@@ -70,7 +71,7 @@ class JobController(Controller[Job]):
 
     Attributes:
         model (Workspace): All job data from the CryoSPARC database.
-            Contents may change over time, use :py:method:`refresh` to update.
+            Contents may change over time, use :py:meth:`refresh` to update.
 
     Examples:
 
@@ -159,14 +160,16 @@ class JobController(Controller[Job]):
 
     @property
     def inputs(self) -> Dict[str, Input]:
+        """Input connection details."""
         return self.model.spec.inputs.root
 
     @property
     def outputs(self) -> Dict[str, Output]:
+        """Input result details."""
         return self.model.spec.outputs.root
 
     @property
-    def full_spec(self):
+    def full_spec(self) -> JobRegisterJobSpec:
         """
         The full specification for job inputs, outputs and parameters, as
         defined in the job register.
@@ -1064,7 +1067,7 @@ class JobController(Controller[Job]):
 
             >>> cs = CryoSPARC()
             >>> job = cs.find_job("P3", "J42")
-            >>> job.doc['type']
+            >>> job.type
             'extract_micrographs_multi'
             >>> job.print_param_spec()
             Param                       | Title                 | Type    | Default
@@ -1098,7 +1101,7 @@ class JobController(Controller[Job]):
 
             >>> cs = CryoSPARC()
             >>> job = cs.find_job("P3", "J42")
-            >>> job.doc['type']
+            >>> job.type
             'extract_micrographs_multi'
             >>> job.print_output_spec()
             Input       | Title       | Type     | Required? | Input Slots     | Slot Types      | Slot Required?
@@ -1137,7 +1140,7 @@ class JobController(Controller[Job]):
 
             >>> cs = CryoSPARC()
             >>> job = cs.find_job("P3", "J42")
-            >>> job.doc['type']
+            >>> job.type
             'extract_micrographs_multi'
             >>> job.print_output_spec()
             Output                 | Title       | Type     | Result Slots           | Result Types    | Passthrough?
@@ -1171,7 +1174,7 @@ class ExternalJobController(JobController):
     an input. Its outputs must be created manually and may be configured to
     passthrough inherited input fields, just as with regular CryoSPARC jobs.
 
-    Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.project.ProjectController.create_external_job>`.
+    Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.controllers.project.ProjectController.create_external_job>`.
     or :py:meth:`workspace.create_external_job() <cryosparc.workspace.WorkspaceController.create_external_job>`.
     ``ExternalJobController`` is a subclass of :py:class:`JobController`
     and inherits all its methods and attributes.

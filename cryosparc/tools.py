@@ -254,10 +254,10 @@ class CryoSPARC:
             bool: True if connection succeeded, False otherwise
         """
         if self.api.health() == "OK":
-            print(f"Connection succeeded to CryoSPARC API at {self.base_url}")
+            print(f"Success: Connected to CryoSPARC API at {self.base_url}")
             return True
         else:
-            print(f"Connection FAILED to CryoSPARC API at {self.base_url}")
+            print(f"Error: Could not connect to CryoSPARC API at {self.base_url}")
             return False
 
     def get_lanes(self) -> List[SchedulerLane]:
@@ -591,16 +591,16 @@ class CryoSPARC:
         """
         Add a new External job to this project to save generated outputs to.
 
-            Args:
-                project_uid (str): Project UID to create in, e.g., "P3"
-                workspace_uid (str): Workspace UID to create job in, e.g., "W1"
-                title (str, optional): Title for external job (recommended).
-                    Defaults to "".
-                desc (str, optional): Markdown description for external job.
-                    Defaults to "".
+        Args:
+            project_uid (str): Project UID to create in, e.g., "P3"
+            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+            title (str, optional): Title for external job (recommended).
+                Defaults to "".
+            desc (str, optional): Markdown description for external job.
+                Defaults to "".
 
-            Returns:
-                ExternalJobController: created external job accessor object
+        Returns:
+            ExternalJobController: created external job accessor object
         """
         job = self.api.jobs.create(project_uid, workspace_uid, type="snowflake", title=title, description=desc)
         return ExternalJobController(self, job)
