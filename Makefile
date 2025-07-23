@@ -41,7 +41,7 @@ vercelinstall: /usr/local/bin/micromamba .venv
 	echo "Install complete"
 
 vercelbuild: .vercel/output/config.json .venv
-	micromamba run -p ./.venv jupyter-book build docs
+	micromamba run -p ./.venv make docs
 	rm -rf .vercel/output/static && cp -R docs/_build/html .vercel/output/static
 
 # -----------------------------------------------------------------------------
