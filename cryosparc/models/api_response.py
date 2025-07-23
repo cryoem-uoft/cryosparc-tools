@@ -24,30 +24,6 @@ class BrowseFileResponse(BaseModel):
     type: str
 
 
-class DeleteJobPreview(BaseModel):
-    project_uid: str
-    uid: str
-    workspace_uids: List[str]
-    status: str
-    title: str
-    type: str
-
-
-class DeleteProjectWorkspacePreview(BaseModel):
-    project_uid: str
-    uid: str
-    title: Optional[str]
-
-
-class DeleteProjectPreview(BaseModel):
-    jobs: List[DeleteJobPreview]
-    workspaces: List[DeleteProjectWorkspacePreview]
-
-
-class DeleteWorkspacePreview(BaseModel):
-    jobs: List[DeleteJobPreview]
-
-
 class GetFinalResultsResponse(BaseModel):
     final_results: List[str]
     ancestors_of_final_results: List[str]

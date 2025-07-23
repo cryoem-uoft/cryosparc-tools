@@ -98,7 +98,6 @@ class Job(BaseModel):
     queued_to_lane: Optional[str] = None
     queued_to_hostname: Optional[str] = None
     queued_to_gpu: Optional[List[int]] = None
-    queue_index: Optional[int] = None
     queue_status: Optional[
         Literal[
             "waiting_inputs",
