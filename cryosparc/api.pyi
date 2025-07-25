@@ -1,15 +1,14 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_client.py
-
 import datetime
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+
+import httpx
 
 from .dataset import Dataset
 from .models.api_request import AppSession, SHA256Password
 from .models.api_response import (
     BrowseFileResponse,
-    DeleteProjectPreview,
-    DeleteWorkspacePreview,
     GetFinalResultsResponse,
     Hello,
     WorkspaceAncestorUidsResponse,
@@ -27,9 +26,10 @@ from .models.job_register import JobRegister
 from .models.job_spec import Category, InputSpec, OutputResult, OutputSpec
 from .models.license import LicenseInstance, UpdateTag
 from .models.notification import Notification
+from .models.preview import DeleteProjectPreview, DeleteWorkspacePreview
 from .models.project import GenerateIntermediateResultsSettings, Project, ProjectSymlink
 from .models.scheduler_lane import SchedulerLane
-from .models.scheduler_target import Cluster, Node, SchedulerTarget
+from .models.scheduler_target import SchedulerTarget, SchedulerTarget_Cluster_, SchedulerTarget_Node_
 from .models.services import LoggingService
 from .models.session import (
     DataManagementStats,
@@ -37,11 +37,11 @@ from .models.session import (
     ExposureGroupUpdate,
     LiveComputeResources,
     Session,
+    SessionStatus,
     TemplateSelectionThreshold,
 )
 from .models.session_config_profile import SessionConfigProfile, SessionConfigProfileBody
 from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
-from .models.session_spec import SessionStatus
 from .models.tag import Tag
 from .models.user import User
 from .models.workspace import Workspace
@@ -53,7 +53,7 @@ Auth token or email/password.
 """
 
 class APINamespace:
-    def __init__(self, http_client: Any = None) -> None: ...
+    def __init__(self, http_client: httpx.Client) -> None: ...
 
 class ConfigNamespace(APINamespace):
     """
@@ -68,13 +68,6 @@ class ConfigNamespace(APINamespace):
     def get_instance_uid(self) -> str:
         """
         Gets this CryoSPARC instance's unique UID.
-        """
-        ...
-    def generate_new_instance_uid(self, *, force_takeover_projects: bool = False) -> str:
-        """
-        Generates a new uid for the CryoSPARC instance
-        If force_takeover_projects is True, overwrites existing lockfiles,
-        otherwise if force_takeover_projects is False, only creates lockfile in projects that don't already have one
         """
         ...
     def set_default_job_priority(self, value: int) -> Any:
@@ -159,6 +152,13 @@ class InstanceNamespace(APINamespace):
         """
         ...
     def audit_dump(self) -> str | None: ...
+    def generate_new_uid(self, *, force_takeover_projects: bool = False) -> str:
+        """
+        Generates a new uid for the CryoSPARC instance
+        If force_takeover_projects is True, overwrites existing lockfiles,
+        otherwise, creates lockfiles in projects that don't already have one.
+        """
+        ...
 
 class CacheNamespace(APINamespace):
     """
@@ -338,25 +338,25 @@ class ResourcesNamespace(APINamespace):
         Finds a list of targets that are registered with the master scheduler.
         """
         ...
-    def find_nodes(self, *, lane: Optional[str] = ...) -> List[SchedulerTarget[Node]]:
+    def find_nodes(self, *, lane: Optional[str] = ...) -> List[SchedulerTarget_Node_]:
         """
         Finds a list of targets with type "node" that are registered with the master scheduler.
         These correspond to discrete worker hostname accessible over SSH.
         """
         ...
-    def add_node(self, body: SchedulerTarget[Node]) -> SchedulerTarget[Node]:
+    def add_node(self, body: SchedulerTarget_Node_) -> SchedulerTarget_Node_:
         """
         Adds a node or updates an existing node. Updates existing node if they share
         share the same name.
         """
         ...
-    def find_clusters(self, *, lane: Optional[str] = ...) -> List[SchedulerTarget[Cluster]]:
+    def find_clusters(self, *, lane: Optional[str] = ...) -> List[SchedulerTarget_Cluster_]:
         """
         Finds a list of targets with type "cluster" that are registered with the master scheduler.
         These are multi-node clusters managed by workflow managers like SLURM or PBS and are accessible via submission script.
         """
         ...
-    def add_cluster(self, body: SchedulerTarget[Cluster]) -> SchedulerTarget[Cluster]:
+    def add_cluster(self, body: SchedulerTarget_Cluster_) -> SchedulerTarget_Cluster_:
         """
         Adds a cluster or updates an existing cluster. Updates existing cluster if
         they share share the same name.
@@ -372,7 +372,7 @@ class ResourcesNamespace(APINamespace):
         Finds a target with a given name.
         """
         ...
-    def find_node(self, name: str, /) -> SchedulerTarget[Node]:
+    def find_node(self, name: str, /) -> SchedulerTarget_Node_:
         """
         Finds a node with a given name.
         """
@@ -382,7 +382,7 @@ class ResourcesNamespace(APINamespace):
         Removes a target worker node from the master scheduler
         """
         ...
-    def find_cluster(self, name: str, /) -> SchedulerTarget[Cluster]:
+    def find_cluster(self, name: str, /) -> SchedulerTarget_Cluster_:
         """
         Finds a cluster with a given name.
         """
@@ -411,7 +411,7 @@ class ResourcesNamespace(APINamespace):
         (i.e., all variables not in the internal list of known variable names).
         """
         ...
-    def update_node_lane(self, name: str, /, lane: str) -> SchedulerTarget[Node]:
+    def update_node_lane(self, name: str, /, lane: str) -> SchedulerTarget_Node_:
         """
         Changes the lane on the given target (assumed to exist). Target type must
         match lane type.
@@ -429,7 +429,7 @@ class ResourcesNamespace(APINamespace):
         command
         """
         ...
-    def update_cluster_custom_vars(self, name: str, /, value: Dict[str, str]) -> SchedulerTarget[Cluster]:
+    def update_cluster_custom_vars(self, name: str, /, value: Dict[str, str]) -> SchedulerTarget_Cluster_:
         """
         Changes the custom cluster variables on the given target (assumed to exist)
         """
@@ -2016,7 +2016,7 @@ class ProjectsNamespace(APINamespace):
         Claims ownership of all projects in instance. Call when upgrading from an older CryoSPARC version that did not support project locks.
         """
         ...
-    def archive(self, project_uid: str, /) -> Project:
+    def archive(self, project_uid: str, /) -> Any:
         """
         Archives a project. This means that the project can no longer be modified
         and jobs cannot be created or run. Once archived, the project directory may

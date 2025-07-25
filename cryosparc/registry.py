@@ -8,7 +8,7 @@ import warnings
 from enum import Enum
 from inspect import isclass
 from types import ModuleType
-from typing import Dict, Iterable, Optional, Type
+from typing import Any, Dict, Iterable, Literal, Optional, Type
 
 from pydantic import BaseModel
 
@@ -17,6 +17,8 @@ from .stream import Streamable
 FINALIZED: bool = False
 REGISTERED_TYPED_DICTS: Dict[str, Type[dict]] = {}
 REGISTERED_ENUMS: Dict[str, Type[Enum]] = {}
+REGISTERED_LITERALS: Dict[str, Any] = {}
+LITERAL_MODULE_NAMES: Dict[str, str] = {}
 REGISTERED_MODEL_CLASSES: Dict[str, Type[BaseModel]] = {}
 REGISTERED_STREAM_CLASSES: Dict[str, Type[Streamable]] = {}
 
@@ -59,9 +61,23 @@ def register_enum(name, enum_class: Type[Enum]):
     REGISTERED_ENUMS[name] = enum_class
 
 
-def register_model_module(mod: ModuleType):
+def register_literal(name, literal: Any, module_name: str):
+    check_finalized(False)
+    REGISTERED_LITERALS[name] = literal
+    LITERAL_MODULE_NAMES[name] = module_name
+
+
+def is_literal(obj: Any):
+    return hasattr(obj, "__origin__") and getattr(obj, "__origin__") is Literal
+
+
+def register_model_module(mod: ModuleType, include_literals: bool = False):
     for key, val in mod.__dict__.items():
-        if not re.match(r"^[A-Z]", key) or not isclass(val):
+        if not re.match(r"^[A-Z]", key):
+            continue
+        if include_literals and is_literal(val) and key not in REGISTERED_LITERALS:
+            register_literal(key, val, mod.__name__)
+        if not isclass(val):
             continue
         if issubclass(val, BaseModel):
             register_model(key, val)
@@ -86,18 +102,27 @@ def model_for_ref(schema_ref: str) -> Optional[Type]:
         return
 
     schema_name = components[3]
-    if "_" in schema_name:  # type var
+    if schema_name in REGISTERED_MODEL_CLASSES:
+        return REGISTERED_MODEL_CLASSES[schema_name]
+    elif "_" in schema_name:  # type var
         generic, var, *_ = schema_name.split("_")
         if generic in REGISTERED_MODEL_CLASSES and var in REGISTERED_MODEL_CLASSES:
             return REGISTERED_MODEL_CLASSES[generic][REGISTERED_MODEL_CLASSES[var]]  # type: ignore
-    elif schema_name in REGISTERED_MODEL_CLASSES:
-        return REGISTERED_MODEL_CLASSES[schema_name]
     elif schema_name in REGISTERED_TYPED_DICTS:
         return REGISTERED_TYPED_DICTS[schema_name]
     elif schema_name in REGISTERED_ENUMS:
         return REGISTERED_ENUMS[schema_name]
+    elif schema_name in REGISTERED_LITERALS:
+        return REGISTERED_LITERALS[schema_name]
 
     warnings.warn(f"Warning: Unknown schema reference model {schema_ref}", stacklevel=2)
+
+
+def get_literal_module_name(name: str) -> str:
+    """
+    Returns name of the module that that contains the registered literal.
+    """
+    return LITERAL_MODULE_NAMES[name]
 
 
 def is_streamable_mime_type(mime: str):
