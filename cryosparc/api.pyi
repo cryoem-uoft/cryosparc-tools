@@ -68,7 +68,7 @@ from .models.notification import Notification
 from .models.preview import DeleteProjectPreview, DeleteWorkspacePreview
 from .models.project import GenerateIntermediateResultsSettings, Project, ProjectSymlink
 from .models.scheduler_lane import SchedulerLane
-from .models.scheduler_target import SchedulerTarget, SchedulerTarget_Cluster_, SchedulerTarget_Node_
+from .models.scheduler_target import SchedulerTarget, SchedulerTargetCluster, SchedulerTargetNode
 from .models.services import LoggingService
 from .models.session import (
     DataManagementStats,
@@ -690,7 +690,7 @@ class ResourcesAPI(APINamespace):
 
         """
         ...
-    def find_nodes(self, *, lane: Optional[str] = None) -> List[SchedulerTarget_Node_]:
+    def find_nodes(self, *, lane: Optional[str] = None) -> List[SchedulerTargetNode]:
         """
         Finds a list of targets with type "node" that are registered with the master scheduler.
         These correspond to discrete worker hostname accessible over SSH.
@@ -699,24 +699,24 @@ class ResourcesAPI(APINamespace):
             lane (str, optional): Defaults to None
 
         Returns:
-            List[SchedulerTarget_Node_]: List of targets with type 'node'
+            List[SchedulerTargetNode]: List of targets with type 'node'
 
         """
         ...
-    def add_node(self, body: SchedulerTarget_Node_) -> SchedulerTarget_Node_:
+    def add_node(self, body: SchedulerTargetNode) -> SchedulerTargetNode:
         """
         Adds a node or updates an existing node. Updates existing node if they share
         share the same name.
 
         Args:
-            body (SchedulerTarget_Node_):
+            body (SchedulerTargetNode):
 
         Returns:
-            SchedulerTarget_Node_: Successful Response
+            SchedulerTargetNode: Successful Response
 
         """
         ...
-    def find_clusters(self, *, lane: Optional[str] = None) -> List[SchedulerTarget_Cluster_]:
+    def find_clusters(self, *, lane: Optional[str] = None) -> List[SchedulerTargetCluster]:
         """
         Finds a list of targets with type "cluster" that are registered with the master scheduler.
         These are multi-node clusters managed by workflow managers like SLURM or PBS and are accessible via submission script.
@@ -725,20 +725,20 @@ class ResourcesAPI(APINamespace):
             lane (str, optional): Defaults to None
 
         Returns:
-            List[SchedulerTarget_Cluster_]: List of targets with type 'cluster'
+            List[SchedulerTargetCluster]: List of targets with type 'cluster'
 
         """
         ...
-    def add_cluster(self, body: SchedulerTarget_Cluster_) -> SchedulerTarget_Cluster_:
+    def add_cluster(self, body: SchedulerTargetCluster) -> SchedulerTargetCluster:
         """
         Adds a cluster or updates an existing cluster. Updates existing cluster if
         they share share the same name.
 
         Args:
-            body (SchedulerTarget_Cluster_):
+            body (SchedulerTargetCluster):
 
         Returns:
-            SchedulerTarget_Cluster_: Successful Response
+            SchedulerTargetCluster: Successful Response
 
         """
         ...
@@ -766,7 +766,7 @@ class ResourcesAPI(APINamespace):
 
         """
         ...
-    def find_node(self, name: str, /) -> SchedulerTarget_Node_:
+    def find_node(self, name: str, /) -> SchedulerTargetNode:
         """
         Finds a node with a given name.
 
@@ -774,7 +774,7 @@ class ResourcesAPI(APINamespace):
             name (str):
 
         Returns:
-            SchedulerTarget_Node_: Successful Response
+            SchedulerTargetNode: Successful Response
 
         """
         ...
@@ -787,7 +787,7 @@ class ResourcesAPI(APINamespace):
 
         """
         ...
-    def find_cluster(self, name: str, /) -> SchedulerTarget_Cluster_:
+    def find_cluster(self, name: str, /) -> SchedulerTargetCluster:
         """
         Finds a cluster with a given name.
 
@@ -795,7 +795,7 @@ class ResourcesAPI(APINamespace):
             name (str):
 
         Returns:
-            SchedulerTarget_Cluster_: Successful Response
+            SchedulerTargetCluster: Successful Response
 
         """
         ...
@@ -848,7 +848,7 @@ class ResourcesAPI(APINamespace):
 
         """
         ...
-    def update_node_lane(self, name: str, /, lane: str) -> SchedulerTarget_Node_:
+    def update_node_lane(self, name: str, /, lane: str) -> SchedulerTargetNode:
         """
         Changes the lane on the given target (assumed to exist). Target type must
         match lane type.
@@ -858,7 +858,7 @@ class ResourcesAPI(APINamespace):
             lane (str):
 
         Returns:
-            SchedulerTarget_Node_: Successful Response
+            SchedulerTargetNode: Successful Response
 
         """
         ...
@@ -882,7 +882,7 @@ class ResourcesAPI(APINamespace):
 
         """
         ...
-    def update_cluster_custom_vars(self, name: str, /, value: Dict[str, str]) -> SchedulerTarget_Cluster_:
+    def update_cluster_custom_vars(self, name: str, /, value: Dict[str, str]) -> SchedulerTargetCluster:
         """
         Changes the custom cluster variables on the given target (assumed to exist)
 
@@ -891,7 +891,7 @@ class ResourcesAPI(APINamespace):
             value (Dict[str, str]):
 
         Returns:
-            SchedulerTarget_Cluster_: Successful Response
+            SchedulerTargetCluster: Successful Response
 
         """
         ...

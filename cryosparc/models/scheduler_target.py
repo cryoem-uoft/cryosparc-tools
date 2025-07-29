@@ -159,7 +159,7 @@ class SchedulerTarget(BaseModel):
     config: Union[Node, Cluster]
 
 
-class SchedulerTarget_Cluster_(BaseModel):
+class SchedulerTargetCluster(BaseModel):
     cache_path: Optional[str] = None
     """
     Path the SSD cache scratch directory, if applicable.
@@ -200,7 +200,7 @@ class SchedulerTarget_Cluster_(BaseModel):
     config: Cluster
 
 
-class SchedulerTarget_Node_(BaseModel):
+class SchedulerTargetNode(BaseModel):
     cache_path: Optional[str] = None
     """
     Path the SSD cache scratch directory, if applicable.
