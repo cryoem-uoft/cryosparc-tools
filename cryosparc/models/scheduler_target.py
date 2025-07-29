@@ -14,8 +14,17 @@ class ResourceSlots(BaseModel):
     """
 
     CPU: List[int] = []
+    """
+    List of available CPU core indices.
+    """
     GPU: List[int] = []
+    """
+    List of available GPU indices.
+    """
     RAM: List[int] = []
+    """
+    List of available 8GB slots.
+    """
 
 
 class FixedResourceSlots(BaseModel):
@@ -25,6 +34,9 @@ class FixedResourceSlots(BaseModel):
     """
 
     SSD: bool = False
+    """
+    Whether this target thas an SSD
+    """
 
 
 class Node(BaseModel):
@@ -33,10 +45,25 @@ class Node(BaseModel):
     """
 
     type: str
+    """
+    Node scheduler targets have type "node".
+    """
     ssh_str: str
+    """
+    Shell command used to access this node, e.g., ``ssh cryosparcuser@worker``.
+    """
     resource_slots: ResourceSlots = ResourceSlots()
+    """
+    Available compute resources.
+    """
     resource_fixed: FixedResourceSlots = FixedResourceSlots()
+    """
+    Available fixed resources.
+    """
     monitor_port: Optional[int] = None
+    """
+    Not used.
+    """
     gpus: Optional[List[Gpu]] = None
 
 
@@ -46,15 +73,45 @@ class Cluster(BaseModel):
     """
 
     send_cmd_tpl: str = "{{ command }}"
+    """
+    Template command to access the cluster and running commands.
+    """
     qsub_cmd_tpl: str = "qsub {{ script_path_abs }}"
+    """
+    Template command to submit jobs to the cluster.
+    """
     qstat_cmd_tpl: str = "qstat -as {{ cluster_job_id }}"
+    """
+    Template command to check the cluster job by its ID.
+    """
     qdel_cmd_tpl: str = "qdel {{ cluster_job_id }}"
+    """
+    Template command to delete cluster jobs.
+    """
     qinfo_cmd_tpl: str = "qstat -q"
+    """
+    Template command to check cluster queue info.
+    """
     type: str
+    """
+    Cluster scheduler targets have type "cluster".
+    """
     script_tpl: str = ""
+    """
+    Full cluster submission script Jinja template.
+    """
     custom_vars: Dict[str, str] = {}
+    """
+    Custom variable values
+    """
     tpl_vars: List[str]
+    """
+    List of template variable names in a cluster target
+    """
     custom_var_names: List[str]
+    """
+    Computed list if custom variable names defined in the template
+    """
 
 
 class SchedulerTarget(BaseModel):
@@ -63,38 +120,122 @@ class SchedulerTarget(BaseModel):
     """
 
     cache_path: Optional[str] = None
+    """
+    Path the SSD cache scratch directory, if applicable.
+    """
     cache_reserve_mb: Optional[int] = None
+    """
+    Ensure at least this much space is free on the SSD scratch drive before
+    caching.
+    """
     cache_quota_mb: Optional[int] = None
+    """
+    Do not cache more than this amount on the SSD scrath drive..
+    """
     lane: str
+    """
+    Lane name this target belongs to.
+    """
     name: str
+    """
+    Identifier for this target.
+    """
     title: str
+    """
+    Human-readable title for this target.
+    """
     desc: Optional[str] = None
+    """
+    Human-readable description for this target.
+    """
     hostname: str
+    """
+    Network machine hostname (same as name for for clusters).
+    """
     worker_bin_path: str
+    """
+    Path to cryosparc_worker/bin/cryosparcw executable.
+    """
     config: Union[Node, Cluster]
 
 
 class SchedulerTarget_Cluster_(BaseModel):
     cache_path: Optional[str] = None
+    """
+    Path the SSD cache scratch directory, if applicable.
+    """
     cache_reserve_mb: Optional[int] = None
+    """
+    Ensure at least this much space is free on the SSD scratch drive before
+    caching.
+    """
     cache_quota_mb: Optional[int] = None
+    """
+    Do not cache more than this amount on the SSD scrath drive..
+    """
     lane: str
+    """
+    Lane name this target belongs to.
+    """
     name: str
+    """
+    Identifier for this target.
+    """
     title: str
+    """
+    Human-readable title for this target.
+    """
     desc: Optional[str] = None
+    """
+    Human-readable description for this target.
+    """
     hostname: str
+    """
+    Network machine hostname (same as name for for clusters).
+    """
     worker_bin_path: str
+    """
+    Path to cryosparc_worker/bin/cryosparcw executable.
+    """
     config: Cluster
 
 
 class SchedulerTarget_Node_(BaseModel):
     cache_path: Optional[str] = None
+    """
+    Path the SSD cache scratch directory, if applicable.
+    """
     cache_reserve_mb: Optional[int] = None
+    """
+    Ensure at least this much space is free on the SSD scratch drive before
+    caching.
+    """
     cache_quota_mb: Optional[int] = None
+    """
+    Do not cache more than this amount on the SSD scrath drive..
+    """
     lane: str
+    """
+    Lane name this target belongs to.
+    """
     name: str
+    """
+    Identifier for this target.
+    """
     title: str
+    """
+    Human-readable title for this target.
+    """
     desc: Optional[str] = None
+    """
+    Human-readable description for this target.
+    """
     hostname: str
+    """
+    Network machine hostname (same as name for for clusters).
+    """
     worker_bin_path: str
+    """
+    Path to cryosparc_worker/bin/cryosparcw executable.
+    """
     config: Node

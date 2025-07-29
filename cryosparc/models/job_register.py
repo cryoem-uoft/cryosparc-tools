@@ -61,8 +61,19 @@ class JobRegisterJobSpec(BaseModel):
 class JobRegister(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
     specs: List[JobRegisterJobSpec] = []
     error: Optional[JobRegisterError] = None
     username: Optional[str] = None
     categories: Dict[str, str]
+    """
+    Category values to titles map which also indicates order in which jobs
+    should be grouped.
+    """

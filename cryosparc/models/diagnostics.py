@@ -11,14 +11,42 @@ from .scheduler_target import Cluster, Node
 
 class SchedulerTargetInformation(BaseModel):
     cache_path: Optional[str] = None
+    """
+    Path the SSD cache scratch directory, if applicable.
+    """
     cache_reserve_mb: Optional[int] = None
+    """
+    Ensure at least this much space is free on the SSD scratch drive before
+    caching.
+    """
     cache_quota_mb: Optional[int] = None
+    """
+    Do not cache more than this amount on the SSD scrath drive..
+    """
     lane: str
+    """
+    Lane name this target belongs to.
+    """
     name: str
+    """
+    Identifier for this target.
+    """
     title: str
+    """
+    Human-readable title for this target.
+    """
     desc: Optional[str] = None
+    """
+    Human-readable description for this target.
+    """
     hostname: str
+    """
+    Network machine hostname (same as name for for clusters).
+    """
     worker_bin_path: str
+    """
+    Path to cryosparc_worker/bin/cryosparcw executable.
+    """
     config: Union[Node, Cluster]
     instance_information: Optional[InstanceInformation] = None
 

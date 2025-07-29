@@ -26,6 +26,9 @@ class BrowseFileResponse(BaseModel):
 
 class GetFinalResultsResponse(BaseModel):
     final_results: List[str]
+    """
+    Job uids of jobs marked as final result
+    """
     ancestors_of_final_results: List[str]
     non_ancestors_of_final_results: List[str]
 

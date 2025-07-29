@@ -45,11 +45,31 @@ class InputResult(BaseModel):
     """
 
     name: Optional[str] = None
+    """
+    Input slot name. Passthrough slots have ``name`` set to ``None``.
+    """
     dtype: str
+    """
+    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
+    alignments2D.
+    """
     job_uid: str
+    """
+    Parent job UID source of this input slot connection.
+    """
     output: str
+    """
+    Name of output in parent job. e.g., "particles"
+    """
     result: str
+    """
+    Name of output result slot in parent job, e.g., "blob". Usually the same
+    as "name" but may differ if there are multiple outputs of the same type
+    """
     version: Union[int, str] = "F"
+    """
+    Version number or specifier to use. Usually "F"
+    """
 
 
 class Connection(BaseModel):
@@ -58,17 +78,34 @@ class Connection(BaseModel):
     """
 
     job_uid: str
+    """
+    Connected parent output job uid.
+    """
     output: str
+    """
+    Name of output on connected parent output job.
+    """
     results: List[InputResult] = []
+    """
+    Specific results from parent job. Some slots may have a different job UID.
+    """
 
 
 class OutputSlot(BaseModel):
     """
-    Specification of an output slot in the job configuration. Part of a group
+    Specification of an output slot in the job configuration. Each output includes one or more.
     """
 
     name: str
+    """
+    where to find field in a corresponding .cs file e.g.,
+    background_blob
+    """
     dtype: str
+    """
+    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
+    alignments2D.
+    """
 
 
 class OutputSpec(BaseModel):
@@ -93,10 +130,31 @@ class OutputSpec(BaseModel):
         "denoise_model",
         "annotation_model",
     ]
+    """
+    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
+    """
     title: str
+    """
+    Human-readable title
+    """
     description: str = ""
+    """
+    Detailed description.
+    """
     slots: List[Union[OutputSlot, str]] = []
+    """
+    Expected input/output result slots.
+
+    "str" is a shortcut for ``Slot(dtype="str", "prefix="str")``
+
+    For input specs:
+    "str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=True)``
+    "?str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=False)``
+    """
     passthrough: Optional[str] = None
+    """
+    Associated passthrough input name
+    """
 
 
 class OutputRef(BaseModel):
@@ -105,17 +163,35 @@ class OutputRef(BaseModel):
     """
 
     job_uid: str
+    """
+    Connected parent output job uid.
+    """
     output: str
+    """
+    Name of output on connected parent output job.
+    """
 
 
 class InputSlot(BaseModel):
     """
-    Specification of an input slot in the job configuration. Part of a group.
+    Specification of an input slot in the job configuration. Each input includes one or more.
     """
 
     name: str
+    """
+    where to find field in a corresponding .cs file e.g.,
+    background_blob
+    """
     dtype: str
+    """
+    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
+    alignments2D.
+    """
     required: bool = False
+    """
+    whether this field must necessarily exist in acorresponding
+    input/output
+    """
 
 
 class Input(BaseModel):
@@ -135,16 +211,45 @@ class Input(BaseModel):
         "denoise_model",
         "annotation_model",
     ]
+    """
+    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
+    """
     title: str
+    """
+    Human-readable title
+    """
     description: str = ""
+    """
+    Detailed description.
+    """
     slots: List[InputSlot] = []
+    """
+    Expected low-level input definitions
+    """
     count_min: int = 0
+    """
+    Minimum number of connections to this input.
+    """
     count_max: Union[int, str] = "inf"
+    """
+    Maximum number of connections for this input.
+    Should be any integer >= 0 or ``"inf"`` (for infinity)
+    """
     repeat_allowed: bool = False
+    """
+    Whether repeated connections to the same output allowed for this input.
+    """
     connections: List[Connection] = []
+    """
+    Connected output details
+    """
 
 
 class InputSpec(BaseModel):
+    """
+    Input specification. Used to define the expected connections to a job input.
+    """
+
     type: Literal[
         "exposure",
         "particle",
@@ -161,20 +266,62 @@ class InputSpec(BaseModel):
         "denoise_model",
         "annotation_model",
     ]
+    """
+    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
+    """
     title: str
+    """
+    Human-readable title
+    """
     description: str = ""
+    """
+    Detailed description.
+    """
     slots: List[Union[InputSlot, str]] = []
+    """
+    Expected input/output result slots.
+
+    "str" is a shortcut for ``Slot(dtype="str", "prefix="str")``
+
+    For input specs:
+    "str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=True)``
+    "?str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=False)``
+    """
     count_min: int = 0
+    """
+    Minimum number of connections to this input.
+    """
     count_max: Union[int, str] = "inf"
+    """
+    Maximum number of connections for this input.
+    Should be any integer >= 0 or ``"inf"`` (for infinity)
+    """
     repeat_allowed: bool = False
+    """
+    Whether repeated connections to the same output allowed for this input.
+    """
 
 
 class InputSpecs(RootModel):
+    """
+    Dictionary of input specifications, where each key is the input name.
+    """
+
     root: Dict[str, InputSpec] = {}
+    """
+    Dictionary of input specifications, where each key is the input name.
+    """
 
 
 class Inputs(RootModel):
+    """
+    Dictionary of job input connection details, where each key is the input name.
+    """
+
     root: Dict[str, Input] = {}
+    """
+    Dictionary of job input connection details, where each key is the input name.
+    """
 
 
 class Params(BaseModel):
@@ -196,11 +343,31 @@ class OutputResult(BaseModel):
     """
 
     name: str
+    """
+    where to find field in a corresponding .cs file e.g.,
+    background_blob
+    """
     dtype: str
+    """
+    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
+    alignments2D.
+    """
     versions: List[int] = []
+    """
+    List of available intermediate result version numbers.
+    """
     metafiles: List[str] = []
+    """
+    List of available intermediate result files (same size as ``versions``).
+    """
     num_items: List[int] = []
+    """
+    Number of rows in each metafile
+    """
     passthrough: bool = False
+    """
+    If True, this result is passed through as-is from an associated input.
+    """
 
 
 class Output(BaseModel):
@@ -220,36 +387,117 @@ class Output(BaseModel):
         "denoise_model",
         "annotation_model",
     ]
+    """
+    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
+    """
     title: str
+    """
+    Human-readable title
+    """
     description: str = ""
+    """
+    Detailed description.
+    """
     slots: List[OutputSlot] = []
+    """
+    Low-level output result definitions.
+    """
     passthrough: Optional[str] = None
+    """
+    Associated passthrough input name
+    """
     results: List[OutputResult] = []
+    """
+    All individial outputs based on available output slots
+    """
     num_items: int = 0
+    """
+    Number of items in final version file
+    """
     image: Optional[str] = None
+    """
+    Asset ID of thumbnail for this output
+    """
     summary: Dict[str, Any] = {}
+    """
+    Result dataset summary data
+    """
     latest_summary_stats: Dict[str, Any] = {}
+    """
+    Additional context-specific summary statistics
+    """
 
 
 class Outputs(RootModel):
+    """
+    Dictionary of job output details, where each key is the output name.
+    """
+
     root: Dict[str, Output] = {}
+    """
+    Dictionary of job output details, where each key is the output name.
+    """
 
 
 class ResourceSpec(BaseModel):
+    """
+    Job resource requirements. Used to allocate compute resources for a job
+    at queue time.
+    """
+
     cpu: int = 1
+    """
+    Number required CPU cores
+    """
     gpu: int = 0
+    """
+    Number required GPUs
+    """
     ram: int = 1
+    """
+    Number of 8GiB slot
+    """
     ssd: bool = False
+    """
+    Whether an SSD is required for temporary storage.
+    """
 
 
 class JobSpec(BaseModel):
+    """
+    Job's unique specification details. Defines the parameters, inputs, outputs
+    and required resources. Contents vary by job type, configured parameters and
+    connected inputs.
+    """
+
     type: str
+    """
+    Job type key, e.g., "import_particles" or "class_2D_new"
+    """
     params: Params = Params()
+    """
+    Parameters for job, attributes vary per job type.
+    """
     inputs: Inputs = Inputs()
+    """
+    Connected inputs
+    """
     outputs: Outputs = Outputs()
+    """
+    Available outputs. Empty when job has not run.
+    """
     ui_tile_width: int
+    """
+    How many horizontal tiles this job should take in the UI.
+    """
     ui_tile_height: int
+    """
+    How many vertical tiles this job should take in the UI.
+    """
     resource_spec: ResourceSpec
+    """
+    Compute resource requirements for this job.
+    """
 
 
 class JobBuildError(BaseModel):
@@ -356,9 +604,21 @@ class JobBuildError(BaseModel):
         "complex_type",
         "complex_str_parsing",
     ]
+    """
+    values based on https://docs.pydantic.dev/latest/errors/validation_errors
+    """
     loc: List[Union[str, int]]
+    """
+    path to the invalid property
+    """
     input: Any
+    """
+    value of the invalid property - must be serializable
+    """
     ctx: Dict[str, Any] = {}
+    """
+    error context for pydantic
+    """
     input_type: str
 
 
@@ -370,7 +630,14 @@ are continually developed or replaced with other jobs.
 
 
 class OutputSpecs(RootModel):
+    """
+    Dictionary of output specifications, where each key is the output name.
+    """
+
     root: Dict[str, OutputSpec] = {}
+    """
+    Dictionary of output specifications, where each key is the output name.
+    """
 
 
 class JobRegisterError(BaseModel):

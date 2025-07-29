@@ -37,8 +37,19 @@ class KeepJobPreview(BaseModel):
     title: str
     type: str
     reason: Literal["final", "descendants"]
+    """
+    Reason for not deleting this job, either "final" because it or one if its
+    descendants is marked a final, or "descendants" because it has children that
+    are not or cannot be deleted.
+    """
     descendant_job_uids: List[str] = []
+    """
+    This job's descendant UIDs that cannot be deleted.
+    """
     descendant_workspace_uids: List[str] = []
+    """
+    Workspaces that contain this job's descendants that cannot be deleted.
+    """
 
 
 class DeleteWorkspacePreview(BaseModel):
@@ -49,6 +60,15 @@ class DeleteWorkspacePreview(BaseModel):
     """
 
     delete: List[DeleteJobPreview]
+    """
+    Jobs to be deleted.
+    """
     unlink: List[DeleteJobPreview]
+    """
+    Jobs to be unlinked.
+    """
     keep: List[KeepJobPreview]
+    """
+    Jobs that cannot be deleted, either because they are final or have descendants.
+    """
     jobs: List[DeleteJobPreview]

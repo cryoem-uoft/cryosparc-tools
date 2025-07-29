@@ -84,7 +84,14 @@ class UserState(BaseModel):
 class User(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
     emails: List[Email] = []
     created_by_user_id: Optional[str] = None
     name: str

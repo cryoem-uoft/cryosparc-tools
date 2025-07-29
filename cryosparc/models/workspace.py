@@ -30,10 +30,26 @@ class WorkspaceLastAccessed(BaseModel):
 class Workspace(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
     dumped_at: Optional[datetime.datetime] = None
+    """
+    When the model was last dumped to disk
+    """
     last_dumped_version: Optional[str] = None
+    """
+    The version of CryoSPARC last dumped at
+    """
     autodump: bool = True
+    """
+    Whether the model was updated recently and must be dumped
+    """
     uid: str
     project_uid: str
     created_by_user_id: Optional[str] = None

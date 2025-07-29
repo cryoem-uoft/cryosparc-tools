@@ -145,6 +145,9 @@ class RtpWorkerState(BaseModel):
 
 class SessionLastAccessed(BaseModel):
     name: str = ""
+    """
+    username of relevant user
+    """
     accessed_at: datetime.datetime = datetime.datetime(1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
 
 
@@ -204,17 +207,39 @@ class SessionStats(BaseModel):
 class SessionBuildError(BaseModel):
     type: str
     loc: List[Union[str, int]]
+    """
+    path to the invalid property
+    """
     input: Any
+    """
+    value of the invalid property - must be serializable
+    """
     input_type: str
 
 
 class Session(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
     dumped_at: Optional[datetime.datetime] = None
+    """
+    When the model was last dumped to disk
+    """
     last_dumped_version: Optional[str] = None
+    """
+    The version of CryoSPARC last dumped at
+    """
     autodump: bool = True
+    """
+    Whether the model was updated recently and must be dumped
+    """
     uid: str
     project_uid: str
     created_by_user_id: Optional[str] = None
@@ -235,12 +260,28 @@ class Session(BaseModel):
     status: SessionStatus = "paused"
     failed_at: List[datetime.datetime] = []
     running_at: List[datetime.datetime] = []
+    """
+    when start_session() is called (when built jobs are placed into the scheduler queue)
+    """
     paused_at: List[datetime.datetime] = []
+    """
+    times when session was paused
+    """
     completed_at: Optional[datetime.datetime] = None
+    """
+    when all jobs inside session are either completed, failed, or killed (i.e. no running/building/waiting). At least one job must've completed successfully for this field to be populated.
+    """
     cleared_at: Optional[datetime.datetime] = None
+    """
+    when experiment was last cleared
+    """
     elapsed_time: float = 0.0
     parameter_version: int = 0
     params: LivePreprocessingParams = LivePreprocessingParams()
+    """
+    previous version of this field is called "parameters" and has a different
+    format that is exported for backward compatibility
+    """
     attributes: List[SessionAttribute] = [
         SessionAttribute(name="found_at", title="Timestamp", min=None, max=None, round=0),
         SessionAttribute(name="check_at", title="Check Stage Completed At", min=None, max=None, round=0),
@@ -300,7 +341,15 @@ class Session(BaseModel):
     notes: str = ""
     notes_lock: Optional[str] = None
     phase_one_workers: Dict[str, RtpWorkerState] = {}
+    """
+    Example: {'J1': RtpWorkerState(status=<JobStatus.BUILDING: 'building'>, errors=[]),
+    'J2': RtpWorkerState(status=<JobStatus.RUNNING: 'running'>, errors=[]),
+    'J3': RtpWorkerState(status=<JobStatus.KILLED: 'killed'>, errors=[RunError(message='Example', warning=False)])}
+    """
     phase_one_workers_soft_kill: List[str] = []
+    """
+    list of workers that are being signalled a "stop" request
+    """
     live_session_job_uid: Optional[str] = None
     file_engine_status: Literal["inactive", "running"] = "inactive"
     file_engine_last_run: Optional[datetime.datetime] = None
@@ -308,10 +357,22 @@ class Session(BaseModel):
     known_files: List[Any] = []
     rtp_childs: List[RTPChild] = []
     template_creation_job: Optional[str] = None
+    """
+    which job is providing the templates
+    """
     template_creation_project: Optional[str] = None
+    """
+    which project is the above job in
+    """
     template_creation_num_particles_in: int = 0
     template_creation_ready: bool = False
+    """
+    whether the templates are ready to be shown for selection
+    """
     template_creation_info: List[TemplateClassInfo] = []
+    """
+    template info for select 2D (includes gridFS image ids etc)
+    """
     exposure_groups: List[ExposureGroup] = []
     stats: SessionStats = SessionStats()
     data_management: DataManagementStats = DataManagementStats()
@@ -329,8 +390,14 @@ class Session(BaseModel):
     restoration_user_id: Optional[str] = None
     pre_restoration_size: int = 0
     phase2_class2D_restart: bool = False
+    """
+    (re)start requested - set False by job when it starts
+    """
     phase2_class2D_params_spec: Optional[LiveClass2DParams] = None
     phase2_class2D_params_spec_used: Optional[LiveClass2DParams] = None
+    """
+    params used at last launch (must be same to be able to resume)
+    """
     phase2_class2D_job: Optional[str] = None
     phase2_class2D_ready: bool = False
     phase2_class2D_ready_partial: bool = False
@@ -338,6 +405,9 @@ class Session(BaseModel):
     phase2_class2D_num_particles_in: int = 0
     phase2_class2D_particles_out: Optional[Phase2ParticleOutputInfo] = None
     phase2_class2D_num_particles_seen: int = 0
+    """
+    sum of accepted and rejected
+    """
     phase2_class2D_num_particles_accepted: int = 0
     phase2_class2D_num_particles_rejected: int = 0
     phase2_class2D_last_updated: Optional[datetime.datetime] = None
@@ -351,6 +421,9 @@ class Session(BaseModel):
     phase2_refine_restart: bool = False
     phase2_refine_params_spec: LiveRefineParams = LiveRefineParams()
     phase2_refine_params_spec_used: Optional[LiveRefineParams] = None
+    """
+    params used at last launch (must be same to be able to resume)
+    """
     phase2_refine_job: Optional[str] = None
     phase2_refine_ready: bool = False
     phase2_refine_ready_partial: bool = False
