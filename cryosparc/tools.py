@@ -5,16 +5,7 @@ instance from Python
 Examples:
 
     >>> from cryosparc.tools import CryoSPARC
-    >>> license = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    >>> email = "ali@example.com"
-    >>> password = "password123"
-    >>> cs = CryoSPARC(
-    ...     license=license,
-    ...     email=email,
-    ...     password=password,
-    ...     host="localhost",
-    ...     base_port=39000
-    ... )
+    >>> cs = CryoSPARC("http://localhost:39000")
     >>> project = cs.find_project("P3")
 
 """
@@ -115,9 +106,9 @@ class CryoSPARC:
 
         >>> from cryosparc.tools import CryoSPARC
         >>> cs = CryoSPARC(
-        ...     license="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         ...     email="ali@example.com",
         ...     password="password123",
+        ...     host="localhost",
         ...     base_port=39000
         ... )
         >>> job = cs.find_job("P3", "J42")
@@ -167,10 +158,12 @@ class CryoSPARC:
                 stacklevel=2,
             )
 
-        if host and base_port:
+        if host or base_port:
             if base_url:
-                raise TypeError("Cannot specify host and base_port when base_url is specified")
-            self.base_url = f"http://{host}:{int(base_port) + 2}"  # TODO: use base_port + 0 when this works
+                raise TypeError("Cannot specify host or base_port when base_url is specified")
+            host = host or "localhost"
+            port = int(base_port or 39000) + 2  # TODO: use base_port + 0 when this works
+            self.base_url = f"http://{host}:{port}"
         elif base_url:
             self.base_url = base_url
         else:
@@ -193,7 +186,7 @@ class CryoSPARC:
 
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
-            self.api = APIClient(f"{self.base_url}/{API_SUFFIX}", auth=auth, timeout=timeout)
+            self.api = APIClient(f"{self.base_url}{API_SUFFIX}", auth=auth, timeout=timeout)
             assert self.user  # trigger user profile fetch
             cs_version = self.api.config.get_version()
         except Exception as e:
