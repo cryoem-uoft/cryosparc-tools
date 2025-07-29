@@ -39,10 +39,17 @@ dev = [
     "pytest-benchmark",
     "pytest-xdist[psutil]",
     "ruff",
-    "setuptools"
+    "setuptools",
+    "sphinx-autodoc-typehints",
 ]
 
-build = ["build", "autodocsumm", "cython", "jupyter-book"]
+build = [
+    "build",
+    "autodocsumm",
+    "cython",
+    "jupyter-book",
+    "sphinx-autodoc-typehints",
+]
 
 [project.urls]
 Homepage = "https://tools.cryosparc.com"
@@ -51,7 +58,12 @@ Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
-packages = ["cryosparc", "cryosparc.dataset", "cryosparc.models", "cryosparc.controllers"]
+packages = [
+    "cryosparc",
+    "cryosparc.dataset",
+    "cryosparc.models",
+    "cryosparc.controllers",
+]
 
 [build-system]
 requires = ["setuptools", "cython"]
