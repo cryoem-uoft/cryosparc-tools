@@ -104,11 +104,11 @@ def model_for_ref(schema_ref: str) -> Optional[Type]:
     schema_name = components[3]
 
     # remove underscores used to delimit type vars, which are excluded in models
-    # generated from openapi.json (cannot generate docs for classes that end in `_`)
-    clean_schema_name = schema_name.replace("_", "")
+    # generated from openapi.json (cannot generate docs for classes with names that end in "_")
+    display_schema_name = schema_name.replace("_", "")
 
-    if clean_schema_name in REGISTERED_MODEL_CLASSES:
-        return REGISTERED_MODEL_CLASSES[clean_schema_name]
+    if display_schema_name in REGISTERED_MODEL_CLASSES:
+        return REGISTERED_MODEL_CLASSES[display_schema_name]
     elif "_" in schema_name:  # type var
         generic, var, *_ = schema_name.split("_")
         if generic in REGISTERED_MODEL_CLASSES and var in REGISTERED_MODEL_CLASSES:
