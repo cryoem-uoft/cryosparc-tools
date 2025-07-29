@@ -91,7 +91,7 @@ Auth = Union[str, Tuple[str, str]]
 Auth token or email/password.
 """
 
-class BaseAPI:
+class APINamespace:
     def __init__(self, http_client: httpx.Client) -> None:
         """
         Args:
@@ -100,7 +100,7 @@ class BaseAPI:
         """
         ...
 
-class ConfigAPI(BaseAPI):
+class ConfigAPI(APINamespace):
     """
     Functions available in api.config, e.g., api.config.set_instance_banner(...)
     """
@@ -200,7 +200,7 @@ class ConfigAPI(BaseAPI):
         """
         ...
 
-class InstanceAPI(BaseAPI):
+class InstanceAPI(APINamespace):
     """
     Functions available in api.instance, e.g., api.instance.get_update_tag(...)
     """
@@ -326,7 +326,7 @@ class InstanceAPI(BaseAPI):
         """
         ...
 
-class CacheAPI(BaseAPI):
+class CacheAPI(APINamespace):
     """
     Functions available in api.cache, e.g., api.cache.get(...)
     """
@@ -356,7 +356,7 @@ class CacheAPI(BaseAPI):
         """
         ...
 
-class UsersAPI(BaseAPI):
+class UsersAPI(APINamespace):
     """
     Functions available in api.users, e.g., api.users.admin_exists(...)
     """
@@ -630,7 +630,7 @@ class UsersAPI(BaseAPI):
         """
         ...
 
-class ResourcesAPI(BaseAPI):
+class ResourcesAPI(APINamespace):
     """
     Functions available in api.resources, e.g., api.resources.find_lanes(...)
     """
@@ -909,7 +909,7 @@ class ResourcesAPI(BaseAPI):
         """
         ...
 
-class AssetsAPI(BaseAPI):
+class AssetsAPI(APINamespace):
     """
     Functions available in api.assets, e.g., api.assets.find(...)
     """
@@ -984,7 +984,7 @@ class AssetsAPI(BaseAPI):
         """
         ...
 
-class JobsAPI(BaseAPI):
+class JobsAPI(APINamespace):
     """
     Functions available in api.jobs, e.g., api.jobs.find(...)
     """
@@ -2236,7 +2236,7 @@ class JobsAPI(BaseAPI):
         """
         ...
 
-class WorkspacesAPI(BaseAPI):
+class WorkspacesAPI(APINamespace):
     """
     Functions available in api.workspaces, e.g., api.workspaces.find(...)
     """
@@ -2506,7 +2506,7 @@ class WorkspacesAPI(BaseAPI):
         """
         ...
 
-class SessionsAPI(BaseAPI):
+class SessionsAPI(APINamespace):
     """
     Functions available in api.sessions, e.g., api.sessions.find(...)
     """
@@ -3698,7 +3698,7 @@ class SessionsAPI(BaseAPI):
         """
         ...
 
-class ExposuresAPI(BaseAPI):
+class ExposuresAPI(APINamespace):
     """
     Functions available in api.exposures, e.g., api.exposures.find(...)
     """
@@ -3952,7 +3952,7 @@ class ExposuresAPI(BaseAPI):
         """
         ...
 
-class ProjectsAPI(BaseAPI):
+class ProjectsAPI(APINamespace):
     """
     Functions available in api.projects, e.g., api.projects.check_directory(...)
     """
@@ -4575,7 +4575,7 @@ class ProjectsAPI(BaseAPI):
         """
         ...
 
-class TagsAPI(BaseAPI):
+class TagsAPI(APINamespace):
     """
     Functions available in api.tags, e.g., api.tags.find(...)
     """
@@ -4712,7 +4712,7 @@ class TagsAPI(BaseAPI):
         """
         ...
 
-class NotificationsAPI(BaseAPI):
+class NotificationsAPI(APINamespace):
     """
     Functions available in api.notifications, e.g., api.notifications.deactivate_notification(...)
     """
@@ -4729,7 +4729,7 @@ class NotificationsAPI(BaseAPI):
         """
         ...
 
-class BlueprintsAPI(BaseAPI):
+class BlueprintsAPI(APINamespace):
     """
     Functions available in api.blueprints, e.g., api.blueprints.create_blueprint(...)
     """
@@ -4797,7 +4797,7 @@ class BlueprintsAPI(BaseAPI):
         """
         ...
 
-class WorkflowsAPI(BaseAPI):
+class WorkflowsAPI(APINamespace):
     """
     Functions available in api.workflows, e.g., api.workflows.create_workflow(...)
     """
@@ -4852,7 +4852,7 @@ class WorkflowsAPI(BaseAPI):
         """
         ...
 
-class ExternalAPI(BaseAPI):
+class ExternalAPI(APINamespace):
     """
     Functions available in api.external, e.g., api.external.get_empiar_latest_entries(...)
     """
@@ -4899,7 +4899,7 @@ class ExternalAPI(BaseAPI):
         """
         ...
 
-class BenchmarksAPI(BaseAPI):
+class BenchmarksAPI(APINamespace):
     """
     Functions available in api.benchmarks, e.g., api.benchmarks.get_reference_benchmarks(...)
     """
@@ -4923,7 +4923,7 @@ class BenchmarksAPI(BaseAPI):
         """
         ...
 
-class DeveloperAPI(BaseAPI):
+class DeveloperAPI(APINamespace):
     """
     Functions available in api.developer, e.g., api.developer.get_developers(...)
     """
