@@ -51,6 +51,7 @@ sphinx:
     autodocsumm_section_sorter: true
     templates_path: ["_templates"]
     add_module_names: False
+    autodoc_class_signature: "separated"
   extra_extensions:
     - "sphinx.ext.autodoc"
     - "sphinx.ext.autosummary"

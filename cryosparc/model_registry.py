@@ -5,6 +5,7 @@ from .models import (
     api_response,
     asset,
     auth,
+    benchmarks,
     config,
     diagnostics,
     event,
@@ -59,6 +60,7 @@ register_model_module(params, include_literals=True)
 register_model_module(license, include_literals=True)
 register_model_module(services, include_literals=True)
 register_model_module(notification, include_literals=True)
+register_model_module(benchmarks, include_literals=True)
 register_model_module(diagnostics, include_literals=True)
 register_model_module(scheduler_lane, include_literals=True)
 register_model_module(session_spec, include_literals=True)
