@@ -1,7 +1,7 @@
-include cryosparc/core.pyx
-include cryosparc/dataset.c
-include cryosparc/dataset.pxd
-include cryosparc/lz4.pxd
+include cryosparc/dataset/core.pyx
+include cryosparc/dataset/dataset.c
+include cryosparc/dataset/dataset.pxd
+include cryosparc/dataset/lz4.pxd
 include cryosparc/include/cryosparc-tools/dataset.h
 include cryosparc/include/lz4/lib/lz4.h
 include cryosparc/include/lz4/lib/lz4.c

@@ -23,7 +23,7 @@ Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-to
 
 ## Pre-requisites
 
-- [Python ≥ 3.7](https://www.python.org/downloads/)
+- [Python ≥ 3.8](https://www.python.org/downloads/)
 - [CryoSPARC ≥ v4.1](https://cryosparc.com/download)
 
 CryoSPARC installation must be accessible via one of the following methods:
@@ -188,7 +188,6 @@ environment variables. To do the same, define `CRYOSPARC_LICENSE`,
 CryoSPARC license and login credentials:
 
 ```sh
-CRYOSPARC_LICENSE_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
 CRYOSPARC_EMAIL="ali@example.com" \
 CRYOSPARC_PASSWORD="password123" \
 jupyter notebook --no-browser --ip=0.0.0.0 --port=8888

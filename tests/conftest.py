@@ -1,17 +1,33 @@
-import json
 import shutil
 import urllib.request
-from io import BytesIO
+from datetime import datetime, timezone
 from pathlib import Path
 from time import time
-from typing import Any, Dict
+from unittest import mock
 
-import httpretty
 import numpy as n
 import pytest
 
-from cryosparc.dataset import CSDAT_FORMAT, Row
+from cryosparc.api import APIClient
+from cryosparc.controllers.project import ProjectController
 from cryosparc.dataset import Dataset as BaseDataset
+from cryosparc.dataset import Row
+from cryosparc.models.auth import Token
+from cryosparc.models.job import Job
+from cryosparc.models.job_spec import (
+    Connection,
+    Input,
+    InputResult,
+    Inputs,
+    JobSpec,
+    Output,
+    OutputResult,
+    Outputs,
+    Params,
+    ResourceSpec,
+)
+from cryosparc.models.project import Project
+from cryosparc.models.user import Email, User
 from cryosparc.tools import CryoSPARC
 from cryosparc.util import default_rng
 
@@ -96,225 +112,6 @@ T20S_PARTICLES_PASSTHROUGH = Dataset(
     ])
 )
 # fmt: on
-
-
-@pytest.fixture
-def mock_jsonrpc_procs_core() -> Dict[str, Any]:
-    """
-    Dictionary of JSON RPC method names and their return values. Can override
-    existing values in subfixtures.
-    """
-    return {
-        "hello_world": {"hello": "world"},
-        "get_running_version": "develop",
-        "get_id_by_email_password": "6372a35e821ed2b71d9fe4e3",
-        "get_job": {
-            "uid": "J1",
-            "project_uid": "P1",
-            "job_type": "homo_abinit",
-            "title": "New Job",
-            "description": "",
-            "created_by_user_id": "6372a35e821ed2b71d9fe4e3",
-            "output_results": [
-                {
-                    "uid": "J1-R3",
-                    "type": "particle.blob",
-                    "group_name": "particles_class_0",
-                    "name": "blob",
-                    "title": "Particle data",
-                    "description": "Particle raw data",
-                    "min_fields": [
-                        ["path", "O"],
-                        ["idx", "u4"],
-                        ["shape", "2u4"],
-                        ["psize_A", "f4"],
-                        ["sign", "f4"],
-                        ["import_sig", "u8"],
-                    ],
-                    "versions": [0, 100, 200, 300, 400, 500, 600, 700, 800, 863],
-                    "metafiles": [
-                        "J1/J1_class_00_00000_particles.cs",
-                        "J1/J1_class_00_00100_particles.cs",
-                        "J1/J1_class_00_00200_particles.cs",
-                        "J1/J1_class_00_00300_particles.cs",
-                        "J1/J1_class_00_00400_particles.cs",
-                        "J1/J1_class_00_00500_particles.cs",
-                        "J1/J1_class_00_00600_particles.cs",
-                        "J1/J1_class_00_00700_particles.cs",
-                        "J1/J1_class_00_00800_particles.cs",
-                        "J1/J1_class_00_final_particles.cs",
-                    ],
-                    "num_items": [90, 9090, 12421, 12421, 12421, 12421, 12421, 12421, 12421, 12421],
-                    "passthrough": False,
-                },
-                {
-                    "uid": "J1-R4",
-                    "type": "particle.ctf",
-                    "group_name": "particles_class_0",
-                    "name": "ctf",
-                    "title": "Particle CTF parameters",
-                    "description": "Particle CTF parameters",
-                    "min_fields": [
-                        ["type", "O"],
-                        ["exp_group_id", "u4"],
-                        ["accel_kv", "f4"],
-                        ["cs_mm", "f4"],
-                        ["amp_contrast", "f4"],
-                        ["df1_A", "f4"],
-                        ["df2_A", "f4"],
-                        ["df_angle_rad", "f4"],
-                        ["phase_shift_rad", "f4"],
-                        ["scale", "f4"],
-                        ["scale_const", "f4"],
-                        ["shift_A", "2f4"],
-                        ["tilt_A", "2f4"],
-                        ["trefoil_A", "2f4"],
-                        ["tetra_A", "4f4"],
-                        ["anisomag", "4f4"],
-                        ["bfactor", "f4"],
-                    ],
-                    "versions": [0, 100, 200, 300, 400, 500, 600, 700, 800, 863],
-                    "metafiles": [
-                        "J1/J1_class_00_00000_particles.cs",
-                        "J1/J1_class_00_00100_particles.cs",
-                        "J1/J1_class_00_00200_particles.cs",
-                        "J1/J1_class_00_00300_particles.cs",
-                        "J1/J1_class_00_00400_particles.cs",
-                        "J1/J1_class_00_00500_particles.cs",
-                        "J1/J1_class_00_00600_particles.cs",
-                        "J1/J1_class_00_00700_particles.cs",
-                        "J1/J1_class_00_00800_particles.cs",
-                        "J1/J1_class_00_final_particles.cs",
-                    ],
-                    "num_items": [90, 9090, 12421, 12421, 12421, 12421, 12421, 12421, 12421, 12421],
-                    "passthrough": False,
-                },
-                {  # Empty to test a partially incomplete job
-                    "uid": "J1-R7",
-                    "type": "particle.pick_stats",
-                    "group_name": "particles_class_0",
-                    "name": "pick_stats",
-                    "title": "Passthrough pick_stats",
-                    "description": "Passthrough from input particles.pick_stats (result_name)",
-                    "min_fields": [["ncc_score", "f4"], ["power", "f4"], ["template_idx", "u4"], ["angle_rad", "f4"]],
-                    "versions": [],
-                    "metafiles": [],
-                    "num_items": [],
-                    "passthrough": True,
-                },
-                {
-                    "uid": "J1-R8",
-                    "type": "particle.location",
-                    "group_name": "particles_class_0",
-                    "name": "location",
-                    "title": "Passthrough location",
-                    "description": "Passthrough from input particles.location (result_name)",
-                    "min_fields": [
-                        ["micrograph_uid", "u8"],
-                        ["exp_group_id", "u4"],
-                        ["micrograph_path", "O"],
-                        ["micrograph_shape", "2u4"],
-                        ["center_x_frac", "f4"],
-                        ["center_y_frac", "f4"],
-                    ],
-                    "versions": [0],
-                    "metafiles": ["J1/J1_passthrough_particles_class_0.cs"],
-                    "num_items": [12421],
-                    "passthrough": True,
-                },
-                {
-                    "uid": "J1-R9",
-                    "type": "volume.blob",
-                    "group_name": "volume_class_0",
-                    "name": "map",
-                    "title": "Volume data",
-                    "description": "Volume raw data",
-                    "min_fields": [["path", "O"], ["shape", "3u4"], ["psize_A", "f4"]],
-                    "versions": [0, 100, 200, 300, 400, 500, 600, 700, 800, 862],
-                    "metafiles": [
-                        "J1/J1_class_00_00000_volume.cs",
-                        "J1/J1_class_00_00100_volume.cs",
-                        "J1/J1_class_00_00200_volume.cs",
-                        "J1/J1_class_00_00300_volume.cs",
-                        "J1/J1_class_00_00400_volume.cs",
-                        "J1/J1_class_00_00500_volume.cs",
-                        "J1/J1_class_00_00600_volume.cs",
-                        "J1/J1_class_00_00700_volume.cs",
-                        "J1/J1_class_00_00800_volume.cs",
-                        "J1/J1_class_00_final_volume.cs",
-                    ],
-                    "num_items": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                    "passthrough": False,
-                },
-            ],
-        },
-        "get_project_dir_abs": "/projects/my-project",
-        "get_project": {"uid": "P1", "title": "My Project"},
-        "make_job": "J1",
-        "set_cluster_job_custom_vars": None,
-        "enqueue_job": "queued",
-        "job_send_streamlog": None,
-        "job_connect_group": True,
-        "job_set_param": True,
-    }
-
-
-@pytest.fixture
-def request_callback_core(mock_jsonrpc_procs_core):
-    def request_callback_core_fn(request, uri, response_headers):
-        body = json.loads(request.body)
-        mock_jsonrpc_procs_core["system.describe"] = {"procs": [{"name": m} for m in mock_jsonrpc_procs_core]}
-        response_headers["content-type"] = "application/json"
-        return [200, response_headers, json.dumps({"result": mock_jsonrpc_procs_core[body["method"]]})]
-
-    return request_callback_core_fn
-
-
-@pytest.fixture
-def mock_jsonrpc_procs_vis() -> Dict[str, Any]:
-    return {
-        "hello_world": {"hello": "world"},
-    }
-
-
-@pytest.fixture
-def request_callback_vis(mock_jsonrpc_procs_vis):
-    def request_callback_vis_fn(request, uri, response_headers):
-        body = json.loads(request.body)
-
-        mock_jsonrpc_procs_vis["system.describe"] = {"procs": [{"name": m} for m in mock_jsonrpc_procs_vis]}
-        response_headers["content-type"] = "application/json"
-        return [200, response_headers, json.dumps({"result": mock_jsonrpc_procs_vis[body["method"]]})]
-
-    return request_callback_vis_fn
-
-
-def request_callback_vis_get_project_file(request, uri, response_headers):
-    body = json.loads(request.body)
-    data = b""
-    dset = None
-    if body["project_uid"] == "P1" and body["path"] == "J1/J1_class_00_final_particles.cs":
-        dset = T20S_PARTICLES
-    elif body["project_uid"] == "P1" and body["path"] == "J1/J1_passthrough_particles_class_0.cs":
-        dset = T20S_PARTICLES_PASSTHROUGH
-    else:
-        raise RuntimeError(f"Unimplemented get_project_file pytest fixture for request body {body}")
-
-    if dset:
-        bio = BytesIO()
-        dset.save(bio, format=CSDAT_FORMAT)
-        bio.seek(0)
-        data = bio.read()
-
-    return [200, response_headers, data]
-
-
-def request_callback_rtp(request, uri, response_headers):
-    body = json.loads(request.body)
-    procs: Dict[str, Any] = {"hello_world": {"hello": "world"}}
-    procs["system.describe"] = {"procs": [{"name": m} for m in procs]}
-    response_headers["content-type"] = "application/json"
-    return [200, response_headers, json.dumps({"result": procs[body["method"]]})]
 
 
 @pytest.fixture(scope="session")
@@ -427,21 +224,205 @@ def t20s_particles_passthrough():
 
 
 @pytest.fixture
-def cs(request_callback_core, request_callback_vis):
-    httpretty.enable(verbose=False, allow_net_connect=False)
-    httpretty.register_uri(httpretty.POST, "http://localhost:39002/api", body=request_callback_core)  # type: ignore
-    httpretty.register_uri(httpretty.POST, "http://localhost:39003/api", body=request_callback_vis)  # type: ignore
-    httpretty.register_uri(
-        httpretty.POST,
-        "http://localhost:39003/get_project_file",
-        body=request_callback_vis_get_project_file,  # type: ignore
+def mock_user():
+    return User(
+        _id="6372a35e821ed2b71d9fe4e3",
+        name="test",
+        first_name="Testy",
+        last_name="Tester",
+        emails=[Email(address="test@example.com", verified=True)],
+        roles={"__global_roles__": ["admin"]},
+        register_token=None,
+        allowed_prefix_dir="/",
+        created_at=datetime(2017, 1, 1, tzinfo=timezone.utc),
     )
-    httpretty.register_uri(httpretty.POST, "http://localhost:39005/api", body=request_callback_rtp)  # type: ignore
-    yield CryoSPARC(license="00000000-0000-0000-0000-000000000000", email="test@structura.bio", password="password")
-    httpretty.disable()
-    httpretty.reset()
 
 
 @pytest.fixture
-def project(cs: CryoSPARC):
+def mock_api_client_class(mock_user, monkeypatch):
+    monkeypatch.setattr(APIClient, "__call__", mock.Mock(return_value=None))
+    APIClient.health = mock.Mock(return_value="OK")
+    APIClient.login = mock.Mock(return_value=Token(access_token="abc123", token_type="bearer"))
+    APIClient.users = mock.MagicMock()
+    APIClient.config = mock.MagicMock()
+    APIClient.projects = mock.MagicMock()
+    APIClient.workspaces = mock.MagicMock()
+    APIClient.jobs = mock.MagicMock()
+    APIClient.users.me.return_value = mock_user
+    APIClient.config.get_version.return_value = "develop"
+    return APIClient
+
+
+@pytest.fixture
+def cs(mock_api_client_class):
+    return CryoSPARC(
+        "https://cryosparc.example.com",
+        email="structura@example.com",
+        password="password",
+        host=None,
+        base_port=None,
+    )
+
+
+@pytest.fixture
+def mock_project(mock_user):
+    return Project(
+        _id="67292e95282b26b45d0e8fae",
+        uid="P1",
+        uid_num=1,
+        title="Test Project",
+        project_dir="/home/cryosparc/projects",
+        owner_user_id=mock_user.id,
+        size_last_updated=datetime.now(timezone.utc),
+    )
+
+
+@pytest.fixture
+def project(cs: CryoSPARC, mock_project):
+    APIClient.projects.find_one.return_value = mock_project  # type: ignore
     return cs.find_project("P1")
+
+
+@pytest.fixture
+def mock_new_job(mock_user, mock_project):
+    return Job(
+        _id="67743226e66c192db762b689",
+        uid="J42",
+        uid_num=42,
+        project_uid=mock_project.uid,
+        project_uid_num=mock_project.uid_num,
+        workspace_uids=["W1"],
+        job_dir="J42",
+        status="building",
+        status_num=5,
+        created_by_user_id=mock_user.id,
+        spec=JobSpec(
+            type="homo_abinit",
+            params=Params(),
+            inputs=Inputs({"particles": Input(type="particle", title="Particles")}),
+            outputs=Outputs(
+                {
+                    "particles_class_0": Output(
+                        type="particle",
+                        title="Particles Class 1",
+                        passthrough="particles",
+                        results=[
+                            OutputResult(name="blob", dtype="blob"),
+                            OutputResult(name="ctf", dtype="ctf"),
+                            OutputResult(name="alignments3D", dtype="alignments3D"),
+                        ],
+                    ),
+                    "volume_class_0": Output(
+                        type="volume",
+                        title="Volume Class 0",
+                        results=[
+                            OutputResult(name="map", dtype="blob"),
+                        ],
+                    ),
+                }
+            ),
+            ui_tile_width=1,
+            ui_tile_height=1,
+            resource_spec=ResourceSpec(),
+        ),
+        build_errors=[],
+        job_dir_size_last_updated=datetime.now(timezone.utc),
+    )
+
+
+@pytest.fixture
+def mock_params():
+    return Params(abinit_K=1, generate_intermediate_results=True, random_seed=2056920808)
+
+
+@pytest.fixture
+def mock_new_job_with_params(mock_new_job: Job, mock_params: Params):
+    job = mock_new_job.model_copy(deep=True)
+    job.spec.params = mock_params
+    return job
+
+
+@pytest.fixture
+def mock_new_job_with_connection(mock_new_job_with_params: Job):
+    job = mock_new_job_with_params.model_copy(deep=True)
+    input_particles = Connection(
+        job_uid="J41",
+        output="particles",
+        results=[
+            InputResult(name="blob", dtype="blob", job_uid="J42", output="particles", result="blob"),
+            InputResult(name="ctf", dtype="ctf", job_uid="J42", output="particles", result="ctf"),
+            # passthrough:
+            InputResult(name=None, dtype="location", job_uid="J42", output="particles", result="location"),
+        ],
+    )
+    passthrough_result = OutputResult(name="location", dtype="location", passthrough=True)
+    job.spec.inputs.root["particles"] = Input(type="particle", title="Particles", connections=[input_particles])
+    job.spec.outputs.root["particles_class_0"].results.append(passthrough_result)
+    return job
+
+
+@pytest.fixture
+def mock_job(mock_new_job_with_connection: Job):  # completed
+    job = mock_new_job_with_connection.model_copy(update={"status": "completed"}, deep=True)
+    # fmt: off
+    output_particles_class_0 = Output(
+        type="particle",
+        title="Particles Class 0",
+        passthrough="particles",
+        results=[
+            OutputResult(
+                name="blob",
+                dtype="blob",
+                versions=[0, 100, 200, 300, 400, 863],
+                metafiles=["J42/class_00_00000_particles.cs", "J42/class_00_00100_particles.cs", "J42/class_00_00200_particles.cs", "J42/class_00_00300_particles.cs", "J42/class_00_00400_particles.cs", "J42/class_00_final_particles.cs"],
+                num_items=[90, 9090, 10000, 10000, 10000, 10000],
+            ),
+            OutputResult(
+                name="ctf",
+                dtype="ctf",
+                versions=[0, 100, 200, 300, 400, 863],
+                metafiles=["J42/class_00_00000_particles.cs", "J42/class_00_00100_particles.cs", "J42/class_00_00200_particles.cs", "J42/class_00_00300_particles.cs", "J42/class_00_00400_particles.cs", "J42/class_00_final_particles.cs"],
+                num_items=[90, 9090, 10000, 10000, 10000, 10000],
+            ),
+            OutputResult(
+                name="alignments3D",
+                dtype="alignments3D",
+                versions=[0, 100, 200, 300, 400, 863],
+                metafiles=["J42/class_00_00000_particles.cs", "J42/class_00_00100_particles.cs", "J42/class_00_00200_particles.cs", "J42/class_00_00300_particles.cs", "J42/class_00_00400_particles.cs", "J42/class_00_final_particles.cs"],
+                num_items=[90, 9090, 10000, 10000, 10000, 10000],
+            ),
+            OutputResult(
+                name="location",
+                dtype="location",
+                versions=[0],
+                metafiles=["J42/passthrough_particles_class_0.cs"],
+                num_items=[10000],
+                passthrough=True,
+            ),
+        ],
+        num_items=10000,
+    )
+    output_volume_class_0 = Output(
+        type="volume",
+        title="Volume Class 0",
+        results=[
+            OutputResult(
+                name="map",
+                dtype="blob",
+                versions=[0, 100, 200, 300, 400, 862],
+                metafiles=["J42/class_00_00000_volume.cs", "J42/class_00_00100_volume.cs", "J42/class_00_00200_volume.cs", "J42/class_00_00300_volume.cs", "J42/class_00_00400_volume.cs", "J42/class_00_final_volume.cs"],
+                num_items=[1, 1, 1, 1, 1, 1],
+            )
+        ],
+        num_items=1,
+    )
+    # fmt: on
+    job.spec.outputs.root["particles_class_0"] = output_particles_class_0
+    job.spec.outputs.root["volume_class_0"] = output_volume_class_0
+    return job
+
+
+@pytest.fixture
+def job(cs: CryoSPARC, project: ProjectController, mock_job: Job):
+    APIClient.jobs.find_one.return_value = mock_job  # type: ignore
+    return project.find_job("J42")

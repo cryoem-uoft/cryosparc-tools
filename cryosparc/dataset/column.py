@@ -2,9 +2,9 @@ from typing import Optional
 
 import numpy as n
 
+from ..util import hashcache, strencodenull
 from .core import Data
 from .dtype import Field, fielddtype
-from .util import hashcache, strencodenull
 
 
 class Column(n.ndarray):
@@ -52,7 +52,9 @@ class Column(n.ndarray):
         dtype = n.dtype(fielddtype(field))
         nrow = data.nrow()
         shape = (nrow, *dtype.shape)
-        buffer = data.getbuf(field[0]).memview if nrow else None
+        buffer = data.getbuf(field[0])
+        if buffer is not None:
+            buffer = buffer.memview
         obj = super().__new__(cls, shape=shape, dtype=dtype.base, buffer=buffer)  # type: ignore
 
         # Keep a reference to the data so that it only gets cleaned up when all

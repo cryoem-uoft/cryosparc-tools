@@ -1,5 +1,5 @@
 PY_EXT_SUFFIX=$(shell python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
-TARGET=cryosparc/core$(PY_EXT_SUFFIX)
+TARGET=cryosparc/dataset/core$(PY_EXT_SUFFIX)
 
 all: $(TARGET)
 
@@ -7,7 +7,7 @@ all: $(TARGET)
 #    Primary build target
 # -----------------------------------------------------------------------------
 
-$(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.toml
+$(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset/dataset.c cryosparc/dataset/*.pyx cryosparc/dataset/*.pxd setup.py pyproject.toml
 	python3 -m setup build_ext -i
 
 # -----------------------------------------------------------------------------

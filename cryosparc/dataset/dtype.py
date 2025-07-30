@@ -3,41 +3,16 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Type, TypedDict, Union
 
 import numpy as n
-from typing_extensions import Literal, Sequence, TypedDict
 
+from ..errors import DatasetLoadError
+from ..spec import DType, Field
 from .core import Data, DsetType
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
-
-Shape = Tuple[int, ...]
-"""A numpy shape tuple from ndarray.shape"""
-
-DType = Union[str, Tuple[str, Shape]]
-"""
-
-    Can just be a single string such as "f4", "3u4" or "O".
-    A datatype description of a ndarray entry.
-
-    Can also be the a tuple with a string datatype name and its shape. For
-    example, the following dtypes are equivalent.
-
-    - "3u4"
-    - "<u4", (3,))
-"""
-
-Field = Union[Tuple[str, str], Tuple[str, str, Shape]]
-"""
-    Description of a column in a numpy array with named fields
-
-    Examples:
-    - ("uid", "u8")
-    - ("coords", "3f4")
-    - ("coords", "<f4", (3,))
-"""
 
 
 class DatasetHeader(TypedDict):
@@ -60,7 +35,7 @@ class DatasetHeader(TypedDict):
     """Field names that require decompression."""
 
 
-DSET_TO_TYPE_MAP: Dict[DsetType, Type] = {
+DSET_TO_TYPE_MAP: Dict[DsetType, Type[Union[n.number, n.object_]]] = {
     DsetType.T_F32: n.float32,
     DsetType.T_F64: n.float64,
     DsetType.T_C32: n.complex64,
@@ -132,8 +107,10 @@ def get_data_field(data: Data, field: str) -> Field:
 
 def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
     t = data.type(field)
-    if t == 0 or t not in DSET_TO_TYPE_MAP:
-        raise KeyError(f"Unknown dataset field {field} or field type {t}")
+    if t == 0:
+        raise KeyError(f"Unknown dataset field {field}")
+    elif t not in DSET_TO_TYPE_MAP:
+        raise KeyError(f"Unknown dataset field type {t}")
     dt = n.dtype(DSET_TO_TYPE_MAP[t])
     shape = data.getshp(field)
     return (dt.str, shape) if shape else dt.str
@@ -194,4 +171,6 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
             compressed_fields=compressed_fields,
         )
     except Exception as e:
-        raise ValueError(f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}") from e
+        raise DatasetLoadError(
+            f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}"
+        ) from e

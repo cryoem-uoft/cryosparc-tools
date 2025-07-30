@@ -66,5 +66,6 @@ ipython_config.py
 .ruff_cache
 .vercel
 cryosparc/core.c
+cryosparc/dataset/core.c
 *.dSYM
 cython_debug

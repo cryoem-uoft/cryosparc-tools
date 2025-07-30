@@ -33,14 +33,16 @@ from typing import (
     Callable,
     Collection,
     Dict,
-    Generator,
     Generic,
+    Iterator,
     List,
+    Literal,
     Mapping,
     MutableMapping,
     Optional,
     Sequence,
     Set,
+    SupportsIndex,
     Tuple,
     Type,
     Union,
@@ -48,8 +50,11 @@ from typing import (
 )
 
 import numpy as n
-from typing_extensions import Literal, SupportsIndex
 
+from ..constants import ONE_MIB
+from ..errors import DatasetLoadError
+from ..stream import AsyncReadable, Streamable
+from ..util import bopen, default_rng, random_integers, u32bytesle, u32intle
 from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
@@ -66,15 +71,10 @@ from .dtype import (
     get_data_field_dtype,
     normalize_field,
 )
-from .errors import DatasetLoadError
 from .row import R, Row, Spool
-from .stream import AsyncBinaryIO, Streamable
-from .util import bopen, default_rng, random_integers, u32bytesle, u32intle
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, DTypeLike, NDArray
-
-    from .core import MemoryView
 
 
 # Save format options
@@ -109,7 +109,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     """
     Accessor class for working with CryoSPARC .cs files.
 
-    A dataset may be initialized with ``Dataset(data)`` where ``data`` is
+    Load a dataset from disk with ``Dataset.load("/path/to/dataset.cs")``.
+
+    Initialize a new dataset with ``Dataset(data)`` where ``data`` is
     one of the following:
 
     * A size of items to allocate (e.g., 42)
@@ -147,6 +149,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
     __slots__ = ("_row_class", "_rows", "_data")
 
+    media_type = "application/x-cryosparc-dataset"
     _row_class: Type[R]
     _rows: Optional[Spool[R]]
     _data: Data
@@ -570,6 +573,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         prefixes: Optional[Sequence[str]] = None,
         fields: Optional[Sequence[str]] = None,
         cstrs: bool = False,
+        media_type: Optional[str] = None,  # for interface, otherwise unused
     ):
         """
         Read a dataset from path or file handle.
@@ -632,8 +636,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     ):
         import os
 
-        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false
-        if os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true" and isinstance(file, (str, PurePath)):
+        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false or dataset is small
+        if (
+            os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true"
+            and isinstance(file, (str, PurePath))
+            and os.stat(file).st_size > ONE_MIB
+        ):
             # Use mmap to avoid loading full record array into memory
             # cast path to a string for older numpy/python
             mmap_mode, f = "r", str(file)
@@ -682,16 +690,17 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
         field_names = {field[0] for field in descr}
 
-        # Calling addrows separately to minimizes column-based
-        # allocations, improves performance by ~20%
+        # Calling addrows separately to minimize column-based allocations,
+        # improves performance by ~20%
         dset = cls.allocate(0, descr)
-        if header["length"] == 0:
-            return dset  # no more data to load
-
         data = dset._data
         data.addrows(header["length"])
+
+        # If a dataset is empty, it won't have anything in its data section.
+        # Just the string heap at the end.
+        dtype = [] if header["length"] == 0 else header["dtype"]
         loader = Stream(data)
-        for field in header["dtype"]:
+        for field in dtype:
             colsize = u32intle(f.read(4))
             if field[0] not in field_names:
                 # try to seek instead of read to reduce memory usage
@@ -700,8 +709,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             buffer = f.read(colsize)
             if field[0] in header["compressed_fields"]:
                 loader.decompress_col(field[0], buffer)
-            else:
-                data.getbuf(field[0])[:] = buffer
+                continue
+            mem = data.getbuf(field[0])
+            assert mem is not None, f"Could not load stream (missing {field[0]} buffer)"
+            mem[:] = buffer
 
         # Read in the string heap (rest of stream)
         # NOTE: There will be a bug here for long column keys that are
@@ -717,7 +728,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return dset
 
     @classmethod
-    async def from_async_stream(cls, stream: AsyncBinaryIO):
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None):
+        prefix = await stream.read(6)
+        if prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
+            raise DatasetLoadError(
+                f"Incorrect async dataset stream format {prefix}. "
+                "Only CSDAT-formatted datasets may be loaded as async streams"
+            )
         headersize = u32intle(await stream.read(4))
         header = decode_dataset_header(await stream.read(headersize))
 
@@ -725,16 +742,22 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dset = cls.allocate(0, header["dtype"])
         data = dset._data
         data.addrows(header["length"])
+
+        # If a dataset is empty, it won't have anything in its data section.
+        # Just the string heap at the end.
+        dtype = [] if header["length"] == 0 else header["dtype"]
         loader = Stream(data)
-        for field in header["dtype"]:
+        for field in dtype:
             colsize = u32intle(await stream.read(4))
             buffer = await stream.read(colsize)
             if field[0] in header["compressed_fields"]:
                 loader.decompress_col(field[0], buffer)
-            else:
-                data.getbuf(field[0])[:] = buffer
+                continue
+            mem = data.getbuf(field[0])
+            assert mem is not None, f"Could not load stream (missing {field[0]} buffer)"
+            mem[:] = buffer
 
-        heap = stream.read()
+        heap = await stream.read()
         data.setstrheap(heap)
 
         # Convert C strings to Python strings
@@ -742,7 +765,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dset.to_pystrs()
         return dset
 
-    def save(self, file: Union[str, PurePath, IO[bytes]], format: int = DEFAULT_FORMAT):
+    def save(self, file: Union[str, PurePath, IO[bytes]], *, format: int = DEFAULT_FORMAT):
         """
         Save a dataset to the given path or I/O buffer.
 
@@ -770,7 +793,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["lz4", None] = None) -> Generator[bytes, None, None]:
+    def stream(self, compression: Literal["lz4", None] = None) -> Iterator[bytes]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -802,16 +825,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         yield u32bytesle(len(header))
         yield header
 
-        if len(self) == 0:
-            return  # empty dataset, don't yield anything
-
-        for f in self:
-            fielddata: "MemoryView"
+        fields = [] if len(self) == 0 else self.fields()
+        for f in fields:
             if f in compressed_fields:
                 # obj columns added to strheap and loaded as indexes
                 fielddata = stream.compress_col(f)
             else:
                 fielddata = stream.stralloc_col(f) or data.getbuf(f)
+            assert fielddata is not None, f"Could not stream dataset (missing {f} buffer)"
             yield u32bytesle(len(fielddata))
             yield bytes(fielddata.memview)
 
@@ -1230,7 +1251,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if rename and rename != keep_prefix:
             new_fields = [f"{rename}/{f.split('/', 1)[1]}" for f in keep_fields]
 
-        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])
+        result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])  # type: ignore
         return result if copy else self._reset(result._data)
 
     def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
@@ -1249,7 +1270,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: current dataset or copy with fields removed
         """
-        test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))  # type: ignore
+        test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))
         return self.filter_fields(test, copy=copy)
 
     def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], *, copy: bool = False):
@@ -1265,8 +1286,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: current dataset or copy with fields renamed
         """
+        fm: Callable[[str], str]
         if isinstance(field_map, dict):
-            fm = lambda x: field_map.get(x, x)  # noqa
+            fm = lambda x: field_map.get(x, x)  # noqa: E731
         else:
             fm = field_map
 
@@ -1304,7 +1326,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         prefix_map = {old_prefix: new_prefix}
 
-        def field_map(name):
+        def field_map(name: str):
             prefix, base = name.split("/")
             return prefix_map.get(prefix, prefix) + "/" + base
 
@@ -1685,8 +1707,32 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return self
 
+    # Autocomplete fields for ipython/jupyter
     def _ipython_key_completions_(self):
         return self.fields()
+
+    # Represent as HTML for jupyter
+    def _repr_html_(self):
+        length = len(self)
+        fields = self.fields()
+        tr_open = "    <tr>"
+        tr_close = "    </tr>"
+        th = "      <th>{}</th>"
+        td = "      <td>{}</td>"
+
+        html = ["<table>", "  <thead>"]
+        html += [tr_open, th.format("")] + [th.format(field) for field in fields] + [tr_close]
+        html += ["  </thead>", "  <tbody>"]
+        gap_start = min(length, 5)  # "..." row begins after this index
+        gap_stop = max(length - (5 if length == 10 else 4), gap_start)  # proceed from this index after "..." row
+        for i in range(0, gap_start):
+            html += [tr_open, td.format(i)] + [td.format(self[field][i]) for field in fields] + [tr_close]
+        if length > 10:  # draw the "..." gap row
+            html += [tr_open, td.format("...")] + [td.format("...") for field in fields] + [tr_close]
+        for i in range(gap_stop, length):
+            html += [tr_open, td.format(i)] + [td.format(self[field][i]) for field in fields] + [tr_close]
+        html += ["  </body>", "</table>"]
+        return "\n".join(html)
 
 
 def generate_uids(num: int = 0):

@@ -1,64 +1,125 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+import warnings
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
-from .dataset import Dataset
-from .job import ExternalJob, Job
-from .row import R
-from .spec import Datatype, MongoController, SlotSpec, WorkspaceDocument
+from typing_extensions import Unpack
+
+from ..dataset import Dataset
+from ..dataset.row import R
+from ..models.workspace import Workspace
+from ..search import JobSearch
+from ..spec import Datatype, SlotSpec
+from . import Controller, as_output_slot
+from .job import ExternalJobController, JobController
 
 if TYPE_CHECKING:
-    from .tools import CryoSPARC
+    from ..tools import CryoSPARC
 
 
-class Workspace(MongoController[WorkspaceDocument]):
+class WorkspaceController(Controller[Workspace]):
     """
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
-    results. Should be instantiated through `CryoSPARC.find_workspace`_ or
-    `Project.find_workspace`_.
+    results. Should be created with`
+    :py:meth:`cs.find_workspace() <cryosparc.tools.CryoSPARC.find_workspace>` or
+    :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`.
+
+    Arguments:
+        workspace (tuple[str, str] | Workspace): either _(Project UID, Workspace UID)_
+            tuple or Workspace model, e.g. ``("P3", "W4")``
 
     Attributes:
-        uid (str): Workspace unique ID, e.g., "W42"
-        project_uid (str): Project unique ID, e.g., "P3"
-        doc (WorkspaceDocument): All workspace data from the CryoSPARC database.
-            Database contents may change over time, use the `refresh`_ method
-            to update.
-
-    .. _CryoSPARC.find_workspace:
-        tools.html#cryosparc.tools.CryoSPARC.find_workspace
-
-    .. _Project.find_workspace:
-        project.html#cryosparc.project.Project.find_workspace
-
-    .. _refresh:
-        #cryosparc.workspace.Workspace.refresh
+        model (Workspace): All workspace data from the CryoSPARC database.
+            Contents may change over time, use :py:method:`refresh` to update.
     """
 
-    def __init__(self, cs: "CryoSPARC", project_uid: str, uid: str) -> None:
+    uid: str
+    """
+    Workspace unique ID, e.g., "W42"
+    """
+    project_uid: str
+    """
+    Project unique ID, e.g., "P3"
+    """
+
+    def __init__(self, cs: "CryoSPARC", workspace: Union[Tuple[str, str], Workspace]) -> None:
         self.cs = cs
-        self.project_uid = project_uid
-        self.uid = uid
+        if isinstance(workspace, tuple):
+            self.project_uid, self.uid = workspace
+            self.refresh()
+        else:
+            self.project_uid = workspace.project_uid
+            self.uid = workspace.uid
+            self.model = workspace
+
+    @property
+    def title(self) -> Optional[str]:
+        """Workspace title"""
+        return self.model.title
+
+    @property
+    def desc(self) -> Optional[str]:
+        """Workspace description"""
+        return self.model.description
 
     def refresh(self):
         """
         Reload this workspace from the CryoSPARC database.
 
         Returns:
-            Workspace: self
+            WorkspaceController: self
         """
-        self._doc = self.cs.cli.get_workspace(self.project_uid, self.uid)  # type: ignore
+        self.model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
+
+    def find_jobs(self, *, order: Literal[1, -1] = 1, **search: Unpack[JobSearch]) -> Iterable[JobController]:
+        """
+        Search jobs in the current workspace.
+
+        Example:
+            >>> jobs = workspace.find_jobs()  # all jobs in workspace
+            >>> jobs = workspace.find_jobs(
+            ...     type="homo_reconstruct",
+            ...     completed_at=(datetime(2025, 3, 1), datetime(2025, 3, 31)),
+            ...     order=-1,
+            ... )
+            >>> for job in jobs:
+            ...     print(job.uid)
+
+        Args:
+            **search (JobSearch): Additional search parameters to filter jobs,
+                specified as keyword arguments.
+
+        Returns:
+            Iterable[JobController]: job accessor objects
+        """
+        return self.cs.find_jobs(self.project_uid, workspace_uid=self.uid, order=order, **search)
+
+    def find_job(self, job_uid: str) -> JobController:
+        """
+        Find a job in the current workspace by its UID.
+
+        Args:
+            job_uid (str): Job UID to find, e.g., "J42"
+
+        Returns:
+            JobController: job accessor object
+        """
+        jobs = self.cs.api.jobs.find(project_uid=[self.project_uid], workspace_uid=[self.uid], uid=[job_uid], limit=1)
+        if len(jobs) == 0:
+            raise ValueError(f"Job {job_uid} not found in workspace {self.project_uid}-{self.uid}")
+        return JobController(self.cs, jobs[0])
 
     def create_job(
         self,
         type: str,
         connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
         params: Dict[str, Any] = {},
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
-    ) -> Job:
+        title: str = "",
+        desc: str = "",
+    ) -> JobController:
         """
-        Create a new job with the given type. Use the
-        `CryoSPARC.get_job_sections`_ method to query available job types on
-        the connected CryoSPARC instance.
+        Create a new job with the given type. Use
+        :py:attr:`cs.job_register <cryosparc.tools.CryoSPARC.job_register>`
+        to find available job types on the connected CryoSPARC instance.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -69,11 +130,11 @@ class Workspace(MongoController[WorkspaceDocument]):
                 value is a (job uid, output name) tuple. Defaults to {}
             params (dict[str, any], optional): Specify parameter values.
                 Defaults to {}.
-            title (str, optional): Job title. Defaults to None.
-            desc (str, optional): Job markdown description. Defaults to None.
+            title (str, optional): Job title. Defaults to "".
+            desc (str, optional): Job markdown description. Defaults to "".
 
         Returns:
-            Job: created job instance. Raises error if job cannot be created.
+            JobController: created job instance. Raises error if job cannot be created.
 
         Examples:
 
@@ -92,9 +153,6 @@ class Workspace(MongoController[WorkspaceDocument]):
             ...     connections={"particles": ("J20", "particles_selected")}
             ...     params={"abinit_K": 3}
             ... )
-
-        .. _CryoSPARC.get_job_sections:
-            tools.html#cryosparc.tools.CryoSPARC.get_job_sections
         """
         return self.cs.create_job(
             self.project_uid, self.uid, type, connections=connections, params=params, title=title, desc=desc
@@ -102,21 +160,21 @@ class Workspace(MongoController[WorkspaceDocument]):
 
     def create_external_job(
         self,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
-    ) -> ExternalJob:
+        title: str = "",
+        desc: str = "",
+    ) -> ExternalJobController:
         """
         Add a new External job to this workspace to save generated outputs to.
 
         Args:
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             title (str, optional): Title for external job (recommended).
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for external job.
-                Defaults to None.
+                Defaults to "".
 
         Returns:
-            ExternalJob: created external job instance
+            ExternalJobController: created external job instance
         """
         return self.cs.create_external_job(self.project_uid, self.uid, title, desc)
 
@@ -127,8 +185,8 @@ class Workspace(MongoController[WorkspaceDocument]):
         name: Optional[str] = None,
         slots: Optional[List[SlotSpec]] = None,
         passthrough: Optional[Tuple[str, str]] = None,
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str = "",
+        desc: str = "",
     ) -> str:
         """
         Save the given result dataset to a workspace.
@@ -146,9 +204,9 @@ class Workspace(MongoController[WorkspaceDocument]):
                 inherits slots from the specified output. e.g., ``("J1",
                 "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
-                Defaults to None.
+                Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
-                to None.
+                to "".
 
         Returns:
             str: UID of created job where this output was saved.
@@ -189,6 +247,10 @@ class Workspace(MongoController[WorkspaceDocument]):
             ... )
             "J45"
         """
+        if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
+            warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
+            # convert to prevent from warning again
+            slots = [as_output_slot(slot) for slot in slots]  # type: ignore
         return self.cs.save_external_result(
             self.project_uid,
             self.uid,
