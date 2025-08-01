@@ -70,6 +70,24 @@ class WorkspaceController(Controller[Workspace]):
         self.model = self.cs.api.workspaces.find_one(self.project_uid, self.uid)
         return self
 
+    def set_title(self, title: str):
+        """
+        Set the workspace title.
+
+        Args:
+            title (str): New workspace title
+        """
+        self.model = self.cs.api.workspaces.set_title(self.project_uid, self.uid, title=title)
+
+    def set_desc(self, desc: str):
+        """
+        Set the workspace description. May include Markdown formatting.
+
+        Args:
+            desc (str): New workspace description
+        """
+        self.model = self.cs.api.workspaces.set_description(self.project_uid, self.uid, description=desc)
+
     def find_jobs(self, *, order: Literal[1, -1] = 1, **search: Unpack[JobSearch]) -> Iterable[JobController]:
         """
         Search jobs in the current workspace.

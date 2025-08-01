@@ -73,6 +73,24 @@ class ProjectController(Controller[Project]):
         """Full path to project directory."""
         return PurePosixPathProperty(self.cs.api.projects.get_directory(self.uid))
 
+    def set_title(self, title: str):
+        """
+        Set the project title.
+
+        Args:
+            title (str): New project title
+        """
+        self.model = self.cs.api.projects.set_title(self.uid, title=title)
+
+    def set_desc(self, desc: str):
+        """
+        Set the project description. May include Markdown formatting.
+
+        Args:
+            desc (str): New project description
+        """
+        self.model = self.cs.api.projects.set_description(self.uid, description=desc)
+
     def find_workspaces(self, *, order: Literal[1, -1] = 1) -> Iterable[WorkspaceController]:
         """
         Get all workspaces available in the current project.
