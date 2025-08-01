@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field
 
@@ -76,6 +76,8 @@ class Job(BaseModel):
     autodump: bool = True
     """
     Whether the model was updated recently and must be dumped
+
+    :meta private:
     """
     uid: str
     """
@@ -300,7 +302,7 @@ class Job(BaseModel):
     """
     Enable benchmarking for this job. Used by extensive workflow
     """
-    bench: Dict[str, Any] = {}
+    bench: Dict[str, Union[float, int, Dict[str, Any]]] = {}
     """
     Benchmarking data
     """
@@ -315,10 +317,6 @@ class Job(BaseModel):
     instance_information: InstanceInformation = InstanceInformation()
     """
     Details about the active instance
-    """
-    generate_intermediate_results: bool = False
-    """
-    Should be set to project default upon initialization
     """
     last_intermediate_data_cleared_at: Optional[datetime.datetime] = None
     last_intermediate_data_cleared_amount: int = 0
@@ -336,7 +334,7 @@ class Job(BaseModel):
     no_check_inputs_ready: bool = False
     progress: List[Dict[str, Any]] = []
     """
-    progress log, sometimes stored as None or empty dict in the database
+    Progress log
     """
     last_exported_at: Optional[datetime.datetime] = None
     """

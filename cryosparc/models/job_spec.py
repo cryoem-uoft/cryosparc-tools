@@ -447,15 +447,15 @@ class ResourceSpec(BaseModel):
 
     cpu: int = 1
     """
-    Number required CPU cores
+    Number of required CPU cores
     """
     gpu: int = 0
     """
-    Number required GPUs
+    Number of required GPUs
     """
     ram: int = 1
     """
-    Number of 8GiB slot
+    Number of 8GiB RAM slots
     """
     ssd: bool = False
     """
@@ -477,6 +477,10 @@ class JobSpec(BaseModel):
     params: Params = Params()
     """
     Parameters for job, attributes vary per job type.
+
+    NOTE: After changing a job parameter, the spec may need to be refreshed.
+    Instead of directly modifying this field with job.params.foo = ... ,
+    use job.set_param("foo", ...) instead.
     """
     inputs: Inputs = Inputs()
     """
@@ -488,11 +492,11 @@ class JobSpec(BaseModel):
     """
     ui_tile_width: int
     """
-    How many horizontal tiles this job should take in the UI.
+    Number of horizontal tiles this job should take in the UI.
     """
     ui_tile_height: int
     """
-    How many vertical tiles this job should take in the UI.
+    Number of vertical tiles this job should take in the UI.
     """
     resource_spec: ResourceSpec
     """

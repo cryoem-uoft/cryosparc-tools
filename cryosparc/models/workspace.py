@@ -49,6 +49,8 @@ class Workspace(BaseModel):
     autodump: bool = True
     """
     Whether the model was updated recently and must be dumped
+
+    :meta private:
     """
     uid: str
     project_uid: str

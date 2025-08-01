@@ -239,6 +239,8 @@ class Session(BaseModel):
     autodump: bool = True
     """
     Whether the model was updated recently and must be dumped
+
+    :meta private:
     """
     uid: str
     project_uid: str
@@ -378,7 +380,6 @@ class Session(BaseModel):
     data_management: DataManagementStats = DataManagementStats()
     import_signatures: ImportSignature = ImportSignature()
     exposure_summary: Dict[str, Any] = {}
-    particle_summary: Dict[str, Any] = {}
     exposure_processing_priority: Literal["normal", "oldest", "latest", "alternate"] = "normal"
     last_compacted_amount: int = 0
     last_compacted_at: Optional[datetime.datetime] = None
@@ -393,7 +394,7 @@ class Session(BaseModel):
     """
     (re)start requested - set False by job when it starts
     """
-    phase2_class2D_params_spec: Optional[LiveClass2DParams] = None
+    phase2_class2D_params_spec: LiveClass2DParams = LiveClass2DParams()
     phase2_class2D_params_spec_used: Optional[LiveClass2DParams] = None
     """
     params used at last launch (must be same to be able to resume)

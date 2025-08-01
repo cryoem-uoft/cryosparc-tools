@@ -102,7 +102,7 @@ class APINamespace:
 
 class ConfigAPI(APINamespace):
     """
-    Functions available in api.config, e.g., api.config.set_instance_banner(...)
+    Functions available in ``api.config``, e.g., ``api.config.set_instance_banner(...)``
     """
     def set_instance_banner(
         self, *, active: bool = False, title: Optional[str] = None, body: Optional[str] = None
@@ -202,7 +202,7 @@ class ConfigAPI(APINamespace):
 
 class InstanceAPI(APINamespace):
     """
-    Functions available in api.instance, e.g., api.instance.get_update_tag(...)
+    Functions available in ``api.instance``, e.g., ``api.instance.get_update_tag(...)``
     """
     def get_update_tag(self) -> Optional[UpdateTag]:
         """
@@ -328,7 +328,7 @@ class InstanceAPI(APINamespace):
 
 class CacheAPI(APINamespace):
     """
-    Functions available in api.cache, e.g., api.cache.get(...)
+    Functions available in ``api.cache``, e.g., ``api.cache.get(...)``
     """
     def get(self, key: str, /, *, namespace: Optional[str] = None) -> Any:
         """
@@ -358,7 +358,7 @@ class CacheAPI(APINamespace):
 
 class UsersAPI(APINamespace):
     """
-    Functions available in api.users, e.g., api.users.admin_exists(...)
+    Functions available in ``api.users``, e.g., ``api.users.admin_exists(...)``
     """
     def admin_exists(self) -> bool:
         """
@@ -632,7 +632,7 @@ class UsersAPI(APINamespace):
 
 class ResourcesAPI(APINamespace):
     """
-    Functions available in api.resources, e.g., api.resources.find_lanes(...)
+    Functions available in ``api.resources``, e.g., ``api.resources.find_lanes(...)``
     """
     def find_lanes(self) -> List[SchedulerLane]:
         """
@@ -911,7 +911,7 @@ class ResourcesAPI(APINamespace):
 
 class AssetsAPI(APINamespace):
     """
-    Functions available in api.assets, e.g., api.assets.find(...)
+    Functions available in ``api.assets``, e.g., ``api.assets.find(...)``
     """
     def find(self, *, project_uid: Optional[str] = None, job_uid: Optional[str] = None) -> List[GridFSFile]:
         """
@@ -986,7 +986,7 @@ class AssetsAPI(APINamespace):
 
 class JobsAPI(APINamespace):
     """
-    Functions available in api.jobs, e.g., api.jobs.find(...)
+    Functions available in ``api.jobs``, e.g., ``api.jobs.find(...)``
     """
     def find(
         self,
@@ -2238,7 +2238,7 @@ class JobsAPI(APINamespace):
 
 class WorkspacesAPI(APINamespace):
     """
-    Functions available in api.workspaces, e.g., api.workspaces.find(...)
+    Functions available in ``api.workspaces``, e.g., ``api.workspaces.find(...)``
     """
     def find(
         self,
@@ -2508,7 +2508,7 @@ class WorkspacesAPI(APINamespace):
 
 class SessionsAPI(APINamespace):
     """
-    Functions available in api.sessions, e.g., api.sessions.find(...)
+    Functions available in ``api.sessions``, e.g., ``api.sessions.find(...)``
     """
     def find(
         self,
@@ -3700,7 +3700,7 @@ class SessionsAPI(APINamespace):
 
 class ExposuresAPI(APINamespace):
     """
-    Functions available in api.exposures, e.g., api.exposures.find(...)
+    Functions available in ``api.exposures``, e.g., ``api.exposures.find(...)``
     """
     def find(
         self,
@@ -3954,7 +3954,7 @@ class ExposuresAPI(APINamespace):
 
 class ProjectsAPI(APINamespace):
     """
-    Functions available in api.projects, e.g., api.projects.check_directory(...)
+    Functions available in ``api.projects``, e.g., ``api.projects.check_directory(...)``
     """
     def check_directory(self, *, path: str) -> str:
         """
@@ -4577,7 +4577,7 @@ class ProjectsAPI(APINamespace):
 
 class TagsAPI(APINamespace):
     """
-    Functions available in api.tags, e.g., api.tags.find(...)
+    Functions available in ``api.tags``, e.g., ``api.tags.find(...)``
     """
     def find(
         self,
@@ -4714,7 +4714,7 @@ class TagsAPI(APINamespace):
 
 class NotificationsAPI(APINamespace):
     """
-    Functions available in api.notifications, e.g., api.notifications.deactivate_notification(...)
+    Functions available in ``api.notifications``, e.g., ``api.notifications.deactivate_notification(...)``
     """
     def deactivate_notification(self, notification_id: str, /) -> Notification:
         """
@@ -4731,7 +4731,7 @@ class NotificationsAPI(APINamespace):
 
 class BlueprintsAPI(APINamespace):
     """
-    Functions available in api.blueprints, e.g., api.blueprints.create_blueprint(...)
+    Functions available in ``api.blueprints``, e.g., ``api.blueprints.create_blueprint(...)``
     """
     def create_blueprint(
         self,
@@ -4799,7 +4799,7 @@ class BlueprintsAPI(APINamespace):
 
 class WorkflowsAPI(APINamespace):
     """
-    Functions available in api.workflows, e.g., api.workflows.create_workflow(...)
+    Functions available in ``api.workflows``, e.g., ``api.workflows.create_workflow(...)``
     """
     def create_workflow(
         self,
@@ -4854,7 +4854,7 @@ class WorkflowsAPI(APINamespace):
 
 class ExternalAPI(APINamespace):
     """
-    Functions available in api.external, e.g., api.external.get_empiar_latest_entries(...)
+    Functions available in ``api.external``, e.g., ``api.external.get_empiar_latest_entries(...)``
     """
     def get_empiar_latest_entries(self) -> Dict[str, Any]:
         """
@@ -4901,7 +4901,7 @@ class ExternalAPI(APINamespace):
 
 class BenchmarksAPI(APINamespace):
     """
-    Functions available in api.benchmarks, e.g., api.benchmarks.get_reference_benchmarks(...)
+    Functions available in ``api.benchmarks``, e.g., ``api.benchmarks.get_reference_benchmarks(...)``
     """
     def get_reference_benchmarks(self) -> List[ReferencePerformanceBenchmark]:
         """
@@ -4925,7 +4925,7 @@ class BenchmarksAPI(APINamespace):
 
 class DeveloperAPI(APINamespace):
     """
-    Functions available in api.developer, e.g., api.developer.get_developers(...)
+    Functions available in ``api.developer``, e.g., ``api.developer.get_developers(...)``
     """
     def get_developers(self) -> List[str]:
         """

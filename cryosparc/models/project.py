@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class GenerateIntermediateResultsSettings(BaseModel):
-    class_2D: bool = False
+    class_2D_new: bool = False
     class_3D: bool = False
     var_3D_disp: bool = False
 
@@ -57,6 +57,8 @@ class Project(BaseModel):
     autodump: bool = True
     """
     Whether the model was updated recently and must be dumped
+
+    :meta private:
     """
     uid: str
     project_dir: str
