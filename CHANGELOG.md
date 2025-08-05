@@ -3,7 +3,7 @@
 ## v5.0.0
 
 - BREAKING: replaced low-level `CryoSPARC.cli`, `CryoSPARC.rtp` and `CryoSPARC.vis` attributes with single unified `CryoSPARC.api`
-- BREAKING: When a `job.start()` or `job.run()` is called for an external job, changing the job connections with `job.add_input`, `job.add_output` or `job.connect` will now trigger an error. Please add all inputs and outputs and connect all inputs before running an external job.
+Please add all inputs and outputs and connect all inputs before running an external job.
 - BREAKING: `CryoSPARC.download_asset(fileid, target)` no longer accepts a directory target. Must specify a filename.
 - BREAKING: removed `CryoSPARC.get_job_specs()`. Use `CryoSPARC.job_register` instead
 - BREAKING: `CryoSPARC.list_assets()` and `Job.list_assets()` return list of models instead of list of dictionaries, accessible with dot-notation
@@ -19,7 +19,7 @@
 - BREAKING: `CryoSPARC.print_job_types` `section` argument renamed to `category`
   - OLD: `cs.print_job_types(section=["extraction", "refinement"])`
   - NEW: `cs.print_job_types(category=["extraction", "refinement"])`
-- BREAKING: Restructured schema for Job models, many `Job.doc` properties have been internally rearranged
+- BREAKING: Restructured schema for Job models, many Job.doc fields have been internally rearranged. Some fields like `params_spec` and `output_result_groups` are no longer available (replaced with a unified `spec` field)
 - Added: `CryoSPARC.job_register` property
 - Added: `job.load_input()` and `job.load_output()` now accept `"default"`, `"passthrough"` and `"all"` keywords for their `slots` argument
 - Added: `job.alloc_output()` now accepts `dtype_params` argument for fields with dynamic shapes
