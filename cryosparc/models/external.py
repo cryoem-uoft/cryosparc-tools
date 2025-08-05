@@ -13,5 +13,17 @@ class ExternalOutputSpec(BaseModel):
     """
 
     name: str
+    """
+    Name of output to create on external job.
+    """
     spec: OutputSpec
+    """
+    Specification of output.
+    """
     connection: Optional[OutputRef] = None
+    """
+    Optional source job UID and output to connect and passthrough unmodified
+    results to the output. Must have the same type as in the output spec.
+    Input name to create and connect should be defined in ``spec.passthrough``,
+    otherwise will default to ``connection.output``.
+    """

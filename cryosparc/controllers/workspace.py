@@ -28,7 +28,7 @@ class WorkspaceController(Controller[Workspace]):
 
     Attributes:
         model (Workspace): All workspace data from the CryoSPARC database.
-            Contents may change over time, use :py:method:`refresh` to update.
+            Contents may change over time, use :py:meth:`refresh` to update.
     """
 
     uid: str

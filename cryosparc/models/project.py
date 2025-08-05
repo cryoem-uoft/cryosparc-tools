@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class GenerateIntermediateResultsSettings(BaseModel):
-    class_2D: bool = False
+    class_2D_new: bool = False
     class_3D: bool = False
     var_3D_disp: bool = False
 
@@ -30,15 +30,36 @@ class ProjectStats(BaseModel):
 class ProjectWorkflowInfo(BaseModel):
     latest_workflow_uid: str = "WF1"
     runs: Dict[str, int] = {}
+    """
+    workflow_id, run_count
+    """
 
 
 class Project(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
     dumped_at: Optional[datetime.datetime] = None
+    """
+    When the model was last dumped to disk
+    """
     last_dumped_version: Optional[str] = None
+    """
+    The version of CryoSPARC last dumped at
+    """
     autodump: bool = True
+    """
+    Whether the model was updated recently and must be dumped
+
+    :meta private:
+    """
     uid: str
     project_dir: str
     owner_user_id: str

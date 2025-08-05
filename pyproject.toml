@@ -29,15 +29,17 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "autodocsumm",
     "build",
     "cython",
+    "jupyter-book",
     "pre-commit",
     "pyright",
+    "pytest",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
-    "pytest",
     "ruff",
-    "setuptools",
+    "setuptools"
 ]
 
 build = ["build", "autodocsumm", "cython", "jupyter-book"]
