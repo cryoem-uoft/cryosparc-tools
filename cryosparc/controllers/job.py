@@ -329,7 +329,7 @@ class JobController(Controller[Job]):
         """
         self.model = self.cs.api.jobs.set_title(self.project_uid, self.uid, title=title)
 
-    def set_desc(self, desc: str):
+    def set_description(self, desc: str):
         """
         Set the job description. May include Markdown formatting.
 

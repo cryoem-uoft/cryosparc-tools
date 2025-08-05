@@ -82,7 +82,7 @@ class ProjectController(Controller[Project]):
         """
         self.model = self.cs.api.projects.set_title(self.uid, title=title)
 
-    def set_desc(self, desc: str):
+    def set_description(self, desc: str):
         """
         Set the project description. May include Markdown formatting.
 

@@ -79,7 +79,7 @@ class WorkspaceController(Controller[Workspace]):
         """
         self.model = self.cs.api.workspaces.set_title(self.project_uid, self.uid, title=title)
 
-    def set_desc(self, desc: str):
+    def set_description(self, desc: str):
         """
         Set the workspace description. May include Markdown formatting.
 
