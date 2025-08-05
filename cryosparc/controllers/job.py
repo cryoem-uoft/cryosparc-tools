@@ -320,6 +320,24 @@ class JobController(Controller[Job]):
         """
         self.model = self.cs.api.jobs.clear(self.project_uid, self.uid)
 
+    def set_title(self, title: str):
+        """
+        Set the job title.
+
+        Args:
+            title (str): New job title
+        """
+        self.model = self.cs.api.jobs.set_title(self.project_uid, self.uid, title=title)
+
+    def set_description(self, desc: str):
+        """
+        Set the job description. May include Markdown formatting.
+
+        Args:
+            desc (str): New job description
+        """
+        self.model = self.cs.api.jobs.set_description(self.project_uid, self.uid, description=desc)
+
     def set_param(self, name: str, value: Any, **kwargs) -> bool:
         """
         Set the given param name on the current job to the given value. Only
