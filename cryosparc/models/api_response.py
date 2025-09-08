@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -13,7 +13,7 @@ class BrowseFile(BaseModel):
     is_link: bool = False
     mtime: Optional[float] = None
     size: Optional[int] = None
-    type: Optional[str] = None
+    type: Optional[Literal["dir", "file"]] = None
     link_path: Optional[str] = None
     errmesg: Optional[str] = None
 

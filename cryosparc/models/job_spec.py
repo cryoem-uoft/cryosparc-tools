@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, RootModel
 
+from .resource import ResourceSpec
+
 BuilderTag = Literal[
     "new", "interactive", "gpuEnabled", "multiGpu", "utility", "import", "live", "benchmark", "wrapper"
 ]
@@ -436,30 +438,6 @@ class Outputs(RootModel):
     root: Dict[str, Output] = {}
     """
     Dictionary of job output details, where each key is the output name.
-    """
-
-
-class ResourceSpec(BaseModel):
-    """
-    Job resource requirements. Used to allocate compute resources for a job
-    at queue time.
-    """
-
-    cpu: int = 1
-    """
-    Number of required CPU cores
-    """
-    gpu: int = 0
-    """
-    Number of required GPUs
-    """
-    ram: int = 1
-    """
-    Number of 8GiB RAM slots
-    """
-    ssd: bool = False
-    """
-    Whether an SSD is required for temporary storage.
     """
 
 

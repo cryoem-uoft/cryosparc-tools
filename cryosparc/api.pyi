@@ -703,13 +703,17 @@ class ResourcesAPI(APINamespace):
 
         """
         ...
-    def add_node(self, body: SchedulerTargetNode) -> SchedulerTargetNode:
+    def add_node(self, body: SchedulerTargetNode, *, gpu: bool = True) -> SchedulerTargetNode:
         """
         Adds a node or updates an existing node. Updates existing node if they share
-        share the same name.
+        share the same name. Attempts to connect to the node via SSH to run
+        the ``cryosparcw connect`` command.
+
+        Set ``gpu`` to False to skip GPU detection.
 
         Args:
             body (SchedulerTargetNode):
+            gpu (bool, optional): Defaults to True
 
         Returns:
             SchedulerTargetNode: Successful Response

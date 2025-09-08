@@ -33,7 +33,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Are the samples negative stain (True) or cryo (False)?
     """
-    eer_upsampfactor: int = 2
+    eer_upsampfactor: int = 1
     """
     EER upsampling factor (applies to .eer/.ecc format data only.
     """
@@ -226,7 +226,7 @@ class LivePreprocessingParams(BaseModel):
     """
     templates_from_job: Optional[str] = None
     templates_selected: Optional[str] = None
-    thresh_score_min: Optional[float] = None
+    thresh_score_min: float = 0.3
     """
     Minimum picking score threshold
     """

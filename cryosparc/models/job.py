@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 
 from .instance import InstanceInformation
 from .job_spec import JobBuildError, JobSpec
-from .scheduler_target import FixedResourceSlots, ResourceSlots, SchedulerTarget
+from .resource import FixedResourceSlots, ResourceSlots
+from .scheduler_target import SchedulerTarget
 
 
 class AllocatedResources(BaseModel):

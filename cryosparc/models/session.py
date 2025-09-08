@@ -52,6 +52,7 @@ class ExposureGroup(BaseModel):
     defect_path: Optional[str] = None
     file_engine_recursive: bool = False
     file_engine_watch_path_abs: str = "/"
+    file_engine_enable: bool = False
     file_engine_filter: str = "*"
     file_engine_interval: int = 10
     file_engine_min_file_size: int = 0
@@ -59,7 +60,6 @@ class ExposureGroup(BaseModel):
     exp_group_id: int = 1
     num_exposures_found: int = 0
     file_engine_strategy: Literal["entity", "timestamp", "eclathena"] = "entity"
-    file_engine_enable: bool = False
     final: bool = False
     is_any_eer: bool = False
 
@@ -74,6 +74,7 @@ class ExposureGroupUpdate(BaseModel):
     defect_path: Optional[str] = None
     file_engine_recursive: bool = False
     file_engine_watch_path_abs: str = "/"
+    file_engine_enable: bool = False
     file_engine_filter: str = "*"
     file_engine_interval: int = 10
     file_engine_min_file_size: int = 0

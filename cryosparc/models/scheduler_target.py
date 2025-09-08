@@ -5,38 +5,7 @@ from typing import Dict, List, Optional, Union
 from pydantic import BaseModel
 
 from .gpu import Gpu
-
-
-class ResourceSlots(BaseModel):
-    """
-    Listings of available resources on a worker node that may be allocated for
-    scheduling.
-    """
-
-    CPU: List[int] = []
-    """
-    List of available CPU core indices.
-    """
-    GPU: List[int] = []
-    """
-    List of available GPU indices.
-    """
-    RAM: List[int] = []
-    """
-    List of available 8GB slots.
-    """
-
-
-class FixedResourceSlots(BaseModel):
-    """
-    Available resource slots that only indicate presence, not the amount that
-    may be allocated. (i.e., "SSD is available or not available")
-    """
-
-    SSD: bool = False
-    """
-    Whether this target thas an SSD
-    """
+from .resource import FixedResourceSlots, ResourceSlots
 
 
 class Node(BaseModel):

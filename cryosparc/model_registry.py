@@ -21,6 +21,7 @@ from .models import (
     params,
     preview,
     project,
+    resource,
     scheduler_lane,
     scheduler_target,
     services,
@@ -38,6 +39,7 @@ from .registry import register_model_module
 
 register_model_module(job, include_literals=True)
 register_model_module(scheduler_target, include_literals=True)
+register_model_module(resource, include_literals=True)
 register_model_module(gpu, include_literals=True)
 register_model_module(api_request, include_literals=True)
 register_model_module(session, include_literals=True)
