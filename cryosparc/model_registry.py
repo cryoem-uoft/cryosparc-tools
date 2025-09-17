@@ -11,6 +11,7 @@ from .models import (
     event,
     exposure,
     external,
+    file_browser,
     gpu,
     instance,
     job,
@@ -44,7 +45,7 @@ register_model_module(gpu, include_literals=True)
 register_model_module(api_request, include_literals=True)
 register_model_module(session, include_literals=True)
 register_model_module(user, include_literals=True)
-register_model_module(api_response, include_literals=True)
+register_model_module(file_browser, include_literals=True)
 register_model_module(job_spec, include_literals=True)
 register_model_module(exposure, include_literals=True)
 register_model_module(event, include_literals=True)
@@ -52,6 +53,7 @@ register_model_module(preview, include_literals=True)
 register_model_module(session_params, include_literals=True)
 register_model_module(external, include_literals=True)
 register_model_module(project, include_literals=True)
+register_model_module(api_response, include_literals=True)
 register_model_module(asset, include_literals=True)
 register_model_module(signature, include_literals=True)
 register_model_module(instance, include_literals=True)

@@ -46,7 +46,6 @@ import httpx
 from .dataset import Dataset
 from .models.api_request import AppSession, SHA256Password
 from .models.api_response import (
-    BrowseFileResponse,
     GetFinalResultsResponse,
     Hello,
     WorkspaceAncestorUidsResponse,
@@ -60,6 +59,7 @@ from .models.diagnostics import RuntimeDiagnostics
 from .models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
 from .models.exposure import Exposure
 from .models.external import ExternalOutputSpec
+from .models.file_browser import BrowseFileResponse, FileBrowserPrefixes
 from .models.job import Job, JobStatus
 from .models.job_register import JobRegister
 from .models.job_spec import Category, InputSpec, OutputResult, OutputSpec
@@ -102,8 +102,25 @@ class APINamespace:
 
 class ConfigAPI(APINamespace):
     """
-    Functions available in ``api.config``, e.g., ``api.config.set_instance_banner(...)``
+    Functions available in ``api.config``, e.g., ``api.config.get_file_browser_settings(...)``
     """
+    def get_file_browser_settings(self) -> FileBrowserPrefixes:
+        """
+        Returns:
+            FileBrowserPrefixes: Instance file browser settings
+
+        """
+        ...
+    def set_file_browser_settings(self, body: FileBrowserPrefixes) -> Any:
+        """
+        Args:
+            body (FileBrowserPrefixes):
+
+        Returns:
+            Any: Successful Response
+
+        """
+        ...
     def set_instance_banner(
         self, *, active: bool = False, title: Optional[str] = None, body: Optional[str] = None
     ) -> Any:
@@ -304,8 +321,13 @@ class InstanceAPI(APINamespace):
 
         """
         ...
-    def audit_dump(self) -> Optional[str]:
+    def audit_dump(self, *, timestamp: Union[float, str, None] = None) -> Optional[str]:
         """
+        Generate an audit dump file containing all audit logs since the given timestamp.
+
+        Args:
+            timestamp (float | str, optional): Leave unspecified to dump all audit logs, set to "auto" to dump new logs since the last dump, or set to a UNIX timestamp to dump every log that occurred after it.. Defaults to None
+
         Returns:
             str | None: Successful Response
 
@@ -546,22 +568,6 @@ class UsersAPI(APINamespace):
 
         """
         ...
-    def set_allowed_prefix_dir(self, user_id: str, /, allowed_prefix: str) -> User:
-        """
-        Sets directories that users are allowed to query from the file browser.
-        ``allowed_prefix`` is the path of the directory the user can query inside.
-        (must start with "/", and must be an absolute path)
-        Returns True if successful
-
-        Args:
-            user_id (str): User ID or Email Address
-            allowed_prefix (str):
-
-        Returns:
-            User: Successful Response
-
-        """
-        ...
     def get_state_var(self, user_id: str, key: str, /) -> Any:
         """
         Retrieves a given user's state variable such as "licenseAccepted" or
@@ -626,6 +632,27 @@ class UsersAPI(APINamespace):
 
         Returns:
             User: Updated user
+
+        """
+        ...
+    def get_file_browser_settings(self, user_id: str, /) -> FileBrowserPrefixes:
+        """
+        Args:
+            user_id (str): User ID or Email Address
+
+        Returns:
+            FileBrowserPrefixes: User file browser settings
+
+        """
+        ...
+    def set_file_browser_settings(self, user_id: str, /, body: FileBrowserPrefixes) -> User:
+        """
+        Args:
+            user_id (str): User ID or Email Address
+            body (FileBrowserPrefixes):
+
+        Returns:
+            User: Successful Response
 
         """
         ...
@@ -4971,7 +4998,7 @@ class DeveloperAPI(APINamespace):
 class APIClient:
     """
     Top-level API client class. e.g., ``api.read_root(...)``
-    or ``api.config.set_instance_banner(...)``
+    or ``api.config.get_file_browser_settings(...)``
     """
 
     config: ConfigAPI

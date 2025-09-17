@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from .file_browser import FileBrowserPrefixes
+
 
 class Bookmark(BaseModel):
     id: str
@@ -105,5 +107,5 @@ class User(BaseModel):
     services: Services = Services()
     state: UserState = UserState()
     preferences: Dict[str, Any] = {}
-    allowed_prefix_dir: str = "/"
+    file_browser_settings: FileBrowserPrefixes = FileBrowserPrefixes()
     lanes: List[str] = []

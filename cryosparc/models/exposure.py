@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -45,7 +45,7 @@ class StatBlob(BaseModel):
     idx: int
     path: str
     psize_A: float
-    shape: Tuple[int, int]
+    shape: List[int]
 
 
 class GainRefBlob(BaseModel):

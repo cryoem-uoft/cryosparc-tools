@@ -70,7 +70,7 @@ class JobController(Controller[Job]):
             Job model, e.g. ``("P3", "J42")``
 
     Attributes:
-        model (Workspace): All job data from the CryoSPARC database.
+        model (Job): All job data from the CryoSPARC database.
             Contents may change over time, use :py:meth:`refresh` to update.
 
     Examples:
