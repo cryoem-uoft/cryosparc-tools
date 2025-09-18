@@ -1858,6 +1858,31 @@ class JobsAPI(APINamespace):
 
         """
         ...
+    def update_event_log(
+        self,
+        project_uid: str,
+        job_uid: str,
+        event_id: str = "000000000000000000000000",
+        /,
+        text: Optional[str] = None,
+        *,
+        type: Optional[Literal["text", "warning", "error"]] = None,
+    ) -> TextEvent:
+        """
+        Update a text event log entry for a job.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            event_id (str, optional): Defaults to '000000000000000000000000'
+            text (str, optional): Defaults to None
+            type (Literal['text', 'warning', 'error'], optional): Defaults to None
+
+        Returns:
+            TextEvent: Successful Response
+
+        """
+        ...
     def recalculate_size(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Recalculates the size of a given job's directory.

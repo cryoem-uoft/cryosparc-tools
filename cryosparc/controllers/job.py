@@ -108,6 +108,13 @@ class JobController(Controller[Job]):
     Project unique ID, e.g., "P3"
     """
 
+    _events: dict[str, str]
+    """
+    Named event logs
+
+    :meta private:
+    """
+
     def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
         self.cs = cs
         if isinstance(job, tuple):
@@ -117,6 +124,7 @@ class JobController(Controller[Job]):
             self.project_uid = job.project_uid
             self.uid = job.uid
             self.model = job
+        self._events = {}
 
     @property
     def type(self) -> str:
@@ -526,24 +534,46 @@ class JobController(Controller[Job]):
         """
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
-    def log(self, text: str, level: Literal["text", "warning", "error"] = "text"):
+    def log(self, text: str, *, level: Literal["text", "warning", "error"] = "text", name: str | None = None):
         """
-        Append to a job's event log.
+        Append to a job's event log. Update an existing log by providing a name.
 
         Args:
             text (str): Text to log
             level (str, optional): Log level ("text", "warning" or "error").
                 Defaults to "text".
+            name (str, optional): Event name or ID. If an event with the same
+                name or ID already exists, updates it instead of creating a new
+                one. Named events are reset when logging a checkpoint. Defaults
+                to None.
+
+        Example:
+
+            Log a warning message to the job log.
+            >>> job.log("This is a warning", level="warning")
+
+            Show a live progress bar in the job log.
+            >>> for pct in range(1, 10):
+            ...     # example log: "Progress: [#####-----] 50%"
+            ...     job.log(f"Progress: [{'#' * pct}{'-' * (10 - pct)}] {pct * 10}%", name="progress")
+            ...     sleep(1)
+            ...
+            >>> job.log("Done!")
 
         Returns:
-            str: Created log event ID
+            str: Created log event name or ID
         """
-        event = self.cs.api.jobs.add_event_log(self.project_uid, self.uid, text, type=level)
-        return event.id
+        if name and name in self._events:
+            event_id = self._events[name]
+            event = self.cs.api.jobs.update_event_log(self.project_uid, self.uid, event_id, text, type=level)
+        else:
+            event = self.cs.api.jobs.add_event_log(self.project_uid, self.uid, text, type=level)
+            self._events[name or event.id] = event.id
+        return name or event.id
 
     def log_checkpoint(self, meta: dict = {}):
         """
-        Append a checkpoint to the job's event log.
+        Append a checkpoint to the job's event log. Also resets named events.
 
         Args:
             meta (dict, optional): Additional meta information. Defaults to {}.
@@ -552,6 +582,7 @@ class JobController(Controller[Job]):
             str: Created checkpoint event ID
         """
         event = self.cs.api.jobs.add_checkpoint(self.project_uid, self.uid, meta)
+        self._events = {}
         return event.id
 
     def log_plot(
