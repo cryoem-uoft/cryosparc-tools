@@ -58,7 +58,17 @@ requires = ["setuptools", "cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]
+typeCheckingMode = "standard"
+venv = ".venv"
+venvPath = "."
 include = ["cryosparc", "tests", "setup.py"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "cryosparc/include/**/*.py",
+    "docs/_build/**/*.py"
+]
 
 [tool.ruff]
 line-length = 120
