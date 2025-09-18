@@ -248,28 +248,6 @@ class InstanceAPI(APINamespace):
 
         """
         ...
-    def link_log(
-        self,
-        type: str,
-        /,
-        data: Any = None,
-        *,
-        user_id: Optional[str] = None,
-        project_uid: Optional[str] = None,
-        job_uid: Optional[str] = None,
-        job_type: Optional[str] = None,
-    ) -> None:
-        """
-        Args:
-            type (str):
-            data (Any, optional): Defaults to None
-            user_id (str, optional): Defaults to None
-            project_uid (str, optional): Defaults to None
-            job_uid (str, optional): Defaults to None
-            job_type (str, optional): Defaults to None
-
-        """
-        ...
     def get_license_usage(self) -> List[LicenseInstance]:
         """
         Returns:
@@ -2895,14 +2873,26 @@ class SessionsAPI(APINamespace):
 
         """
         ...
-    def setup_phase2_class2D(self, project_uid: str, session_uid: str, /, *, force_restart: bool = True) -> Job:
+    def setup_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Setup streaming 2D classification job for a session.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
-            force_restart (bool, optional): Defaults to True
+
+        Returns:
+            Job: Successful Response
+
+        """
+        ...
+    def reinitialize_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Job:
+        """
+        Setup streaming 2D classification job for a session.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
 
         Returns:
             Job: Successful Response
