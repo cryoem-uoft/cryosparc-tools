@@ -108,7 +108,7 @@ class JobController(Controller[Job]):
     Project unique ID, e.g., "P3"
     """
 
-    _events: dict[str, str]
+    _events: Dict[str, str]
     """
     Named event logs
 
