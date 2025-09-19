@@ -251,7 +251,6 @@ def test_log_with_returned_event_id_as_name(job: JobController, mock_log_event):
 
 
 def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mock_checkpoint_event):
-    """Test case 5: log after with a previously-used name immediately after a log_checkpoint (should create)"""
     assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
     assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
     assert isinstance(mock_checkpoint_endpoint := APIClient.jobs.add_checkpoint, mock.Mock)
@@ -262,27 +261,23 @@ def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mo
 
     job.log("Before checkpoint", name="status")
 
-    # Create checkpoint - should clear _events
     checkpoint_id = job.log_checkpoint()
     mock_checkpoint_endpoint.assert_called_once_with(job.project_uid, job.uid, {})
     assert checkpoint_id == mock_checkpoint_event.id
 
-    # Log again with same name - should create new since _events was cleared
+    # Log again with same name - should create new
     mock_add_endpoint.reset_mock()  # Reset to track the second call
     result = job.log("After checkpoint", name="status")
-    mock_add_endpoint.assert_called_with(job.project_uid, job.uid, "After checkpoint", type="text")
+    mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "After checkpoint", type="text")
     assert result == "status"
 
 
 def test_log_with_different_levels(job: JobController, mock_log_event):
-    """Test logging with different log levels"""
     assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
     mock_add_endpoint.return_value = mock_log_event
 
-    # Test warning level
     job.log("Warning message", level="warning")
     mock_add_endpoint.assert_called_with(job.project_uid, job.uid, "Warning message", type="warning")
 
-    # Test error level
     job.log("Error message", level="error")
     mock_add_endpoint.assert_called_with(job.project_uid, job.uid, "Error message", type="error")
