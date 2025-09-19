@@ -534,7 +534,7 @@ class JobController(Controller[Job]):
         """
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
-    def log(self, text: str, *, level: Literal["text", "warning", "error"] = "text", name: str | None = None):
+    def log(self, text: str, *, level: Literal["text", "warning", "error"] = "text", name: Optional[str] = None):
         """
         Append to a job's event log. Update an existing log by providing a name.
 
