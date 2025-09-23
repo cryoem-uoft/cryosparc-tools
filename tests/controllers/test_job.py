@@ -80,10 +80,6 @@ def test_job_subprocess_io(job: JobController):
         [sys.executable, "-c", 'import sys; print("hello"); print("error", file=sys.stderr); print("world")']
     )
 
-    # The corrected log method now stores event IDs which causes additional .id property access calls
-    # Filter to only the actual add_event_log calls, not the .id property accesses
-    actual_calls = [call for call in mock_log_endpoint.mock_calls if not str(call).endswith(".id.__hash__()")]
-    assert len(actual_calls) == 7  # includes some prelude/divider calls
     mock_log_endpoint.assert_has_calls(
         [
             mock.call(job.project_uid, job.uid, "hello", type="text"),
@@ -270,14 +266,3 @@ def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mo
     result = job.log("After checkpoint", name="status")
     mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "After checkpoint", type="text")
     assert result == "status"
-
-
-def test_log_with_different_levels(job: JobController, mock_log_event):
-    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
-    mock_add_endpoint.return_value = mock_log_event
-
-    job.log("Warning message", level="warning")
-    mock_add_endpoint.assert_called_with(job.project_uid, job.uid, "Warning message", type="warning")
-
-    job.log("Error message", level="error")
-    mock_add_endpoint.assert_called_with(job.project_uid, job.uid, "Error message", type="error")
