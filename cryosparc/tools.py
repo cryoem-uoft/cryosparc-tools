@@ -186,7 +186,12 @@ class CryoSPARC:
 
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
-            self.api = APIClient(f"{self.base_url}{API_SUFFIX}", auth=auth, timeout=timeout)
+            self.api = APIClient(
+                f"{self.base_url}{API_SUFFIX}",
+                auth=auth,
+                headers={"User-Agent": f"cryosparc-tools/{__version__}"},
+                timeout=timeout,
+            )
             assert self.user  # trigger user profile fetch
             cs_version = self.api.config.get_version()
         except Exception as e:
