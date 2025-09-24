@@ -570,9 +570,7 @@ class JobController(Controller[Job]):
             event = self.cs.api.jobs.update_event_log(self.project_uid, self.uid, event_id, text, type=level)
         else:
             event = self.cs.api.jobs.add_event_log(self.project_uid, self.uid, text, type=level)
-            self._events[event.id] = event.id
-            if name:
-                self._events[name] = event.id
+            self._events[name or event.id] = event.id
         return name or event.id
 
     def log_checkpoint(self, meta: dict = {}):
