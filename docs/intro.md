@@ -25,16 +25,13 @@ Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-to
 
 - [Python ≥ 3.8](https://www.python.org/downloads/)
 - [CryoSPARC ≥ v4.1](https://cryosparc.com/download)
+- A terminal program to run commands
 
 CryoSPARC installation must be accessible via one of the following methods:
 
 - Running on the local machine
-- Running on a machine on the same network with `BASE_PORT + 2`, `BASE_PORT + 3` and `BASE_PORT + 5` open for TCP connections
-- Running on a remote machine with `BASE_PORT + 2`, `BASE_PORT + 3` and `BASE_PORT + 5` forwarded to the local machine
-
-See [SSH Port Forwarding](https://guide.cryosparc.com/setup-configuration-and-management/how-to-download-install-and-configure/accessing-cryosparc#ssh-port-forwarding-on-a-nix-system)
-documentation for accessing a CryoSPARC instance on a remote machine accessible
-via <abbr title="Secure Shell">SSH</abbr>.
+- Running on a machine on the same network with `BASE_PORT` open for connections
+- Running at some publicly accessible web URL, e.g., `https://cryosparc.example.com`
 
 cryosparc-tools is only available for CryoSPARC v4.1 or newer. If using CryoSPARC v4.0 or older, please see the [Manipulating .cs Files Created By CryoSPARC](https://guide.cryosparc.com/setup-configuration-and-management/software-system-guides/manipulating-.cs-files-created-by-cryosparc) guide.
 
@@ -48,22 +45,21 @@ Virtual environment tools such as
 [venv](https://docs.python.org/3/tutorial/venv.html),
 [Conda](https://docs.conda.io/en/latest/),
 [Mamba](https://mamba.readthedocs.io/en/latest/),
-[Pipenv](https://pipenv.pypa.io/en/latest/) and
-[Poetry](https://python-poetry.org) all work with cryosparc-tools.
+[Poetry](https://python-poetry.org) and
+[uv](https://docs.astral.sh/uv/) all work with cryosparc-tools.
 
 Ensure that the virtual environment is based on a supported version of Python
 (see Pre-requisites above).
 
 ## Installation
 
-Install cryosparc-tools in the command line from [PyPI](https://pypi.org) into
-the current Python environment:
+In a terminal, enter the following command to install the latest version of cryosparc-tools from [PyPI](https://pypi.org) into the current Python environment:
 
 ```sh
 pip install cryosparc-tools
 ```
 
-Update an existing installation of cryosparc-tools to the latest release:
+Alternatively, update an existing installation of cryosparc-tools to the latest version:
 
 ```sh
 pip install -U cryosparc-tools
@@ -83,41 +79,52 @@ tools package with `pip install cryosparc-tools~=4.2.0` or
 
 ## Usage
 
-Import from a Python module and connect to a CryoSPARC instance. Include your
-CryoSPARC license ID, the network hostname of the machine hosting your CryoSPARC
-instance, the instance's base port number and your email/password login
-credentials.
+In a terminal, enter the following command to log in to your CryoSPARC instance:
+
+```sh
+python -m cryosparc.tools login --url <URL>
+```
+
+Replace `<URL>` with the URL you use to access CryoSPARC from your web browser, e.g., `http://localhost:39000`. Enter your CryoSPARC email and password when prompted. This saves a login token to a local file that expires in two weeks.
+
+```{note}
+You only need to log in once, unless the token expires or you change your CryoSPARC password.
+```
+
+Create a new file in a text editor such as [VS Code](https://code.visualstudio.com), add the following text:
 
 ```py
 from cryosparc.tools import CryoSPARC
 
-cs = CryoSPARC(
-    license="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    host="localhost",
-    base_port=39000,
-    email="ali@example.com",
-    password="password123"
-)
+cs = CryoSPARC("<URL>")
+assert cs.test_connection()
 ```
 
-This assumes CryoSPARC base ports +2, +3 and +5 (e.g., 39002, 39003 and 39005) are
-available at `localhost` on the local machine. If CryoSPARC is on another
-machine on the same network with a different host, say "hostname", use
-`host="hostname"`.
+Replace `<URL>` with the same URL specified above.
 
-Query projects, jobs and result datasets:
+When run, this script imports the `CryoSPARC` function, calls it and stores the result in the `cs` variable. This variable represents a connection to your CryoSPARC instance.
+
+Save the file with a descriptive name, e.g., `data_processing.py`, and run it in a terminal like this:
+
+```sh
+cd /path/to/scripts  # replace with the path to the folder where you saved the script
+python data_processing.py
+```
+
+You should see the message `Success: Connected to CryoSPARC API at <URL>` printed to the terminal.
+
+cryosparc-tools allows you to query projects, jobs and result datasets. For example, you can add the following code to your script to print the paths of all micrographs in a motion correction job with ID `J42` in project `P3`:
 
 ```py
 project = cs.find_project("P3")
 job = project.find_job("J42")
-micrographs = job.load_output("exposures")
+micrographs = job.load_output("micrographs")
 
 for mic in micrographs.rows():
-    print(mic["blob/path"])
+    print(mic["micrograph_blob/path"])
 ```
 
-Load and save datasets directly (assumes project directory is available on
-current machine):
+You may also load and save CryoSPARC dataset files. This assumes the project directory is available on the same file system as the script:
 
 ```py
 from cryosparc.dataset import Dataset
@@ -135,30 +142,26 @@ particles["location/center_y_frac"] *= new_loc_y / mic_shape_y
 particles.save(path)
 ```
 
-(running-the-examples)=
-## Running the Examples
+If the project is on a remote machine, you may download the dataset locally first:
 
-The example Jupyter notebooks require additional dependencies to run. Use
-[conda](https://www.anaconda.com/products/distribution) to create a new Python
-environment with the required dependencies. Here the environment is named
-`cryosparc-tools-example` but any name may be substituted:
-
-```sh
-conda create -n cryosparc-tools-example -c conda-forge python=3 numpy==1.18.5
-conda activate cryosparc-tools-example
-pip install matplotlib~=3.4.0 pandas==1.1.4 cryosparc-tools
+```py
+particles = project.download_dataset("J43/particles.cs")
+shift_y, shift_x = particles["alignments2D/shift"].T
+...
+project.upload_dataset("J43/particles.cs", particles)
 ```
 
-For speed, these do not include the dependencies for the crYOLO example
-notebook. Optionally install crYOLO with these commands:
+Browse the included guides and examples to get a better idea of what you can do with cryosparc-tools.
 
-```sh
-conda install -c conda-forge pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme 'setuptools<66'
-pip install nvidia-pyindex
-pip install "cryolo[c11]"
-```
+For full details about available functions and classes in cryosparc-tools, including their capabilities and expected arguments, read the <abbr title="Application Programming Interface">API</abbr> Reference. The [`cryosparc.tools` module](api/cryosparc.tools) is the best place to start.
 
-If required, install Jupyter:
+## Jupyter Notebooks
+
+We recommend writing and using CryoSPARC tools in a [Jupyter notebook](https://jupyter-notebook.readthedocs.io/en/latest/). Jupyter notebooks allow for a more interactive and iterative use of Python.
+
+In a Jupyter notebook, time-consuming steps (like data loading) can run a single time without slowing down later steps (like plotting) which are quick, but depend on those earlier steps.
+
+To install Jupyter:
 
 ```sh
 pip install notebook
@@ -180,31 +183,36 @@ other machines on the local network:
 jupyter notebook --no-browser --ip=0.0.0.0 --port=8888
 ```
 
-Note that when initializing a `cryosparc.tools.CryoSPARC` instance in Python,
-you will have to provide the `license`, `email` and `password` arguments. For
-convenience, the examples in this guide avoid this by instead defining them in
-environment variables. To do the same, define `CRYOSPARC_LICENSE`,
-`CRYOSPARC_EMAIL` and `CRYOSPARC_PASSWORD` environment variables with your
-CryoSPARC license and login credentials:
+(running-the-examples)=
+### Running the Examples
+
+The example Jupyter notebooks require additional dependencies to run. Use [conda](https://docs.conda.io/en/latest/) or [mamba](https://mamba.readthedocs.io/en/latest/) to create a new Python environment with the required dependencies. Here, the environment is named `cryosparc-tools-example` but any name may be used:
 
 ```sh
-CRYOSPARC_EMAIL="ali@example.com" \
-CRYOSPARC_PASSWORD="password123" \
-jupyter notebook --no-browser --ip=0.0.0.0 --port=8888
+conda create -n cryosparc-tools-example -c conda-forge python=3 numpy==1.18.5
+conda activate cryosparc-tools-example
+pip install matplotlib~=3.4.0 pandas==1.1.4 cryosparc-tools
 ```
+
+For speed, these do not include the dependencies for the crYOLO example
+notebook. Optionally install crYOLO with these commands:
+
+```sh
+conda install -c conda-forge pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme 'setuptools<66'
+pip install 'cryolo[c11]' --extra-index-url https://pypi.ngc.nvidia.com
+```
+
+Then proceed with the Jupyter notebook installation above.
 
 Example notebooks ran on Ubuntu Linux with x86-64 bit architecture.
 
 ## Next Steps
 
-Browse the included examples real-life use cases for `cryosparc-tools`. Read the
-API Reference for full usage capabilities.
-
 ```{tableofcontents}
 
 ```
 
-## Contributing
+## Questions, Bug Reports and Code Contributions
 
 [Read the contribution guide](https://github.com/cryoem-uoft/cryosparc-tools/blob/develop/CONTRIBUTING.md) for full details.
 

@@ -389,7 +389,9 @@ def _decode_json_response(value: Any, schema: dict):
     # Check for schema that links to one of our existing models
     if "$ref" in schema:
         model_class = registry.model_for_ref(schema["$ref"])
-        if model_class and issubclass(model_class, Enum):
+        if model_class and registry.is_literal(model_class):
+            return value  # literal type, return as-is
+        elif model_class and issubclass(model_class, Enum):
             return model_class(value)
         elif model_class and issubclass(model_class, dict):  # typed dict
             return model_class(**value)

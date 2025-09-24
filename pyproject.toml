@@ -9,7 +9,6 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "License :: OSI Approved :: BSD License",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
@@ -20,6 +19,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 license = { file = "LICENSE" }
+# license = "BSD-3-Clause"  # Note: replace line above with this when supported
 dependencies = [
     "numpy >= 1.17, < 3.0",
     "httpx ~= 0.25",
@@ -29,15 +29,17 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "autodocsumm",
     "build",
     "cython",
+    "jupyter-book",
     "pre-commit",
     "pyright",
+    "pytest",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
-    "pytest",
     "ruff",
-    "setuptools",
+    "setuptools"
 ]
 
 build = ["build", "autodocsumm", "cython", "jupyter-book"]
@@ -56,7 +58,17 @@ requires = ["setuptools", "cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]
+typeCheckingMode = "standard"
+venv = ".venv"
+venvPath = "."
 include = ["cryosparc", "tests", "setup.py"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "cryosparc/include/**/*.py",
+    "docs/_build/**/*.py"
+]
 
 [tool.ruff]
 line-length = 120

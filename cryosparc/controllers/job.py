@@ -29,6 +29,7 @@ from ..dataset import DEFAULT_FORMAT, Dataset
 from ..errors import ExternalJobError
 from ..models.asset import GridFSAsset, GridFSFile
 from ..models.job import Job, JobStatus
+from ..models.job_register import JobRegisterJobSpec
 from ..models.job_spec import Input, InputSpec, Output, OutputSpec, Params
 from ..spec import (
     ASSET_CONTENT_TYPES,
@@ -69,8 +70,8 @@ class JobController(Controller[Job]):
             Job model, e.g. ``("P3", "J42")``
 
     Attributes:
-        model (Workspace): All job data from the CryoSPARC database.
-            Contents may change over time, use :py:method:`refresh` to update.
+        model (Job): All job data from the CryoSPARC database.
+            Contents may change over time, use :py:meth:`refresh` to update.
 
     Examples:
 
@@ -159,14 +160,16 @@ class JobController(Controller[Job]):
 
     @property
     def inputs(self) -> Dict[str, Input]:
+        """Input connection details."""
         return self.model.spec.inputs.root
 
     @property
     def outputs(self) -> Dict[str, Output]:
+        """Input result details."""
         return self.model.spec.outputs.root
 
     @property
-    def full_spec(self):
+    def full_spec(self) -> JobRegisterJobSpec:
         """
         The full specification for job inputs, outputs and parameters, as
         defined in the job register.
@@ -317,6 +320,24 @@ class JobController(Controller[Job]):
         """
         self.model = self.cs.api.jobs.clear(self.project_uid, self.uid)
 
+    def set_title(self, title: str):
+        """
+        Set the job title.
+
+        Args:
+            title (str): New job title
+        """
+        self.model = self.cs.api.jobs.set_title(self.project_uid, self.uid, title=title)
+
+    def set_description(self, desc: str):
+        """
+        Set the job description. May include Markdown formatting.
+
+        Args:
+            desc (str): New job description
+        """
+        self.model = self.cs.api.jobs.set_description(self.project_uid, self.uid, description=desc)
+
     def set_param(self, name: str, value: Any, **kwargs) -> bool:
         """
         Set the given param name on the current job to the given value. Only
@@ -378,6 +399,54 @@ class JobController(Controller[Job]):
         )
         return True
 
+    def connect_result(
+        self,
+        target_input: str,
+        connection_idx: int,
+        slot: str,
+        source_job_uid: str,
+        source_output: str,
+        source_result: str,
+        source_version: Union[int, Literal["F"]] = "F",
+    ):
+        """
+        Connect a low-level input result slot with a result from another job.
+
+        Args:
+            target_input (str): Input name to connect into, e.g., "particles"
+            connection_idx (int): Connection index to connect into, use 0 for
+                the job's first connection on that input, 1 for the second, etc.
+            slot (str): Input slot name to connect into, e.g., "location"
+            source_job_uid (str): Job UID to connect from, e.g., "J42"
+            source_output (str): Job output name to connect from , e.g.,
+                "particles_selected"
+            source_result (str): Result name to connect from, e.g., "location"
+
+        Returns:
+            bool: False if the job encountered a build error.
+
+        Examples:
+
+            Connect J3 to the first connection of J2's ``particles`` input.
+            >>> cs = CryoSPARC()
+            >>> project = cs.find_project("P3")
+            >>> job = project.find_job("J3")
+            >>> job.connect_result("particles", 0, "location", "J2", "particles_selected", "location")
+        """
+        assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
+        self.model = self.cs.api.jobs.connect_result(
+            self.project_uid,
+            self.uid,
+            target_input,
+            connection_idx,
+            slot,
+            source_job_uid=source_job_uid,
+            source_output_name=source_output,
+            source_result_name=source_result,
+            source_result_version=source_version,
+        )
+        return True
+
     def disconnect(self, target_input: str, connection_idx: Optional[int] = None, **kwargs):
         """
         Clear the given job input group.
@@ -395,6 +464,22 @@ class JobController(Controller[Job]):
             self.model = self.cs.api.jobs.disconnect_all(self.project_uid, self.uid, target_input)
         else:
             self.model = self.cs.api.jobs.disconnect(self.project_uid, self.uid, target_input, connection_idx)
+
+    def disconnect_result(self, target_input: str, connection_idx: int, slot: str):
+        """
+        Clear the job's given input result slot.
+
+        Args:
+            target_input (str): Name of input to disconnect
+            connection_idx (int): Connection index to modify. Set to 0 for the
+                first connection, 1 for the second, etc.
+            slot (str): Input slot name to disconnect, e.g., "location"
+
+        Returns:
+            bool: False if the job encountered a build error.
+        """
+        self.model = self.cs.api.jobs.disconnect_result(self.project_uid, self.uid, target_input, connection_idx, slot)
+        return True
 
     def load_input(self, name: str, slots: LoadableSlots = "all"):
         """
@@ -1000,7 +1085,7 @@ class JobController(Controller[Job]):
 
             >>> cs = CryoSPARC()
             >>> job = cs.find_job("P3", "J42")
-            >>> job.doc['type']
+            >>> job.type
             'extract_micrographs_multi'
             >>> job.print_param_spec()
             Param                       | Title                 | Type    | Default
@@ -1034,7 +1119,7 @@ class JobController(Controller[Job]):
 
             >>> cs = CryoSPARC()
             >>> job = cs.find_job("P3", "J42")
-            >>> job.doc['type']
+            >>> job.type
             'extract_micrographs_multi'
             >>> job.print_output_spec()
             Input       | Title       | Type     | Required? | Input Slots     | Slot Types      | Slot Required?
@@ -1073,7 +1158,7 @@ class JobController(Controller[Job]):
 
             >>> cs = CryoSPARC()
             >>> job = cs.find_job("P3", "J42")
-            >>> job.doc['type']
+            >>> job.type
             'extract_micrographs_multi'
             >>> job.print_output_spec()
             Output                 | Title       | Type     | Result Slots           | Result Types    | Passthrough?
@@ -1107,7 +1192,7 @@ class ExternalJobController(JobController):
     an input. Its outputs must be created manually and may be configured to
     passthrough inherited input fields, just as with regular CryoSPARC jobs.
 
-    Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.project.ProjectController.create_external_job>`.
+    Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.controllers.project.ProjectController.create_external_job>`.
     or :py:meth:`workspace.create_external_job() <cryosparc.workspace.WorkspaceController.create_external_job>`.
     ``ExternalJobController`` is a subclass of :py:class:`JobController`
     and inherits all its methods and attributes.

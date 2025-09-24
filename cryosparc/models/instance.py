@@ -26,3 +26,6 @@ class InstanceInformation(BaseModel):
     nvrtc_version: Optional[str] = None
     gpu_info: Optional[List[GpuInfo]] = None
     version: str = ""
+    """
+    CryoSPARC version
+    """

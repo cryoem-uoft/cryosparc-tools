@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from .file_browser import FileBrowserPrefixes
+
 
 class Bookmark(BaseModel):
     id: str
@@ -84,8 +86,15 @@ class UserState(BaseModel):
 class User(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
-    emails: List[Email]
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
+    emails: List[Email] = []
     created_by_user_id: Optional[str] = None
     name: str
     first_name: str
@@ -98,5 +107,5 @@ class User(BaseModel):
     services: Services = Services()
     state: UserState = UserState()
     preferences: Dict[str, Any] = {}
-    allowed_prefix_dir: str = "/"
+    file_browser_settings: FileBrowserPrefixes = FileBrowserPrefixes()
     lanes: List[str] = []

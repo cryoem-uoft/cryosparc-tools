@@ -1,55 +1,15 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel
 
 
-class BrowseFile(BaseModel):
-    file_name: str
-    base_path: str
-    is_hidden: bool
-    path_abs: str
-    is_link: bool = False
-    mtime: Optional[float] = None
-    size: Optional[int] = None
-    type: Optional[str] = None
-    link_path: Optional[str] = None
-    errmesg: Optional[str] = None
-
-
-class BrowseFileResponse(BaseModel):
-    back_path: str
-    files: List[BrowseFile]
-    type: str
-
-
-class DeleteJobPreview(BaseModel):
-    project_uid: str
-    uid: str
-    workspace_uids: List[str]
-    status: str
-    title: str
-    type: str
-
-
-class DeleteProjectWorkspacePreview(BaseModel):
-    project_uid: str
-    uid: str
-    title: Optional[str]
-
-
-class DeleteProjectPreview(BaseModel):
-    jobs: List[DeleteJobPreview]
-    workspaces: List[DeleteProjectWorkspacePreview]
-
-
-class DeleteWorkspacePreview(BaseModel):
-    jobs: List[DeleteJobPreview]
-
-
 class GetFinalResultsResponse(BaseModel):
     final_results: List[str]
+    """
+    Job uids of jobs marked as final result
+    """
     ancestors_of_final_results: List[str]
     non_ancestors_of_final_results: List[str]
 

@@ -233,7 +233,6 @@ def mock_user():
         emails=[Email(address="test@example.com", verified=True)],
         roles={"__global_roles__": ["admin"]},
         register_token=None,
-        allowed_prefix_dir="/",
         created_at=datetime(2017, 1, 1, tzinfo=timezone.utc),
     )
 

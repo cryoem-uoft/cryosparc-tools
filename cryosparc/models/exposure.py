@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -45,7 +45,7 @@ class StatBlob(BaseModel):
     idx: int
     path: str
     psize_A: float
-    shape: Tuple[int, int]
+    shape: List[int]
 
 
 class GainRefBlob(BaseModel):
@@ -70,6 +70,14 @@ class MovieBlob(BaseModel):
     format: str
     has_defect_file: bool = False
     import_sig: str = "0"
+    """
+    Unique 64 bit import signature for this exposure, created by computing the
+    sha1 of the original absolute path and taking the first 8 bytes.
+
+    Encoded as a string when saved to mongo or JSON to avoid 32 bit overflow
+    errors. When using instances of the MovieBlob model from Python,
+    ``import_sig`` should be treated as a regular int.
+    """
     is_gain_corrected: bool
     path: str
     psize_A: float
@@ -145,12 +153,34 @@ class ExposureGroups(BaseModel):
     """
 
     exposure: ExposureElement = ExposureElement()
+    """
+    Exposures have an list of length 1 values for each field in each prefix
+    below.
+    """
     particle_manual: ParticleManual = ParticleManual()
+    """
+    Manual picks have a list of values for each field in each prefix
+    """
     particle_blob: ParticleInfo = ParticleInfo()
+    """
+    Blob picks have a list of fields, a count, and a path to a cs file
+    """
     particle_template: ParticleInfo = ParticleInfo()
+    """
+    template picks have a list of fields, a count, and a path to a cs file
+    """
     particle_deep: Dict[str, Any] = {}
+    """
+    Unused for now
+    """
     particle_extracted: Union[List[PickerInfoElement], ParticleInfo] = ParticleInfo()
+    """
+    Starts as empty dict, but gets populated as a list of dictionaries. Used for 2-slot extraction.
+    """
     particle_manual_extracted: PickerInfoElement = PickerInfoElement()
+    """
+    Starts as empty dict, but gets populated as a list of dictionaries
+    """
 
 
 class ExposureAttributes(BaseModel):
@@ -192,12 +222,22 @@ class ExposureAttributes(BaseModel):
 class Exposure(BaseModel):
     id: str = Field("000000000000000000000000", alias="_id")
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
     created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
     uid: int
     project_uid: str
     session_uid: str
     exp_group_id: int
     abs_file_path: str
+    """
+    only used when first reading in this file, otherwise use os.path.join(proj_dir_abs, groups.exposures.movie_blob.path)
+    """
     size: int
     discovered_at: datetime.datetime
     picker_type: Optional[Literal["blob", "template", "manual"]] = None

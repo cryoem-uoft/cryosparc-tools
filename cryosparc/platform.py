@@ -4,7 +4,24 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
-__all__ = ("user_config_path",)
+__all__ = ("is_localhost", "user_config_path")
+
+
+def is_localhost(hostname: str) -> bool:
+    """
+    Check if a hostname refers to the current host.
+    """
+    import socket
+
+    if hostname == "localhost" or hostname.startswith("127.") or hostname == "::1":
+        return True
+    if hostname == socket.gethostname().replace(" ", "") or hostname == socket.getfqdn().replace(" ", ""):
+        return True
+    try:
+        ip = socket.gethostbyname(hostname).strip()
+        return ip.startswith("127.") or ip == "::1"
+    except Exception:
+        return False
 
 
 def user_config_path() -> Path:

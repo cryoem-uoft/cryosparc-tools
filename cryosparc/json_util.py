@@ -46,7 +46,7 @@ def api_default(obj: Any) -> Any:
     elif isinstance(obj, PurePath):
         return str(obj)
     elif isinstance(obj, BaseModel):
-        return obj.model_dump(exclude_none=True)
+        return obj.model_dump(mode="json", exclude_none=True)
     else:
         return obj
 
