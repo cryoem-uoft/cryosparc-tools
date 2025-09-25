@@ -163,7 +163,7 @@ class CryoSPARC:
                 raise TypeError("Cannot specify host or base_port when base_url is specified")
             host = host or "localhost"
             port = int(base_port or 39000)
-            self.base_url = f"http://{host}:{port}{API_SUFFIX}"
+            self.base_url = f"http://{host}:{port}"
         elif base_url:
             self.base_url = base_url
         else:
