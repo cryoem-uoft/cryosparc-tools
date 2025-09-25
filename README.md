@@ -20,7 +20,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
 
 - Git and Git LFS
 - Python >= 3.8
-- Miniconda3
 - C compiler such as GCC or Clang
 
 ### Set Up
@@ -105,7 +104,7 @@ The Jupyter notebooks in the example documentation require additional
 dependencies to execute, including the following system configuration:
 
 - Nvidia GPU and driver
-- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed
+- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or [Miniforge](https://conda-forge.org/download/) installed
 - CryoSPARC running at `localhost:40000` or `cryoem0:40000` (can alias `cryoem0` to localhost)
 
 Clean previous build artefacts:
@@ -121,21 +120,18 @@ conda create -n cryosparc-tools-example -c conda-forge python=3 numpy=1.18.5 \
     pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme 'setuptools<66'  # exclude these dependencies if you don't need cryolo
 conda activate cryosparc-tools-example
 pip install cryosparc-tools matplotlib~=3.4.0 pandas~=1.1.0 notebook
-pip install nvidia-pyindex  # exclude last two steps if you don't need cryolo
-pip install 'cryolo[c11]'
+pip install 'cryolo[c11]' --extra-index-url https://pypi.ngc.nvidia.com   # optional, only if you want to use cryolo
 ```
 
-Run the notebook server with the following environment variables:
+Before you run the notebook server, you may need to set the `LD_LIBRARY_PATH` variable to include the location of CUDA Toolkit and cuDNN runtime libraries. e.g.,
 
-- `CRYOSPARC_EMAIL` with a CryoSPARC user account email
-- `CRYOSPARC_PASSWORD` with a CryoSPARC user account password
+```bash
+export LD_LIBRARY_PATH="$HOME/miniconda3/envs/tools/lib/python3.8/site-packages/nvidia/*/lib"
+```
 
-You may also need to include `LD_LIBRARY_PATH` which includes the location of
-CUDA Toolkit and cuDNN runtime libraries (e.g., `~/miniconda3/envs/tools/lib/python3.8/site-packages/nvidia/*/lib`).
+Run the notebook server
 
 ```
-CRYOSPARC_EMAIL="ali@example.com" \
-CRYOSPARC_PASSWORD="password123" \
 jupyter notebook
 ```
 
