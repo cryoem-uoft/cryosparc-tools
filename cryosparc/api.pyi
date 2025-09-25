@@ -1546,6 +1546,26 @@ class JobsAPI(APINamespace):
 
         """
         ...
+    def delete_output_result_files(self, project_uid: str, job_uid: str, output_name: str, result_name: str, /) -> None:
+        """
+        Remove all data files referenced in a job's output result. For example, for
+        an Extract Particles job, specify the "particles" output and "blob" result
+        to remove the particle stacks created by the job.
+
+        Has no effect when clearing results from jobs where the result was
+        passed through from an ancenstor job, e.g., cannot clear "blob" result
+        from a 2D Classification job connected to the Extract job.
+
+        This operation may affect downstream jobs that use these files as input.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            output_name (str):
+            result_name (str):
+
+        """
+        ...
     def connect_result(
         self,
         project_uid: str,
@@ -1855,6 +1875,31 @@ class JobsAPI(APINamespace):
 
         Returns:
             CheckpointEvent: Successful Response
+
+        """
+        ...
+    def update_event_log(
+        self,
+        project_uid: str,
+        job_uid: str,
+        event_id: str = "000000000000000000000000",
+        /,
+        text: Optional[str] = None,
+        *,
+        type: Optional[Literal["text", "warning", "error"]] = None,
+    ) -> TextEvent:
+        """
+        Update a text event log entry for a job.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            event_id (str, optional): Defaults to '000000000000000000000000'
+            text (str, optional): Defaults to None
+            type (Literal['text', 'warning', 'error'], optional): Defaults to None
+
+        Returns:
+            TextEvent: Successful Response
 
         """
         ...

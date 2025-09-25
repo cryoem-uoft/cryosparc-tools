@@ -245,6 +245,7 @@ class Session(BaseModel):
     """
     uid: str
     project_uid: str
+    workspace_type: str = "live"
     created_by_user_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -256,7 +257,6 @@ class Session(BaseModel):
     last_accessed: Optional[SessionLastAccessed] = None
     workspace_stats: WorkspaceStats = WorkspaceStats()
     imported_at: Optional[datetime.datetime] = None
-    workspace_type: str = "live"
     groups: List[JobGroup] = []
     session_uid: str
     session_dir: str
