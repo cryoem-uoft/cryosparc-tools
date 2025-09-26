@@ -13,7 +13,7 @@ from .workspace import JobGroup, WorkspaceStats
 
 
 class AthenaVolumeUploadParams(BaseModel):
-    type: str = "refinement"
+    type: Literal["refinement"] = "refinement"
     name: str
     path_rel: str
     symmetry: str = "C1"
@@ -245,7 +245,7 @@ class Session(BaseModel):
     """
     uid: str
     project_uid: str
-    workspace_type: str = "live"
+    workspace_type: Literal["live"] = "live"
     created_by_user_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None

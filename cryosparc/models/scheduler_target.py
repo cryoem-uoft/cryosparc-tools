@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel
 
@@ -13,7 +13,7 @@ class Node(BaseModel):
     Node-type scheduler target that may include GPUs
     """
 
-    type: str
+    type: Literal["node"]
     """
     Node scheduler targets have type "node".
     """
@@ -61,7 +61,7 @@ class Cluster(BaseModel):
     """
     Template command to check cluster queue info.
     """
-    type: str
+    type: Literal["cluster"]
     """
     Cluster scheduler targets have type "cluster".
     """
