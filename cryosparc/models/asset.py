@@ -25,7 +25,7 @@ class GridFSFile(BaseModel):
     contentType: Union[
         Literal["text/plain", "text/csv", "text/html", "application/json", "application/xml", "application/x-troff"],
         Literal["application/pdf", "image/gif", "image/jpeg", "image/png", "image/svg+xml"],
-        str,
+        Literal["application/octet-stream"],
     ]
     """
     Asset content type, e.g., "image/png"

@@ -68,7 +68,7 @@ class InputResult(BaseModel):
     Name of output result slot in parent job, e.g., "blob". Usually the same
     as "name" but may differ if there are multiple outputs of the same type
     """
-    version: Union[int, str] = "F"
+    version: Union[int, Literal["F"]] = "F"
     """
     Version number or specifier to use. Usually "F"
     """
@@ -232,7 +232,7 @@ class Input(BaseModel):
     """
     Minimum number of connections to this input.
     """
-    count_max: Union[int, str] = "inf"
+    count_max: Union[int, Literal["inf"]] = "inf"
     """
     Maximum number of connections for this input.
     Should be any integer >= 0 or ``"inf"`` (for infinity)
@@ -293,7 +293,7 @@ class InputSpec(BaseModel):
     """
     Minimum number of connections to this input.
     """
-    count_max: Union[int, str] = "inf"
+    count_max: Union[int, Literal["inf"]] = "inf"
     """
     Maximum number of connections for this input.
     Should be any integer >= 0 or ``"inf"`` (for infinity)
