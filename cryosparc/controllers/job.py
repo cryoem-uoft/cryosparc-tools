@@ -544,10 +544,11 @@ class JobController(Controller[Job]):
             text (str): Text to log
             level (str, optional): Log level ("text", "warning" or "error").
                 Defaults to "text".
-            name (str, optional): Event name or ID. If an event with the same
-                name or ID already exists, updates it instead of creating a new
-                one. Named events are reset when logging a checkpoint. Defaults
-                to None.
+            name (str, optional): Event name or ID. If called multiple times
+                with the same name, updates that event instead of creating a new
+                one. If name is not initially provided, can pass returned ID as
+                name. Named events are reset when logging a checkpoint.
+                Defaults to None.
 
         Example:
 
@@ -561,6 +562,11 @@ class JobController(Controller[Job]):
             ...     sleep(1)
             ...
             >>> job.log("Done!")
+
+            Update an existing log event by ID.
+            >>> event_id = job.log("Starting job processing...")
+            >>> # do some processing...
+            >>> job.log("Finished processing", name=event_id)
 
         Returns:
             str: Created log event name or ID
