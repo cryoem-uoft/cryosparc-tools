@@ -54,6 +54,7 @@ class Workspace(BaseModel):
     """
     uid: str
     project_uid: str
+    workspace_type: Literal["base", "live"] = "base"
     created_by_user_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -65,7 +66,6 @@ class Workspace(BaseModel):
     last_accessed: Optional[WorkspaceLastAccessed] = None
     workspace_stats: WorkspaceStats = WorkspaceStats()
     imported_at: Optional[datetime.datetime] = None
-    workspace_type: Literal["base", "live"] = "base"
     groups: List[JobGroup] = []
     uid_num: int
     project_uid_num: int

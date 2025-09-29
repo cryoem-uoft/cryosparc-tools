@@ -25,7 +25,7 @@ class CheckpointEvent(BaseModel):
     avail_mb: Optional[float] = None
     flags: List[str] = []
     meta: Dict[str, Any] = {}
-    type: str
+    type: Literal["checkpoint"]
 
 
 class Event(BaseModel):
@@ -64,7 +64,7 @@ class ImageEvent(BaseModel):
     avail_mb: Optional[float] = None
     flags: List[str] = []
     meta: Dict[str, Any] = {}
-    type: str
+    type: Literal["image"]
     text: str
     imgfiles: List[GridFSAsset] = []
 
@@ -97,7 +97,7 @@ class InteractiveEvent(BaseModel):
     avail_mb: Optional[float] = None
     flags: List[str] = []
     meta: Dict[str, Any] = {}
-    type: str
+    type: Literal["interactive"]
     subtype: str = "3dscatter"
     text: str
     datafile: InteractiveGridFSAsset

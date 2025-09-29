@@ -99,7 +99,7 @@ class User(BaseModel):
     name: str
     first_name: str
     last_name: str
-    status: str = "invited"
+    status: Literal["invited"] = "invited"
     profile: Profile = Profile()
     roles: Dict[str, List[Literal["user", "admin"]]] = {}
     register_token: Optional[str] = None

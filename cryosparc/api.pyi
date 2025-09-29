@@ -299,12 +299,12 @@ class InstanceAPI(APINamespace):
 
         """
         ...
-    def audit_dump(self, *, timestamp: Union[float, str, None] = None) -> Optional[str]:
+    def audit_dump(self, *, timestamp: Union[float, Literal["auto"], None] = None) -> Optional[str]:
         """
         Generate an audit dump file containing all audit logs since the given timestamp.
 
         Args:
-            timestamp (float | str, optional): Leave unspecified to dump all audit logs, set to "auto" to dump new logs since the last dump, or set to a UNIX timestamp to dump every log that occurred after it.. Defaults to None
+            timestamp (float | Literal['auto'], optional): Leave unspecified to dump all audit logs, set to "auto" to dump new logs since the last dump, or set to a UNIX timestamp to dump every log that occurred after it.. Defaults to None
 
         Returns:
             str | None: Successful Response
@@ -1385,7 +1385,7 @@ class JobsAPI(APINamespace):
         input_name: str,
         /,
         *,
-        force_join: Union[bool, str] = "auto",
+        force_join: Union[bool, Literal["auto"]] = "auto",
         slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
     ) -> Dataset:
         """
@@ -1395,7 +1395,7 @@ class JobsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
             input_name (str):
-            force_join (bool | str, optional): Defaults to 'auto'
+            force_join (bool | Literal['auto'], optional): Defaults to 'auto'
             slots (Literal['default', 'passthrough', 'all'] | List[str], optional): Defaults to 'default'
 
         Returns:
@@ -1410,7 +1410,7 @@ class JobsAPI(APINamespace):
         output_name: str,
         /,
         *,
-        version: Union[int, str] = "F",
+        version: Union[int, Literal["F"]] = "F",
         slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
     ) -> Dataset:
         """
@@ -1420,7 +1420,7 @@ class JobsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
             output_name (str):
-            version (int | str, optional): Set to F (default) to load the final version. Defaults to 'F'
+            version (int | Literal['F'], optional): Set to F (default) to load the final version. Defaults to 'F'
             slots (Literal['default', 'passthrough', 'all'] | List[str], optional): Defaults to 'default'
 
         Returns:
@@ -1546,6 +1546,26 @@ class JobsAPI(APINamespace):
 
         """
         ...
+    def delete_output_result_files(self, project_uid: str, job_uid: str, output_name: str, result_name: str, /) -> None:
+        """
+        Remove all data files referenced in a job's output result. For example, for
+        an Extract Particles job, specify the "particles" output and "blob" result
+        to remove the particle stacks created by the job.
+
+        Has no effect when clearing results from jobs where the result was
+        passed through from an ancenstor job, e.g., cannot clear "blob" result
+        from a 2D Classification job connected to the Extract job.
+
+        This operation may affect downstream jobs that use these files as input.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            output_name (str):
+            result_name (str):
+
+        """
+        ...
     def connect_result(
         self,
         project_uid: str,
@@ -1558,7 +1578,7 @@ class JobsAPI(APINamespace):
         source_job_uid: str,
         source_output_name: str,
         source_result_name: str,
-        source_result_version: Union[int, str] = "F",
+        source_result_version: Union[int, Literal["F"]] = "F",
     ) -> Job:
         """
         Adds or replaces a result within an input connection with the given output result from a different job.
@@ -1572,7 +1592,7 @@ class JobsAPI(APINamespace):
             source_job_uid (str):
             source_output_name (str):
             source_result_name (str):
-            source_result_version (int | str, optional): Defaults to 'F'
+            source_result_version (int | Literal['F'], optional): Defaults to 'F'
 
         Returns:
             Job: Successful Response
@@ -1713,7 +1733,14 @@ class JobsAPI(APINamespace):
         """
         ...
     def get_output_result_path(
-        self, project_uid: str, job_uid: str, output_name: str, result_name: str, /, *, version: Union[int, str] = "F"
+        self,
+        project_uid: str,
+        job_uid: str,
+        output_name: str,
+        result_name: str,
+        /,
+        *,
+        version: Union[int, Literal["F"]] = "F",
     ) -> str:
         """
         Get the absolute path for a job output's dataset or volume density.
@@ -1723,7 +1750,7 @@ class JobsAPI(APINamespace):
             job_uid (str): Job UID, e.g., "J3"
             output_name (str):
             result_name (str):
-            version (int | str, optional): Defaults to 'F'
+            version (int | Literal['F'], optional): Defaults to 'F'
 
         Returns:
             str: Successful Response
@@ -1810,7 +1837,7 @@ class JobsAPI(APINamespace):
         ...
     def get_event_logs(
         self, project_uid: str, job_uid: str, /, *, checkpoint: Optional[int] = None
-    ) -> List[Union[Event, CheckpointEvent, TextEvent, ImageEvent, InteractiveEvent]]:
+    ) -> List[Union[TextEvent, ImageEvent, InteractiveEvent, CheckpointEvent, Event]]:
         """
         Gets all event logs for a job.
 
@@ -1822,7 +1849,7 @@ class JobsAPI(APINamespace):
             checkpoint (int, optional): Defaults to None
 
         Returns:
-            List[Union[Event, CheckpointEvent, TextEvent, ImageEvent, InteractiveEvent]]: Successful Response
+            List[Union[TextEvent, ImageEvent, InteractiveEvent, CheckpointEvent, Event]]: Successful Response
 
         """
         ...
