@@ -579,7 +579,7 @@ class JobController(Controller[Job]):
             Update an existing log event by ID.
             >>> event_id = job.log("Starting job processing...")
             >>> # do some processing...
-            >>> job.log("Finished processing", name=event_id)
+            >>> job.log("Finished processing", id=event_id)
 
         Returns:
             str: Created log event ID
