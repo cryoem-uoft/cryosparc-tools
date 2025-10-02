@@ -57,6 +57,11 @@ GROUP_NAME_PATTERN = r"^[A-Za-z][0-9A-Za-z_]*$"
 Input and output result groups may only contain, letters, numbers and underscores.
 """
 
+LogLevel = Literal["text", "warning", "error"]
+"""
+Severity level for job event logs.
+"""
+
 
 class JobController(Controller[Job]):
     """
@@ -536,19 +541,27 @@ class JobController(Controller[Job]):
         """
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
-    def log(self, text: str, *, level: Literal["text", "warning", "error"] = "text", name: Optional[str] = None):
+    @overload
+    def log(self, text: str, *, level: LogLevel = ...) -> str: ...
+    @overload
+    def log(self, text: str, *, level: LogLevel = ..., name: str) -> str: ...
+    @overload
+    def log(self, text: str, *, level: LogLevel = ..., id: str) -> str: ...
+    def log(self, text: str, *, level: LogLevel = "text", name: Optional[str] = None, id: Optional[str] = None) -> str:
         """
-        Append to a job's event log. Update an existing log by providing a name.
+        Append to a job's event log. Update an existing log by providing a name
+        or ID.
 
         Args:
             text (str): Text to log
             level (str, optional): Log level ("text", "warning" or "error").
                 Defaults to "text".
-            name (str, optional): Event name or ID. If called multiple times
-                with the same name, updates that event instead of creating a new
-                one. If name is not initially provided, can pass returned ID as
-                name. Named events are reset when logging a checkpoint.
-                Defaults to None.
+            name (str, optional): Event name. If called multiple times with the
+                same name, updates that event instead of creating a new one.
+                Named events are reset when logging a checkpoint. Cannot be
+                provided with id. Defaults to None.
+            id (str, optional): Update a previously-created event log by its ID.
+                Cannot be provided with name. Defaults to None.
 
         Example:
 
@@ -569,15 +582,20 @@ class JobController(Controller[Job]):
             >>> job.log("Finished processing", name=event_id)
 
         Returns:
-            str: Created log event name or ID
+            str: Created log event ID
         """
+        existing_id = id
         if name and name in self._events:
-            event_id = self._events[name]
-            event = self.cs.api.jobs.update_event_log(self.project_uid, self.uid, event_id, text, type=level)
+            existing_id = self._events[name]
+
+        if existing_id:
+            event = self.cs.api.jobs.update_event_log(self.project_uid, self.uid, existing_id, text, type=level)
         else:
             event = self.cs.api.jobs.add_event_log(self.project_uid, self.uid, text, type=level)
-            self._events[name or event.id] = event.id
-        return name or event.id
+
+        if name:
+            self._events[name] = event.id
+        return event.id
 
     def log_checkpoint(self, meta: dict = {}):
         """

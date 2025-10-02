@@ -196,7 +196,7 @@ def mock_checkpoint_event():
     return mock.MagicMock(id="checkpoint_456")
 
 
-def test_log_without_name(job: JobController, mock_log_event):
+def test_log(job: JobController, mock_log_event):
     assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
     mock_add_endpoint.return_value = mock_log_event
 
@@ -213,32 +213,32 @@ def test_log_with_name_create_and_update(job: JobController, mock_log_event):
     mock_update_endpoint.return_value = mock_log_event
 
     # First call with name - should create
-    result1 = job.log("First message", name="progress")
+    event_id = job.log("First message", name="progress")
 
     mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "First message", type="text")
-    assert result1 == "progress"
+    assert event_id == "event_123"
 
     # Second call with same name - should update
-    result2 = job.log("Updated message", level="warning", name="progress")
+    event_id = job.log("Updated message", level="warning", name="progress")
 
     mock_update_endpoint.assert_called_once_with(
         job.project_uid, job.uid, mock_log_event.id, "Updated message", type="warning"
     )
-    assert result2 == "progress"
+    assert event_id == "event_123"
 
 
-def test_log_with_returned_event_id_as_name(job: JobController, mock_log_event):
+def test_log_with_returned_event_id(job: JobController, mock_log_event):
     assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
     assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
     mock_add_endpoint.return_value = mock_log_event
     mock_update_endpoint.return_value = mock_log_event
 
-    # First call without name - returns event ID
+    # First call without ID - returns event ID
     event_id = job.log("Initial message")
     assert event_id == mock_log_event.id
 
-    # Second call using the returned event ID as name - should update
-    result = job.log("Updated with event ID", name=event_id)
+    # Second call using the returned event ID - should update
+    result = job.log("Updated with event ID", id=event_id)
 
     mock_update_endpoint.assert_called_once_with(
         job.project_uid, job.uid, mock_log_event.id, "Updated with event ID", type="text"
@@ -265,4 +265,4 @@ def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mo
     mock_add_endpoint.reset_mock()  # Reset to track the second call
     result = job.log("After checkpoint", name="status")
     mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "After checkpoint", type="text")
-    assert result == "status"
+    assert result == "event_123"
