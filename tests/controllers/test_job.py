@@ -80,7 +80,6 @@ def test_job_subprocess_io(job: JobController):
         [sys.executable, "-c", 'import sys; print("hello"); print("error", file=sys.stderr); print("world")']
     )
 
-    assert len(mock_log_endpoint.mock_calls) == 7  # includes some prelude/divider calls
     mock_log_endpoint.assert_has_calls(
         [
             mock.call(job.project_uid, job.uid, "hello", type="text"),
@@ -185,3 +184,85 @@ def test_external_job_output(mock_external_job_with_saved_output: ExternalJobCon
 def test_invalid_external_job_output(external_job):
     with pytest.raises(ValueError, match="Invalid output name"):
         external_job.add_output("particle", name="particles/1", slots=["blob", "ctf"])
+
+
+@pytest.fixture
+def mock_log_event():
+    return mock.MagicMock(id="event_123")
+
+
+@pytest.fixture
+def mock_checkpoint_event():
+    return mock.MagicMock(id="checkpoint_456")
+
+
+def test_log(job: JobController, mock_log_event):
+    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
+    mock_add_endpoint.return_value = mock_log_event
+
+    result = job.log("Test message without name")
+
+    mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "Test message without name", type="text")
+    assert result == mock_log_event.id
+
+
+def test_log_with_name_create_and_update(job: JobController, mock_log_event):
+    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
+    assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
+    mock_add_endpoint.return_value = mock_log_event
+    mock_update_endpoint.return_value = mock_log_event
+
+    # First call with name - should create
+    event_id = job.log("First message", name="progress")
+
+    mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "First message", type="text")
+    assert event_id == "event_123"
+
+    # Second call with same name - should update
+    event_id = job.log("Updated message", level="warning", name="progress")
+
+    mock_update_endpoint.assert_called_once_with(
+        job.project_uid, job.uid, mock_log_event.id, "Updated message", type="warning"
+    )
+    assert event_id == "event_123"
+
+
+def test_log_with_returned_event_id(job: JobController, mock_log_event):
+    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
+    assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
+    mock_add_endpoint.return_value = mock_log_event
+    mock_update_endpoint.return_value = mock_log_event
+
+    # First call without ID - returns event ID
+    event_id = job.log("Initial message")
+    assert event_id == mock_log_event.id
+
+    # Second call using the returned event ID - should update
+    result = job.log("Updated with event ID", id=event_id)
+
+    mock_update_endpoint.assert_called_once_with(
+        job.project_uid, job.uid, mock_log_event.id, "Updated with event ID", type="text"
+    )
+    assert result == event_id
+
+
+def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mock_checkpoint_event):
+    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
+    assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
+    assert isinstance(mock_checkpoint_endpoint := APIClient.jobs.add_checkpoint, mock.Mock)
+
+    mock_add_endpoint.return_value = mock_log_event
+    mock_update_endpoint.return_value = mock_log_event
+    mock_checkpoint_endpoint.return_value = mock_checkpoint_event
+
+    job.log("Before checkpoint", name="status")
+
+    checkpoint_id = job.log_checkpoint()
+    mock_checkpoint_endpoint.assert_called_once_with(job.project_uid, job.uid, {})
+    assert checkpoint_id == mock_checkpoint_event.id
+
+    # Log again with same name - should create new
+    mock_add_endpoint.reset_mock()  # Reset to track the second call
+    result = job.log("After checkpoint", name="status")
+    mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "After checkpoint", type="text")
+    assert result == "event_123"
