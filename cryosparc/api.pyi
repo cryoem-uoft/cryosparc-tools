@@ -1349,7 +1349,7 @@ class JobsAPI(APINamespace):
 
         """
         ...
-    def set_param(self, project_uid: str, job_uid: str, param: str, /, *, value: Any) -> Job:
+    def set_param(self, project_uid: str, job_uid: str, param: str, /, value: Any) -> Job:
         """
         Sets the given job parameter to the value
 
@@ -1710,9 +1710,12 @@ class JobsAPI(APINamespace):
         self, project_uid: str, job_uid: str, output_name: str, /, result_names: Optional[List[str]] = None
     ) -> None:
         """
-        Prepares a job's output for import to another project or instance. Creates a folder in the project directory → exports subfolder,
-        then links the output's associated files there..
-        Note that the returned .csg file's parent folder must be manually copied with symlinks resolved into the target project folder before importing.
+        Prepares a job's output for import to another project or instance.
+        Creates a folder in the project directory → exports subfolder,
+        then links the output's associated files there.
+
+        Note that the returned .csg file's parent folder must be manually copied
+        with symlinks resolved into the target project folder before importing.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2690,6 +2693,31 @@ class SessionsAPI(APINamespace):
 
         """
         ...
+    def clone(
+        self,
+        project_uid: str,
+        session_uid: str,
+        /,
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        created_by_job_uid: Optional[str] = None,
+    ) -> Session:
+        """
+        Clones an existing session, copying session configuration, parameters, and exposure groups.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+            title (str, optional): Defaults to None
+            description (str, optional): Defaults to None
+            created_by_job_uid (str, optional): Defaults to None
+
+        Returns:
+            Session: Successful Response
+
+        """
+        ...
     def find_exposure_groups(self, project_uid: str, session_uid: str, /) -> List[ExposureGroup]:
         """
         Finds all exposure groups in a session.
@@ -2797,6 +2825,27 @@ class SessionsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
+
+        Returns:
+            Session: Successful Response
+
+        """
+        ...
+    def configure_auto_pause(
+        self,
+        project_uid: str,
+        session_uid: str,
+        /,
+        *,
+        auto_pause: Literal["disabled", "graceful", "immediate"],
+        auto_pause_after_idle_minutes: int = 10,
+    ) -> Session:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+            auto_pause (Literal['disabled', 'graceful', 'immediate']):
+            auto_pause_after_idle_minutes (int, optional): Defaults to 10
 
         Returns:
             Session: Successful Response
@@ -3113,6 +3162,22 @@ class SessionsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
             exposure_processing_priority (Literal['normal', 'oldest', 'latest', 'alternate']):
+
+        Returns:
+            Session: Successful Response
+
+        """
+        ...
+    def set_session_phase_one_wait_for_exposures(
+        self, project_uid: str, session_uid: str, /, *, phase_one_wait_for_exposures: bool
+    ) -> Session:
+        """
+        Sets whether to wait until exposures are available before queuing the session's preprocessing worker jobs.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+            phase_one_wait_for_exposures (bool):
 
         Returns:
             Session: Successful Response
@@ -3916,6 +3981,20 @@ class ExposuresAPI(APINamespace):
 
         """
         ...
+    def mark_failed(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
+        """
+        Mark an exposure as failed.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+            exposure_uid (int):
+
+        Returns:
+            Exposure: Successful Response
+
+        """
+        ...
     def toggle_manual_reject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Toggles manual rejection state on exposure.
@@ -4521,6 +4600,7 @@ class ProjectsAPI(APINamespace):
         clear_categories: List[Category] = [],
         clear_types: List[str] = [],
         clear_statuses: List[JobStatus] = [],
+        clear_preprocessing: bool = False,
     ) -> None:
         """
         Cleanup project or workspace data, clearing/deleting jobs based on final result status, sections, types, or job status
@@ -4534,6 +4614,7 @@ class ProjectsAPI(APINamespace):
             clear_categories (List[Category], optional): Defaults to []
             clear_types (List[str], optional): Defaults to []
             clear_statuses (List[JobStatus], optional): Defaults to []
+            clear_preprocessing (bool, optional): Defaults to False
 
         """
         ...

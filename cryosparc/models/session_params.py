@@ -265,7 +265,7 @@ class LivePreprocessingParams(BaseModel):
 class LiveAbinitParams(BaseModel):
     abinit_symmetry: str = "C1"
     abinit_K: int = 1
-    abinit_num_particles: Optional[int] = None
+    abinit_num_particles: Optional[int] = 100000
 
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:

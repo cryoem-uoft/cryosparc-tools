@@ -91,6 +91,7 @@ class LiveComputeResources(BaseModel):
     auxiliary_gpus: int = 1
     auxiliary_ssd: bool = True
     priority: int = 0
+    phase_one_workers_per_gpu: int = 1
 
 
 class LiveVolumeInfo(BaseModel):
@@ -343,6 +344,7 @@ class Session(BaseModel):
     compute_resources: LiveComputeResources = LiveComputeResources()
     notes: str = ""
     notes_lock: Optional[str] = None
+    phase_one_wait_for_exposures: bool = False
     phase_one_workers: Dict[str, RtpWorkerState] = {}
     """
     Example: {'J1': RtpWorkerState(status=<JobStatus.BUILDING: 'building'>, errors=[]),
@@ -431,11 +433,13 @@ class Session(BaseModel):
     phase2_refine_ready_partial: bool = False
     phase2_refine_num_particles_in: int = 0
     phase2_refine_last_updated: Optional[datetime.datetime] = None
-    athena_epu_run_id: Optional[str] = None
-    is_multigrid_epu_run: bool = False
+    auto_pause: Literal["disabled", "graceful", "immediate"] = "disabled"
+    auto_pause_after_idle_minutes: int = 10
     is_gracefully_pausing: bool = False
     computed_stats_last_run_time: Optional[datetime.datetime] = None
     last_processed_exposure_priority: Literal["normal", "oldest", "latest", "alternate"] = "oldest"
+    athena_epu_run_id: Optional[str] = None
+    is_multigrid_epu_run: bool = False
     ecl: ECLSessionProperties = ECLSessionProperties()
     uid_num: int
     project_uid_num: int
