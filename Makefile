@@ -30,7 +30,7 @@ docs:
 	curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local bin/micromamba
 
 .venv:
-	micromamba create -p ./.venv -y -c conda-forge python=3.10 pip wheel cython numpy jupyter-book autodocsumm
+	micromamba create -p ./.venv -y -c conda-forge python=3.10 pip wheel cython numpy jupyter-book=1.0 autodocsumm
 	micromamba run -p ./.venv pip install -e ".[build]"
 
 .vercel/output/config.json:
