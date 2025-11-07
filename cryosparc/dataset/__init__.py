@@ -104,6 +104,10 @@ FORMAT_MAGIC_PREFIXES = {
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
+_NUMPY_MAJOR_MINOR_VERSION = tuple(map(int, n.__version__.split(".")[:2]))  # e.g., "1.23.4" -> (1, 23)
+_NUMPY_LOAD_KWARGS: Dict[str, Any] = {"max_header_size": 1024**3} if _NUMPY_MAJOR_MINOR_VERSION >= (1, 24) else {}
+"""Numpy >= 1.24 load function require max_header_size, which is 10000 by default and too small for some datasets."""
+
 
 class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     """
@@ -650,7 +654,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             mmap_mode, f = None, file
             chunk_size = 2**60  # huge enough number so you don't use chunks
 
-        indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False)
+        indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False, **_NUMPY_LOAD_KWARGS)
         size = len(indata)
         descr = filter_descr(indata.dtype.descr, keep_prefixes=prefixes, keep_fields=fields)
         dset = cls.allocate(size, descr)
@@ -664,7 +668,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             if mmap_mode and offset < size:
                 # reset mmap to avoid excessive memory usage
                 del indata
-                indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False)
+                indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False, **_NUMPY_LOAD_KWARGS)
 
         if cstrs:
             dset.to_cstrs()
