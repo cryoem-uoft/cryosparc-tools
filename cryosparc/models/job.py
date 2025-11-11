@@ -206,7 +206,7 @@ class Job(BaseModel):
     """
     priority: int = 0
     """
-    Queue priority set by user or default for system
+    Queue priority set by user or default for system. higher number = higher priority.
     """
     deleted: bool = False
     """
@@ -362,6 +362,10 @@ class Job(BaseModel):
     import_status: Optional[Literal["importing", "complete", "failed"]] = None
     attach_status: Optional[Literal["attaching", "complete", "failed"]] = None
     starred_by: List[str] = []
+    requeue_windows_ends_at: Optional[datetime.datetime] = None
+    """
+    If set, job can be requeued until this time without losing its place in the queue
+    """
     uid_num: int
     project_uid_num: int
     status_num: int

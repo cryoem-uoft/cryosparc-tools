@@ -1456,7 +1456,7 @@ class JobsAPI(APINamespace):
         """
         ...
     def connect(
-        self, project_uid: str, job_uid: str, input_name: str, /, *, source_job_uid: str, source_output_name: str
+        self, project_uid: str, job_uid: str, input_name: str, /, *, source_output_name: str, source_job_uid: str
     ) -> Job:
         """
         Connects the input slot on the child job to the output group on the
@@ -1466,8 +1466,8 @@ class JobsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
             input_name (str):
-            source_job_uid (str):
             source_output_name (str):
+            source_job_uid (str):
 
         Returns:
             Job: Connected child job
@@ -1494,8 +1494,8 @@ class JobsAPI(APINamespace):
         connection_index: int,
         /,
         *,
-        source_job_uid: str,
         source_output_name: str,
+        source_job_uid: str,
     ) -> Job:
         """
         Replace the connection at the given index with a new connection.
@@ -1506,8 +1506,8 @@ class JobsAPI(APINamespace):
             job_uid (str): Job UID, e.g., "J3"
             input_name (str):
             connection_index (int):
-            source_job_uid (str):
             source_output_name (str):
+            source_job_uid (str):
 
         Returns:
             Job: Successful Response
@@ -1575,10 +1575,10 @@ class JobsAPI(APINamespace):
         result_name: str,
         /,
         *,
-        source_job_uid: str,
         source_output_name: str,
         source_result_name: str,
         source_result_version: Union[int, Literal["F"]] = "F",
+        source_job_uid: str,
     ) -> Job:
         """
         Adds or replaces a result within an input connection with the given output result from a different job.
@@ -1589,10 +1589,10 @@ class JobsAPI(APINamespace):
             input_name (str):
             connection_index (int):
             result_name (str):
-            source_job_uid (str):
             source_output_name (str):
             source_result_name (str):
             source_result_version (int | Literal['F'], optional): Defaults to 'F'
+            source_job_uid (str):
 
         Returns:
             Job: Successful Response
@@ -3832,6 +3832,38 @@ class SessionsAPI(APINamespace):
 
         Returns:
             Session: Successful Response
+
+        """
+        ...
+    def export_session(
+        self,
+        project_uid: str,
+        session_uid: str,
+        /,
+        *,
+        export_movies: bool = False,
+        export_ignored_exposures: bool = False,
+        picker_type: Optional[Literal["blob", "template", "manual"]] = None,
+    ) -> None:
+        """
+        Writes session results, including all exposures and particles, to the
+        project exports directory. The resulting directory contains .csg files.
+        Copy the directory to another CryoSPARC project (while resolving symlinks)
+        and import individual .csg files with the Import Result Group job.
+
+        Example copy command:
+
+            mkdir -p /path/to/projects/cs-project-b/imports/
+            cp -rL /path/to/projects/cs-project-a/exports/S1 /path/to/projects/cs-project-b/imports/
+
+        Note: the original movies are not added to the export directory by default.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+            export_movies (bool, optional): Defaults to False
+            export_ignored_exposures (bool, optional): Defaults to False
+            picker_type (Literal['blob', 'template', 'manual'], optional): Defaults to None
 
         """
         ...
