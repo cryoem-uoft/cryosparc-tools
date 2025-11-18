@@ -33,6 +33,14 @@ CryoSPARC installation must be accessible via one of the following methods:
 - Running on a machine on the same network with `BASE_PORT` open for connections
 - Running at some publicly accessible web URL, e.g., `https://cryosparc.example.com`
 
+```{note}
+CryoSPARC Tools versions prior to v5 require that CryoSPARC instances accessed over SSH have multiple ports forwarded (`BASE_PORT + 2`, `BASE_PORT + 3`, `BASE_PORT + 5`).
+
+As of v5, only the `BASE_PORT`, e.g., 39000, needs to be forwarded.
+
+See [SSH Port Forwarding documentation](https://guide.cryosparc.com/setup-configuration-and-management/how-to-download-install-and-configure/accessing-cryosparc#ssh-local-port-forwarding) for more information.
+```
+
 cryosparc-tools is only available for CryoSPARC v4.1 or newer. If using CryoSPARC v4.0 or older, please see the [Manipulating .cs Files Created By CryoSPARC](https://guide.cryosparc.com/setup-configuration-and-management/software-system-guides/manipulating-.cs-files-created-by-cryosparc) guide.
 
 ### Python Environment
@@ -184,6 +192,7 @@ jupyter notebook --no-browser --ip=0.0.0.0 --port=8888
 ```
 
 (running-the-examples)=
+
 ### Running the Examples
 
 The example Jupyter notebooks require additional dependencies to run. Use [conda](https://docs.conda.io/en/latest/) or [mamba](https://mamba.readthedocs.io/en/latest/) to create a new Python environment with the required dependencies. Here, the environment is named `cryosparc-tools-example` but any name may be used:
