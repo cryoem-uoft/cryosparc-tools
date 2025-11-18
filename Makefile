@@ -35,7 +35,7 @@ docs:
 
 .vercel/output/config.json:
 	mkdir -p .vercel/output
-	echo '{"version":4,"cache":["/usr/local/bin/micromamba", ".venv/**","build/**","docs/_build/**"]}' > .vercel/output/config.json
+	echo '{"version":3,"cache":["/usr/local/bin/micromamba", ".venv/**","build/**","docs/_build/**"]}' > .vercel/output/config.json
 
 vercelinstall: /usr/local/bin/micromamba .venv
 	echo "Install complete"
