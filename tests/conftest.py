@@ -247,6 +247,7 @@ def mock_api_client_class(mock_user, monkeypatch):
     APIClient.projects = mock.MagicMock()
     APIClient.workspaces = mock.MagicMock()
     APIClient.jobs = mock.MagicMock()
+    APIClient.assets = mock.MagicMock()
     APIClient.users.me.return_value = mock_user
     APIClient.config.get_version.return_value = "develop"
     return APIClient

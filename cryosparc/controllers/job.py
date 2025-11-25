@@ -62,6 +62,9 @@ LogLevel = Literal["text", "warning", "error"]
 Severity level for job event logs.
 """
 
+FileOrFigure = Union[str, PurePath, IO[bytes], Any]
+"""A file path, a file-like object, or a matplotlib figure."""
+
 
 class JobController(Controller[Job]):
     """
@@ -613,7 +616,7 @@ class JobController(Controller[Job]):
 
     def log_plot(
         self,
-        figure: Union[str, PurePath, IO[bytes], Any],
+        figure: FileOrFigure,
         text: str,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
         raw_data: Union[str, bytes, None] = None,
@@ -869,7 +872,7 @@ class JobController(Controller[Job]):
 
     def upload_plot(
         self,
-        figure: Union[str, PurePath, IO[bytes], Any],
+        figure: FileOrFigure,
         name: Optional[str] = None,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
         raw_data: Union[str, bytes, None] = None,
@@ -1590,7 +1593,16 @@ class ExternalJobController(JobController):
         else:
             return Dataset({"uid": alloc}).add_fields(expected_fields)
 
-    def save_output(self, name: str, dataset: Dataset, *, version: int = 0, **kwargs):
+    def save_output(
+        self,
+        name: str,
+        dataset: Dataset,
+        *,
+        version: int = 0,
+        image: FileOrFigure | None = None,
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        **kwargs,
+    ):
         """
         Save output dataset to external job.
 
@@ -1600,6 +1612,12 @@ class ExternalJobController(JobController):
             version (int, optional): Version number, when saving multiple
                 intermediate iterations. Only the last saved version is kept.
                 Defaults to 0.
+            image (str | Path | IO | Figure, optional): Optional image file
+                or matplotlib Figure to set as the thumbnail for this output.
+                Defaults to None.
+            savefig_kw (dict, optional): Additional keyword arguments to pass
+                to ``figure.savefig()`` when saving matplotlib Figures. Defaults
+                to ``dict(bbox_inches="tight", pad_inches=0)``.
 
         Examples:
 
@@ -1615,6 +1633,53 @@ class ExternalJobController(JobController):
         if "refresh" in kwargs:
             warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
         self.model = self.cs.api.jobs.save_output(self.project_uid, self.uid, name, dataset, version=version)
+        if not image:
+            return
+        try:
+            self.set_output_image(name, image, savefig_kw=savefig_kw)
+        except Exception as e:
+            warnings.warn(f"Could not upload output thumbnail image due to {e}", stacklevel=2)
+
+    def set_output_image(
+        self,
+        name: str,
+        image: Union[FileOrFigure, GridFSAsset],
+        *,
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+    ):
+        """
+        Set the output image for the given output to the given image file or matplotlib Figure.
+        Args:
+            name (str): Name of output to set image for.
+            image (str | Path | IO | Figure): Image file or matplotlib Figure.
+
+        """
+        assets = (
+            [image]
+            if isinstance(image, GridFSAsset)
+            else self.upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
+        )
+        self.model = self.cs.api.jobs.set_output_image(self.project_uid, self.uid, name, assets[0])
+
+    def set_tile_image(
+        self,
+        image: Union[FileOrFigure, GridFSAsset],
+        *,
+        name: str = "tile0",
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+    ):
+        """
+        Set the job tile image to the given image file or matplotlib Figure.
+
+        Args:
+            image (str | Path | IO | Figure): Image file or matplotlib Figure.
+        """
+        assets = (
+            [image]
+            if isinstance(image, GridFSAsset)
+            else self.upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
+        )
+        self.model = self.cs.api.jobs.set_tile_image(self.project_uid, self.uid, assets[0])
 
     def start(self, status: Literal["running", "waiting"] = "waiting"):
         """
