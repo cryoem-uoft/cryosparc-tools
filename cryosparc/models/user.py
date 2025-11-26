@@ -109,3 +109,6 @@ class User(BaseModel):
     preferences: Dict[str, Any] = {}
     file_browser_settings: FileBrowserPrefixes = FileBrowserPrefixes()
     lanes: List[str] = []
+    """
+    List of lane names that a user is allowed to access
+    """

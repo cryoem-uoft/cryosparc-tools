@@ -71,7 +71,6 @@ from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget, SchedulerTargetCluster, SchedulerTargetNode
 from .models.services import LoggingService
 from .models.session import (
-    DataManagementStats,
     ExposureGroup,
     ExposureGroupUpdate,
     LiveComputeResources,
@@ -589,7 +588,7 @@ class UsersAPI(APINamespace):
         ...
     def get_lanes(self, user_id: str, /) -> List[str]:
         """
-        Gets the lanes a user has access to
+        Gets the lane names a user has access to
 
         Args:
             user_id (str): User ID or Email Address
@@ -3588,18 +3587,6 @@ class SessionsAPI(APINamespace):
 
         """
         ...
-    def get_data_management_stats(self, project_uid: str, /) -> Dict[str, DataManagementStats]:
-        """
-        Gets the data management stats of all sessions in a project.
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-
-        Returns:
-            Dict[str, DataManagementStats]: Dictionary mapping session UIDs to data management statistics of that session
-
-        """
-        ...
     def mark_session_completed(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Marks the session as completed
@@ -3610,111 +3597,6 @@ class SessionsAPI(APINamespace):
 
         Returns:
             Session: Successful Response
-
-        """
-        ...
-    def change_session_data_management_state(
-        self,
-        project_uid: str,
-        session_uid: str,
-        /,
-        *,
-        datatype: Literal["micrographs", "raw", "particles", "metadata", "thumbnails"],
-        status: Literal["active", "archiving", "archived", "deleted", "deleting", "missing", "calculating"],
-    ) -> Session:
-        """
-        Updates data management status of a session's datatype
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-            session_uid (str): Session UID, e.g., "S3"
-            datatype (Literal['micrographs', 'raw', 'particles', 'metadata', 'thumbnails']):
-            status (Literal['active', 'archiving', 'archived', 'deleted', 'deleting', 'missing', 'calculating']):
-
-        Returns:
-            Session: Successful Response
-
-        """
-        ...
-    def update_session_datatype_sizes(self, project_uid: str, session_uid: str, /) -> int:
-        """
-        Updates the session's data_management information with the current size of each datatype.
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-            session_uid (str): Session UID, e.g., "S3"
-
-        Returns:
-            int: Size of the session's datatypes
-
-        """
-        ...
-    def get_datatype_size(
-        self,
-        project_uid: str,
-        session_uid: str,
-        datatype: Literal["micrographs", "raw", "particles", "metadata", "thumbnails"],
-        /,
-    ) -> int:
-        """
-        Gets the total size of a datatype inside a session in bytes.
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-            session_uid (str): Session UID, e.g., "S3"
-            datatype (Literal['micrographs', 'raw', 'particles', 'metadata', 'thumbnails']):
-
-        Returns:
-            int: Successful Response
-
-        """
-        ...
-    def delete_live_datatype(
-        self,
-        project_uid: str,
-        session_uid: str,
-        datatype: Literal["micrographs", "raw", "particles", "metadata", "thumbnails"],
-        /,
-    ) -> Optional[Job]:
-        """
-        Deletes a specific datatype inside a session.
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-            session_uid (str): Session UID, e.g., "S3"
-            datatype (Literal['micrographs', 'raw', 'particles', 'metadata', 'thumbnails']):
-
-        Returns:
-            Job | None: Successful Response
-
-        """
-        ...
-    def update_all_sessions_datatype_sizes(self, project_uid: str, /) -> None:
-        """
-        Asynchronously updates the datatype sizes of all sessions within a project
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-
-        """
-        ...
-    def get_datatype_file_paths(
-        self,
-        project_uid: str,
-        session_uid: str,
-        datatype: Literal["micrographs", "raw", "particles", "metadata", "thumbnails"],
-        /,
-    ) -> List[str]:
-        """
-        Gets all the file paths associated with a specific datatype inside a session as a list
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-            session_uid (str): Session UID, e.g., "S3"
-            datatype (Literal['micrographs', 'raw', 'particles', 'metadata', 'thumbnails']):
-
-        Returns:
-            List[str]: Successful Response
 
         """
         ...
