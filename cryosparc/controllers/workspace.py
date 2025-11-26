@@ -9,7 +9,7 @@ from ..models.workspace import Workspace
 from ..search import JobSearch
 from ..spec import Datatype, SlotSpec
 from . import Controller, as_output_slot
-from .job import ExternalJobController, JobController
+from .job import ExternalJobController, FileOrFigure, JobController
 
 if TYPE_CHECKING:
     from ..tools import CryoSPARC
@@ -205,6 +205,8 @@ class WorkspaceController(Controller[Workspace]):
         passthrough: Optional[Tuple[str, str]] = None,
         title: str = "",
         desc: str = "",
+        image: FileOrFigure | None = None,
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> str:
         """
         Save the given result dataset to a workspace.
@@ -225,6 +227,12 @@ class WorkspaceController(Controller[Workspace]):
                 Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
                 to "".
+            image (str | Path | IO | Figure, optional): Optional image file
+                or matplotlib Figure to set as the image for this output.
+                Defaults to None.
+            savefig_kw (dict, optional): Additional keyword arguments to pass
+                to ``figure.savefig()`` when saving matplotlib Figures. Defaults
+                to ``dict(bbox_inches="tight", pad_inches=0)``.
 
         Returns:
             str: UID of created job where this output was saved.
@@ -279,4 +287,6 @@ class WorkspaceController(Controller[Workspace]):
             passthrough=passthrough,
             title=title,
             desc=desc,
+            image=image,
+            savefig_kw=savefig_kw,
         )

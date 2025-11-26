@@ -682,6 +682,12 @@ class CryoSPARC:
                 Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
                 to "".
+            image (str | Path | IO | Figure, optional): Optional image file
+                or matplotlib Figure to set as the image for this output.
+                Defaults to None.
+            savefig_kw (dict, optional): Additional keyword arguments to pass
+                to ``figure.savefig()`` when saving matplotlib Figures. Defaults
+                to ``dict(bbox_inches="tight", pad_inches=0)``.
 
         Raises:
             APIError: General CryoSPARC network access error such as
