@@ -1599,7 +1599,7 @@ class ExternalJobController(JobController):
         dataset: Dataset,
         *,
         version: int = 0,
-        image: FileOrFigure | None = None,
+        image: Optional[FileOrFigure] = None,
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
         **kwargs,
     ):

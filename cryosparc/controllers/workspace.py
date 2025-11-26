@@ -205,7 +205,7 @@ class WorkspaceController(Controller[Workspace]):
         passthrough: Optional[Tuple[str, str]] = None,
         title: str = "",
         desc: str = "",
-        image: FileOrFigure | None = None,
+        image: Optional[FileOrFigure] = None,
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> str:
         """
