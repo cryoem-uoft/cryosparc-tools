@@ -1147,9 +1147,9 @@ class JobController(Controller[Job]):
             >>> job.print_param_spec()
             Param                       | Title                 | Type    | Default
             =======================================================================
-            box_size_pix                | Extraction box size   | number  | 256
-            bin_size_pix                | Fourier crop box size | number  | None
-            compute_num_gpus            | Number of GPUs        | number  | 1
+            box_size_pix                | Extraction box size   | integer  | 256
+            bin_size_pix                | Fourier crop box size | integer  | None
+            compute_num_gpus            | Number of GPUs        | integer  | 1
             ...
 
         """
@@ -1161,7 +1161,10 @@ class JobController(Controller[Job]):
             type, format = (details.type, details.format)
             if details.anyOf:
                 type, format = (details.anyOf[0].type, details.anyOf[0].format)
-            rows.append([key, details.title or key, format or type or "any", repr(details.default)])
+            display_type = format or type or "any"
+            # for an unknown reason, boolean defaults appear as 0/1 instead of True/False
+            display_default = repr(bool(details.default)) if display_type == "boolean" else repr(details.default)
+            rows.append([key, details.title or key, display_type, display_default])
         print_table(headings, rows)
 
     def print_input_spec(self):
