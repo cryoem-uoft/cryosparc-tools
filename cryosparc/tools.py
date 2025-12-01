@@ -736,7 +736,7 @@ class CryoSPARC:
             job.save_output(name, dataset)
             if image:
                 try:
-                    assets = job.upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
+                    assets = job._upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
                     job.set_output_image(name, assets[0])
                     job.set_tile_image(assets[0])
                 except Exception as e:

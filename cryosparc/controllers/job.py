@@ -670,7 +670,7 @@ class JobController(Controller[Job]):
         Returns:
             str: Created log event ID
         """
-        imgfiles = self.upload_plot(
+        imgfiles = self._upload_plot(
             figure,
             name=text,
             formats=formats,
@@ -820,7 +820,7 @@ class JobController(Controller[Job]):
         target_path = PurePosixPath(self.uid) / target_path
         return self.cs.upload(self.project_uid, target_path, source, overwrite=overwrite)
 
-    def upload_asset(
+    def _upload_asset(
         self,
         file: Union[str, PurePath, IO[bytes]],
         filename: Optional[str] = None,
@@ -834,26 +834,7 @@ class JobController(Controller[Job]):
         If a binary IO object is specified, either a filename or file format
         must be specified.
 
-        Unlike the ``upload`` method which saves files to the job directory,
-        this method saves images to the database and exposes them for use in the
-        job log.
-
-        If specifying arbitrary binary I/O, specify either a filename or a file
-        format.
-
-        Args:
-            file (str | Path | IO): Source asset file path or handle.
-            filename (str, optional): Filename of asset. If ``file`` is a handle
-                specify one of ``filename`` or ``format``. Defaults to None.
-            format (AssetFormat, optional): Format of filename. If ``file`` is
-                a handle, specify one of ``filename`` or ``format``. Defaults to
-                None.
-
-        Raises:
-            ValueError: If incorrect arguments specified
-
-        Returns:
-            EventLogAsset: Dictionary including details about uploaded asset.
+        Do not use directly; use e.g., ``log_plot`` instead.
         """
         ext = None
         if format:
@@ -870,7 +851,7 @@ class JobController(Controller[Job]):
             raise ValueError(f"Invalid asset format {ext}")
         return self.cs.api.assets.upload(self.project_uid, self.uid, Stream.load(file), filename=filename, format=ext)
 
-    def upload_plot(
+    def _upload_plot(
         self,
         figure: FileOrFigure,
         name: Optional[str] = None,
@@ -884,32 +865,6 @@ class JobController(Controller[Job]):
         Upload the given figure. Returns a list of the created asset objects.
         Avoid using directly; use ``log_plot`` instead. See ``log_plot``
         additional details.
-
-        Args:
-            figure (str | Path | IO | Figure): Image file path, file handle or
-                matplotlib figure instance
-            name (str): Associated name for given figure
-            formats (list[ImageFormat], optional): Image formats to save plot
-                into. If a ``figure`` is a file handle, specify
-                ``formats=['<format>']``, where ``<format>`` is a valid image
-                extension such as ``png`` or ``pdf``. Assumes ``png`` if not
-                specified. Defaults to ["png", "pdf"].
-            raw_data (str | bytes, optional): Raw text data for associated plot,
-                generally in CSV, XML or JSON format. Cannot be specified with
-                ``raw_data_file``. Defaults to None.
-            raw_data_file (str | Path | IO, optional): Path to raw text data.
-                Cannot be specified with ``raw_data``. Defaults to None.
-            raw_data_format (TextFormat, optional): Format for raw text data.
-                Defaults to None.
-            savefig_kw (dict, optional): If a matplotlib figure is specified
-                optionally specify keyword arguments for the ``savefig`` method.
-                Defaults to dict(bbox_inches="tight", pad_inches=0).
-
-        Raises:
-            ValueError: If incorrect argument specified
-
-        Returns:
-            list[EventLogAsset]: Details about created uploaded job assets
         """
         figdata = []
         basename = name or "figure"
@@ -952,9 +907,9 @@ class JobController(Controller[Job]):
                 raise ValueError(f"Invalid raw data filename {raw_data_file}")
             raw_data_format = ext
 
-        assets = [self.upload_asset(data, filename, fmt) for data, filename, fmt in figdata]
+        assets = [self._upload_asset(data, filename, fmt) for data, filename, fmt in figdata]
         if raw_data_file:
-            asset = self.upload_asset(raw_data_file, raw_data_filename, raw_data_format or "txt")
+            asset = self._upload_asset(raw_data_file, raw_data_filename, raw_data_format or "txt")
             assets.append(asset)
 
         return assets
@@ -1657,7 +1612,7 @@ class ExternalJobController(JobController):
         assets = (
             [image]
             if isinstance(image, GridFSAsset)
-            else self.upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
+            else self._upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
         )
         self.model = self.cs.api.jobs.set_output_image(self.project_uid, self.uid, name, assets[0])
 
@@ -1677,7 +1632,7 @@ class ExternalJobController(JobController):
         assets = (
             [image]
             if isinstance(image, GridFSAsset)
-            else self.upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
+            else self._upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
         )
         self.model = self.cs.api.jobs.set_tile_image(self.project_uid, self.uid, assets[0])
 
