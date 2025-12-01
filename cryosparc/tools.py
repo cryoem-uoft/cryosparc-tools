@@ -29,7 +29,7 @@ from .api import APIClient
 from .auth import InstanceAuthSessions
 from .constants import API_SUFFIX
 from .controllers import as_output_slot
-from .controllers.job import ExternalJobController, JobController
+from .controllers.job import ExternalJobController, FileOrFigure, JobController
 from .controllers.project import ProjectController
 from .controllers.workspace import WorkspaceController
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
@@ -614,6 +614,8 @@ class CryoSPARC:
         passthrough: Optional[Tuple[str, str]] = None,
         title: str = "",
         desc: str = "",
+        image: Optional[FileOrFigure] = None,
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> str:
         """
         Save the given result dataset to the project. Specify at least the
@@ -680,6 +682,12 @@ class CryoSPARC:
                 Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
                 to "".
+            image (str | Path | IO | Figure, optional): Optional image file
+                or matplotlib Figure to set as the image for this output.
+                Defaults to None.
+            savefig_kw (dict, optional): Additional keyword arguments to pass
+                to ``figure.savefig()`` when saving matplotlib Figures. Defaults
+                to ``dict(bbox_inches="tight", pad_inches=0)``.
 
         Raises:
             APIError: General CryoSPARC network access error such as
@@ -726,6 +734,14 @@ class CryoSPARC:
         job = ExternalJobController(self, job)
         with job.run():
             job.save_output(name, dataset)
+            if image:
+                try:
+                    assets = job._upload_plot(image, name=name, formats=["png"], savefig_kw=savefig_kw)
+                    job.set_output_image(name, assets[0])
+                    job.set_tile_image(assets[0])
+                except Exception as e:
+                    warnings.warn(f"Could not set output image for external job due to {e}", stacklevel=2)
+
         return job.uid
 
     def list_files(

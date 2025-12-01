@@ -1648,6 +1648,35 @@ class JobsAPI(APINamespace):
 
         """
         ...
+    def set_output_image(self, project_uid: str, job_uid: str, output_name: str, /, body: GridFSAsset) -> Job:
+        """
+        Set a custom image for an External job output.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            output_name (str):
+            body (GridFSAsset):
+
+        Returns:
+            Job: Successful Response
+
+        """
+        ...
+    def set_tile_image(self, project_uid: str, job_uid: str, /, body: GridFSAsset) -> Job:
+        """
+        Set a custom job tile image for an External job.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            body (GridFSAsset):
+
+        Returns:
+            Job: Successful Response
+
+        """
+        ...
     def enqueue(
         self,
         project_uid: str,

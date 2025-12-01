@@ -11,7 +11,7 @@ from ..search import In, JobSearch
 from ..spec import Datatype, SlotSpec
 from ..util import PurePosixPathProperty
 from . import Controller, as_output_slot
-from .job import ExternalJobController, JobController
+from .job import ExternalJobController, FileOrFigure, JobController
 from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
@@ -278,6 +278,8 @@ class ProjectController(Controller[Project]):
         passthrough: Optional[Tuple[str, str]] = None,
         title: str = "",
         desc: str = "",
+        image: Optional[FileOrFigure] = None,
+        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> str:
         """
         Save the given result dataset to the project. Specify at least the
@@ -346,6 +348,12 @@ class ProjectController(Controller[Project]):
                 Defaults to "".
             desc (str, optional): Markdown description for this output. Defaults
                 to "".
+            image (str | Path | IO | Figure, optional): Optional image file
+                or matplotlib Figure to set as the image for this output.
+                Defaults to None.
+            savefig_kw (dict, optional): Additional keyword arguments to pass
+                to ``figure.savefig()`` when saving matplotlib Figures. Defaults
+                to ``dict(bbox_inches="tight", pad_inches=0)``.
 
         Returns:
             str: UID of created job where this output was saved
@@ -363,6 +371,8 @@ class ProjectController(Controller[Project]):
             passthrough=passthrough,
             title=title,
             desc=desc,
+            image=image,
+            savefig_kw=savefig_kw,
         )
 
     def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:

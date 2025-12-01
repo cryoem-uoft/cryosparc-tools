@@ -1,5 +1,6 @@
 import sys
 from datetime import datetime, timezone
+from io import BytesIO
 from unittest import mock
 
 import pytest
@@ -266,3 +267,62 @@ def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mo
     result = job.log("After checkpoint", name="status")
     mock_add_endpoint.assert_called_once_with(job.project_uid, job.uid, "After checkpoint", type="text")
     assert result == "event_123"
+
+
+def test_save_output_with_image(external_job_with_added_output: ExternalJobController, mock_external_job: Job):
+    assert isinstance(mock_save_endpoint := APIClient.jobs.save_output, mock.Mock)
+    assert isinstance(mock_upload_endpoint := APIClient.assets.upload, mock.Mock)
+    assert isinstance(mock_set_image_endpoint := APIClient.jobs.set_output_image, mock.Mock)
+
+    mock_asset = mock.MagicMock(id="asset_123")
+    mock_upload_endpoint.return_value = mock_asset
+    mock_save_endpoint.return_value = mock_external_job
+    mock_set_image_endpoint.return_value = mock_external_job
+
+    # Create a simple mock image (BytesIO object)
+    image = BytesIO(b"fake_png_data")
+
+    external_job_with_added_output.save_output("particles", T20S_PARTICLES, image=image)
+
+    mock_save_endpoint.assert_called_once_with(
+        external_job_with_added_output.project_uid,
+        external_job_with_added_output.uid,
+        "particles",
+        T20S_PARTICLES,
+        version=0,
+    )
+    mock_set_image_endpoint.assert_called_once()
+
+
+def test_set_output_image(external_job_with_added_output: ExternalJobController, mock_external_job: Job):
+    assert isinstance(mock_upload_endpoint := APIClient.assets.upload, mock.Mock)
+    assert isinstance(mock_set_image_endpoint := APIClient.jobs.set_output_image, mock.Mock)
+
+    mock_asset = mock.MagicMock(id="asset_456")
+    mock_upload_endpoint.return_value = mock_asset
+    mock_set_image_endpoint.return_value = mock_external_job
+
+    image = BytesIO(b"fake_image_data")
+
+    external_job_with_added_output.set_output_image("particles", image)
+
+    mock_upload_endpoint.assert_called_once()
+    mock_set_image_endpoint.assert_called_once_with(
+        external_job_with_added_output.project_uid, external_job_with_added_output.uid, "particles", mock_asset
+    )
+
+
+def test_set_tile_image(external_job: ExternalJobController, mock_external_job: Job):
+    assert isinstance(mock_upload_endpoint := APIClient.assets.upload, mock.Mock)
+    assert isinstance(mock_set_tile_endpoint := APIClient.jobs.set_tile_image, mock.Mock)
+
+    mock_asset = mock.MagicMock(id="asset_789")
+    mock_upload_endpoint.return_value = mock_asset
+    mock_set_tile_endpoint.return_value = mock_external_job
+
+    image = BytesIO(b"fake_tile_image")
+
+    external_job.set_tile_image(image)
+
+    mock_upload_endpoint.assert_called_once()
+    mock_set_tile_endpoint.assert_called_once_with(external_job.project_uid, external_job.uid, mock_asset)
