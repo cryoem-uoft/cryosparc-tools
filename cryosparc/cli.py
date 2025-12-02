@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 import sys
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from datetime import datetime, timedelta, timezone
@@ -60,6 +61,12 @@ def login(args: Namespace):
         args.email = input("Email: ").strip()
     if not args.password:
         args.password = getpass("Password: ")
+
+    if not args.url:
+        print("Error: CryoSPARC URL is required!", file=sys.stderr)
+        os._exit(1)
+    if not re.match(r"^https?://", args.url):
+        args.url = "http://" + args.url
 
     sessions = InstanceAuthSessions.load()
 
