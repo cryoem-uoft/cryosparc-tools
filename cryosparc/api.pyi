@@ -1355,7 +1355,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            param (str): Name of parameter to set
+            param (str):
             value (Any):
 
         Returns:
@@ -1370,7 +1370,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            param (str): Name of parameter to clear
+            param (str):
 
         Returns:
             Job: Successful Response

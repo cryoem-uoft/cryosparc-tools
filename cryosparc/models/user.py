@@ -104,6 +104,7 @@ class User(BaseModel):
     roles: Dict[str, List[Literal["user", "admin"]]] = {}
     register_token: Optional[str] = None
     reset_token: Optional[str] = None
+    last_password_changed_at: Optional[datetime.datetime] = None
     services: Services = Services()
     state: UserState = UserState()
     preferences: Dict[str, Any] = {}
