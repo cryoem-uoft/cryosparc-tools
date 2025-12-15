@@ -1474,6 +1474,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             NDArray[bool]: Query mask, may be used with the ``mask()`` method.
         """
         query_fields = set(self.fields()).intersection(query.keys())
+        if len(missing_fields := set(query.keys()) - query_fields) != 0:
+            raise KeyError(f"Fields not in dataset: {', '.join(missing_fields)}")
         mask = n.ones(len(self), dtype=bool)
         for field in query_fields:
             mask &= n.isin(self[field], query[field])
