@@ -554,7 +554,7 @@ class CryoSPARC:
             Create an Import Movies job.
 
             >>> from cryosparc.tools import CryoSPARC
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> import_job = cs.create_job("P3", "W1", "import_movies")
             >>> import_job.set_param("blob_paths", "/bulk/data/t20s/*.tif")
             True
@@ -783,7 +783,7 @@ class CryoSPARC:
         Examples:
             Download a job's metadata
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> with cs.download('P3', 'J42/job.json') as res:
             >>>     job_data = json.loads(res.read())
 

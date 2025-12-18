@@ -230,7 +230,7 @@ class ProjectController(Controller[Project]):
             Create an Import Movies job.
 
             >>> from cryosparc.tools import CryoSPARC
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> import_job = project.create_job("W1", "import_movies")
             >>> import_job.set_param("blob_paths", "/bulk/data/t20s/*.tif")
@@ -407,7 +407,7 @@ class ProjectController(Controller[Project]):
 
             Download a project's metadata
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> with project.download("project.json") as res:
             >>>     project_data = json.loads(res.read())

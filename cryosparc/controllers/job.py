@@ -85,7 +85,7 @@ class JobController(Controller[Job]):
 
         Find an existing job.
 
-        >>> cs = CryoSPARC()
+        >>> cs = CryoSPARC("http://localhost:61000")
         >>> job = cs.find_job("P3", "J42")
         >>> job.status
         "building"
@@ -241,7 +241,7 @@ class JobController(Controller[Job]):
 
             Queue a job to lane named "worker":
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> job = cs.find_job("P3", "J42")
             >>> job.status
             "building"
@@ -372,7 +372,7 @@ class JobController(Controller[Job]):
 
             Set the number of GPUs used by a supported job
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> job = cs.find_job("P3", "J42")
             >>> job.set_param("compute_num_gpus", 4)
             True
@@ -402,7 +402,7 @@ class JobController(Controller[Job]):
             Connect J3 to CTF-corrected micrographs from J2's ``micrographs``
             output.
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> job = project.find_job("J3")
             >>> job.connect("input_micrographs", "J2", "micrographs")
@@ -446,7 +446,7 @@ class JobController(Controller[Job]):
         Examples:
 
             Connect J3 to the first connection of J2's ``particles`` input.
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> job = project.find_job("J3")
             >>> job.connect_result("particles", 0, "location", "J2", "particles_selected", "location")
@@ -716,7 +716,7 @@ class JobController(Controller[Job]):
 
             Download a job's metadata
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> job = cs.find_job("P3", "J42")
             >>> with job.download("job.json") as res:
             >>>     job_data = json.loads(res.read())
@@ -1098,7 +1098,7 @@ class JobController(Controller[Job]):
 
         Examples:
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> job = cs.find_job("P3", "J42")
             >>> job.type
             'extract_micrographs_multi'
@@ -1135,7 +1135,7 @@ class JobController(Controller[Job]):
 
         Examples:
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> job = cs.find_job("P3", "J42")
             >>> job.type
             'extract_micrographs_multi'
@@ -1174,7 +1174,7 @@ class JobController(Controller[Job]):
 
         Examples:
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> job = cs.find_job("P3", "J42")
             >>> job.type
             'extract_micrographs_multi'
@@ -1211,7 +1211,7 @@ class ExternalJobController(JobController):
     passthrough inherited input fields, just as with regular CryoSPARC jobs.
 
     Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.controllers.project.ProjectController.create_external_job>`.
-    or :py:meth:`workspace.create_external_job() <cryosparc.workspace.WorkspaceController.create_external_job>`.
+    or :py:meth:`workspace.create_external_job() <cryosparc.controllers.workspace.WorkspaceController.create_external_job>`.
     ``ExternalJobController`` is a subclass of :py:class:`JobController`
     and inherits all its methods and attributes.
 
@@ -1220,9 +1220,10 @@ class ExternalJobController(JobController):
         Import multiple exposure groups into a single job
 
         >>> from cryosparc.tools import CryoSPARC
-        >>> cs = CryoSPARC()
+        >>> cs = CryoSPARC("http://localhost:61000")
         >>> project = cs.find_project("P3")
         >>> job = project.create_external_job("W3", title="Import Image Sets")
+        >>> job.start()
         >>> for i in range(3):
         ...     dset = job.add_output(
         ...         type="exposure",
@@ -1232,6 +1233,8 @@ class ExternalJobController(JobController):
         ...     )
         ...     dset['movie_blob/path'] = ...  # populate dataset
         ...     job.save_output(output_name, dset)
+        ...
+        >>> job.stop()
     """
 
     def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
@@ -1284,7 +1287,7 @@ class ExternalJobController(JobController):
 
             Create an external job that accepts micrographs as input:
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> job = project.create_external_job("W1", title="Custom Picker")
             >>> job.uid
@@ -1380,7 +1383,7 @@ class ExternalJobController(JobController):
 
             Create and allocate an output for new particle picks
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> job = project.find_external_job("J3")
             >>> particles_dset = job.add_output(
@@ -1475,7 +1478,7 @@ class ExternalJobController(JobController):
             Connect J3 to CTF-corrected micrographs from J2's ``micrographs``
             output.
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> job = project.find_external_job("J3")
             >>> job.connect("input_micrographs", "J2", "micrographs")
@@ -1524,7 +1527,7 @@ class ExternalJobController(JobController):
             Allocate a dataset of size 10,000 for an output for new particle
             picks
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> job = project.find_external_job("J3")
             >>> job.alloc_output("picked_particles", 10000)
@@ -1581,7 +1584,7 @@ class ExternalJobController(JobController):
 
             Save a previously-allocated output.
 
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> project = cs.find_project("P3")
             >>> job = project.find_external_job("J3")
             >>> particles = job.alloc_output("picked_particles", 10000)

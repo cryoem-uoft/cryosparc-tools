@@ -159,7 +159,7 @@ class WorkspaceController(Controller[Workspace]):
             Create an Import Movies job.
 
             >>> from cryosparc.tools import CryoSPARC
-            >>> cs = CryoSPARC()
+            >>> cs = CryoSPARC("http://localhost:61000")
             >>> workspace = cs.find_workspace("P3", "W3")
             >>> import_job = workspace.create_job("W1", "import_movies")
             >>> import_job.set_param("blob_paths", "/bulk/data/t20s/*.tif")
