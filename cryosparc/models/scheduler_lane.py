@@ -6,6 +6,11 @@ from pydantic import BaseModel
 
 
 class SchedulerLane(BaseModel):
+    """
+    Lane definition for the Job scheduler. Scheduler targets are associated with
+    a lane that has the same type.
+    """
+
     name: str
     """
     Identifier for this lane.

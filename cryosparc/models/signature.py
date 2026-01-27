@@ -5,9 +5,15 @@ from pydantic import BaseModel
 
 class ImportSignature(BaseModel):
     """
-    Binary signatures of imported paths used in import jobs and sessions.
-    Meant to analyze unique imports across projects, but currently unused.
+    Binary signatures of imported paths used in import jobs and sessions,
+    to track re-importing the same data
     """
 
     count: int = 0
+    """
+    Number of imported paths
+    """
     signatures: str = ""
+    """
+    Binary signatures of imported paths
+    """

@@ -4,10 +4,26 @@ from pydantic import BaseModel
 
 
 class AppSession(BaseModel):
+    """
+    Data required to verify a web application session.
+    """
+
     user_id: str
+    """
+    """
     session_id: str
+    """
+    """
     signature: str
+    """
+    """
 
 
 class SHA256Password(BaseModel):
+    """
+    SHA-256 hashed password data, in hexadecimal format.
+    """
+
     password: str
+    """
+    """

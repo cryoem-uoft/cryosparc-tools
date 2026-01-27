@@ -6,5 +6,13 @@ from pydantic import BaseModel
 
 
 class Token(BaseModel):
+    """
+    Login token information for API authentication.
+    """
+
     access_token: str
+    """
+    """
     token_type: Literal["bearer"]
+    """
+    """

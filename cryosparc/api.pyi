@@ -36,6 +36,42 @@ The ``api`` object used in these examples is instance of the ``APIClient`` class
 defined below. Each attribute of the ``api`` object, e.g., ``api.jobs``, is an
 instance of one of the ``___API`` classes, e.g., ``JobsAPI``.
 
+Positional v.s. Keyword Arguments
+=================================
+
+API functions have positional-only, positional-or-keyword, and keyword-only
+`arguments <https://docs.python.org/3/glossary.html#term-argument>`__. These
+are indicated in the function signature by the use of ``/`` and ``*`` markers:
+
+- All arguments before the ``/`` are positional-only
+- All arguments after the ``*`` are keyword-only
+- All arguments in between can be specified either positionally or as keywords.
+
+For example, in the following function signature:
+
+.. code:: python
+
+    upload(project_uid: str, job_uid: str, /, stream: Stream, *, filename: str | None = None, format: Literal['txt', 'pdf', 'png', ...] | None = None) -> Asset:
+
+- ``project_uid`` and ``job_uid`` are positional-only
+- ``stream`` is a positional-or-keyword
+- ``filename`` and ``format`` are keyword-only
+
+Correct usage when calling this function would be:
+
+.. code:: python
+
+    api.assets.upload('P3', 'J42', my_stream, filename='output.txt', format='txt')
+
+Examples of incorrect usage:
+
+.. code:: python
+
+    # INCORRECT USAGE EXAMPLES - will raise TypeError:
+    api.assets.upload('P3', 'J42', my_stream, 'output.txt', 'txt')
+    api.assets.upload('P3', job_uid='J42', stream=my_stream, filename='output.txt', format='txt')
+    api.assets.upload(project_uid='P3', job_uid='J42', stream=my_stream, filename='output.txt', format='txt')
+
 """
 
 import datetime
@@ -2543,7 +2579,7 @@ class WorkspacesAPI(APINamespace):
         self, project_uid: str, workspace_uid: str, /, *, job_uids: List[str]
     ) -> WorkspaceAncestorUidsResponse:
         """
-        Finds ancestors of jobs in the workspace
+        Finds ancestors of the given jobs in the workspace.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -3837,6 +3873,60 @@ class ExposuresAPI(APINamespace):
 
         """
         ...
+    def count(
+        self,
+        *,
+        order: int = 1,
+        after: Optional[str] = None,
+        limit: int = 100,
+        uid: Optional[List[str]] = None,
+        session_uid: Optional[List[str]] = None,
+        project_uid: Optional[List[str]] = None,
+        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        stage: Optional[
+            List[
+                Literal[
+                    "go_to_found",
+                    "found",
+                    "check",
+                    "motion",
+                    "ctf",
+                    "thumbs",
+                    "pick",
+                    "extract",
+                    "extract_manual",
+                    "ready",
+                    "restoring",
+                    "restoring_motion",
+                    "restoring_thumbs",
+                    "restoring_ctf",
+                    "restoring_extract",
+                    "restoring_extract_manual",
+                    "compacted",
+                ]
+            ]
+        ] = None,
+        deleted: Optional[bool] = False,
+    ) -> int:
+        """
+        Args:
+            order (int, optional): Defaults to 1
+            after (str, optional): Defaults to None
+            limit (int, optional): Defaults to 100
+            uid (List[str], optional): Defaults to None
+            session_uid (List[str], optional): Defaults to None
+            project_uid (List[str], optional): Defaults to None
+            created_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
+            updated_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
+            stage (List[Literal['go_to_found', 'found', 'check', 'motion', 'ctf', 'thumbs', 'pick', 'extract', 'extract_manual', 'ready', 'restoring', 'restoring_motion', 'restoring_thumbs', 'restoring_ctf', 'restoring_extract', 'restoring_extract_manual', 'compacted']], optional): Defaults to None
+            deleted (bool, optional): Defaults to False
+
+        Returns:
+            int: Successful Response
+
+        """
+        ...
     def find_one(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Args:
@@ -4084,6 +4174,7 @@ class ProjectsAPI(APINamespace):
         uid: Optional[List[str]] = None,
         project_dir: Optional[str] = None,
         owner_user_id: Optional[str] = None,
+        users_with_access: Optional[List[str]] = None,
         deleted: Optional[bool] = False,
         archived: Optional[bool] = None,
         detached: Optional[bool] = None,
@@ -4098,6 +4189,7 @@ class ProjectsAPI(APINamespace):
             uid (List[str], optional): Defaults to None
             project_dir (str, optional): Defaults to None
             owner_user_id (str, optional): Defaults to None
+            users_with_access (List[str], optional): Defaults to None
             deleted (bool, optional): Defaults to False
             archived (bool, optional): Defaults to None
             detached (bool, optional): Defaults to None
@@ -4124,13 +4216,14 @@ class ProjectsAPI(APINamespace):
         ...
     def count(
         self,
-        uid: Optional[List[str]] = None,
         *,
         order: int = 1,
         after: Optional[str] = None,
         limit: int = 100,
+        uid: Optional[List[str]] = None,
         project_dir: Optional[str] = None,
         owner_user_id: Optional[str] = None,
+        users_with_access: Optional[List[str]] = None,
         deleted: Optional[bool] = False,
         archived: Optional[bool] = None,
         detached: Optional[bool] = None,
@@ -4139,12 +4232,13 @@ class ProjectsAPI(APINamespace):
         Counts the number of projects matching the filter.
 
         Args:
-            uid (List[str], optional): Defaults to None
             order (int, optional): Defaults to 1
             after (str, optional): Defaults to None
             limit (int, optional): Defaults to 100
+            uid (List[str], optional): Defaults to None
             project_dir (str, optional): Defaults to None
             owner_user_id (str, optional): Defaults to None
+            users_with_access (List[str], optional): Defaults to None
             deleted (bool, optional): Defaults to False
             archived (bool, optional): Defaults to None
             detached (bool, optional): Defaults to None
@@ -5063,7 +5157,7 @@ class DeveloperAPI(APINamespace):
 
 class APIClient:
     """
-    Top-level API client class. e.g., ``api.read_root(...)``
+    Functions and namespaces available in top-level API object. e.g., ``api.read_root(...)``
     or ``api.config.get_file_browser_settings(...)``
     """
 

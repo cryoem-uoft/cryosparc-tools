@@ -8,16 +8,31 @@ from pydantic import BaseModel, Field
 
 class GridFSAsset(BaseModel):
     """
-    Information about an uploaded GridFS file.
+    Basic information about an uploaded asset file.
     """
 
     fileid: str
+    """
+    File ID as a string
+    """
     filename: str
+    """
+    File name, e.g,. "image.png"
+    """
     filetype: str
+    """
+    File format extension, e.g., "png"
+    """
 
 
 class GridFSFile(BaseModel):
+    """
+    Complete uploaded asset file metadata model.
+    """
+
     id: str = Field("000000000000000000000000", alias="_id")
+    """
+    """
     filename: str
     """
     File name

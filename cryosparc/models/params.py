@@ -9,5 +9,11 @@ class ParamSection(TypedDict, total=False):
     """
 
     name: str
+    """
+    """
     title: str
+    """
+    """
     description: str
+    """
+    """

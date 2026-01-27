@@ -12,42 +12,104 @@ from .scheduler_target import SchedulerTarget
 
 
 class AllocatedResources(BaseModel):
+    """
+    Scheduler target resources allocated for a job the scheduler at launch time.
+    """
+
     lane: Optional[str] = None
+    """
+    Name of lane the job is queued to.
+    """
     lane_type: Optional[str] = None
+    """
+    Type of allocated lane ("node" or "cluster")
+    """
     hostname: str
+    """
+    For node targets, hostname of selected worker node.
+    """
     target: Optional[SchedulerTarget] = None
+    """
+    Allocated scheduler target full details.
+    """
     slots: ResourceSlots = ResourceSlots()
+    """
+    Listings of compute resources allocated for this job.
+    """
     fixed: FixedResourceSlots = FixedResourceSlots()
+    """
+    Fixed compute resources allocated for this job.
+    """
     licenses_acquired: int = 0
+    """
+    Number of GPU tokens allocated for this job.
+    """
 
 
 JobStatus = Literal["building", "queued", "launched", "started", "running", "waiting", "completed", "killed", "failed"]
 
 
 class JobLastAccessed(BaseModel):
+    """
+    Record for when a user last accessed a job.
+    """
+
     name: str
     """
-    username of relevant user
+    Username that last accessed the job.
     """
     accessed_at: datetime.datetime = datetime.datetime(1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    Timestamp of the last access.
+    """
 
 
 class RunError(BaseModel):
+    """
+    Details about a runtime error encountered during job execution.
+    """
+
     message: str
+    """
+    """
     warning: bool = False
+    """
+    """
 
 
 class UiTileImage(BaseModel):
+    """
+    Details about a job tile image shown in the UI.
+    """
+
     name: str
+    """
+    """
     fileid: str
+    """
+    """
     num_rows: Optional[int] = None
+    """
+    """
     num_cols: Optional[int] = None
+    """
+    """
 
 
 class JobWorkflowInfo(BaseModel):
+    """
+    Information about the workflow a job is part of.
+    """
+
     id: str
+    """
+    """
     jobId: str
+    """
+    """
     run: int = 0
+    """
+    """
 
 
 class Job(BaseModel):
@@ -57,6 +119,8 @@ class Job(BaseModel):
     """
 
     id: str = Field("000000000000000000000000", alias="_id")
+    """
+    """
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     """
     When this object was last modified.
@@ -229,6 +293,9 @@ class Job(BaseModel):
     Set by scheduler before launching
     """
     queued_by_user_id: Optional[str] = None
+    """
+    ID of user account that queued this job.
+    """
     queued_to_lane: Optional[str] = None
     """
     set at queue time based on params
@@ -273,24 +340,49 @@ class Job(BaseModel):
     """
     errors_run: List[RunError] = []
     """
-    Runtime errors
+    Runtime errors, limited to last 10 errors.
     """
     interactive_port: Optional[int] = None
     """
-    job gets this when interactive server is opened with port 0, sets it here
-    between started and running and waiting
+    Port assigned to a job's interactive server by operation system, only
+    available after an interactive job enters waiting status.
     """
     PID_monitor: Optional[int] = None
+    """
+    Process ID number of job monitor process
+    """
     PID_main: Optional[int] = None
+    """
+    Process ID number of main job process
+    """
     PID_workers: List[int] = []
+    """
+    Process ID numbers of worker processes spawned by main job process
+    """
     cluster_job_id: Optional[str] = None
+    """
+    """
     cluster_job_status: Optional[str] = None
+    """
+    """
     cluster_job_status_code: Optional[str] = None
+    """
+    """
     cluster_job_monitor_event_id: Optional[str] = None
+    """
+    """
     cluster_job_monitor_retries: int = 0
+    """
+    """
     cluster_job_monitor_last_run_at: Optional[datetime.datetime] = None
+    """
+    """
     cluster_job_submission_script: Optional[str] = None
+    """
+    """
     cluster_job_custom_vars: Dict[str, str] = {}
+    """
+    """
     ui_tile_images: List[UiTileImage] = []
     """
     Job tile images in app
@@ -320,9 +412,17 @@ class Job(BaseModel):
     Details about the active instance
     """
     last_intermediate_data_cleared_at: Optional[datetime.datetime] = None
+    """
+    """
     last_intermediate_data_cleared_amount: int = 0
+    """
+    """
     intermediate_results_size_bytes: int = 0
+    """
+    """
     intermediate_results_size_last_updated: Optional[datetime.datetime] = None
+    """
+    """
     is_final_result: bool = False
     """
     Job and its anscestors is the final result and should not be deleted
@@ -333,6 +433,10 @@ class Job(BaseModel):
     Similar to is_final_result
     """
     no_check_inputs_ready: bool = False
+    """
+    If True, a queued job will be launched even if parent connected jobs have
+    not finished running yet.
+    """
     progress: List[Dict[str, Any]] = []
     """
     Progress log
@@ -358,15 +462,38 @@ class Job(BaseModel):
     Information about workflow that job ran from, if any
     """
     imported_at: Optional[datetime.datetime] = None
+    """
+    """
     deleted_at: Optional[datetime.datetime] = None
+    """
+    """
     import_status: Optional[Literal["importing", "complete", "failed"]] = None
+    """
+    """
     attach_status: Optional[Literal["attaching", "complete", "failed"]] = None
+    """
+    """
     starred_by: List[str] = []
+    """
+    List of user IDs who have starred this job.
+    """
     requeue_windows_ends_at: Optional[datetime.datetime] = None
     """
-    If set, job can be requeued until this time without losing its place in the queue
+    If set, job can be cleared and requeued until this time without losing its place in the queue
     """
     uid_num: int
+    """
+    Numeric part of the job UID.
+    """
     project_uid_num: int
+    """
+    Numeric part of the project UID.
+    """
     status_num: int
+    """
+    Numeric representation of job status.
+    """
     build_errors: List[JobBuildError]
+    """
+    List of build errors for this job. Jobs cannot be queued or launched if there are build errors.
+    """

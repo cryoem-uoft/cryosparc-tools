@@ -9,24 +9,66 @@ class LicenseInstance(TypedDict, total=False):
     """
 
     id: str
+    """
+    """
     current_in_use: int
+    """
+    """
     num_queued_jobs: int
+    """
+    """
     max_licenses_available: int
+    """
+    """
     default_max_licenses_available: int
+    """
+    """
     queued_jobs: str
+    """
+    """
     active_jobs: str
+    """
+    """
     version: str
+    """
+    """
     alias: str
+    """
+    """
     group_id: str
+    """
+    """
     reserved_licenses: int
+    """
+    """
     min_reserved_licenses: int
+    """
+    """
     license_developer: bool
+    """
+    """
     license_live_enabled: bool
+    """
+    """
     commercial_instance: bool
+    """
+    """
     valid: bool
+    """
+    """
     this_instance: bool
+    """
+    """
 
 
 class UpdateTag(TypedDict):
+    """
+    Information about available CryoSPARC updates.
+    """
+
     show_message: bool
+    """
+    """
     message: str
+    """
+    """

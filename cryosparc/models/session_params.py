@@ -6,6 +6,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class LivePreprocessingParams(BaseModel):
+    """
+    Live session pre-processing parameter definitions.
+    """
+
     gainref_flip_x: bool = False
     """
     Flip gain ref left-to-right (in X axis)
@@ -23,8 +27,14 @@ class LivePreprocessingParams(BaseModel):
     Pixel size of the raw movie data in Angstroms
     """
     accel_kv: float = 0.0
+    """
+    """
     cs_mm: float = 0.0
+    """
+    """
     total_dose_e_per_A2: float = 0.0
+    """
+    """
     phase_plate: bool = False
     """
     Were the images collected using a phase plate?
@@ -33,7 +43,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Are the samples negative stain (True) or cryo (False)?
     """
-    eer_upsampfactor: int = 1
+    eer_upsampfactor: int = 2
     """
     EER upsampling factor (applies to .eer/.ecc format data only.
     """
@@ -154,8 +164,14 @@ class LivePreprocessingParams(BaseModel):
     Max Particle diameter (Å)
     """
     use_circle: bool = True
+    """
+    """
     use_ellipse: bool = False
+    """
+    """
     use_ring: bool = False
+    """
+    """
     blob_lowpass_res_template: float = 20
     """
     Lowpass filter to apply to templates, (Å)s
@@ -225,7 +241,11 @@ class LivePreprocessingParams(BaseModel):
     Maximum number of local maxima (peaks) considered.
     """
     templates_from_job: Optional[str] = None
+    """
+    """
     templates_selected: Optional[str] = None
+    """
+    """
     thresh_score_min: float = 0.3
     """
     Minimum picking score threshold
@@ -263,9 +283,22 @@ class LivePreprocessingParams(BaseModel):
 
 
 class LiveAbinitParams(BaseModel):
+    """
+    Parameters for Live Ab-initio Reconstruction
+    """
+
     abinit_symmetry: str = "C1"
+    """
+    Symmetry
+    """
     abinit_K: int = 1
+    """
+    Number of Ab-Initio classes
+    """
     abinit_num_particles: Optional[int] = 100000
+    """
+    Number of particles to use
+    """
 
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:
@@ -275,11 +308,30 @@ class LiveAbinitParams(BaseModel):
 
 
 class LiveClass2DParams(BaseModel):
+    """
+    Parameters for Streaming 2D Classification
+    """
+
     class2D_K: int = 50
+    """
+    Number of classes
+    """
     class2D_max_res: int = 6
+    """
+    Maximum resolution (Å)
+    """
     class2D_window_inner_A: Optional[float] = None
+    """
+    Circular mask diameter (Å)
+    """
     compute_use_ssd: bool = True
+    """
+    Whether to cache particle images on SSD
+    """
     psize_mic: Optional[float] = None
+    """
+    Pixel size (Å) of the input micrographs :meta private:
+    """
 
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:
@@ -289,8 +341,18 @@ class LiveClass2DParams(BaseModel):
 
 
 class LiveRefineParams(BaseModel):
+    """
+    Parameters for Streaming Homogeneous Refinement
+    """
+
     refine_symmetry: str = "C1"
+    """
+    Symmetry
+    """
     psize_mic: Optional[float] = None
+    """
+    Pixel size (Å) of the input micrographs :meta private:
+    """
 
     model_config = ConfigDict(extra="allow")
     if TYPE_CHECKING:

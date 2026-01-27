@@ -197,6 +197,10 @@ class InputSlot(BaseModel):
 
 
 class Input(BaseModel):
+    """
+    Job input connection details.
+    """
+
     type: Literal[
         "exposure",
         "particle",
@@ -234,8 +238,9 @@ class Input(BaseModel):
     """
     count_max: Union[int, Literal["inf"]] = "inf"
     """
-    Maximum number of connections for this input.
-    Should be any integer >= 0 or ``"inf"`` (for infinity)
+    Maximum number of connections supported for this input. Should be any
+    integer >= 0 and <= 500. Inputs with a ``count_max`` set to ``"inf"`` also
+    support a maximum of 500 connections.
     """
     repeat_allowed: bool = False
     """
@@ -295,8 +300,9 @@ class InputSpec(BaseModel):
     """
     count_max: Union[int, Literal["inf"]] = "inf"
     """
-    Maximum number of connections for this input.
-    Should be any integer >= 0 or ``"inf"`` (for infinity)
+    Maximum number of connections supported for this input. Should be any
+    integer >= 0 and <= 500. Inputs with a ``count_max`` set to ``"inf"`` also
+    support a maximum of 500 connections.
     """
     repeat_allowed: bool = False
     """
@@ -373,6 +379,10 @@ class OutputResult(BaseModel):
 
 
 class Output(BaseModel):
+    """
+    Job output details. Includes saved dataset paths and summary statistics.
+    """
+
     type: Literal[
         "exposure",
         "particle",
@@ -602,6 +612,8 @@ class JobBuildError(BaseModel):
     error context for pydantic
     """
     input_type: str
+    """
+    """
 
 
 Stability = Literal["develop", "beta", "stable", "legacy", "obsolete"]
@@ -628,5 +640,11 @@ class JobRegisterError(BaseModel):
     """
 
     type: str
+    """
+    """
     message: str
+    """
+    """
     traceback: str
+    """
+    """

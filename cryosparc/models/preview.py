@@ -6,23 +6,57 @@ from pydantic import BaseModel
 
 
 class DeleteJobPreview(BaseModel):
+    """
+    Job from a delete request that will be deleted or unlinked.
+    """
+
     project_uid: str
+    """
+    """
     uid: str
+    """
+    """
     workspace_uids: List[str]
+    """
+    """
     status: str
+    """
+    """
     title: str
+    """
+    """
     type: str
+    """
+    """
 
 
 class DeleteProjectWorkspacePreview(BaseModel):
+    """
+    Preview of a workspace within a project to be deleted.
+    """
+
     project_uid: str
+    """
+    """
     uid: str
+    """
+    """
     title: Optional[str]
+    """
+    """
 
 
 class DeleteProjectPreview(BaseModel):
+    """
+    Preview of a project delete operation, including jobs and workspaces that will be deleted.
+    """
+
     jobs: List[DeleteJobPreview]
+    """
+    """
     workspaces: List[DeleteProjectWorkspacePreview]
+    """
+    """
 
 
 class KeepJobPreview(BaseModel):
@@ -31,11 +65,23 @@ class KeepJobPreview(BaseModel):
     """
 
     project_uid: str
+    """
+    """
     uid: str
+    """
+    """
     workspace_uids: List[str]
+    """
+    """
     status: str
+    """
+    """
     title: str
+    """
+    """
     type: str
+    """
+    """
     reason: Literal["final", "descendants"]
     """
     Reason for not deleting this job, either "final" because it or one if its
@@ -72,3 +118,5 @@ class DeleteWorkspacePreview(BaseModel):
     Jobs that cannot be deleted, either because they are final or have descendants.
     """
     jobs: List[DeleteJobPreview]
+    """
+    """

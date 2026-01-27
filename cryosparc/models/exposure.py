@@ -9,66 +9,178 @@ from .session_params import LivePreprocessingParams
 
 
 class CTF(BaseModel):
+    """
+    CTF estimation results associated with an exposure.
+    """
+
     accel_kv: float
+    """
+    """
     amp_contrast: float
+    """
+    """
     cross_corr_ctffind4: float
+    """
+    """
     cs_mm: float
+    """
+    """
     ctf_fit_to_A: float
+    """
+    """
     df1_A: float
+    """
+    """
     df2_A: float
+    """
+    """
     df_angle_rad: float
+    """
+    """
     exp_group_id: int
+    """
+    """
     fig_of_merit_gctf: float
+    """
+    """
     path: str
+    """
+    """
     phase_shift_rad: float
+    """
+    """
     type: str
+    """
+    """
 
 
 class CtfStats(BaseModel):
+    """
+    CTF statistics associated with an exposure.
+    """
+
     cross_corr: int
+    """
+    """
     ctf_fit_to_A: float
+    """
+    """
     df_range: List[Any]
+    """
+    """
     df_tilt_normal: List[Any]
+    """
+    """
     diag_image_path: str
+    """
+    """
     fit_data_path: str
+    """
+    """
     ice_thickness_rel: float
+    """
+    """
     spectrum_dim: int
+    """
+    """
     type: str
+    """
+    """
 
 
 class ECLExposureProperties(BaseModel):
+    """
+    :meta private:
+    """
+
     do_athena_results_upload: bool = False
+    """
+    """
 
 
 class StatBlob(BaseModel):
+    """
+    Metadata for background blob .mrc file associated with an exposure.
+    """
+
     binfactor: int
+    """
+    """
     idx: int
+    """
+    """
     path: str
+    """
+    """
     psize_A: float
+    """
+    """
     shape: List[int]
+    """
+    """
 
 
 class GainRefBlob(BaseModel):
+    """
+    Metadata for gain reference blob file associated with an exposure.
+    """
+
     flip_x: int
+    """
+    """
     flip_y: int
+    """
+    """
     idx: int
+    """
+    """
     path: str
+    """
+    """
     rotate_num: int
+    """
+    """
     shape: List[int]
+    """
+    """
 
 
 class MicrographBlob(BaseModel):
+    """
+    Metadata for motion-corrected micrograph blob file associated with an exposure.
+    """
+
     format: str
+    """
+    """
     idx: int
+    """
+    """
     is_background_subtracted: bool
+    """
+    """
     path: str
+    """
+    """
     psize_A: float
+    """
+    """
     shape: List[int]
+    """
+    """
 
 
 class MovieBlob(BaseModel):
+    """
+    Metadata for raw movie blob file associated with an exposure.
+    """
+
     format: str
+    """
+    """
     has_defect_file: bool = False
+    """
+    """
     import_sig: str = "0"
     """
     Unique 64 bit import signature for this exposure, created by computing the
@@ -79,77 +191,198 @@ class MovieBlob(BaseModel):
     ``import_sig`` should be treated as a regular int.
     """
     is_gain_corrected: bool
+    """
+    """
     path: str
+    """
+    """
     psize_A: float
+    """
+    """
     shape: List[int]
+    """
+    """
 
 
 class MScopeParams(BaseModel):
+    """
+    Microscope parameters associated with an exposure.
+    """
+
     accel_kv: float
+    """
+    """
     beam_shift: List[int] = [0, 0]
+    """
+    """
     beam_shift_known: int = 0
+    """
+    """
     cs_mm: float
+    """
+    """
     defect_path: Optional[str] = None
+    """
+    """
     exp_group_id: int
+    """
+    """
     neg_stain: int = 0
+    """
+    """
     phase_plate: int
+    """
+    """
     total_dose_e_per_A2: float = 0
+    """
+    """
 
 
 class MotionData(BaseModel):
+    """
+    Motion correction data associated with an exposure.
+    """
+
     frame_end: int
+    """
+    """
     frame_start: int
+    """
+    """
     idx: int
+    """
+    """
     path: str
+    """
+    """
     psize_A: float
+    """
+    """
     type: str
+    """
+    """
     zero_shift_frame: int
+    """
+    """
 
 
 class ExposureElement(BaseModel):
+    """
+    Outputs produced for a specific exposure.
+    """
+
     background_blob: Optional[StatBlob] = None
+    """
+    """
     ctf: Optional[CTF] = None
+    """
+    """
     ctf_stats: Optional[CtfStats] = None
+    """
+    """
     gain_ref_blob: Optional[GainRefBlob] = None
+    """
+    """
     micrograph_blob: Optional[MicrographBlob] = None
+    """
+    """
     micrograph_blob_non_dw: Optional[MicrographBlob] = None
+    """
+    """
     micrograph_blob_thumb: Optional[MicrographBlob] = None
+    """
+    """
     movie_blob: Optional[MovieBlob] = None
+    """
+    """
     mscope_params: Optional[MScopeParams] = None
+    """
+    """
     rigid_motion: Optional[MotionData] = None
+    """
+    """
     spline_motion: Optional[MotionData] = None
+    """
+    """
     uid: str = "0"
+    """
+    """
 
 
 class PickerLocations(BaseModel):
+    """
+    Particle picker locations stored as fractional coordinates.
+    ``center_x_frac`` and ``center_y_frac`` always have the same length.
+    """
+
     center_x_frac: List[float] = []
+    """
+    """
     center_y_frac: List[float] = []
+    """
+    """
 
 
 class ParticleManual(BaseModel):
+    """
+    Manual particle picking results.
+    """
+
     count: int = 0
+    """
+    """
     fields: List[str] = []
+    """
+    """
     path: str = "."
+    """
+    """
     location: PickerLocations = PickerLocations()
+    """
+    """
 
 
 class ParticleInfo(BaseModel):
+    """
+    Particle picking results.
+    """
+
     count: int = 0
+    """
+    """
     fields: List[str] = []
+    """
+    """
     path: str = "."
+    """
+    """
 
 
 class PickerInfoElement(BaseModel):
+    """
+    Particle picking results for extracted particles.
+    """
+
     count: int = 0
+    """
+    """
     fields: List[str] = []
+    """
+    """
     path: str = "."
+    """
+    """
     output_shape: Optional[int] = None
+    """
+    """
     picker_type: Optional[Literal["blob", "template", "manual"]] = None
+    """
+    """
 
 
 class ExposureGroups(BaseModel):
     """
-    Metadata about outputs produced by a specific exposure
+    Information about Outputs produced by a specific exposure
     """
 
     exposure: ExposureElement = ExposureElement()
@@ -167,11 +400,12 @@ class ExposureGroups(BaseModel):
     """
     particle_template: ParticleInfo = ParticleInfo()
     """
-    template picks have a list of fields, a count, and a path to a cs file
+    Template picks have a list of fields, a count, and a path to a cs file
     """
     particle_deep: Dict[str, Any] = {}
     """
     Unused for now
+    :meta private:
     """
     particle_extracted: Union[List[PickerInfoElement], ParticleInfo] = ParticleInfo()
     """
@@ -185,42 +419,103 @@ class ExposureGroups(BaseModel):
 
 class ExposureAttributes(BaseModel):
     """
-    Exposure processing metadata. The "round" param is used for display in the
-    UI (defaults to 0 if not specified).
+    Exposure processing metadata.
     """
 
     found_at: float = 0
+    """
+    """
     check_at: float = 0
+    """
+    """
     motion_at: float = 0
+    """
+    """
     thumbs_at: float = 0
+    """
+    """
     ctf_at: float = 0
+    """
+    """
     pick_at: float = 0
+    """
+    """
     extract_at: float = 0
+    """
+    """
     manual_extract_at: float = 0
+    """
+    """
     ready_at: float = 0
+    """
+    """
     total_motion_dist: float = 0
+    """
+    """
     max_intra_frame_motion: float = 0
+    """
+    """
     average_defocus: float = 0
+    """
+    """
     defocus_range: float = 0
+    """
+    """
     astigmatism_angle: float = 0
+    """
+    """
     astigmatism: float = 0
+    """
+    """
     phase_shift: float = 0
+    """
+    """
     ctf_fit_to_A: float = 0
+    """
+    """
     ice_thickness_rel: float = 0
+    """
+    """
     df_tilt_angle: float = 0
+    """
+    """
     total_manual_picks: int = 0
+    """
+    """
     total_blob_picks: int = 0
+    """
+    """
     blob_pick_score_median: float = 0
+    """
+    """
     total_template_picks: int = 0
+    """
+    """
     template_pick_score_median: float = 0
+    """
+    """
     total_extracted_particles: int = 0
+    """
+    """
     total_extracted_particles_manual: int = 0
+    """
+    """
     total_extracted_particles_blob: int = 0
+    """
+    """
     total_extracted_particles_template: int = 0
+    """
+    """
 
 
 class Exposure(BaseModel):
+    """
+    A single exposure (movie) within a session, along with associated metadata.
+    """
+
     id: str = Field("000000000000000000000000", alias="_id")
+    """
+    """
     updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     """
     When this object was last modified.
@@ -231,18 +526,40 @@ class Exposure(BaseModel):
     and jobs will retain the created time from their original CryoSPARC instance.
     """
     uid: int
+    """
+    Unique integer identifier for this exposure within the session. Starts at
+    1 for the first found exposure and increments by 1 for each new exposure.
+    """
     project_uid: str
+    """
+    """
     session_uid: str
+    """
+    """
     exp_group_id: int
+    """
+    Configured exposure group ID.
+    """
     abs_file_path: str
     """
-    only used when first reading in this file, otherwise use os.path.join(proj_dir_abs, groups.exposures.movie_blob.path)
+    only used when first reading in this file, otherwise use
+    ``groups.exposures.movie_blob.path`` relative to the project directory.
     """
     size: int
+    """
+    """
     discovered_at: datetime.datetime
+    """
+    """
     picker_type: Optional[Literal["blob", "template", "manual"]] = None
+    """
+    """
     deleted: bool = False
+    """
+    """
     parameter_version: Optional[int] = None
+    """
+    """
     stage: Literal[
         "go_to_found",
         "found",
@@ -262,21 +579,59 @@ class Exposure(BaseModel):
         "restoring_extract_manual",
         "compacted",
     ] = "found"
+    """
+    """
     fail_count: int = 0
+    """
+    """
     failed: bool = False
+    """
+    """
     fail_reason: str = ""
+    """
+    """
     in_progress: bool = False
+    """
+    """
     manual_reject: bool = False
+    """
+    """
     threshold_reject: bool = False
+    """
+    """
     test: bool = False
+    """
+    """
     worker_juid: Optional[str] = None
+    """
+    """
     priority: int = 0
+    """
+    """
     groups: ExposureGroups = ExposureGroups()
+    """
+    """
     attributes: ExposureAttributes = ExposureAttributes()
+    """
+    """
     test_parameters: Optional[LivePreprocessingParams] = None
+    """
+    """
     preview_img_1x: List[str] = []
+    """
+    """
     preview_img_2x: List[str] = []
+    """
+    """
     thumb_shape: List[int] = []
+    """
+    """
     micrograph_shape: List[int] = []
+    """
+    """
     micrograph_psize: Optional[float] = None
+    """
+    """
     ecl: ECLExposureProperties = ECLExposureProperties()
+    """
+    """

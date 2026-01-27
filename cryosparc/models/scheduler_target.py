@@ -34,6 +34,9 @@ class Node(BaseModel):
     Not used.
     """
     gpus: Optional[List[Gpu]] = None
+    """
+    Details for all GPUs available on this node, including those excluded from ``resource_slots``.
+    """
 
 
 class Cluster(BaseModel):
@@ -126,6 +129,9 @@ class SchedulerTarget(BaseModel):
     Path to cryosparc_worker/bin/cryosparcw executable.
     """
     config: Union[Node, Cluster]
+    """
+    Target configuration details.
+    """
 
 
 class SchedulerTargetCluster(BaseModel):
@@ -167,6 +173,9 @@ class SchedulerTargetCluster(BaseModel):
     Path to cryosparc_worker/bin/cryosparcw executable.
     """
     config: Cluster
+    """
+    Target configuration details.
+    """
 
 
 class SchedulerTargetNode(BaseModel):
@@ -208,3 +217,6 @@ class SchedulerTargetNode(BaseModel):
     Path to cryosparc_worker/bin/cryosparcw executable.
     """
     config: Node
+    """
+    Target configuration details.
+    """
