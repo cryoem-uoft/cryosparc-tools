@@ -1,0 +1,1028 @@
+# THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
+# SEE dev/api_generate_models.py
+import datetime
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, Field
+
+from .job import JobStatus, RunError
+from .session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
+from .session_spec import SessionStatus
+from .signature import ImportSignature
+from .workspace import JobGroup, WorkspaceStats
+
+
+class AthenaVolumeUploadParams(BaseModel):
+    """
+    :meta private:
+    """
+
+    type: Literal["refinement"] = "refinement"
+    """
+    """
+    name: str
+    """
+    """
+    path_rel: str
+    """
+    """
+    symmetry: str = "C1"
+    """
+    """
+    psize_A: Union[float, Literal["inf", "-inf", "nan"]] = 1.0
+    """
+    """
+    res_A: Union[float, Literal["inf", "-inf", "nan"], None] = None
+    """
+    """
+
+
+class DataManagementStat(BaseModel):
+    """
+    Statistics about a specific set of session data and associated storage statuses
+    """
+
+    status: Literal["active", "archiving", "archived", "deleted", "deleting", "missing", "calculating"] = "active"
+    """
+    """
+    prev_status: Optional[
+        Literal["active", "archiving", "archived", "deleted", "deleting", "missing", "calculating"]
+    ] = None
+    """
+    """
+    size: int = 0
+    """
+    """
+
+
+class DataManagementStats(BaseModel):
+    """
+    Statistics and storage statuses for data available in a session
+    """
+
+    raw: DataManagementStat = DataManagementStat()
+    """
+    """
+    micrographs: DataManagementStat = DataManagementStat()
+    """
+    """
+    thumbnails: DataManagementStat = DataManagementStat()
+    """
+    """
+    particles: DataManagementStat = DataManagementStat()
+    """
+    """
+    metadata: DataManagementStat = DataManagementStat()
+    """
+    """
+
+
+class ECLSessionProperties(BaseModel):
+    """
+    :meta private:
+    """
+
+    do_athena_volume_upload: bool = False
+    """
+    """
+    athena_volume_upload_params: Optional[AthenaVolumeUploadParams] = None
+    """
+    """
+
+
+class ExposureGroup(BaseModel):
+    """
+    Full exposure group defintion, not all properties are externally editable
+    """
+
+    ignore_exposures: bool = False
+    """
+    Set to disable new incoming exposures in this group from being processed
+    """
+    gainref_path: Optional[str] = None
+    """
+    Path to gain reference file for exposures in this group
+    """
+    defect_path: Optional[str] = None
+    """
+    Path to defect file for exposures in this group
+    """
+    file_engine_recursive: bool = False
+    """
+    Whether to recursively watch subdirectories when looking for new exposures
+    """
+    file_engine_watch_path_abs: str = "/"
+    """
+    Absolute path to directory to watch for new exposure files
+    """
+    file_engine_enable: bool = False
+    """
+    Whether to enable looking for new exposures in this group
+    """
+    file_engine_filter: str = "*"
+    """
+    Glob pattern to filter files when looking for new exposures
+    """
+    file_engine_interval: int = 10
+    """
+    Interval in seconds between checks for new exposure files
+    """
+    file_engine_min_file_size: int = 0
+    """
+    Minimum file size in bytes for new exposure files
+    """
+    file_engine_min_modified_time_delta: int = 0
+    """
+    Ignore new exposure files that have been modified within this many seconds.
+    Set to prevent processing from starting on incomplete files.
+    """
+    exp_group_id: int = 1
+    """
+    Assigned unique ID for this exposure group within the session
+    """
+    num_exposures_found: int = 0
+    """
+    Number of exposures found in this group so far
+    """
+    file_engine_strategy: Literal["entity", "timestamp", "eclathena"] = "entity"
+    """
+    Strategy for detecting new exposures within this group
+    """
+    final: bool = False
+    """
+    Whether this exposure group is finalized and cannot be edited further
+    """
+    is_any_eer: bool = False
+    """
+    Whether this exposure group contains any EER exposures
+    """
+
+
+class ExposureGroupUpdate(BaseModel):
+    """
+    Public editable properties for exposure group
+    """
+
+    ignore_exposures: bool = False
+    """
+    Set to disable new incoming exposures in this group from being processed
+    """
+    gainref_path: Optional[str] = None
+    """
+    Path to gain reference file for exposures in this group
+    """
+    defect_path: Optional[str] = None
+    """
+    Path to defect file for exposures in this group
+    """
+    file_engine_recursive: bool = False
+    """
+    Whether to recursively watch subdirectories when looking for new exposures
+    """
+    file_engine_watch_path_abs: str = "/"
+    """
+    Absolute path to directory to watch for new exposure files
+    """
+    file_engine_enable: bool = False
+    """
+    Whether to enable looking for new exposures in this group
+    """
+    file_engine_filter: str = "*"
+    """
+    Glob pattern to filter files when looking for new exposures
+    """
+    file_engine_interval: int = 10
+    """
+    Interval in seconds between checks for new exposure files
+    """
+    file_engine_min_file_size: int = 0
+    """
+    Minimum file size in bytes for new exposure files
+    """
+    file_engine_min_modified_time_delta: int = 0
+    """
+    Ignore new exposure files that have been modified within this many seconds.
+    Set to prevent processing from starting on incomplete files.
+    """
+
+
+class LiveComputeResources(BaseModel):
+    """
+    Details about a Live session's scheduler compute resource allocation
+    """
+
+    phase_one_lane: Optional[str] = None
+    """
+    """
+    phase_one_gpus: int = 1
+    """
+    """
+    phase_two_lane: Optional[str] = None
+    """
+    """
+    phase_two_gpus: int = 1
+    """
+    """
+    phase_two_ssd: bool = True
+    """
+    """
+    auxiliary_lane: Optional[str] = None
+    """
+    """
+    auxiliary_gpus: int = 1
+    """
+    """
+    auxiliary_ssd: bool = True
+    """
+    """
+    priority: int = 0
+    """
+    Priority of the session's jobs in the scheduler queue (0-100).
+    Higher values indicate higher priority.
+    """
+    phase_one_workers_per_gpu: int = 1
+    """
+    Number of preprocessing workers that can share the same GPU
+    """
+
+
+class LiveVolumeInfo(BaseModel):
+    """
+    Information about a volume generated during Live Ab-Initio Reconstruction
+    or Streaming Refinement
+    """
+
+    vol_gname: str
+    """
+    """
+    fileid: Optional[str] = None
+    """
+    """
+    selected: bool = False
+    """
+    """
+    num_particles: Optional[int] = None
+    """
+    """
+
+
+class Phase2ParticleOutputInfo(BaseModel):
+    """
+    Information about particle output from 2D classification
+    """
+
+    path: Optional[str] = None
+    """
+    """
+    count: int = 0
+    """
+    """
+    fields: List[str] = []
+    """
+    """
+
+
+class Threshold(BaseModel):
+    """
+    Statistics-based threshold details
+    """
+
+    min: Optional[float] = None
+    """
+    """
+    max: Optional[float] = None
+    """
+    """
+    value: Optional[float] = None
+    """
+    """
+
+
+class RangeThreshold(BaseModel):
+    """
+    Picking range threshold parameters
+    """
+
+    min: Optional[float] = None
+    """
+    """
+    max: Optional[float] = None
+    """
+    """
+    value: Optional[float] = None
+    """
+    """
+    min_value: Optional[float] = None
+    """
+    """
+    max_value: Optional[float] = None
+    """
+    """
+
+
+class PickingThresholds(BaseModel):
+    """
+    Picking thresholds for various particle picking statistics
+    """
+
+    manual_ncc_score: Threshold = Threshold()
+    """
+    """
+    manual_power: RangeThreshold = RangeThreshold()
+    """
+    """
+    blob_ncc_score: Threshold = Threshold()
+    """
+    """
+    blob_power: RangeThreshold = RangeThreshold()
+    """
+    """
+    template_ncc_score: Threshold = Threshold()
+    """
+    """
+    template_power: RangeThreshold = RangeThreshold()
+    """
+    """
+    deep_ncc_score: Threshold = Threshold()
+    """
+    :meta private:
+    """
+    deep_power: RangeThreshold = RangeThreshold()
+    """
+    :meta private:
+    """
+
+
+class RtpChild(BaseModel):
+    """
+    Information about a Live worker job
+    """
+
+    uid: str
+    """
+    """
+    status: JobStatus
+    """
+    """
+    rtp_handle_func: Literal[
+        "handle_template_creation_class2D", "phase2_class2D_handle", "phase2_abinit_handle", "phase2_refine_handle"
+    ]
+    """
+    """
+
+
+class RtpWorkerState(BaseModel):
+    status: JobStatus
+    """
+    """
+    errors: List[RunError] = []
+    """
+    """
+
+
+class SessionLastAccessed(BaseModel):
+    """
+    Details about the last time a session was accessed by a user
+    """
+
+    name: str = ""
+    """
+    username of last user to access the session
+    """
+    accessed_at: datetime.datetime = datetime.datetime(1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    timestamp of last access
+    """
+
+
+class SessionAttribute(BaseModel):
+    """
+    Information about a session attribute, used for filtering and display
+    """
+
+    name: str
+    """
+    """
+    title: str
+    """
+    """
+    min: Optional[float] = None
+    """
+    """
+    max: Optional[float] = None
+    """
+    """
+    round: int = 0
+    """
+    """
+
+
+class TemplateClassInfo(BaseModel):
+    """
+    Information about a template class used in 2D classification
+    """
+
+    class_idx: int
+    """
+    """
+    fileid: str
+    """
+    """
+    res_A: Union[float, Literal["inf", "-inf", "nan"]]
+    """
+    """
+    selected: bool = False
+    """
+    """
+    num_particles_selected: int = 0
+    """
+    """
+    num_particles_total: int = 0
+    """
+    """
+    mean_prob: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
+    """
+    """
+    class_ess: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
+    """
+    """
+
+
+class SessionStats(BaseModel):
+    """
+    Statistics about the session's processing progress
+    """
+
+    total_exposures: int = 0
+    """
+    """
+    total_queued: int = 0
+    """
+    """
+    total_seen: int = 0
+    """
+    """
+    total_in_progress: int = 0
+    """
+    """
+    total_thumbs: int = 0
+    """
+    """
+    total_test: int = 0
+    """
+    """
+    total_accepted: int = 0
+    """
+    """
+    total_rejected: int = 0
+    """
+    """
+    total_failed: int = 0
+    """
+    """
+    total_ready: int = 0
+    """
+    """
+    average_manual_picks: int = 0
+    """
+    """
+    total_blob_picks: int = 0
+    """
+    """
+    total_template_picks: int = 0
+    """
+    """
+    total_deep_picks: int = 0
+    """
+    """
+    total_manual_picks: int = 0
+    """
+    """
+    total_extracted_particles_blob: int = 0
+    """
+    """
+    total_extracted_particles_template: int = 0
+    """
+    """
+    total_extracted_particles_manual: int = 0
+    """
+    """
+    total_extracted_particles_deep: int = 0
+    """
+    """
+    total_extracted_particles: int = 0
+    """
+    """
+    total_manual_picked_exposures: int = 0
+    """
+    """
+    gsfsc: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
+    """
+    """
+    frames: int = 0
+    """
+    """
+    nx: int = 0
+    """
+    """
+    ny: int = 0
+    """
+    """
+    manual_rejected: int = 0
+    """
+    """
+    avg_movies_found_per_hour: int = 0
+    """
+    """
+    avg_movies_ready_per_hour: int = 0
+    """
+    """
+    avg_movies_accepted_per_hour: int = 0
+    """
+    """
+    avg_particles_extracted_per_mic: int = 0
+    """
+    """
+    avg_particles_extracted_per_hour: int = 0
+    """
+    """
+
+
+class SessionBuildError(BaseModel):
+    type: str
+    """
+    type of error, e.g. 'missing', 'invalid', etc.
+    """
+    loc: List[Union[str, int]]
+    """
+    path to the invalid property
+    """
+    input: Any
+    """
+    value of the invalid property, must be serializable
+    """
+    input_type: str
+    """
+    type name of the input value
+    """
+
+
+class Session(BaseModel):
+    id: str = Field("000000000000000000000000", alias="_id")
+    """
+    """
+    updated_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was last modified.
+    """
+    created_at: datetime.datetime = datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    When this object was first created. Imported objects such as projects
+    and jobs will retain the created time from their original CryoSPARC instance.
+    """
+    dumped_at: Optional[datetime.datetime] = None
+    """
+    When the model was last dumped to disk
+    """
+    last_dumped_version: Optional[str] = None
+    """
+    The version of CryoSPARC last dumped at
+    """
+    autodump: bool = True
+    """
+    Whether the model was updated recently and must be dumped
+
+    :meta private:
+    """
+    uid: str
+    """
+    Workspace unique ID, e.g., 'W1'.
+    """
+    project_uid: str
+    """
+    Project unique ID for , e.g., 'P1'.
+    """
+    workspace_type: Literal["live"] = "live"
+    """
+    Always 'live' for Live sessions
+    """
+    created_by_user_id: Optional[str] = None
+    """
+    User ID that created the workspace.
+    """
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    created_by_job_uid: Optional[str] = None
+    """
+    """
+    tags: List[str] = []
+    """
+    """
+    starred_by: List[str] = []
+    """
+    List of user IDs who have starred the workspace.
+    """
+    deleted: bool = False
+    """
+    """
+    deleting: bool = False
+    """
+    """
+    last_accessed: Optional[SessionLastAccessed] = None
+    """
+    """
+    workspace_stats: WorkspaceStats = WorkspaceStats()
+    """
+    """
+    imported_at: Optional[datetime.datetime] = None
+    """
+    """
+    groups: List[JobGroup] = []
+    """
+    """
+    session_uid: str
+    """
+    Unique identifier for the session within the project, e.g. 'S1'
+    """
+    session_dir: str
+    """
+    Path to session directory on disk, relative to project directory.
+    Usually the same as ``session_uid``.
+    """
+    status: SessionStatus = "paused"
+    """
+    Current activity status of the session
+    """
+    failed_at: List[datetime.datetime] = []
+    """
+    when session entered failed state
+    """
+    running_at: List[datetime.datetime] = []
+    """
+    when start_session() is called (when built jobs are placed into the scheduler queue)
+    """
+    paused_at: List[datetime.datetime] = []
+    """
+    times when session was paused
+    """
+    completed_at: Optional[datetime.datetime] = None
+    """
+    when all jobs inside session are either completed, failed, or killed (i.e. no running/building/waiting). At least one job must've completed successfully for this field to be populated.
+    """
+    cleared_at: Optional[datetime.datetime] = None
+    """
+    when experiment was last cleared
+    """
+    elapsed_time: float = 0.0
+    """
+    Amount of time (in seconds) the session spent in running state.
+    Only updated when session is paused.
+    """
+    parameter_version: int = 0
+    """
+    Version of session parameters in use.
+    """
+    params: LivePreprocessingParams = LivePreprocessingParams()
+    """
+    Session parameters for preprocessing. Reconstruction parameters are stored separately.
+    """
+    attributes: List[SessionAttribute] = [
+        SessionAttribute(name="found_at", title="Timestamp", min=None, max=None, round=0),
+        SessionAttribute(name="check_at", title="Check Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="motion_at", title="Motion Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="thumbs_at", title="Thumbs Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="ctf_at", title="CTF Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="pick_at", title="Pick Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="extract_at", title="Extract Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(
+            name="manual_extract_at", title="Manual Extract Stage Completed At", min=None, max=None, round=0
+        ),
+        SessionAttribute(name="ready_at", title="Exposure Ready At", min=None, max=None, round=0),
+        SessionAttribute(name="total_motion_dist", title="Total Motion (pix)", min=None, max=None, round=2),
+        SessionAttribute(name="max_intra_frame_motion", title="Max In-Frame Motion", min=None, max=None, round=3),
+        SessionAttribute(name="average_defocus", title="Defocus Avg. (Å)", min=None, max=None, round=0),
+        SessionAttribute(name="defocus_range", title="Defocus Range (Å)", min=None, max=None, round=0),
+        SessionAttribute(name="astigmatism_angle", title="Astigmatism Angle (deg)", min=None, max=None, round=1),
+        SessionAttribute(name="astigmatism", title="Astigmatism", min=None, max=None, round=2),
+        SessionAttribute(name="phase_shift", title="Phase Shift (deg)", min=None, max=None, round=1),
+        SessionAttribute(name="ctf_fit_to_A", title="CTF Fit (Å)", min=None, max=None, round=3),
+        SessionAttribute(name="ice_thickness_rel", title="Relative Ice Thickness", min=None, max=None, round=3),
+        SessionAttribute(name="df_tilt_angle", title="Sample Tilt (deg)", min=None, max=None, round=1),
+        SessionAttribute(name="total_manual_picks", title="Total Manual Picks", min=None, max=None, round=0),
+        SessionAttribute(name="total_blob_picks", title="Total Blob Picks", min=None, max=None, round=0),
+        SessionAttribute(name="blob_pick_score_median", title="Median Blob Pick Score", min=None, max=None, round=3),
+        SessionAttribute(name="total_template_picks", title="Total Template Picks", min=None, max=None, round=0),
+        SessionAttribute(
+            name="template_pick_score_median", title="Median Template Pick Score", min=None, max=None, round=3
+        ),
+        SessionAttribute(
+            name="total_extracted_particles", title="Total Particles Extracted", min=None, max=None, round=0
+        ),
+        SessionAttribute(
+            name="total_extracted_particles_manual",
+            title="Total Manual Picker Particles Extracted",
+            min=None,
+            max=None,
+            round=0,
+        ),
+        SessionAttribute(
+            name="total_extracted_particles_blob",
+            title="Total Blob Picker Particles Extracted",
+            min=None,
+            max=None,
+            round=0,
+        ),
+        SessionAttribute(
+            name="total_extracted_particles_template",
+            title="Total Template Picker Particles Extracted",
+            min=None,
+            max=None,
+            round=0,
+        ),
+    ]
+    """
+    List of available session attributes for filtering and display
+    """
+    picking_thresholds: PickingThresholds = PickingThresholds()
+    """
+    """
+    compute_resources: LiveComputeResources = LiveComputeResources()
+    """
+    Scheduler compute resource allocation for this session
+    """
+    notes: str = ""
+    """
+    User-provided notes about the session
+    """
+    notes_lock: Optional[str] = None
+    """
+    Username of user who has locked the notes for editing
+    """
+    phase_one_wait_for_exposures: bool = False
+    """
+    Whether to wait until exposures are available before queuing the session's
+    preprocessing worker jobs. Set to prevent CryoSPARC from allocating compute
+    resources and GPU tokens to workers when the microscope has not yet acquired
+    any data.
+    """
+    phase_one_workers: Dict[str, RtpWorkerState] = {}
+    """
+    Example: {'J1': RtpWorkerState(status=<JobStatus.BUILDING: 'building'>, errors=[]),
+    'J2': RtpWorkerState(status=<JobStatus.RUNNING: 'running'>, errors=[]),
+    'J3': RtpWorkerState(status=<JobStatus.KILLED: 'killed'>, errors=[RunError(message='Example', warning=False)])}
+    """
+    phase_one_workers_soft_kill: List[str] = []
+    """
+    list of workers that are being signalled a "stop" request
+    """
+    live_session_job_uid: Optional[str] = None
+    """
+    UID of the Live session job associated with this session
+    """
+    file_engine_status: Literal["inactive", "running"] = "inactive"
+    """
+    Current status of the file engine, which searches for new exposures.
+    Inactive while session is paused.
+    """
+    file_engine_last_run: Optional[float] = None
+    """
+    Timestamp of the last time the file engine ran
+    """
+    max_timestamps: List[Any] = []
+    """
+    Set by the file engine to track the most recent modification timestamps seen in each exposure group
+    """
+    known_files: List[Any] = []
+    """
+    :meta private:
+    """
+    rtp_childs: List[RtpChild] = []
+    """
+    List of Live worker jobs associated with this session
+    """
+    template_creation_job: Optional[str] = None
+    """
+    which job is providing the templates
+    """
+    template_creation_project: Optional[str] = None
+    """
+    which project is the above job in
+    """
+    template_creation_num_particles_in: int = 0
+    """
+    number of particles provided to template creation
+    """
+    template_creation_ready: bool = False
+    """
+    whether the templates are ready to be shown for selection
+    """
+    template_creation_info: List[TemplateClassInfo] = []
+    """
+    template info for select 2D (includes gridFS image ids etc)
+    """
+    exposure_groups: List[ExposureGroup] = []
+    """
+    Exposure groups configured in this session
+    """
+    stats: SessionStats = SessionStats()
+    """
+    """
+    data_management: DataManagementStats = DataManagementStats()
+    """
+    """
+    import_signatures: ImportSignature = ImportSignature()
+    """
+    """
+    exposure_summary: Dict[str, Any] = {}
+    """
+    Summary statistics of exposures processed in this session
+    """
+    exposure_processing_priority: Literal["normal", "oldest", "latest", "alternate"] = "normal"
+    """
+    Strategy to use when determining which exposures to process first
+    """
+    last_compacted_amount: int = 0
+    """
+    """
+    last_compacted_at: Optional[datetime.datetime] = None
+    """
+    """
+    last_compacted_version: Optional[str] = None
+    """
+    """
+    last_restored_amount: int = 0
+    """
+    """
+    last_restored_at: Optional[datetime.datetime] = None
+    """
+    """
+    compacted_exposures_count: int = 0
+    """
+    """
+    restoration_notification_id: Optional[str] = None
+    """
+    """
+    restoration_user_id: Optional[str] = None
+    """
+    """
+    pre_restoration_size: int = 0
+    """
+    """
+    phase2_class2D_restart: bool = False
+    """
+    (re)start requested - set False by job when it starts
+    """
+    phase2_class2D_params_spec: LiveClass2DParams = LiveClass2DParams()
+    """
+    """
+    phase2_class2D_params_spec_used: Optional[LiveClass2DParams] = None
+    """
+    Streaming 2D classification parameters used at last launch, must be same as ``phase2_class2D_params_spec`` to resume
+    """
+    phase2_class2D_job: Optional[str] = None
+    """
+    """
+    phase2_class2D_ready: bool = False
+    """
+    """
+    phase2_class2D_ready_partial: bool = False
+    """
+    """
+    phase2_class2D_info: List[TemplateClassInfo] = []
+    """
+    """
+    phase2_class2D_num_particles_in: int = 0
+    """
+    """
+    phase2_class2D_particles_out: Optional[Phase2ParticleOutputInfo] = None
+    """
+    """
+    phase2_class2D_num_particles_seen: int = 0
+    """
+    sum of accepted and rejected
+    """
+    phase2_class2D_num_particles_accepted: int = 0
+    """
+    """
+    phase2_class2D_num_particles_rejected: int = 0
+    """
+    """
+    phase2_class2D_last_updated: Optional[datetime.datetime] = None
+    """
+    """
+    phase2_select2D_job: Optional[str] = None
+    """
+    """
+    phase2_abinit_restart: bool = False
+    """
+    """
+    phase2_abinit_params_spec: LiveAbinitParams = LiveAbinitParams()
+    """
+    """
+    phase2_abinit_job: Optional[str] = None
+    """
+    """
+    phase2_abinit_ready: bool = False
+    """
+    """
+    phase2_abinit_info: List[LiveVolumeInfo] = []
+    """
+    """
+    phase2_abinit_num_particles_in: int = 0
+    """
+    """
+    phase2_refine_restart: bool = False
+    """
+    Indicates to the running refinement job that the session parameters have
+    changed and a restart is required.
+    """
+    phase2_refine_params_spec: LiveRefineParams = LiveRefineParams()
+    """
+    Refinement parameters specified for next launch
+    """
+    phase2_refine_params_spec_used: Optional[LiveRefineParams] = None
+    """
+    Refinement parameters used at last launch, must be same as ``phase2_refine_params_spec_used`` to resume
+    """
+    phase2_refine_job: Optional[str] = None
+    """
+    """
+    phase2_refine_ready: bool = False
+    """
+    """
+    phase2_refine_ready_partial: bool = False
+    """
+    """
+    phase2_refine_num_particles_in: int = 0
+    """
+    """
+    phase2_refine_last_updated: Optional[datetime.datetime] = None
+    """
+    """
+    auto_pause: Literal["disabled", "graceful", "immediate"] = "disabled"
+    """
+    Auto-pause behavior of the session
+    """
+    auto_pause_after_idle_minutes: int = 10
+    """
+    Number of idle minutes before auto-pausing the session
+    """
+    is_gracefully_pausing: bool = False
+    """
+    If True, there are no more exposures to process and the session will
+    pause once current processing is complete.
+    """
+    computed_stats_last_run_time: Optional[datetime.datetime] = None
+    """
+    """
+    last_processed_exposure_priority: Literal["normal", "oldest", "latest", "alternate"] = "oldest"
+    """
+    """
+    athena_epu_run_id: Optional[str] = None
+    """
+    :meta private:
+    """
+    is_multigrid_epu_run: bool = False
+    """
+    :meta private:
+    """
+    ecl: ECLSessionProperties = ECLSessionProperties()
+    """
+    """
+    uid_num: int
+    """
+    Numeric part of the workspace UID.
+    """
+    project_uid_num: int
+    """
+    Numeric part of the project UID.
+    """
+    session_uid_num: int
+    """
+    Numeric part of the session UID
+    """
+    errors: List[SessionBuildError]
+    """
+    Errors found in the session configuration. Session will not be able
+    to start if any errors are present.
+    """
+
+
+class TemplateSelectionThreshold(BaseModel):
+    """
+    Threshold definition when selecting template classes from 2D classification results
+    """
+
+    field: Literal["num_particles_total", "res_A", "class_ess"]
+    """
+    """
+    direction: Literal["above", "below"]
+    """
+    """
+    threshold: Union[int, float]
+    """
+    """

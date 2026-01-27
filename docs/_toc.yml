@@ -7,6 +7,7 @@ parts:
   - caption: Guides
     chapters:
       - file: guides/jobs
+      - file: guides/cli
   - caption: Examples
     numbered: True
     chapters:
@@ -22,23 +23,7 @@ parts:
       - file: examples/connect_series_to_class3D
   - caption: API Reference
     chapters:
-      - file: api/index
-        sections:
-          - file: api/cryosparc
-          - file: api/tools
-          - file: api/project
-          - file: api/workspace
-          - file: api/job
-          - file: api/dataset
-          - file: api/column
-          - file: api/row
-          - file: api/dtype
-          - file: api/spec
-          - file: api/util
-          - file: api/mrc
-          - file: api/star
-          - file: api/command
-          - file: api/errors
+      - file: api
   - caption: Links
     chapters:
       - url: https://discuss.cryosparc.com/c/scripting

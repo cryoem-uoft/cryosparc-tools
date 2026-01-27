@@ -1,6 +1,6 @@
 import sys
 
-from Cython.Build import cythonize
+from Cython.Build import cythonize  # type: ignore
 from setuptools import Extension, setup
 
 DEBUG = False  # set to True to enable debugging
@@ -25,16 +25,16 @@ elif DEBUG:
 
 setup(
     name="cryosparc_tools",
-    version="4.7.1",
+    version="5.0.0",
     description="Toolkit for interfacing with CryoSPARC",
     headers=["cryosparc/include/cryosparc-tools/dataset.h"],
     ext_modules=cythonize(
         Extension(
-            name="cryosparc.core",
+            name="cryosparc.dataset.core",
             sources=[
                 "cryosparc/include/lz4/lib/lz4.c",
-                "cryosparc/dataset.c",
-                "cryosparc/core.pyx",
+                "cryosparc/dataset/dataset.c",
+                "cryosparc/dataset/core.pyx",
             ],
             include_dirs=["cryosparc/include/"],
             libraries=libraries,
@@ -45,8 +45,8 @@ setup(
             depends=[
                 "cryosparc/include/lz4/lib/lz4.h",
                 "cryosparc/include/cryosparc-tools/dataset.h",
-                "cryosparc/lz4.pxd",
-                "cryosparc/dataset.pxd",
+                "cryosparc/dataset/lz4.pxd",
+                "cryosparc/dataset/dataset.pxd",
             ],
         ),
         language_level=3,

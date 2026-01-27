@@ -5,7 +5,7 @@ import numpy as n
 import pytest
 
 from cryosparc.dataset import CSDAT_FORMAT, Column
-from cryosparc.row import Row
+from cryosparc.dataset.row import Row
 
 from .conftest import Dataset
 
@@ -152,6 +152,12 @@ def test_invalid_key_assignment():
     storage = Dataset.allocate(size=3)
     with pytest.raises(AssertionError):
         storage["gain_ref_blob/path"] = ["Hello", "World!"]
+
+
+def test_invalid_key_query():
+    storage = Dataset.allocate()
+    with pytest.raises(KeyError):
+        storage.query({"invalid_field": "Hello world"})
 
 
 def test_non_existent_key_assignment():

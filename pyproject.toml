@@ -1,9 +1,9 @@
 [project]
 name = "cryosparc-tools"
-version = "4.7.1"
+version = "5.0.0"
 description = "Toolkit for interfacing with CryoSPARC"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 authors = [
     { name = "Structura Biotechnology Inc.", email = "info@structura.bio" },
 ]
@@ -20,23 +20,29 @@ classifiers = [
 ]
 license = { file = "LICENSE" }
 # license = "BSD-3-Clause"  # Note: replace line above with this when supported
-dependencies = ["numpy >= 1.15, < 3.0", "typing-extensions >= 3.7"]
+dependencies = [
+    "numpy >= 1.17, < 3.0",
+    "httpx ~= 0.25",
+    "pydantic ~= 2.8",
+    "typing-extensions >= 4.0",
+]
 
 [project.optional-dependencies]
 dev = [
+    "autodocsumm",
     "build",
     "cython",
-    "httpretty",
+    "jupyter-book < 2.0",
     "pre-commit",
-    "pyright",
+    "pyright==1.1.404",
+    "pytest",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
-    "pytest",
     "ruff",
-    "setuptools",
+    "setuptools"
 ]
 
-build = ["build", "autodocsumm", "cython", "jupyter-book"]
+build = ["build", "autodocsumm", "cython", "jupyter-book < 2.0"]
 
 [project.urls]
 Homepage = "https://tools.cryosparc.com"
@@ -45,14 +51,24 @@ Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
-packages = ["cryosparc"]
+packages = ["cryosparc", "cryosparc.dataset", "cryosparc.models", "cryosparc.controllers"]
 
 [build-system]
 requires = ["setuptools", "cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]
+typeCheckingMode = "standard"
+venv = ".venv"
+venvPath = "."
 include = ["cryosparc", "tests", "setup.py"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "cryosparc/include/**/*.py",
+    "docs/_build/**/*.py"
+]
 
 [tool.ruff]
 line-length = 120

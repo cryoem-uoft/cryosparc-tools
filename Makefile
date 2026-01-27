@@ -1,5 +1,5 @@
 PY_EXT_SUFFIX=$(shell python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
-TARGET=cryosparc/core$(PY_EXT_SUFFIX)
+TARGET=cryosparc/dataset/core$(PY_EXT_SUFFIX)
 
 all: $(TARGET)
 
@@ -7,14 +7,20 @@ all: $(TARGET)
 #    Primary build target
 # -----------------------------------------------------------------------------
 
-$(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset.c cryosparc/*.pyx cryosparc/*.pxd setup.py pyproject.toml
+$(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset/dataset.c cryosparc/dataset/*.pyx cryosparc/dataset/*.pxd setup.py pyproject.toml
 	python3 -m setup build_ext -i
 
 # -----------------------------------------------------------------------------
 #    Docs
 # -----------------------------------------------------------------------------
 docs:
-	jupyter-book build docs
+	# API documentation is generated from the `cryosparc/api.pyi` type stubs file,
+	# but sphinx expects a `.py` file.
+	mv cryosparc/api.py cryosparc/api.py.bak
+	mv cryosparc/api.pyi cryosparc/api.py
+	-jupyter-book build docs
+	mv cryosparc/api.py cryosparc/api.pyi
+	mv cryosparc/api.py.bak cryosparc/api.py
 
 # -----------------------------------------------------------------------------
 #    Vercel deployment-related targets
@@ -24,7 +30,7 @@ docs:
 	curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C /usr/local bin/micromamba
 
 .venv:
-	micromamba create -p ./.venv -y -c conda-forge python=3.10 pip wheel cython numpy jupyter-book autodocsumm
+	micromamba create -p ./.venv -y -c conda-forge python=3.10 pip wheel cython numpy jupyter-book=1.0 autodocsumm
 	micromamba run -p ./.venv pip install -e ".[build]"
 
 .vercel/output/config.json:
@@ -35,7 +41,7 @@ vercelinstall: /usr/local/bin/micromamba .venv
 	echo "Install complete"
 
 vercelbuild: .vercel/output/config.json .venv
-	micromamba run -p ./.venv jupyter-book build docs
+	micromamba run -p ./.venv make docs
 	rm -rf .vercel/output/static && cp -R docs/_build/html .vercel/output/static
 
 # -----------------------------------------------------------------------------

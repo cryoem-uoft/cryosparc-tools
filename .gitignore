@@ -57,6 +57,8 @@ cover/
 # Jupyter Notebook
 .ipynb_checkpoints
 _build
+docs/api/*.rst
+!docs/api/index.rst
 
 # IPython
 profile_default/
@@ -66,5 +68,6 @@ ipython_config.py
 .ruff_cache
 .vercel
 cryosparc/core.c
+cryosparc/dataset/core.c
 *.dSYM
 cython_debug

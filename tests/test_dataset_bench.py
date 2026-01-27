@@ -343,12 +343,6 @@ def test_subset_simple_query_empty(benchmark, dset: Dataset):
     assert len(new_dset) == len(dset)
 
 
-def test_subset_simple_query_fake_field(benchmark, dset: Dataset):
-    new_dset = benchmark(dset.query, {"fake_field": 42})
-    assert new_dset == dset
-    assert len(new_dset) == len(dset)
-
-
 def test_subset_simple_query_nomatch(benchmark, big_dset, dset: Dataset):
     new_dset = benchmark(dset.query, {"uid": [42]})
     assert len(dset) == len(big_dset), "Should not mutate original dset"

@@ -2,11 +2,11 @@
 Definitions for various error classes raised by cryosparc-tools functions
 """
 
-from typing import Any, List
+import json
+from typing import TYPE_CHECKING, Any
 
-from typing_extensions import TypedDict
-
-from .spec import Datafield, Datatype, SlotSpec
+if TYPE_CHECKING:
+    from httpx import Response
 
 
 class DatasetLoadError(Exception):
@@ -15,69 +15,35 @@ class DatasetLoadError(Exception):
     pass
 
 
-class CommandError(Exception):
+class APIError(ValueError):
     """
-    Raised by failed request to a CryoSPARC command server.
+    Raised by failed request to a CryoSPARC API server.
     """
 
     code: int
-    data: Any
+    data: Any = None
 
-    def __init__(self, reason: str, *args: object, url: str = "", code: int = 500, data: Any = None) -> None:
-        msg = f"*** ({url}, code {code}) {reason}"
+    def __init__(
+        self,
+        reason: str,
+        *args: object,
+        res: "Response",
+        data: Any = None,  # must be JSON-encodable if provided
+    ) -> None:
+        msg = f"*** [API] ({res.request.method} {res.url}, code {res.status_code}) {reason}"
         super().__init__(msg, *args)
-        self.code = code
-        self.data = data
+        self.code = res.status_code
+        if data is not None:
+            self.data = data
+        elif res.headers.get("Content-Type") == "application/json":
+            self.data = res.json()
 
-
-class SlotsValidation(TypedDict):
-    """
-    Data from validation error when specifying external result input/output slots.
-
-    :meta private:
-    """
-
-    type: Datatype
-    valid: List[SlotSpec]
-    invalid: List[Datafield]
-    valid_dtypes: List[str]
-
-
-class InvalidSlotsError(ValueError):
-    """
-    Raised by functions that accept slots arguments when CryoSPARC reports that
-    given slots are not valid.
-    """
-
-    def __init__(self, caller: str, validation: SlotsValidation):
-        type = validation["type"]
-        valid_slots = validation["valid"]
-        invalid_slots = validation["invalid"]
-        valid_dtypes = validation["valid_dtypes"]
-        msg = "\n".join(
-            [
-                f"Unknown {type} slot dtype(s): {', '.join(s['dtype'] for s in invalid_slots)}. "
-                "Only the following slot dtypes are valid:",
-                "",
-            ]
-            + [f" - {t}" for t in valid_dtypes]
-            + [
-                "",
-                "If adding a dynamic result such as alignments_class_#, specify a "
-                "slots=... argument with a full data field specification:",
-                "",
-                f"    {caller}(... , slots=[",
-                "        ...",
-            ]
-            + [f"        {repr(s)}," for s in valid_slots]
-            + [
-                "        {'dtype': '<INSERT HERE>', 'prefix': '%s', 'required': True}," % s["dtype"]
-                for s in invalid_slots
-            ]
-            + ["        ...", "    ])"]
-        )
-
-        return super().__init__(msg)
+    def __str__(self):
+        s = super().__str__()
+        if self.data:
+            s += "\nResponse data:\n"
+            s += json.dumps(self.data, indent=4)
+        return s
 
 
 class ExternalJobError(Exception):
