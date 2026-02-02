@@ -3,7 +3,8 @@
 ## v5.0.0
 
 - BREAKING: replaced low-level `CryoSPARC.cli`, `CryoSPARC.rtp` and `CryoSPARC.vis` attributes with single unified `CryoSPARC.api`
-Please add all inputs and outputs and connect all inputs before running an external job.
+- BREAKING: Can no longer add inputs or outputs when an external job has completed status, first clear the job with `job.clear()`
+- BREAKING: Can no longer save outputs when an external job has building or completed status, first clear the job, call `job.start()`, save outputs, and call `job.stop()`
 - BREAKING: `CryoSPARC.download_asset(fileid, target)` no longer accepts a directory target. Must specify a filename.
 - BREAKING: removed `CryoSPARC.get_job_specs()`. Use `CryoSPARC.job_register` instead
 - BREAKING: `CryoSPARC.list_assets()` and `Job.list_assets()` return list of models instead of list of dictionaries, accessible with dot-notation
@@ -20,12 +21,25 @@ Please add all inputs and outputs and connect all inputs before running an exter
   - OLD: `cs.print_job_types(section=["extraction", "refinement"])`
   - NEW: `cs.print_job_types(category=["extraction", "refinement"])`
 - BREAKING: Restructured schema for Job models, many Job.doc fields have been internally rearranged. Some fields like `params_spec` and `output_result_groups` are no longer available (replaced with a unified `spec` field)
-- Added: `CryoSPARC.job_register` property
+- Added: Python 3.14 support
+- Added: Secure command-line login with shell command `python -m cryosparc.tools login --url <URL>`, to avoid exposing login credentials in plain text
+- Added: Option to initialize `CryoSPARC` instance with a URL, e.g., `cs = CryoSPARC("https://cryosparc.example.com:61000")`
+- Added: `find_projects()`, `find_workspaces()` and `find_jobs()` methods to find lists of Projects, Workspaces and Jobs; filters are available for attributes like project UID and creation date
+- Added: `CryoSPARC.job_register` attribute
+- Added: New `title` and `desc` attributes for Project, Workspace and Job objects
+- Added: New `status` attribute for Job objects
+- Added: Methods to update title and description for Projects, Workspaces and Jobs
+- Added: Ability to set External job tile and output images
 - Added: `job.load_input()` and `job.load_output()` now accept `"default"`, `"passthrough"` and `"all"` keywords for their `slots` argument
 - Added: `job.alloc_output()` now accepts `dtype_params` argument for fields with dynamic shapes
 - Added: `CryoSPARC.print_job_types` now includes a job stability column
 - Added: `Job.print_output_spec` now includes a passthrough indicator column for results
+- Added: `Job.log()` now accepts a `name` argument to create or update the same event log
 - Updated: Improved type definitions
+- Updated: `cryosparc.mrc` always converts float16 arrays to float32 before writing
+- Updated: Access to `BASE_PORT + 2`, `BASE_PORT + 3` and `BASE_PORT + 5` no longer required, only `BASE_PORT` or the web URL is required
+- Fixed: Prevent error on some datasets with many columns when using Numpy >= 1.24
+- Fixed: Querying a dataset with a non-existent field now correctly raises a KeyError
 - Deprecated: When adding external inputs and outputs, expanded slot definitions now expect `"name"` key instead of `"prefix"`, support for which will be removed in a future release.
   - OLD: `job.add_input("particle", slots=[{"prefix": "component_mode_1", "dtype": "component", "required": True}])`
   - NEW: `job.add_input("particle", slots=[{"name": "component_mode_1", "dtype": "component", "required": True}])`
@@ -34,9 +48,9 @@ Please add all inputs and outputs and connect all inputs before running an exter
 - Deprecated: `external_job.stop()` now expects optional error string instead of boolean, support for boolean errors will be removed in a future release
 - Deprecated: `CryoSPARC.get_job_sections()` will be removed in a future release,
   use `CryoSPARC.job_register` instead
-- Deprecated: Most functions no longer require a `refresh` argument, including
-  `job.set_param()`, `job.connect()`, `job.disconnect()` and `external_job.save_output()`
+- Deprecated: Most functions no longer require a `refresh` argument, including `job.set_param()`, `job.connect()`, `job.disconnect()` and `external_job.save_output()`
 - Deprecated: Attributes `Project.doc`, `Workspace.doc` and `Job.doc` will be removed in a future release, use `.model` attribute instead
+- Deprecated: `project.dir()` and `job.dir()` methods will be removed in a future release, use `.dir` attribute instead
 
 ## v4.7.1
 
