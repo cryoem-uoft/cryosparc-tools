@@ -385,6 +385,7 @@ class CryoSPARC:
         limit = 100
         while workspaces := self.api.workspaces.find(
             project_uid=[project_uid] if isinstance(project_uid, str) else project_uid,
+            order=order,
             after=after,
             limit=limit,
         ):
