@@ -1017,7 +1017,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         state.pop("_rows")
         self.__init__(data, row_class=row_class)
         if hasattr(self, "__dict__"):
-            self.__dict__.update(state)
+            self.__dict__.update(state)  # type: ignore
 
     def __array__(self):
         return self.to_records()
