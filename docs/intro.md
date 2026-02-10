@@ -21,6 +21,16 @@ If you would like to request or propose a feature, change or fix for `cryosparc-
 
 Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-tools).
 
+## v5
+
+CryoSPARC and CryoSPARC Tools version 5 were released in January 2026.
+
+```{note}
+Most scripts written for v4 will work with v5 without changes. Scripts that use the internal `CryoSPARC.cli`, `CryoSPARC.rtp` or `CryoSPARC.vis` attributes need to be updated to use the new `CryoSPARC.api` attribute, or a standard API function.
+```
+
+[See the full change log for details](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md).
+
 ## Pre-requisites
 
 - [Python ≥ 3.8](https://www.python.org/downloads/)
