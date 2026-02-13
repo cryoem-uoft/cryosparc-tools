@@ -2,7 +2,7 @@
 
 ## v5.0.1
 
-- Fixed: Corretly use order argument when listing workspaces
+- Fixed: Correctly use order argument when listing workspaces
 
 ## v5.0.0
 
