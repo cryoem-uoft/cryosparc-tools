@@ -43,7 +43,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Are the samples negative stain (True) or cryo (False)?
     """
-    eer_upsampfactor: int = 2
+    eer_upsampfactor: int = 1
     """
     EER upsampling factor (applies to .eer/.ecc format data only.
     """

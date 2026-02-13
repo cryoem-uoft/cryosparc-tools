@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.0.1
+
+- Fixed: Corretly use order argument when listing workspaces
+
 ## v5.0.0
 
 - BREAKING: replaced low-level `CryoSPARC.cli`, `CryoSPARC.rtp` and `CryoSPARC.vis` attributes with single unified `CryoSPARC.api`

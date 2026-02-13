@@ -7,6 +7,7 @@ After [installation](/intro), run commands from your terminal in this format:
 ```bash
 python -m cryosparc.tools <command> [options]
 ```
+
 Currently, this only supports the `login` command.
 
 Run with the `--help` flag to see available commands and options:
@@ -39,10 +40,10 @@ project = cs.find_project("P1")
 The token expires after 2 weeks by default. To renew it, run the login command again. Specify flag `--expires <DATE>`, with `<DATE>` in `YYYY-MM-DD` format, to set a longer expiration date. For example:
 
 ```bash
-python -m cryosparc.tools login --url http://localhost:39000 --expires 2025-12-31
+python -m cryosparc.tools login --url http://localhost:39000 --expires 2026-12-31
 ```
 
-This sets the token to expire on December 31, 2025. Note that the expiration date cannot be more than 1 year in the future.
+This sets the token to expire on December 31, 2026. Note that the expiration date cannot be more than 1 year in the future.
 
 You may also specify one or both of `--email` and `--password` flags to provide your credentials directly.
 
@@ -50,7 +51,7 @@ You may also specify one or both of `--email` and `--password` flags to provide 
 python -m cryosparc.tools login --url http://localhost:39000 \
   --email "ali@example.com" \
   --password "mysecretpassword" \
-  --expires 2025-12-31
+  --expires 2026-12-31
 ```
 
 #### Advanced Usage
