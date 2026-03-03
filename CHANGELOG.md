@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.0.2
+
+- Fixed: Correct session signatures model definition
+
 ## v5.0.1
 
 - Fixed: Correctly use order argument when listing workspaces
