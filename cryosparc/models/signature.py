@@ -13,7 +13,7 @@ class ImportSignature(BaseModel):
     """
     Number of imported paths
     """
-    signatures: str = ""
+    signatures: bytes = b""
     """
     Binary signatures of imported paths
     """
