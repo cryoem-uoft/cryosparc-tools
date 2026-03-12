@@ -13,7 +13,6 @@ class GridFSAsset(BaseModel):
 
     fileid: str
     """
-    File ID as a string
     """
     filename: str
     """

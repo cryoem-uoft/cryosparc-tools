@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from .file_browser import FileBrowserPrefixes
+from .file_browser import FileBrowserSettings
 
 
 class Bookmark(BaseModel):
@@ -274,7 +274,7 @@ class User(BaseModel):
     preferences: Dict[str, Any] = {}
     """
     """
-    file_browser_settings: FileBrowserPrefixes = FileBrowserPrefixes()
+    file_browser_settings: FileBrowserSettings = FileBrowserSettings()
     """
     """
     lanes: List[str] = []

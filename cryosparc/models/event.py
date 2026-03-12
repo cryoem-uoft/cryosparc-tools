@@ -149,24 +149,6 @@ class ImageEvent(BaseModel):
     """
 
 
-class InteractiveGridFSAsset(BaseModel):
-    """
-    Basic information about an uploaded data asset stored in GridFS.
-    """
-
-    fileid: str = "000000000000000000000000"
-    """
-    """
-    filename: str
-    """
-    File name, e.g,. "image.png"
-    """
-    filetype: str
-    """
-    File format extension, e.g., "png"
-    """
-
-
 class InteractiveImgfile(BaseModel):
     """
     An image file associated with an interactive event, along with its components.
@@ -229,11 +211,18 @@ class InteractiveEvent(BaseModel):
     """
     text: str
     """
-    Text description of the interactive event.
     """
-    datafile: InteractiveGridFSAsset
+    datafile: GridFSAsset
     """
-    Data asset associated with the interactive event.
+    Legacy note: in v4 the fileid field was stored as an ObjectID instead of str.
+    If a user needs to downgrade an migrate the fileid back to ObjectID, use the following commands:
+    ```python
+    csm icli
+    from bson import ObjectId
+    interactive_events = db.events.find({"type": "interactive"})
+    for event in interactive_events:
+        db.events.update_one({"_id": event["_id"]}, {"$set": {"datafile.fileid": ObjectId(event["datafile"]["fileid"])}})
+    ```
     """
     preview_imgfiles: List[InteractiveImgfile] = []
     """

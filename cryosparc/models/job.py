@@ -481,6 +481,9 @@ class Job(BaseModel):
     """
     If set, job can be cleared and requeued until this time without losing its place in the queue
     """
+    oversubscribe_gpus: bool = False
+    """
+    """
     uid_num: int
     """
     Numeric part of the job UID.

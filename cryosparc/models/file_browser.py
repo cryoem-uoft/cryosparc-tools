@@ -60,11 +60,7 @@ class BrowseFileResponse(BaseModel):
     """
 
 
-class FileBrowserPrefixes(BaseModel):
-    """
-    Configuration for allowed file browser prefixes and default directories.
-    """
-
+class FileBrowserSettings(BaseModel):
     allowed_prefixes: Optional[List[str]] = None
     """
     """

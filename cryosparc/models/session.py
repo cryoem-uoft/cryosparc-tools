@@ -257,6 +257,7 @@ class LiveVolumeInfo(BaseModel):
     """
     fileid: Optional[str] = None
     """
+    map's central projections
     """
     selected: bool = False
     """
@@ -691,27 +692,18 @@ class Session(BaseModel):
     Session parameters for preprocessing. Reconstruction parameters are stored separately.
     """
     attributes: List[SessionAttribute] = [
-        SessionAttribute(name="found_at", title="Timestamp", min=None, max=None, round=0),
-        SessionAttribute(name="check_at", title="Check Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="motion_at", title="Motion Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="thumbs_at", title="Thumbs Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="ctf_at", title="CTF Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="pick_at", title="Pick Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="extract_at", title="Extract Stage Completed At", min=None, max=None, round=0),
         SessionAttribute(
-            name="manual_extract_at", title="Manual Extract Stage Completed At", min=None, max=None, round=0
+            name="total_motion_dist", title="Total full-frame motion distance (pixels)", min=None, max=None, round=2
         ),
-        SessionAttribute(name="ready_at", title="Exposure Ready At", min=None, max=None, round=0),
-        SessionAttribute(name="total_motion_dist", title="Total Motion (pix)", min=None, max=None, round=2),
-        SessionAttribute(name="max_intra_frame_motion", title="Max In-Frame Motion", min=None, max=None, round=3),
         SessionAttribute(name="average_defocus", title="Defocus Avg. (Å)", min=None, max=None, round=0),
         SessionAttribute(name="defocus_range", title="Defocus Range (Å)", min=None, max=None, round=0),
-        SessionAttribute(name="astigmatism_angle", title="Astigmatism Angle (deg)", min=None, max=None, round=1),
-        SessionAttribute(name="astigmatism", title="Astigmatism", min=None, max=None, round=2),
+        SessionAttribute(name="astigmatism", title="Astigmatism (A)", min=None, max=None, round=2),
         SessionAttribute(name="phase_shift", title="Phase Shift (deg)", min=None, max=None, round=1),
-        SessionAttribute(name="ctf_fit_to_A", title="CTF Fit (Å)", min=None, max=None, round=3),
+        SessionAttribute(name="ctf_fit_to_A", title="CTF fit resolution (A)", min=None, max=None, round=3),
         SessionAttribute(name="ice_thickness_rel", title="Relative Ice Thickness", min=None, max=None, round=3),
-        SessionAttribute(name="df_tilt_angle", title="Sample Tilt (deg)", min=None, max=None, round=1),
+        SessionAttribute(name="df_tilt_angle", title="Defocus Tilt Angle (degrees)", min=None, max=None, round=1),
+        SessionAttribute(name="astigmatism_angle", title="Astigmatism Angle (deg)", min=None, max=None, round=1),
+        SessionAttribute(name="max_intra_frame_motion", title="Max In-Frame Motion", min=None, max=None, round=3),
         SessionAttribute(name="total_manual_picks", title="Total Manual Picks", min=None, max=None, round=0),
         SessionAttribute(name="total_blob_picks", title="Total Blob Picks", min=None, max=None, round=0),
         SessionAttribute(name="blob_pick_score_median", title="Median Blob Pick Score", min=None, max=None, round=3),
@@ -743,6 +735,17 @@ class Session(BaseModel):
             max=None,
             round=0,
         ),
+        SessionAttribute(name="found_at", title="Timestamp", min=None, max=None, round=0),
+        SessionAttribute(name="check_at", title="Check Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="motion_at", title="Motion Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="thumbs_at", title="Thumbs Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="ctf_at", title="CTF Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="pick_at", title="Pick Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="extract_at", title="Extract Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(
+            name="manual_extract_at", title="Manual Extract Stage Completed At", min=None, max=None, round=0
+        ),
+        SessionAttribute(name="ready_at", title="Exposure Ready At", min=None, max=None, round=0),
     ]
     """
     List of available session attributes for filtering and display
