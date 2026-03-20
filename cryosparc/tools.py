@@ -85,12 +85,13 @@ class CryoSPARC:
         base_url (str, optional): CryoSPARC instance URL, e.g.,
             "http://localhost:39000" or "https://cryosparc.example.com".
             Same URL used to access CryoSPARC from a web browser.
+            Defaults to ``os.getenv("CRYOSPARC_BASE_URL")``.
         host (str, optional): Hostname or IP address running CryoSPARC master.
             Cannot be specified with ``base_url``. Defaults to
-            ``os.getenv("CRYOSPARC_MASTER_HOSTNAME", "localhost")``.
+            ``os.getenv("CRYOSPARC_MASTER_HOSTNAME")``.
         base_port (int, optional): CryoSPARC services base port number.
             Cannot be specified with  ``base_url``. Defaults to
-            ``os.getenv("CRYOSPARC_BASE_PORT", 39000)``.
+            ``os.getenv("CRYOSPARC_BASE_PORT")``.
         email (str, optional): CryoSPARC user account email address. Defaults
             to ``os.getenv("CRYOSPARC_EMAIL")``.
         password (str, optional): CryoSPARC user account password address.
