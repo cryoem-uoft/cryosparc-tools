@@ -114,10 +114,10 @@ class APINamespace:
                 headers["Content-Type"] = "application/json"
                 if args:
                     request_body, args = args[0], args[1:]
-                    request_body = json.dumps(request_body, default=APINamespace._json_decoder)
+                    request_body = _serialize_request_body(request_body)
                 elif body_name in kwargs:
                     request_body = kwargs.pop(body_name)
-                    request_body = json.dumps(request_body, default=APINamespace._json_decoder)
+                    request_body = _serialize_request_body(request_body)
                 elif content_schema.get("required", False):
                     raise TypeError(f"[API] {func_name}() missing required argument: {body_name}")
             elif "application/x-www-form-urlencoded" in content_schema:
@@ -428,3 +428,10 @@ def _decode_json_response(value: Any, schema: dict):
 def _uriencode(val: Any):
     # Encode any string-compatible value so that it may be used in a URI.
     return urllib.parse.quote(val if isinstance(val, (str, bytes)) else str(val))
+
+
+def _serialize_request_body(body: Any) -> str:
+    # Encode Pydantic models by aliases
+    if isinstance(body, BaseModel):
+        return body.model_dump_json(by_alias=True, exclude_unset=True)
+    return json.dumps(body, default=APINamespace._json_decoder)
