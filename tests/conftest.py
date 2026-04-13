@@ -256,7 +256,7 @@ def mock_api_client_class(mock_user, monkeypatch):
 @pytest.fixture
 def cs(mock_api_client_class):
     return CryoSPARC(
-        "https://cryosparc.example.com",
+        "cryosparc.example.com",
         email="structura@example.com",
         password="password",
         host=None,

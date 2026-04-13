@@ -5,7 +5,7 @@ instance from Python
 Examples:
 
     >>> from cryosparc.tools import CryoSPARC
-    >>> cs = CryoSPARC("http://localhost:39000")
+    >>> cs = CryoSPARC("http://localhost:61000")
     >>> project = cs.find_project("P3")
 
 """
@@ -83,7 +83,7 @@ class CryoSPARC:
 
     Args:
         base_url (str, optional): CryoSPARC instance URL, e.g.,
-            "http://localhost:39000" or "https://cryosparc.example.com".
+            "localhost:61000" or "https://cryosparc.example.com".
             Same URL used to access CryoSPARC from a web browser.
             Defaults to ``os.getenv("CRYOSPARC_BASE_URL")``.
         host (str, optional): Hostname or IP address running CryoSPARC master.
@@ -110,7 +110,7 @@ class CryoSPARC:
         ...     email="ali@example.com",
         ...     password="password123",
         ...     host="localhost",
-        ...     base_port=39000
+        ...     base_port=61000
         ... )
         >>> job = cs.find_job("P3", "J42")
         >>> micrographs = job.load_output('exposures')
@@ -163,28 +163,29 @@ class CryoSPARC:
             if base_url:
                 raise TypeError("Cannot specify host or base_port when base_url is specified")
             host = host or "localhost"
-            port = int(base_port or 39000)
-            self.base_url = f"http://{host}:{port}"
-        elif base_url:
-            self.base_url = base_url
-        else:
-            raise TypeError("Must specify either base_url or host + base_port")
+            port = int(base_port or 61000)
+            base_url = f"http://{host}:{port}"
+        elif base_url and not re.match(r"^https?://", base_url):
+            base_url = "http://" + base_url
 
-        auth = None
         if email and password:
+            assert base_url, "Base URL must be specified to use email and password authentication"
             auth = (email, sha256(password.encode()).hexdigest())
-        elif session := InstanceAuthSessions.load().find(self.base_url, email):
+        elif authdata := InstanceAuthSessions.load().find(base_url, email):
+            base_url, session = authdata
             auth = session.token.access_token
-        elif license:
+        elif license:  # superadmin
+            assert base_url, "Base URL must be specified to license authentication"
             auth = ("cryosparc", sha256(license.encode()).hexdigest())
         else:
             raise ValueError(
-                f"CryoSPARC authentication not provided or expired for {self.base_url}. "
+                f"CryoSPARC authentication not provided or expired for URL {base_url or '<unspecified>'}. "
                 "If required, create a new session with command\n\n"
                 "    python3 -m cryosparc.tools login\n\n"
                 "Please see documentation at https://tools.cryosparc.com for instructions."
             )
 
+        self.base_url = base_url
         tools_major_minor_version = ".".join(__version__.split(".")[:2])  # e.g., 4.1.0 -> 4.1
         try:
             self.api = APIClient(
