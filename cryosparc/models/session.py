@@ -136,9 +136,13 @@ class ExposureGroup(BaseModel):
     Ignore new exposure files that have been modified within this many seconds.
     Set to prevent processing from starting on incomplete files.
     """
-    exp_group_id: int = 1
+    exp_group_id: int
     """
-    Assigned unique ID for this exposure group within the session
+    Exposure group id used to save in datasets
+    """
+    display_num: int
+    """
+    Display number of this exposure group within the session
     """
     num_exposures_found: int = 0
     """
@@ -695,7 +699,7 @@ class Session(BaseModel):
         SessionAttribute(
             name="total_motion_dist", title="Total full-frame motion distance (pixels)", min=None, max=None, round=2
         ),
-        SessionAttribute(name="average_defocus", title="Defocus Avg. (Å)", min=None, max=None, round=0),
+        SessionAttribute(name="average_defocus", title="Defocus Avg. (Å)", min=None, max=None, round=3),
         SessionAttribute(name="defocus_range", title="Defocus Range (Å)", min=None, max=None, round=0),
         SessionAttribute(name="astigmatism", title="Astigmatism (A)", min=None, max=None, round=2),
         SessionAttribute(name="phase_shift", title="Phase Shift (deg)", min=None, max=None, round=1),

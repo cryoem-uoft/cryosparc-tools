@@ -90,6 +90,7 @@ from .models.api_response import (
 from .models.asset import GridFSAsset, GridFSFile
 from .models.auth import Token
 from .models.benchmarks import PerformanceBenchmark, ReferencePerformanceBenchmark
+from .models.blueprint import Blueprint, BlueprintParameter
 from .models.config import SystemInfo
 from .models.diagnostics import RuntimeDiagnostics
 from .models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
@@ -2450,6 +2451,41 @@ class JobsAPI(APINamespace):
 
         """
         ...
+    def apply_blueprint(self, project_uid: str, job_uid: str, /, *, blueprint_id: str) -> Job:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            blueprint_id (str):
+
+        Returns:
+            Job: Successful Response
+
+        """
+        ...
+    def create_job_from_blueprint(self, project_uid: str, workspace_uid: str, /, *, blueprint_id: str) -> Job:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+            blueprint_id (str):
+
+        Returns:
+            Job: Successful Response
+
+        """
+        ...
+    def create_blueprint_from_job(self, project_uid: str, job_uid: str, /) -> Any:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+
+        Returns:
+            Any: Successful Response
+
+        """
+        ...
 
 class WorkspacesAPI(APINamespace):
     """
@@ -3442,7 +3478,7 @@ class SessionsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
             job_uid (str):
-            template_creation_project_uid (str, optional): Defaults to None
+            template_creation_project_uid (str, optional): Project from which to pull the template creation job. If not specified, the job is assumed to be in the same project as the session.. Defaults to None
 
         Returns:
             Session: Successful Response
@@ -3625,7 +3661,7 @@ class SessionsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
-            volume_name (str):
+            volume_name (str): Volume output name from the session's Ab-Initio job, if multiple classes are available. e.g., "volume_class_0"
 
         Returns:
             Session: Successful Response
@@ -4727,12 +4763,13 @@ class ProjectsAPI(APINamespace):
 
         """
         ...
-    def attach(self, *, path: str) -> Project:
+    def attach(self, *, project_owner_id: Optional[str] = None, path: str) -> Project:
         """
         Attach a project directory at a specified path and write a new lockfile.
         Provided path must not have an existing lockfile.
 
         Args:
+            project_owner_id (str, optional): Assign project to user with this ID or email. Defaults to None
             path (str):
 
         Returns:
@@ -5154,76 +5191,101 @@ class NotificationsAPI(APINamespace):
 
 class BlueprintsAPI(APINamespace):
     """
-    Functions available in ``api.blueprints``, e.g., ``api.blueprints.create_blueprint(...)``
+    Functions available in ``api.blueprints``, e.g., ``api.blueprints.find(...)``
     """
-    def create_blueprint(
+    def find(
         self,
-        schema: Dict[str, Any],
         *,
+        id: Optional[List[str]] = None,
+        job_type: Optional[List[str]] = None,
+        created_by: Optional[str] = None,
+        pinned: Optional[bool] = None,
+        imported: Optional[bool] = None,
+        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        order: Literal[-1, 1] = 1,
+        after: Optional[str] = None,
+        limit: Optional[int] = 100,
+    ) -> List[Blueprint]:
+        """
+        List blueprints that match the given filters (All if not specified)
+
+        Args:
+            id (List[str], optional): Defaults to None
+            job_type (List[str], optional): Defaults to None
+            created_by (str, optional): Defaults to None
+            pinned (bool, optional): Defaults to None
+            imported (bool, optional): Defaults to None
+            created_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
+            updated_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
+            order (Literal[-1, 1], optional): 1 for ascending order, -1 for descending order. Defaults to 1
+            after (str, optional): Cursor for pagination; only return results with id greater than (if order=1) or less than (if order=-1) this value. Defaults to None
+            limit (int, optional): Defaults to 100
+
+        Returns:
+            List[Blueprint]: Successful Response
+
+        """
+        ...
+    def create(self, body: Blueprint) -> Blueprint:
+        """
+        Create or import a blueprint for a job.
+
+        Args:
+            body (Blueprint):
+
+        Returns:
+            Blueprint: Successful Response
+
+        """
+        ...
+    def find_one(self, blueprint_id: str, /) -> Blueprint:
+        """
+        Get a blueprint by its id
+
+        Args:
+            blueprint_id (str):
+
+        Returns:
+            Blueprint: Successful Response
+
+        """
+        ...
+    def edit(
+        self,
         blueprint_id: str,
-        imported: bool,
-        project_uid: str,
-        job_uid: str,
-        job_type: str,
-    ) -> None:
+        /,
+        parameters: Optional[Dict[str, BlueprintParameter]] = None,
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        apply_title: Optional[bool] = None,
+        apply_description: Optional[bool] = None,
+        pinned: Optional[bool] = None,
+    ) -> Blueprint:
         """
-        Create or import a blueprint for a job. For use by CryoSPARC app only.
-
-        :meta private:
+        Edit an existing blueprint
 
         Args:
-            schema (Dict[str, Any]):
             blueprint_id (str):
-            imported (bool):
-            project_uid (str):
-            job_uid (str):
-            job_type (str):
+            parameters (Dict[str, BlueprintParameter], optional): Defaults to None
+            title (str, optional): Defaults to None
+            description (str, optional): Defaults to None
+            apply_title (bool, optional): Defaults to None
+            apply_description (bool, optional): Defaults to None
+            pinned (bool, optional): Defaults to None
+
+        Returns:
+            Blueprint: Successful Response
 
         """
         ...
-    def edit_blueprint(
-        self, blueprint_id: str, /, schema: Dict[str, Any], *, project_uid: str, job_uid: str, job_type: str
-    ) -> None:
+    def delete(self, blueprint_id: str, /) -> None:
         """
-        Edit a blueprint for a job. For use by CryoSPARC app only.
-
-        :meta private:
+        Delete a blueprint.
 
         Args:
             blueprint_id (str):
-            schema (Dict[str, Any]):
-            project_uid (str):
-            job_uid (str):
-            job_type (str):
-
-        """
-        ...
-    def delete_blueprint(self, blueprint_id: str, /, *, job_type: str) -> None:
-        """
-        Delete a blueprint. For use by CryoSPARC app only.
-
-        :meta private:
-
-        Args:
-            blueprint_id (str):
-            job_type (str):
-
-        """
-        ...
-    def apply_blueprint(
-        self, blueprint_id: str, /, schema: Dict[str, Any], *, project_uid: str, job_uid: str, job_type: str
-    ) -> None:
-        """
-        Apply a blueprint to a job. For use by CryoSPARC app only.
-
-        :meta private:
-
-        Args:
-            blueprint_id (str):
-            schema (Dict[str, Any]):
-            project_uid (str):
-            job_uid (str):
-            job_type (str):
 
         """
         ...

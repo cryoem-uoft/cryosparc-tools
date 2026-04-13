@@ -6,6 +6,7 @@ from .models import (
     asset,
     auth,
     benchmarks,
+    blueprint,
     config,
     diagnostics,
     event,
@@ -44,6 +45,7 @@ register_model_module(resource, include_literals=True)
 register_model_module(gpu, include_literals=True)
 register_model_module(api_request, include_literals=True)
 register_model_module(session, include_literals=True)
+register_model_module(blueprint, include_literals=True)
 register_model_module(user, include_literals=True)
 register_model_module(file_browser, include_literals=True)
 register_model_module(job_spec, include_literals=True)
