@@ -502,6 +502,29 @@ class CryoSPARC:
         """
         return ExternalJobController(self, (project_uid, job_uid))
 
+    def create_project(
+        self, parent_dir: Union[str, PurePath], title: str, desc: Optional[str] = None
+    ) -> ProjectController:
+        """
+        Create a new empty project.
+
+        Args:
+            parent_dir (str | Path): Absolute path to create project in, e.g.
+                ``/home/user/cryosparc-projects``. If the CryoSPARC instance is
+                hosted remotely, this should be a path available on the server
+                file system.
+            title (str): Title of new project.
+            desc (str, optional): Markdown text description. Defaults to None.
+
+        Returns:
+            ProjectController: created project accessor object
+
+        Raises:
+            APIError: Project cannot be created.
+        """
+        project = self.api.projects.create(title=title, description=desc, parent_dir=str(parent_dir))
+        return ProjectController(self, project)
+
     def create_workspace(self, project_uid: str, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
         Create a new empty workspace in the given project.
