@@ -2379,7 +2379,7 @@ class WorkspacesAPI(APINamespace):
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         deleted: Optional[bool] = False,
-    ) -> List[Workspace]:
+    ) -> List[Union[Workspace, Session]]:
         """
         List all workspaces. Specify a filter to list all workspaces in a specific
         project.
@@ -2399,7 +2399,7 @@ class WorkspacesAPI(APINamespace):
             deleted (bool, optional): Defaults to False
 
         Returns:
-            List[Workspace]: Successful Response
+            List[Union[Workspace, Session]]: Successful Response
 
         """
         ...
@@ -2446,7 +2446,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def find_one(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def find_one(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Find a specific workspace in a project
 
@@ -2455,7 +2455,7 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -2493,7 +2493,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Workspace:
+    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Union[Workspace, Session]:
         """
         Set title of a workspace
 
@@ -2503,11 +2503,11 @@ class WorkspacesAPI(APINamespace):
             title (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def set_description(self, project_uid: str, workspace_uid: str, /, description: str) -> Workspace:
+    def set_description(self, project_uid: str, workspace_uid: str, /, description: str) -> Union[Workspace, Session]:
         """
         Set description of a workspace
 
@@ -2517,11 +2517,11 @@ class WorkspacesAPI(APINamespace):
             description (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def view(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def view(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Adds a workspace uid to a user's recently viewed workspaces list.
 
@@ -2530,11 +2530,11 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
+    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
         """
         Tag the given workspace with the given tag.
 
@@ -2544,11 +2544,11 @@ class WorkspacesAPI(APINamespace):
             tag_uid (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
+    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
         """
         Removes a tag from a workspace.
 
@@ -2558,7 +2558,7 @@ class WorkspacesAPI(APINamespace):
             tag_uid (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -2607,7 +2607,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Stars a workspace for a user
 
@@ -2616,11 +2616,11 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Unstars a workspace for a user
 
@@ -2629,7 +2629,7 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -3347,7 +3347,7 @@ class SessionsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
             job_uid (str):
-            template_creation_project_uid (str, optional): Defaults to None
+            template_creation_project_uid (str, optional): Project from which to pull the template creation job. If not specified, the job is assumed to be in the same project as the session.. Defaults to None
 
         Returns:
             Session: Successful Response
@@ -4638,6 +4638,7 @@ class ProjectsAPI(APINamespace):
         clear_types: List[str] = [],
         clear_statuses: List[JobStatus] = [],
         clear_preprocessing: bool = False,
+        clear_intermediate_results: bool = False,
     ) -> None:
         """
         Cleanup project or workspace data, clearing/deleting jobs based on final result status, sections, types, or job status
@@ -4652,6 +4653,7 @@ class ProjectsAPI(APINamespace):
             clear_types (List[str], optional): Defaults to []
             clear_statuses (List[JobStatus], optional): Defaults to []
             clear_preprocessing (bool, optional): Defaults to False
+            clear_intermediate_results (bool, optional): Defaults to False
 
         """
         ...

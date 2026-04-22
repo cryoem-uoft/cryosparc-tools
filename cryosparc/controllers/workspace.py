@@ -5,6 +5,7 @@ from typing_extensions import Unpack
 
 from ..dataset import Dataset
 from ..dataset.row import R
+from ..models.session import Session
 from ..models.workspace import Workspace
 from ..search import JobSearch
 from ..spec import Datatype, SlotSpec
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from ..tools import CryoSPARC
 
 
-class WorkspaceController(Controller[Workspace]):
+class WorkspaceController(Controller[Union[Workspace, Session]]):
     """
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
     results. Should be created with`
@@ -40,7 +41,7 @@ class WorkspaceController(Controller[Workspace]):
     Project unique ID, e.g., "P3"
     """
 
-    def __init__(self, cs: "CryoSPARC", workspace: Union[Tuple[str, str], Workspace]) -> None:
+    def __init__(self, cs: "CryoSPARC", workspace: Union[Tuple[str, str], Workspace, Session]) -> None:
         self.cs = cs
         if isinstance(workspace, tuple):
             self.project_uid, self.uid = workspace
