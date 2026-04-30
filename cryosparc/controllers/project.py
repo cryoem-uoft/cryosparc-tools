@@ -236,11 +236,18 @@ class ProjectController(Controller[Project]):
     def attach(self, *, wait: bool = False):
         """
         Attach this project to the CryoSPARC instance. Attached projects are
-        accessible through the UI and can be modified.
+        accessible through the UI and can be modified. Project will be assigned
+        a new UID upon attaching.
 
         Args:
             wait (bool, optional): If True, wait for the attach operation to
                 complete before returning. Defaults to False.
+
+        Raises:
+            APIError: Project cannot be attached, e.g., if path does not exist
+                or is already attached to another instance.
+            ProjectError: If attachment successfully starts but does fully
+                complete due to invalid or corrupted data.
         """
         new_project = self.cs.attach_project(self.dir, wait=wait)
         self.uid = new_project.uid
