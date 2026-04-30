@@ -8,7 +8,7 @@ from typing_extensions import Unpack
 from ..dataset import DEFAULT_FORMAT, Dataset
 from ..dataset.row import R
 from ..errors import APIError, ProjectError
-from ..models.project import Project, ProjectSymlink
+from ..models.project import Project
 from ..search import In, JobSearch
 from ..spec import Datatype, SlotSpec
 from ..util import PurePosixPathProperty
@@ -177,18 +177,6 @@ class ProjectController(Controller[Project]):
             ExternalJobController: external job accessor object
         """
         return self.cs.find_external_job(self.uid, job_uid)
-
-    def find_symlinks(self) -> List[ProjectSymlink]:
-        """
-        Get a list of symlinks for this project. Symlinks are files or folders
-        that are linked into the project directory but stored elsewhere on the
-        file system.
-
-        Returns:
-            list[ProjectSymlink]: List of symlinks for this project, each
-                including their source paths and target paths.
-        """
-        return self.cs.api.projects.get_symlinks(self.uid)
 
     def move(self, path: Union[str, PurePath], *, wait: bool = False):
         """
