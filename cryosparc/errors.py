@@ -89,7 +89,5 @@ class ExternalJobError(JobError):
     Raised during external job lifecycle failures
     """
 
-    job: "ExternalJobController"
-
     def __init__(self, reason: str, *args: object, job: "ExternalJobController") -> None:
         super().__init__(reason, *args, job=job)
