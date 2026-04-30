@@ -484,10 +484,6 @@ class Job(BaseModel):
     oversubscribe_gpus: bool = False
     """
     """
-    autodump_skip_gridfs: bool = False
-    """
-    Whether to skip dumping GridFS data for this model, used when models are updated in bulk
-    """
     uid_num: int
     """
     Numeric part of the job UID.

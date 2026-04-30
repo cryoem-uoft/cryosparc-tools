@@ -1,13 +1,13 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
 
 class BlueprintParameter(BaseModel):
-    value: Union[str, int, float, bool, None]
+    value: Any
     """
     """
     flagged: bool = False

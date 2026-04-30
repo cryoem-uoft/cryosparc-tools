@@ -1462,6 +1462,33 @@ class JobsAPI(APINamespace):
 
         """
         ...
+    def set_params(self, project_uid: str, job_uid: str, /, params: Dict[str, Any]) -> Job:
+        """
+        Set the given job parameters to the values
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            params (Dict[str, Any]):
+
+        Returns:
+            Job: Successful Response
+
+        """
+        ...
+    def clear_params(self, project_uid: str, job_uid: str, /) -> Job:
+        """
+        Reset all job parameters to their default values
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+
+        Returns:
+            Job: Successful Response
+
+        """
+        ...
     def set_param(self, project_uid: str, job_uid: str, param: str, /, value: Any) -> Job:
         """
         Set the given job parameter to the value
@@ -2472,17 +2499,6 @@ class JobsAPI(APINamespace):
 
         Returns:
             Job: Successful Response
-
-        """
-        ...
-    def create_blueprint_from_job(self, project_uid: str, job_uid: str, /) -> Any:
-        """
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-            job_uid (str): Job UID, e.g., "J3"
-
-        Returns:
-            Any: Successful Response
 
         """
         ...
@@ -5233,6 +5249,29 @@ class BlueprintsAPI(APINamespace):
 
         Args:
             body (Blueprint):
+
+        Returns:
+            Blueprint: Successful Response
+
+        """
+        ...
+    def draft_blueprint_from_job(self, *, project_uid: str, job_uid: str) -> Blueprint:
+        """
+        Create a blueprint from a job without saving it
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+
+        Returns:
+            Blueprint: Successful Response
+
+        """
+        ...
+    def get_draft(self, job_type: str, /) -> Blueprint:
+        """
+        Args:
+            job_type (str):
 
         Returns:
             Blueprint: Successful Response

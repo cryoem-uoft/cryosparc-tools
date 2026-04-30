@@ -112,8 +112,8 @@ class OutputSlot(BaseModel):
 
 class OutputSpec(BaseModel):
     """
-    Used for outputs with some generated data based on data forwarded from
-    input inheritance
+    Used to defined output specifiction, with some generated data based on data
+    forwarded from input inheritance.
     """
 
     type: Literal[
@@ -307,6 +307,10 @@ class InputSpec(BaseModel):
     repeat_allowed: bool = False
     """
     Whether repeated connections to the same output allowed for this input.
+    """
+    match_result_by: Literal["type", "default", "default_strict", "name_and_type"] = "default"
+    """
+    Slot -> Result match strategy when connecting outputs to this input.
     """
 
 
