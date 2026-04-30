@@ -185,7 +185,7 @@ class Project(BaseModel):
     imported_at: Optional[datetime.datetime] = None
     """
     """
-    import_status: Optional[Literal["importing", "complete", "failed", "accepted"]] = None
+    import_status: Optional[Literal["importing", "moving", "complete", "failed", "accepted"]] = None
     """
     """
     project_stats: ProjectStats = ProjectStats()

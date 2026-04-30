@@ -4806,17 +4806,19 @@ class ProjectsAPI(APINamespace):
 
         """
         ...
-    def move(self, project_uid: str, /, *, path: str) -> Project:
+    def move(self, project_uid: str, /, *, path: str) -> None:
         """
-        Rename a project's directory on disk. Provide either the new directory name
-        or the full new directory path.
+        Asynchronously rename a project's directory on disk. Provide either the new
+        directory name or the full new directory path.
+
+        If the given path is a directory that already exists, the project directory
+        will be moved inside it with the same name.
+
+        May take a while if project is moved between file systems.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             path (str):
-
-        Returns:
-            Project: Successful Response
 
         """
         ...
