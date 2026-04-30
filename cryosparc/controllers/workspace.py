@@ -343,15 +343,6 @@ class WorkspaceController(Controller[Workspace]):
             savefig_kw=savefig_kw,
         )
 
-    def clear_intermediate_results(self):
-        """
-        Clear intermediate results from all jobs in this workspace. This can be
-        used to free up disk space after saving important results. Jobs with
-        final status or jobs that are ancestors of jobs in other workspaces will
-        not have their results cleared.
-        """
-        self.cs.api.workspaces.clear_intermediate_results(self.project_uid, self.uid, always_keep_final=True)
-
     def delete(self, *, wait: bool = False):
         """
         Delete this workspace. Cannot be undone. May fail if jobs in the
