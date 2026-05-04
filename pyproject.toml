@@ -30,6 +30,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "autodocsumm",
+    "build",
     "jupyter-book < 2.0",
     "pre-commit",
     "pyright==1.1.404",
