@@ -8,7 +8,7 @@ all: $(TARGET)
 # -----------------------------------------------------------------------------
 
 $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset/dataset.c cryosparc/dataset/*.pyx cryosparc/dataset/*.pxd setup.py pyproject.toml
-	python3 -m setup build_ext -i
+	python3 -m pip install -e ".[build]"
 
 # -----------------------------------------------------------------------------
 #    Docs
