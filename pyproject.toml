@@ -30,6 +30,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "autodocsumm",
+    "cython",
+    "cython-cmake",
     "build",
     "jupyter-book < 2.0",
     "pre-commit",
@@ -38,6 +40,7 @@ dev = [
     "pytest-benchmark",
     "pytest-xdist[psutil]",
     "ruff",
+    "scikit-build-core",
 ]
 
 build = ["autodocsumm", "jupyter-book < 2.0"]
