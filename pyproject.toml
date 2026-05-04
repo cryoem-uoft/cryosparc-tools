@@ -30,8 +30,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "autodocsumm",
-    "build",
-    "cython",
     "jupyter-book < 2.0",
     "pre-commit",
     "pyright==1.1.404",
@@ -39,10 +37,9 @@ dev = [
     "pytest-benchmark",
     "pytest-xdist[psutil]",
     "ruff",
-    "setuptools"
 ]
 
-build = ["build", "autodocsumm", "cython", "jupyter-book < 2.0"]
+build = ["autodocsumm", "jupyter-book < 2.0"]
 
 [project.urls]
 Homepage = "https://tools.cryosparc.com"
@@ -50,12 +47,29 @@ Documentation = "https://tools.cryosparc.com"
 Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
-[tool.setuptools]
-packages = ["cryosparc", "cryosparc.dataset", "cryosparc.models", "cryosparc.controllers"]
-
 [build-system]
-requires = ["setuptools", "cython"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core", "cython", "cython-cmake"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+wheel.packages = ["cryosparc"]
+editable.mode = "inplace"
+
+[tool.scikit-build.sdist]
+exclude = [
+    "cryosparc/include/lz4",
+    ".*",
+    "*.json",
+    "*.md",
+    "tests",
+    "docs",
+]
+include = [
+    "cryosparc/include/lz4/lib/lz4.h",
+    "cryosparc/include/lz4/lib/lz4.c",
+    "cryosparc/include/lz4/lib/LICENSE",
+    "cryosparc/include/cryosparc-tools/dataset.h"
+]
 
 [tool.pyright]
 typeCheckingMode = "standard"

@@ -7,6 +7,7 @@ __pycache__/
 *.so
 *.o
 a.out
+*.dep
 
 # Environments
 .env
@@ -38,6 +39,29 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.skbuild-info.json
+
+# CMake
+.cmake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+CMakeUserPresets.json
+CMakeInit.txt
+
+# Ninja
+.ninja_deps
+.ninja_log
+.ninja_lock
+build.ninja
 
 # Unit test / coverage reports
 htmlcov/
