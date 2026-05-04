@@ -25,7 +25,7 @@ jobs:
     outputs:
       commit-message: ${{ steps.get-commit-message.outputs.commit-message }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }} # gets correct commit message
       - name: Show commit
@@ -42,7 +42,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
           ref: ${{ github.event.pull_request.head.sha }} # gets correct commit message
@@ -82,7 +82,7 @@ jobs:
           - os: macos-latest
             python-version: "3.8"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - name: Set up Python ${{ matrix.python-version }}
@@ -121,7 +121,7 @@ jobs:
           - macos-latest
           - macos-15-intel # Intel builds
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
       - uses: pypa/cibuildwheel@v3.3.0
