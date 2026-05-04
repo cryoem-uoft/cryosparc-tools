@@ -1,5 +1,10 @@
 # Changelog
 
+## v5.0.3
+
+- Fixed: correct session/workspace API type signatures
+- Docs: correct defaults for CryoSPARC class init
+
 ## v5.0.2
 
 - Fixed: Correct session signatures model definition

@@ -2519,7 +2519,7 @@ class WorkspacesAPI(APINamespace):
         order: Literal[-1, 1] = 1,
         after: Optional[str] = None,
         limit: Optional[int] = 100,
-    ) -> List[Workspace]:
+    ) -> List[Union[Workspace, Session]]:
         """
         List workspaces that match the given filters (all if not specified).
 
@@ -2535,7 +2535,7 @@ class WorkspacesAPI(APINamespace):
             limit (int, optional): Defaults to 100
 
         Returns:
-            List[Workspace]: Successful Response
+            List[Union[Workspace, Session]]: Successful Response
 
         """
         ...
@@ -2578,7 +2578,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def find_one(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def find_one(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Find a specific workspace in a project
 
@@ -2587,7 +2587,7 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -2625,7 +2625,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Workspace:
+    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Union[Workspace, Session]:
         """
         Set title of a workspace
 
@@ -2635,11 +2635,11 @@ class WorkspacesAPI(APINamespace):
             title (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def set_description(self, project_uid: str, workspace_uid: str, /, description: str) -> Workspace:
+    def set_description(self, project_uid: str, workspace_uid: str, /, description: str) -> Union[Workspace, Session]:
         """
         Set description of a workspace
 
@@ -2649,11 +2649,11 @@ class WorkspacesAPI(APINamespace):
             description (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def view(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def view(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Add a workspace to a user's recently viewed workspaces list.
 
@@ -2662,11 +2662,11 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
+    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
         """
         Tag the given workspace with the given tag.
 
@@ -2676,11 +2676,11 @@ class WorkspacesAPI(APINamespace):
             tag_uid (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
+    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
         """
         Removes a tag from a workspace.
 
@@ -2690,7 +2690,7 @@ class WorkspacesAPI(APINamespace):
             tag_uid (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -2739,7 +2739,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Stars a workspace for a user
 
@@ -2748,11 +2748,11 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Unstars a workspace for a user
 
@@ -2761,7 +2761,7 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
