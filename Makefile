@@ -31,7 +31,7 @@ docs:
 
 .venv:
 	micromamba create -p ./.venv -y -c conda-forge python=3.10 pip wheel cython numpy jupyter-book=1.0 autodocsumm
-	micromamba run -p ./.venv pip install -e ".[build]"
+	micromamba run -p ./.venv pip install -e ".[docs]"
 
 .vercel/output/config.json:
 	mkdir -p .vercel/output

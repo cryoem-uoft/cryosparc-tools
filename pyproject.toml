@@ -28,6 +28,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+docs = ["autodocsumm", "jupyter-book < 2.0"]
+ci = [
+    "build",
+    "cython",
+    "cython-cmake",
+    "pyright==1.1.404",
+    "pytest",
+    "pytest-benchmark",
+    "pytest-xdist[psutil]",
+    "ruff",
+    "scikit-build-core",
+]
 dev = [
     "autodocsumm",
     "cython",
@@ -42,8 +54,6 @@ dev = [
     "ruff",
     "scikit-build-core",
 ]
-
-build = ["autodocsumm", "jupyter-book < 2.0"]
 
 [project.urls]
 Homepage = "https://tools.cryosparc.com"
