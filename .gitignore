@@ -39,6 +39,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+Release/
 x64
 .skbuild-info.json
 *.sln
@@ -60,6 +61,7 @@ CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
 CMakeInit.txt
+cryosparc/dataset/core.dir
 
 # Unit test / coverage reports
 htmlcov/
