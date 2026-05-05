@@ -39,9 +39,14 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+x64
 .skbuild-info.json
-
-# CMake
+*.sln
+*.vcxproj*
+.ninja_deps
+.ninja_log
+.ninja_lock
+build.ninja
 .cmake
 CMakeLists.txt.user
 CMakeCache.txt
@@ -55,12 +60,6 @@ CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
 CMakeInit.txt
-
-# Ninja
-.ninja_deps
-.ninja_log
-.ninja_lock
-build.ninja
 
 # Unit test / coverage reports
 htmlcov/
