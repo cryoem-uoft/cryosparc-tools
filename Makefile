@@ -7,8 +7,8 @@ all: $(TARGET)
 #    Primary build target
 # -----------------------------------------------------------------------------
 
-$(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset/dataset.c cryosparc/dataset/*.pyx cryosparc/dataset/*.pxd setup.py pyproject.toml
-	python3 -m pip install -e ".[build]"
+$(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset/dataset.c cryosparc/dataset/*.pyx cryosparc/dataset/*.pxd pyproject.toml
+	python3 -m pip install -e "."
 
 # -----------------------------------------------------------------------------
 #    Docs
@@ -50,11 +50,16 @@ vercelbuild: .vercel/output/config.json .venv
 
 clean:
 	rm -f $(TARGET)
-	rm -f *.tgz *.tar.gz
+	rm -f *.tgz *.tar.gz *.whl
 	rm -f cryosparc/*.so
+	rm -f cryosparc/dataset/*.so
 	rm -rf build
 	rm -rf dist
 	rm -rf *.egg-info
 	rm -rf .venv
+	rm -rf CMakeFiles CMakeInit.txt CMakeCache.txt cmake_install.cmake
+	rm -rf cryosparc/dataset/CMakeFiles cryosparc/dataset/CMakeInit.txt \
+		cryosparc/dataset/CMakeCache.txt cryosparc/dataset/cmake_install.cmake
+	rm -rf build.ninja .ninja_deps .ninja_log
 
 .PHONY: clean all docs vercelinstall vercelbuild
