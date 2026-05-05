@@ -101,8 +101,9 @@ jobs:
           # test with older numpy version to ensure compatibility
           python -m pip install numpy~=1.17.5
       - run: |
-          ls -la
-          ls -la cryosparc/dataset
+          ls
+          ls cryosparc/dataset
+        if: ${{ matrix.os == 'windows-latest' }}
       - name: Test with pytest
         run: |
           pytest -v --benchmark-disable -n auto
