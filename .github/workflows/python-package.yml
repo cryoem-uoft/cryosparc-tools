@@ -69,7 +69,7 @@ jobs:
           path: dist
 
   test:
-    needs: [lint]
+    # needs: [lint]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -100,6 +100,9 @@ jobs:
         run: |
           # test with older numpy version to ensure compatibility
           python -m pip install numpy~=1.17.5
+      - run: |
+          ls -la
+          ls -la cryosparc/dataset
       - name: Test with pytest
         run: |
           pytest -v --benchmark-disable -n auto
