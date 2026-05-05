@@ -32,8 +32,4 @@ target_sources(
     dataset.c
 )
 
-install(
-  TARGETS core
-  LIBRARY DESTINATION cryosparc/dataset
-  RUNTIME DESTINATION cryosparc/dataset
-)
+install(TARGETS core DESTINATION cryosparc/dataset)

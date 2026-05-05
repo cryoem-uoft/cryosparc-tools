@@ -62,7 +62,7 @@ Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["scikit-build-core", "cython", "cython-cmake"]
+requires = ["scikit-build-core", "cython", "cython-cmake", "ninja"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
