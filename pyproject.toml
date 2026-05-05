@@ -89,7 +89,7 @@ include = [
 typeCheckingMode = "standard"
 venv = ".venv"
 venvPath = "."
-include = ["cryosparc", "tests", "setup.py"]
+include = ["cryosparc", "tests"]
 exclude = [
     "**/node_modules",
     "**/__pycache__",

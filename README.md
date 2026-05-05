@@ -60,7 +60,7 @@ python -m setup build_ext -i
 Install build dependencies
 
 ```sh
-pip install -e ".[build]"
+pip install -e ".[ci]"
 ```
 
 Run the build
@@ -79,7 +79,7 @@ Documentation is located in the `docs` directory and is powered by [Jupyter Book
 To build the docs, install build dependencies
 
 ```sh
-pip install -e ".[build]"
+pip install -e ".[docs]"
 ```
 
 Then run Jupyter Book

@@ -34,6 +34,6 @@ target_sources(
 
 install(
   TARGETS core
-  LIBRARY DESTINATION ${SKBUILD_PLATLIB_DIR}/cryosparc/dataset
-  RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/cryosparc/dataset
+  LIBRARY DESTINATION cryosparc/dataset
+  RUNTIME DESTINATION cryosparc/dataset
 )
