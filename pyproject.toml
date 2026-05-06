@@ -27,7 +27,7 @@ dependencies = [
     "typing-extensions >= 4.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 docs = ["autodocsumm", "jupyter-book < 2.0"]
 ci = [
     "build",
@@ -62,12 +62,16 @@ Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["scikit-build-core", "cython", "cython-cmake"]
+requires = ["scikit-build-core>=0.12", "cython", "cython-cmake"]
 build-backend = "scikit_build_core.build"
 
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "cryosparc/**/*.{h,c,pyx,pxd}" }, { file = "CMakeLists.txt" }]
+
 [tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
 wheel.packages = ["cryosparc"]
-editable.mode = "inplace"
 
 [tool.scikit-build.sdist]
 exclude = [
