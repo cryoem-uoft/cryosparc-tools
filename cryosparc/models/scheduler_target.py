@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from .gpu import Gpu
 from .resource import FixedResourceSlots, ResourceSlots
+from .version import Arch
 
 
 class Node(BaseModel):
@@ -132,6 +133,10 @@ class SchedulerTarget(BaseModel):
     """
     Target configuration details.
     """
+    arch: Arch = "x86_64"
+    """
+    Architecture of cryoSPARC installed on this target
+    """
 
 
 class SchedulerTargetCluster(BaseModel):
@@ -176,6 +181,10 @@ class SchedulerTargetCluster(BaseModel):
     """
     Target configuration details.
     """
+    arch: Arch = "x86_64"
+    """
+    Architecture of cryoSPARC installed on this target
+    """
 
 
 class SchedulerTargetNode(BaseModel):
@@ -219,4 +228,8 @@ class SchedulerTargetNode(BaseModel):
     config: Node
     """
     Target configuration details.
+    """
+    arch: Arch = "x86_64"
+    """
+    Architecture of cryoSPARC installed on this target
     """

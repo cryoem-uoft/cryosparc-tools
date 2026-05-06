@@ -435,13 +435,13 @@ class UsersAPI(APINamespace):
 
         """
         ...
-    def find(self, *, role: Optional[Literal["user", "admin"]] = None) -> List[User]:
+    def find(self, *, role: Optional[Literal["admin", "user"]] = None) -> List[User]:
         """
         List all users in the system, optionally filtering by role.
         Only admins may access this function.
 
         Args:
-            role (Literal['user', 'admin'], optional): Defaults to None
+            role (Literal['admin', 'user'], optional): Defaults to None
 
         Returns:
             List[User]: Successful Response
@@ -475,12 +475,12 @@ class UsersAPI(APINamespace):
 
         """
         ...
-    def count(self, *, role: Optional[Literal["user", "admin"]] = None) -> int:
+    def count(self, *, role: Optional[Literal["admin", "user"]] = None) -> int:
         """
         Counts the number of users in the system, optionally filtering by role
 
         Args:
-            role (Literal['user', 'admin'], optional): Defaults to None
+            role (Literal['admin', 'user'], optional): Defaults to None
 
         Returns:
             int: Successful Response

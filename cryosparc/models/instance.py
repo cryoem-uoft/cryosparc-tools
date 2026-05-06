@@ -84,3 +84,7 @@ class InstanceInformation(BaseModel):
     """
     Installed CryoSPARC version
     """
+    arch: str = "x86_64"
+    """
+    System architecture (e.g., x86_64)
+    """
