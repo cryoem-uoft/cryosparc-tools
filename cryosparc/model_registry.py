@@ -35,6 +35,7 @@ from .models import (
     tag,
     user,
     when,
+    workflow,
     workspace,
 )
 from .registry import register_model_module
@@ -74,3 +75,4 @@ register_model_module(session_spec, include_literals=True)
 register_model_module(config, include_literals=True)
 register_model_module(tag, include_literals=True)
 register_model_module(auth, include_literals=True)
+register_model_module(workflow, include_literals=True)

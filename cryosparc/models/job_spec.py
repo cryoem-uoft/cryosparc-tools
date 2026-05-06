@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, RootModel
 
-from .resource import ResourceSpec
-
 BuilderTag = Literal[
     "new", "interactive", "gpuEnabled", "multiGpu", "utility", "import", "live", "benchmark", "wrapper"
 ]
@@ -481,18 +479,6 @@ class JobSpec(BaseModel):
     outputs: Outputs = Outputs()
     """
     Available outputs. Empty when job has not run.
-    """
-    ui_tile_width: int
-    """
-    Number of horizontal tiles this job should take in the UI.
-    """
-    ui_tile_height: int
-    """
-    Number of vertical tiles this job should take in the UI.
-    """
-    resource_spec: ResourceSpec
-    """
-    Compute resource requirements for this job.
     """
 
 
