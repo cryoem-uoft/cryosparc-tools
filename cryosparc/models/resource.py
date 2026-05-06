@@ -39,3 +39,27 @@ class FixedResourceSlots(BaseModel):
     """
     Whether this target thas an SSD
     """
+
+
+class ResourceSpec(BaseModel):
+    """
+    Job resource requirements. Used to allocate compute resources for a job
+    at queue time.
+    """
+
+    cpu: int = 1
+    """
+    Number of required CPU cores
+    """
+    gpu: int = 0
+    """
+    Number of required GPUs
+    """
+    ram: int = 1
+    """
+    Number of 8GiB RAM slots
+    """
+    ssd: bool = False
+    """
+    Whether an SSD is required for temporary storage.
+    """
