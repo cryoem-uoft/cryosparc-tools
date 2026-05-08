@@ -19,8 +19,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
 ### Prerequisites
 
 - Git and Git LFS
-- Python >= 3.8
 - C compiler such as GCC or Clang
+- [uv](https://docs.astral.sh/uv/)
+- [CMake](https://cmake.org)
 
 ### Set Up
 
@@ -30,62 +31,40 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
    cd cryosparc-tools
    git lfs pull
    ```
-2. (Optional) Create and activate a virtual environment
+2. Create a virtual environment
    ```sh
-   python3 -m venv .venv
-   source .venv/bin/activate  # macOS / Linux
-   # OR
-   .venv\Scripts\activate.bat  # Windows
+   uv sync
    ```
-3. Install dev dependencies and build native modules
+3. Install pre-commit hooks
    ```sh
-   pip install -U pip wheel
-   pip install -e ".[dev]"
+   uv run pre-commit install
    ```
-4. Install pre-commit hooks
-   ```
-   pre-commit install
-   ```
-
-### Re-compile native module
-
-Recompile native modules after making changes to C code:
-
-```sh
-python -m setup build_ext -i
-```
-
-## Build Packages for Publishing
-
-Install build dependencies
-
-```sh
-pip install -e ".[ci]"
-```
-
-Run the build
-
-```sh
-python -m build
-```
-
-Packages for the current architecture and python version are added to the
-`dist/` directory.
 
 ## Build Documentation
 
 Documentation is located in the `docs` directory and is powered by [Jupyter Book](https://jupyterbook.org/en/stable/intro.html).
 
-To build the docs, install build dependencies
+To build the docs, run the following command:
 
 ```sh
-pip install -e ".[docs]"
+uv run jupyter-book build docs
 ```
 
-Then run Jupyter Book
+Note this does not currently render the full API docs due to a Jupyter Book
+limitation. Workaround for Linux or macOS (requires make):
 
 ```sh
-jupyter-book build docs
+uv run make docs
+```
+
+Equivalent for Windows:
+
+```sh
+move .\cryosparc\api.py .\cryosparc\api.py.bak
+move .\cryosparc\api.pyi .\cryosparc\api.py
+uv run jupyter-book build docs
+move .\cryosparc\api.py .\cryosparc\api.pyi
+move .\cryosparc\api.py.bak .\cryosparc\api.py
 ```
 
 Site will be be built into the `docs/_build/html` directory.
@@ -119,7 +98,7 @@ Install dependencies into a new conda environment:
 conda create -n cryosparc-tools-example -c conda-forge python=3 numpy=1.18.5 \
     pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme 'setuptools<66'  # exclude these dependencies if you don't need cryolo
 conda activate cryosparc-tools-example
-pip install cryosparc-tools matplotlib~=3.4.0 pandas~=1.1.0 notebook
+pip install cryosparc-tools matplotlib~=3.4.0 pandas~=1.1.0 jupyter
 pip install 'cryolo[c11]' --extra-index-url https://pypi.ngc.nvidia.com   # optional, only if you want to use cryolo
 ```
 

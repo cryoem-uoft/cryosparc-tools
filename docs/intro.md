@@ -182,7 +182,7 @@ In a Jupyter notebook, time-consuming steps (like data loading) can run a single
 To install Jupyter:
 
 ```sh
-pip install notebook
+pip install jupyter
 ```
 
 Run Jupyter:

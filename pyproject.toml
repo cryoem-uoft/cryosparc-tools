@@ -28,25 +28,17 @@ dependencies = [
 ]
 
 [dependency-groups]
+dev = [
+    {include-group = "docs"},
+    {include-group = "ci"},
+    "ipython",
+    "jupyter",
+    "pre-commit",
+]
 docs = ["autodocsumm", "jupyter-book < 2.0"]
 ci = [
-    "build",
     "cython",
     "cython-cmake",
-    "pyright==1.1.404",
-    "pytest",
-    "pytest-benchmark",
-    "pytest-xdist[psutil]",
-    "ruff",
-    "scikit-build-core",
-]
-dev = [
-    "autodocsumm",
-    "cython",
-    "cython-cmake",
-    "build",
-    "jupyter-book < 2.0",
-    "pre-commit",
     "pyright==1.1.404",
     "pytest",
     "pytest-benchmark",
