@@ -98,3 +98,6 @@ exclude = [
 line-length = 120
 extend-include = ["*.ipynb"]
 extend-exclude = [".venv*", "cryosparc/include"]
+
+[tool.cibuildwheel]
+build-frontend = "uv"

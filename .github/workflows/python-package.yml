@@ -121,7 +121,6 @@ jobs:
           CIBW_ARCHS_MACOS: ${{ runner.arch == 'ARM64' && 'auto universal2' || 'auto' }}
         with:
           output-dir: dist
-          build-frontend: "build[uv]"
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ runner.os }}-${{ runner.arch }}
