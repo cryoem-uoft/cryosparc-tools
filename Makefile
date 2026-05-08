@@ -40,10 +40,14 @@ $(TARGET): cryosparc/include/cryosparc-tools/*.h cryosparc/dataset/dataset.c cry
 	uv venv
 	uv sync --group docs --no-group dev
 
+.vercel/output/config.json:
+	mkdir -p .vercel/output
+	echo '{"version":3,"cache":["/usr/local/bin/uv", "/usr/local/bin/uvx", ".venv/**","build/**","docs/_build/**"]}' > .vercel/output/config.json
+
 vercelinstall: /usr/local/bin/uv .venv
 	echo "Install complete"
 
-vercelbuild: .venv
+vercelbuild: .vercel/output/config.json .venv
 	uv run --group docs --no-group dev make docs
 	rm -rf .vercel/output/static && cp -R docs/_build/html .vercel/output/static
 	echo "Build complete"
