@@ -90,7 +90,7 @@ ipython_config.py
 
 # Other
 .ruff_cache
-.vercel
+.vercel/output/static
 cryosparc/core.c
 cryosparc/dataset/core.c
 *.dSYM
