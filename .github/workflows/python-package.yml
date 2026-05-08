@@ -61,7 +61,7 @@ jobs:
       - name: Type check with Pyright
         run: uv run --group ci pyright
       - name: Build sdist
-        run: uv build --sdist --outdir dist
+        run: uv build --sdist --out-dir dist
       - uses: actions/upload-artifact@v7
         with:
           name: wheels
