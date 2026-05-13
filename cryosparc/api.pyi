@@ -119,6 +119,7 @@ from .models.session_config_profile import SessionConfigProfile, SessionConfigPr
 from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
 from .models.tag import Tag
 from .models.user import User
+from .models.workflow import Workflow, WorkflowJob, WorkflowParameter
 from .models.workspace import Workspace
 from .stream import Stream
 
@@ -434,13 +435,13 @@ class UsersAPI(APINamespace):
 
         """
         ...
-    def find(self, *, role: Optional[Literal["user", "admin"]] = None) -> List[User]:
+    def find(self, *, role: Optional[Literal["admin", "user"]] = None) -> List[User]:
         """
         List all users in the system, optionally filtering by role.
         Only admins may access this function.
 
         Args:
-            role (Literal['user', 'admin'], optional): Defaults to None
+            role (Literal['admin', 'user'], optional): Defaults to None
 
         Returns:
             List[User]: Successful Response
@@ -474,12 +475,12 @@ class UsersAPI(APINamespace):
 
         """
         ...
-    def count(self, *, role: Optional[Literal["user", "admin"]] = None) -> int:
+    def count(self, *, role: Optional[Literal["admin", "user"]] = None) -> int:
         """
         Counts the number of users in the system, optionally filtering by role
 
         Args:
-            role (Literal['user', 'admin'], optional): Defaults to None
+            role (Literal['admin', 'user'], optional): Defaults to None
 
         Returns:
             int: Successful Response
@@ -2519,7 +2520,7 @@ class WorkspacesAPI(APINamespace):
         order: Literal[-1, 1] = 1,
         after: Optional[str] = None,
         limit: Optional[int] = 100,
-    ) -> List[Workspace]:
+    ) -> List[Union[Workspace, Session]]:
         """
         List workspaces that match the given filters (all if not specified).
 
@@ -2535,7 +2536,7 @@ class WorkspacesAPI(APINamespace):
             limit (int, optional): Defaults to 100
 
         Returns:
-            List[Workspace]: Successful Response
+            List[Union[Workspace, Session]]: Successful Response
 
         """
         ...
@@ -2578,7 +2579,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def find_one(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def find_one(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Find a specific workspace in a project
 
@@ -2587,7 +2588,7 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -2625,7 +2626,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Workspace:
+    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Union[Workspace, Session]:
         """
         Set title of a workspace
 
@@ -2635,11 +2636,11 @@ class WorkspacesAPI(APINamespace):
             title (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def set_description(self, project_uid: str, workspace_uid: str, /, description: str) -> Workspace:
+    def set_description(self, project_uid: str, workspace_uid: str, /, description: str) -> Union[Workspace, Session]:
         """
         Set description of a workspace
 
@@ -2649,11 +2650,11 @@ class WorkspacesAPI(APINamespace):
             description (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def view(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def view(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Add a workspace to a user's recently viewed workspaces list.
 
@@ -2662,11 +2663,11 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
+    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
         """
         Tag the given workspace with the given tag.
 
@@ -2676,11 +2677,11 @@ class WorkspacesAPI(APINamespace):
             tag_uid (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace:
+    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
         """
         Removes a tag from a workspace.
 
@@ -2690,7 +2691,7 @@ class WorkspacesAPI(APINamespace):
             tag_uid (str):
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -2739,7 +2740,7 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Stars a workspace for a user
 
@@ -2748,11 +2749,11 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
-    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace:
+    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
         Unstars a workspace for a user
 
@@ -2761,7 +2762,7 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         Returns:
-            Workspace: Successful Response
+            Workspace | Session: Successful Response
 
         """
         ...
@@ -5333,63 +5334,121 @@ class BlueprintsAPI(APINamespace):
 
 class WorkflowsAPI(APINamespace):
     """
-    Functions available in ``api.workflows``, e.g., ``api.workflows.create_workflow(...)``
+    Functions available in ``api.workflows``, e.g., ``api.workflows.find(...)``
     """
-    def create_workflow(
+    def find(
         self,
-        schema: Dict[str, Any],
         *,
-        workflow_id: str,
-        forked: bool = False,
-        imported: bool = False,
-        rebuilt: bool = False,
-    ) -> None:
+        id: Optional[List[str]] = None,
+        title: Optional[str] = None,
+        category: Optional[List[str]] = None,
+        created_by: Optional[List[str]] = None,
+        pinned: Optional[bool] = None,
+        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        order: Literal[-1, 1] = 1,
+        after: Optional[str] = None,
+        limit: Optional[int] = 100,
+    ) -> List[Workflow]:
         """
-        Create a workflow. For use by CryoSPARC app only.
-
-        :meta private:
+        List workflows that match the given filters (All if not specified)
 
         Args:
-            schema (Dict[str, Any]):
-            workflow_id (str):
+            id (List[str], optional): Defaults to None
+            title (str, optional): Defaults to None
+            category (List[str], optional): Defaults to None
+            created_by (List[str], optional): Defaults to None
+            pinned (bool, optional): Defaults to None
+            created_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
+            updated_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
+            order (Literal[-1, 1], optional): 1 for ascending order, -1 for descending order. Defaults to 1
+            after (str, optional): Cursor for pagination; only return results with id greater than (if order=1) or less than (if order=-1) this value. Defaults to None
+            limit (int, optional): Defaults to 100
+
+        Returns:
+            List[Workflow]: Successful Response
+
+        """
+        ...
+    def create(self, body: Workflow, *, forked: bool = False, rebuilt: bool = False) -> Workflow:
+        """
+        Create a workflow
+
+        Args:
+            body (Workflow):
             forked (bool, optional): Defaults to False
-            imported (bool, optional): Defaults to False
             rebuilt (bool, optional): Defaults to False
 
-        """
-        ...
-    def edit_workflow(self, workflow_id: str, /, schema: Dict[str, Any]) -> None:
-        """
-        Update a workflow. For use by CryoSPARC app only.
-
-        :meta private:
-
-        Args:
-            workflow_id (str):
-            schema (Dict[str, Any]):
+        Returns:
+            Workflow: Successful Response
 
         """
         ...
-    def delete_workflow(self, workflow_id: str, /) -> None:
+    def find_one(self, workflow_id: str, /) -> Workflow:
         """
-        Delete a workflow. For use by CryoSPARC app only.
-
-        :meta private:
+        Get a workflow by its id
 
         Args:
             workflow_id (str):
 
+        Returns:
+            Workflow: Successful Response
+
         """
         ...
-    def apply_workflow(self, workflow_id: str, /, schema: Dict[str, Any]) -> None:
+    def edit(self, workflow_id: str, /, body: Workflow) -> Workflow:
         """
-        Appy a workflow. For use by CryoSPARC app only.
-
-        :meta private:
+        Update a workflow.
 
         Args:
             workflow_id (str):
-            schema (Dict[str, Any]):
+            body (Workflow):
+
+        Returns:
+            Workflow: Successful Response
+
+        """
+        ...
+    def delete(self, workflow_id: str, /) -> None:
+        """
+        Delete a workflow
+
+        Args:
+            workflow_id (str):
+
+        """
+        ...
+    def set_job_param(
+        self, workflow_id: str, workflow_juid: str, param: str, /, body: WorkflowParameter
+    ) -> WorkflowJob:
+        """
+        Set a parameter on a job in a workflow
+
+        Args:
+            workflow_id (str):
+            workflow_juid (str):
+            param (str):
+            body (WorkflowParameter):
+
+        Returns:
+            WorkflowJob: Successful Response
+
+        """
+        ...
+    def apply(
+        self, workflow_id: str, /, parent_juids: List[str] = [], *, project_uid: str, workspace_uid: str
+    ) -> List[Job]:
+        """
+        Apply a workflow to a workspace
+
+        Args:
+            workflow_id (str):
+            parent_juids (List[str], optional): Defaults to []
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+
+        Returns:
+            List[Job]: Successful Response
 
         """
         ...

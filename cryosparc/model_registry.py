@@ -34,7 +34,9 @@ from .models import (
     signature,
     tag,
     user,
+    version,
     when,
+    workflow,
     workspace,
 )
 from .registry import register_model_module
@@ -43,6 +45,7 @@ register_model_module(job, include_literals=True)
 register_model_module(scheduler_target, include_literals=True)
 register_model_module(resource, include_literals=True)
 register_model_module(gpu, include_literals=True)
+register_model_module(version, include_literals=True)
 register_model_module(api_request, include_literals=True)
 register_model_module(session, include_literals=True)
 register_model_module(blueprint, include_literals=True)
@@ -74,3 +77,4 @@ register_model_module(session_spec, include_literals=True)
 register_model_module(config, include_literals=True)
 register_model_module(tag, include_literals=True)
 register_model_module(auth, include_literals=True)
+register_model_module(workflow, include_literals=True)

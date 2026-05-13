@@ -73,7 +73,7 @@ class ProjectWorkflowInfo(BaseModel):
     Information about workflows used in a project.
     """
 
-    latest_workflow_uid: str = "WF1"
+    latest_workflow_uid: Optional[str] = None
     """
     UID of the latest workflow applied in a project.
     """
@@ -218,7 +218,7 @@ class Project(BaseModel):
     """
     List of error messages from the last automatic disk dump operation.
     """
-    workflows: Optional[ProjectWorkflowInfo] = None
+    workflows: ProjectWorkflowInfo = ProjectWorkflowInfo()
     """
     """
     uid_num: int

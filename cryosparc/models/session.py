@@ -573,6 +573,13 @@ class SessionBuildError(BaseModel):
 
 
 class Session(BaseModel):
+    """
+    A live session within a project, which contains jobs and related data.
+    Each session has the same information as its corresponding workspace, but
+    also contains session-specific details such as status, parameters, exposure
+    groups, stats and information about associated Live worker jobs.
+    """
+
     id: str = Field("000000000000000000000000", alias="_id")
     """
     """
@@ -607,7 +614,7 @@ class Session(BaseModel):
     """
     Project unique ID for , e.g., 'P1'.
     """
-    workspace_type: Literal["live"] = "live"
+    workspace_type: Literal["live"]
     """
     Always 'live' for Live sessions
     """
