@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from argparse import Namespace
 from pathlib import Path
 from unittest import mock
@@ -37,11 +38,13 @@ def test_cli_login_auth(mock_user, mock_api_client_class, mock_auth_path):
     assert cs.test_connection()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="python command unavailable through uv tests")
 def test_has_cli_help():
-    output = subprocess.check_output(["python", "-m", "cryosparc.tools", "--help"])
+    output = subprocess.check_output(["python3", "-m", "cryosparc.tools", "--help"])
     assert output.startswith(b"usage: cryosparc.tools")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="python command unavailable through uv tests")
 def test_has_cli_login_help():
-    output = subprocess.check_output(["python", "-m", "cryosparc.tools", "login", "--help"])
+    output = subprocess.check_output(["python3", "-m", "cryosparc.tools", "login", "--help"])
     assert output.startswith(b"usage: cryosparc.tools")

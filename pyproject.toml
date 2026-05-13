@@ -27,22 +27,25 @@ dependencies = [
     "typing-extensions >= 4.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "autodocsumm",
-    "build",
-    "cython",
-    "jupyter-book < 2.0",
+    {include-group = "docs"},
+    {include-group = "ci"},
+    "ipython",
+    "jupyter",
     "pre-commit",
+]
+docs = ["autodocsumm", "jupyter-book < 2.0"]
+ci = [
+    "cython",
+    "cython-cmake",
     "pyright==1.1.404",
     "pytest",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
     "ruff",
-    "setuptools"
+    "scikit-build-core",
 ]
-
-build = ["build", "autodocsumm", "cython", "jupyter-book < 2.0"]
 
 [project.urls]
 Homepage = "https://tools.cryosparc.com"
@@ -50,18 +53,39 @@ Documentation = "https://tools.cryosparc.com"
 Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
-[tool.setuptools]
-packages = ["cryosparc", "cryosparc.dataset", "cryosparc.models", "cryosparc.controllers"]
-
 [build-system]
-requires = ["setuptools", "cython"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.12", "cython", "cython-cmake"]
+build-backend = "scikit_build_core.build"
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "cryosparc/**/*.{h,c,pyx,pxd}" }, { file = "CMakeLists.txt" }]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["cryosparc"]
+
+[tool.scikit-build.sdist]
+exclude = [
+    "cryosparc/include/lz4",
+    ".*",
+    "*.json",
+    "*.md",
+    "tests",
+    "docs",
+]
+include = [
+    "cryosparc/include/lz4/lib/lz4.h",
+    "cryosparc/include/lz4/lib/lz4.c",
+    "cryosparc/include/lz4/lib/LICENSE",
+    "cryosparc/include/cryosparc-tools/dataset.h"
+]
 
 [tool.pyright]
 typeCheckingMode = "standard"
 venv = ".venv"
 venvPath = "."
-include = ["cryosparc", "tests", "setup.py"]
+include = ["cryosparc", "tests"]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
@@ -74,3 +98,6 @@ exclude = [
 line-length = 120
 extend-include = ["*.ipynb"]
 extend-exclude = [".venv*", "cryosparc/include"]
+
+[tool.cibuildwheel]
+build-frontend = "uv"

@@ -19,6 +19,9 @@ concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  UV_NO_DEV: 1
+
 jobs:
   meta:
     runs-on: ubuntu-latest
@@ -46,30 +49,25 @@ jobs:
         with:
           submodules: true
           ref: ${{ github.event.pull_request.head.sha }} # gets correct commit message
-      - uses: actions/setup-python@v6
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.10"
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip wheel setuptools
-          python -m pip install --editable .[dev]
+          enable-cache: true
       - name: Lint with ruff
         run: |
-          ruff check --select I .
-          ruff format --check .
+          uv run --group ci ruff check --select I .
+          uv run --group ci ruff format --check .
       - name: Type check with Pyright
-        run: pyright
+        run: uv run --group ci pyright
       - name: Build sdist
-        run: python -m build --sdist --no-isolation --skip-dependency-check --outdir dist
+        run: uv build --sdist --out-dir dist
       - uses: actions/upload-artifact@v7
         with:
           name: wheels
           path: dist
 
   test:
-    needs: [lint]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -85,29 +83,23 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: true
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip wheel setuptools
-          python -m pip install --editable .[dev]
+          enable-cache: true
       - name: Downgrade numpy
         if: ${{ matrix.python-version == '3.8' }}
         run: |
           # test with older numpy version to ensure compatibility
-          python -m pip install numpy~=1.17.5
+          uv add numpy~=1.17.5
       - name: Test with pytest
-        run: |
-          pytest -v --benchmark-disable -n auto
+        run: uv run --group ci pytest -v --benchmark-disable -n auto
 
   # NOTE: build step only runs on tag builds or when the commit message contains
   # "[ci test build]" for testing
   build:
-    needs: [meta, test]
+    needs: [meta, lint, test]
     if: "${{ startsWith(github.ref, 'refs/tags/') || contains(needs.meta.outputs.commit-message, '[ci test build]') }}"
     runs-on: ${{ matrix.os }}
     strategy:
@@ -140,17 +132,19 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs: [build]
+    environment:
+      name: PyPI
+      url: "https://pypi.org/p/cryosparc-tools"
+      deployment: ${{ startsWith(github.ref, 'refs/tags/') }}
+    permissions:
+      id-token: write
     steps:
       - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
+          path: dist
       - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          python -m pip install --upgrade twine
-          twine upload --skip-existing *
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
