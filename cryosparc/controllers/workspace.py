@@ -1,10 +1,13 @@
+import time
 import warnings
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 from typing_extensions import Unpack
 
 from ..dataset import Dataset
 from ..dataset.row import R
+from ..errors import APIError, WorkspaceError
 from ..models.session import Session
 from ..models.workspace import Workspace
 from ..search import JobSearch
@@ -197,6 +200,55 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         """
         return self.cs.create_external_job(self.project_uid, self.uid, title, desc)
 
+    def import_job(self, path: Union[str, PurePosixPath]):
+        """
+        Import a job from a location on disk into the current workspace.
+
+        Args:
+            path (str | Path): Path to job directory, must be in the project
+                directory. If the CryoSPARC instance is hosted remotely,
+                this should be a path available on the server file system.
+                e.g., ``"/projects/CS-project/imports/jobs/J134_homo_abinit"``
+                or ``"imports/jobs/J134_homo_abinit"``
+
+        Raises:
+            APIError: Job cannot be imported.
+        """
+        return self.cs.import_job(self.project_uid, self.uid, path)
+
+    def link_job(self, job: Union[str, JobController]):
+        """
+        Link the given job into this workspace.
+
+        Args:
+            job (str | JobController): Target job to link into this workspace.
+                Can specify by UID, or with a ``JobController`` instance, e.g.,
+                from `project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`
+                or :py:meth:`project.create_job() <cryosparc.controllers.project.ProjectController.create_job>`.
+
+        Raises:
+            APIError: If the job cannot be linked, e.g. if it is already linked
+                to this workspace.
+        """
+        job_uid = job if isinstance(job, str) else job.uid
+        self.cs.api.jobs.link_to_workspace(self.project_uid, job_uid, self.uid)
+
+    def unlink_job(self, job: Union[str, JobController]):
+        """
+        Unlink the given job from this workspace.
+
+        Args:
+            job (str | JobController): Target job to unlink from this workspace.
+                Can specify by UID, or with a ``JobController`` instance, e.g.,
+                from `project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`.
+
+        Raises:
+            APIError: If the job cannot be unlinked, e.g. if it is not linked
+                to this workspace.
+        """
+        job_uid = job if isinstance(job, str) else job.uid
+        self.cs.api.jobs.unlink_from_workspace(self.project_uid, job_uid, self.uid)
+
     def save_external_result(
         self,
         dataset: Dataset[R],
@@ -291,3 +343,29 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
             image=image,
             savefig_kw=savefig_kw,
         )
+
+    def delete(self, *, wait: bool = False):
+        """
+        Delete this workspace. Cannot be undone. May fail if jobs in the
+        workspace have final status or have descendants in other workspaces.
+
+        Args:
+            wait (bool, optional): If True, wait for the delete operation to
+                complete before returning. Defaults to False.
+
+        Raises:
+            WorkspaceError: If the workspace could not be deleted. See
+                cryosparc log api for details.
+        """
+        self.cs.api.workspaces.delete(self.project_uid, self.uid)
+        self.model.deleting = True
+        while wait and self.model.deleting:
+            time.sleep(1)
+            try:
+                self.refresh()
+            except APIError as err:
+                if err.code == 404:
+                    return  # not found, workspace successfully deleted
+                raise
+        if not self.model.deleted and not self.model.deleting:
+            raise WorkspaceError("Could not be deleted. See cryosparcm log api for details.", workspace=self)

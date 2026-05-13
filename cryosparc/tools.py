@@ -13,6 +13,7 @@ Examples:
 import os
 import re
 import tempfile
+import time
 import warnings
 from contextlib import contextmanager
 from functools import cached_property
@@ -34,6 +35,7 @@ from .controllers.project import ProjectController
 from .controllers.workspace import WorkspaceController
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
 from .dataset.row import R
+from .errors import ProjectError
 from .models.asset import GridFSFile
 from .models.external import ExternalOutputSpec
 from .models.job_register import JobRegister
@@ -502,6 +504,65 @@ class CryoSPARC:
         """
         return ExternalJobController(self, (project_uid, job_uid))
 
+    def create_project(
+        self, parent_path: Union[str, PurePath], title: str, desc: Optional[str] = None
+    ) -> ProjectController:
+        """
+        Create a new empty project.
+
+        Args:
+            parent_path (str | Path): Absolute path to create project in, e.g.
+                ``/home/user/cryosparc-projects``. If the CryoSPARC instance is
+                hosted remotely, this should be a path available on the server
+                file system.
+            title (str): Title of new project.
+            desc (str, optional): Markdown text description. Defaults to None.
+
+        Returns:
+            ProjectController: created project accessor object
+
+        Raises:
+            APIError: Project cannot be created.
+        """
+        project = self.api.projects.create(title=title, description=desc, parent_dir=str(parent_path))
+        return ProjectController(self, project)
+
+    def attach_project(self, path: Union[str, PurePath], *, wait: bool = False) -> ProjectController:
+        """
+        Attach an existing project to the database by specifying the absolute path
+        to the project directory. Must not be attached to any other CryoSPARC
+        instance.
+
+        Project will not be available to modify until attachment process
+        completes, which may take some time depending on the size of the
+        project. Set ``wait=True`` to block until the project is fully attached
+        and available.
+
+        Args:
+            path (str | Path): Absolute path to project directory, e.g.
+                ``/home/user/cryosparc-projects/CS-t20s``. If the CryoSPARC instance is
+                hosted remotely, this should be a path available on the server
+                file system.
+            wait (bool, optional): If True, wait and poll until project is
+                attached and available. Defaults to False.
+
+        Returns:
+            ProjectController: attached project accessor object
+
+        Raises:
+            APIError: Project cannot be attached, e.g., if path does not exist
+                or is already attached to another instance.
+            ProjectError: If attachment successfully starts but does fully
+                complete due to invalid or corrupted data.
+        """
+        project = ProjectController(self, self.api.projects.attach(path=str(path)))
+        while wait and project.model.import_status == "importing":
+            time.sleep(3)
+            project.refresh()
+        if project.model.import_status == "failed":
+            raise ProjectError(f"Attach failed for path {path}. See cryosparcm log api for details.", project=project)
+        return project
+
     def create_workspace(self, project_uid: str, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
         Create a new empty workspace in the given project.
@@ -605,6 +666,24 @@ class CryoSPARC:
         """
         job = self.api.jobs.create(project_uid, workspace_uid, type="snowflake", title=title, description=desc)
         return ExternalJobController(self, job)
+
+    def import_job(self, project_uid: str, workspace_uid: str, path: Union[str, PurePosixPath]):
+        """
+        Import a job from a location on disk
+
+        Args:
+            project_uid (str): Project UID to create in, e.g., "P3"
+            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+            path (str | Path): Path to job directory, must be in the project
+                directory. If the CryoSPARC instance is hosted remotely,
+                this should be a path available on the server file system.
+                e.g., ``"/projects/CS-project/imports/jobs/J134_homo_abinit"``
+                or ``"imports/jobs/J134_homo_abinit"``
+
+        Raises:
+            APIError: Job cannot be imported.
+        """
+        self.api.jobs.import_job(project_uid, workspace_uid, path=str(path))
 
     def save_external_result(
         self,

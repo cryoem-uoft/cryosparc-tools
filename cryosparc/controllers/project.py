@@ -1,3 +1,4 @@
+import time
 import warnings
 from pathlib import PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
@@ -6,6 +7,7 @@ from typing_extensions import Unpack
 
 from ..dataset import DEFAULT_FORMAT, Dataset
 from ..dataset.row import R
+from ..errors import APIError, ProjectError
 from ..models.project import Project
 from ..search import In, JobSearch
 from ..spec import Datatype, SlotSpec
@@ -176,6 +178,120 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.find_external_job(self.uid, job_uid)
 
+    def move(self, path: Union[str, PurePath], *, wait: bool = False):
+        """
+        Move this project to a new location on the file system. This is useful
+        for moving projects to long-term storage locations. The project directory
+        will be moved to the given path and the project will continue to be
+        accessible through the same project UID.
+
+        Args:
+            path (str | Path): New file system path for the project directory.
+            wait (bool, optional): If True, wait for the move operation to
+            complete before returning. Defaults to False.
+        """
+        self.cs.api.projects.move(self.uid, path=str(path))
+        self.model.import_status = "moving"  # backend will set this on next refresh
+        while wait and self.model.import_status == "moving":
+            time.sleep(3)
+            self.refresh()
+
+    def archive(self, *, wait: bool = False):
+        """
+        Archive this project. Archived projects are hidden from the CryoSPARC UI
+        and cannot be modified. An admin may move their directories to a long-
+        term storage location. Project may be restored with the :py:meth:`unarchive`
+        function, which requires the path to its current location.
+
+        Args:
+            wait (bool, optional): If False, waits for the archive operation to
+                complete before returning. Defaults to False.
+        """
+        self.cs.api.projects.archive(self.uid)
+        while wait and not self.model.archived:
+            time.sleep(3)
+            self.refresh()
+
+    def unarchive(self, path: Union[str, PurePath]):
+        """
+        Unarchive this project. See :py:meth:`archive` for details.
+
+        Args:
+            path (str | Path): Current file system path to the project directory.
+        """
+        self.model = self.cs.api.projects.unarchive(self.uid, path=str(path))
+
+    def attach(self, *, wait: bool = False):
+        """
+        Attach this project to the CryoSPARC instance. Attached projects are
+        accessible through the UI and can be modified. Project will be assigned
+        a new UID upon attaching.
+
+        Args:
+            wait (bool, optional): If True, wait for the attach operation to
+                complete before returning. Defaults to False.
+
+        Raises:
+            APIError: Project cannot be attached, e.g., if path does not exist
+                or is already attached to another instance.
+            ProjectError: If attachment successfully starts but does fully
+                complete due to invalid or corrupted data.
+        """
+        new_project = self.cs.attach_project(self.dir, wait=wait)
+        self.uid = new_project.uid
+        self.model = new_project.model
+
+    def detach(self, *, wait: bool = False):
+        """
+        Detach this project from the CryoSPARC instance. Detached projects are
+        not accessible through the UI and may be attached to other instances.
+
+        See :py:meth:`cs.attach_project() <cryosparc.tools.CryoSPARC.attach_project>`
+        to re-attach.
+
+        Args:
+            wait (bool, optional): If True, wait for the detach operation to
+                complete before returning. Defaults to False.
+        """
+        self.cs.api.projects.detach(self.uid)
+        while wait and not self.model.detached:
+            time.sleep(3)
+            self.refresh()
+
+    def delete(self, *, wait: bool = False):
+        """
+        Delete this project from disk. Deleted projects cannot be recovered.
+
+        Args:
+            wait (bool, optional): If True, wait for the delete operation to
+                complete before returning. Defaults to False.
+
+        Raises:
+            ProjectError: If project could not be deleted.
+                See cryosparcm log api for details.
+        """
+        self.cs.api.projects.delete(self.uid)
+        self.model.deleting = True  # backend will set this on next refresh
+        while wait and self.model.deleting:
+            time.sleep(3)
+            try:
+                self.refresh()
+            except APIError as err:
+                if err.code == 404:
+                    return  # not found, project successfully deleted
+                raise
+        if not self.model.deleted and not self.model.deleting:
+            raise ProjectError("Could not be deleted. See cryosparcm log api for details.", project=self)
+
+    def accept_failed_attach(self):
+        """
+        Accept a failed attach for this project. This allows the project to be
+        visible and modifiable again after a failed attach attempt. Some
+        job or workspace data may be inaccessible or lost after a failed attach,
+        so use with caution.
+        """
+        self.model = self.cs.api.projects.accept_failed_attach(self.uid)
+
     def create_workspace(self, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
         Create a new empty workspace in this project. At least a title must be
@@ -267,6 +383,23 @@ class ProjectController(Controller[Project]):
             ExternalJob: created external job instance
         """
         return self.cs.create_external_job(self.uid, workspace_uid=workspace_uid, title=title, desc=desc)
+
+    def import_job(self, workspace_uid: str, path: Union[str, PurePosixPath]):
+        """
+        Import a job from a location on disk
+
+        Args:
+            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+            path (str | Path): Path to job directory, must be in the project
+                directory. If the CryoSPARC instance is hosted remotely,
+                this should be a path available on the server file system.
+                e.g., ``"/projects/CS-project/imports/jobs/J134_homo_abinit"``
+                or ``"imports/jobs/J134_homo_abinit"``
+
+        Raises:
+            APIError: Job cannot be imported.
+        """
+        return self.cs.import_job(self.uid, workspace_uid, path)
 
     def save_external_result(
         self,
@@ -374,6 +507,30 @@ class ProjectController(Controller[Project]):
             image=image,
             savefig_kw=savefig_kw,
         )
+
+    def set_default_param(self, param: str, value: Any):
+        """
+        Set a default parameter value for this project. Default parameters are
+        used to pre-populate parameter fields when creating new jobs in this
+        project. This is useful for setting parameters that are commonly used
+        across many jobs in the same project, such as file paths.
+
+        Args:
+            param (str): Name of the parameter to set a default value for,
+                e.g., "compute_num_gpus".
+            value (any): Default value to set for the given parameter.
+        """
+        self.cs.api.projects.set_default_param(self.uid, param, value)
+
+    def clear_default_param(self, param: str):
+        """
+        Clear a default parameter value for this project.
+
+        Args:
+            param (str): Name of the parameter to clear the default value for,
+                e.g., "compute_num_gpus".
+        """
+        self.cs.api.projects.clear_default_param(self.uid, param)
 
     def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:
         """
