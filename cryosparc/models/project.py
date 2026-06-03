@@ -73,10 +73,6 @@ class ProjectWorkflowInfo(BaseModel):
     Information about workflows used in a project.
     """
 
-    latest_workflow_uid: Optional[str] = None
-    """
-    UID of the latest workflow applied in a project.
-    """
     runs: Dict[str, int] = {}
     """
     Map from workflow ID to the number of runs of that workflow.
@@ -218,7 +214,7 @@ class Project(BaseModel):
     """
     List of error messages from the last automatic disk dump operation.
     """
-    workflows: ProjectWorkflowInfo = ProjectWorkflowInfo()
+    workflows: Optional[ProjectWorkflowInfo] = None
     """
     """
     uid_num: int

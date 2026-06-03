@@ -7,13 +7,28 @@ from pydantic import BaseModel, Field
 
 
 class JobGroup(BaseModel):
+    jobs: List[str]
+    """
+    """
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    color: Optional[str] = None
+    """
+    """
+    id: int
+    """
+    """
+
+
+class JobGroupUpdate(BaseModel):
     """
     User-defined group of jobs within a workspace.
     """
 
-    id: int
-    """
-    """
     jobs: List[str]
     """
     """
