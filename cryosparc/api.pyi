@@ -5443,6 +5443,10 @@ class WorkflowsAPI(APINamespace):
         lane: Optional[str] = None,
         tag_title: Optional[str] = None,
         tag_description: Optional[str] = None,
+        group: bool = False,
+        group_title: str = "",
+        group_description: str = "",
+        group_color: str = "",
     ) -> List[Job]:
         """
         Apply a workflow to a workspace
@@ -5455,6 +5459,10 @@ class WorkflowsAPI(APINamespace):
             lane (str, optional): Defaults to None
             tag_title (str, optional): Defaults to None
             tag_description (str, optional): Defaults to None
+            group (bool, optional): Defaults to False
+            group_title (str, optional): Defaults to ''
+            group_description (str, optional): Defaults to ''
+            group_color (str, optional): Defaults to ''
 
         Returns:
             List[Job]: Successful Response

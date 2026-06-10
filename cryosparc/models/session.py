@@ -988,6 +988,9 @@ class Session(BaseModel):
     last_processed_exposure_priority: Literal["normal", "oldest", "latest", "alternate"] = "oldest"
     """
     """
+    size: int = 0
+    """
+    """
     athena_epu_run_id: Optional[str] = None
     """
     :meta private:
