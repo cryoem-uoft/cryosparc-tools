@@ -549,6 +549,11 @@ class JobController(Controller[Job]):
         Returns:
             Dataset: Loaded dataset
         """
+        if isinstance(slots, list):
+            slot_set = set(x.split("/")[0] for x in slots)
+            if slot_set != set(slots):
+                warnings.warn(f"only whole slots can be loaded, not fields. Loading {slot_set}", stacklevel=2)
+                slots = sorted(list(slot_set))
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
     @overload
