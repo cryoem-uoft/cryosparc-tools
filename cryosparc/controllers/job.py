@@ -219,13 +219,17 @@ class JobController(Controller[Job]):
     ):
         """
         Queue a job to a target lane. Available lanes may be queried with
-        `:py:meth:`cs.get_lanes() <cryosparc.tools.CryoSPARC.get_lanes>`.
+        :py:meth:`cs.get_lanes() <cryosparc.tools.CryoSPARC.get_lanes>`.
 
         Optionally specify a hostname for a node or cluster in the given lane.
         Optionally specify specific GPUs indexes to use for computation.
 
         Available hostnames for a given lane may be queried with
-        `:py:meth:`cs.get_targets() <cryosparc.tools.CryoSPARC.get_targets>`.
+        :py:meth:`cs.get_targets() <cryosparc.tools.CryoSPARC.get_targets>`.
+
+        .. note::
+            This function is not available for External Jobs. use
+            ``job.start()``/``job.stop()`` or ``with job.run()`` instead.
 
         Args:
             lane (str, optional): Configuried compute lane to queue to. Leave
@@ -259,6 +263,9 @@ class JobController(Controller[Job]):
     def kill(self):
         """
         Kill this job.
+
+        .. note::
+            This function is not available for External Jobs. use ``job.stop()`` instead.
         """
         self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
 
@@ -696,6 +703,11 @@ class JobController(Controller[Job]):
         Returns:
             Dataset: Loaded dataset
         """
+        if isinstance(slots, list):
+            slot_set = set(x.split("/")[0] for x in slots)
+            if slot_set != set(slots):
+                warnings.warn(f"only whole slots can be loaded, not fields. Loading {slot_set}", stacklevel=2)
+                slots = sorted(list(slot_set))
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
     @overload
@@ -1037,7 +1049,7 @@ class JobController(Controller[Job]):
             fmt = path.suffix[1:].lower()
             if fmt not in IMAGE_CONTENT_TYPES:
                 raise ValueError(f"Invalid figure format {fmt}")
-            filename = f"{name or path.stem}.{fmt}"
+            filename = f"{name or basename}.{fmt}"
             figdata.append((figure, filename, fmt))
         else:  # Binary IO
             fmt = first(iter(formats))
@@ -1886,20 +1898,23 @@ class ExternalJobController(JobController):
         finally:
             self.stop(error=error)
 
-    def clone(self, *args, **kwargs):
+    def clone(self, *_, **__):
+        """
+        :meta private:
+        """
         raise ExternalJobError("Cannot clone an external job", job=self)
 
-    def queue(
-        self,
-        lane: Optional[str] = None,
-        hostname: Optional[str] = None,
-        gpus: Sequence[int] = [],
-        cluster_vars: Dict[str, Any] = {},
-    ):
+    def queue(self, *_, **__):
+        """
+        :meta private:
+        """
         raise ExternalJobError(
             "Cannot queue an external job; use `job.start()`/`job.stop()` or `with job.run()` instead",
             job=self,
         )
 
     def kill(self):
+        """
+        :meta private:
+        """
         raise ExternalJobError("Cannot kill an external job; use `job.stop()` instead", job=self)

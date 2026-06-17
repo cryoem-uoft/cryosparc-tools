@@ -74,6 +74,19 @@ def test_load_output_some_slots(job: JobController, t20s_particles, t20s_particl
     )
 
 
+def test_load_output_fields(job: JobController, t20s_particles, t20s_particles_passthrough):
+    assert isinstance(mock_load_output_endpoint := APIClient.jobs.load_output, mock.Mock)
+    mock_load_output_endpoint.return_value = t20s_particles.innerjoin(t20s_particles_passthrough)
+    fields_and_slots = ["location", "blob", "ctf/scale", "ctf/df_angle_rad"]
+    slots = ["blob", "ctf", "location"]
+    with pytest.warns(UserWarning, match="only whole slots"):
+        particles = job.load_output("particles_class_0", slots=fields_and_slots)
+    assert set(particles.prefixes()) == set(slots)
+    mock_load_output_endpoint.assert_called_once_with(
+        job.project_uid, job.uid, "particles_class_0", slots=slots, version="F"
+    )
+
+
 def test_job_subprocess_io(job: JobController):
     assert isinstance(mock_log_endpoint := APIClient.jobs.add_event_log, mock.Mock)
 

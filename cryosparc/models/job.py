@@ -298,15 +298,15 @@ class Job(BaseModel):
     """
     queued_to_lane: Optional[str] = None
     """
-    set at queue time based on params
+    Scheduler lane this job is queued to.
     """
     queued_to_hostname: Optional[str] = None
     """
-    NOTE: database field is sometimes ``False`` in older CryoSPARC jobs, cast validator prevents this
+    Scheduler target name that this job is queued to.
     """
     queued_to_gpu: Optional[List[int]] = None
     """
-    NOTE: database field is sometimes ``False`` in older CryoSPARC jobs, cast validator prevents this
+    GPU IDs on the target node for this job to use when running, if applicable.
     """
     queue_status: Optional[
         Literal[

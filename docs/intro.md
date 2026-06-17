@@ -1,8 +1,13 @@
 # Getting Started
 
-**cryosparc-tools** is an open-source Python library that enables scripting access to the [CryoSPARC](https://cryosparc.com) <abbr title="Cryogenic-electron microscopy">cryo-EM</abbr> software package.
+**"CryoSPARC Tools"** is an open-source Python library that enables scripting access to the [CryoSPARC](https://cryosparc.com) <abbr title="Cryogenic-electron microscopy">cryo-EM</abbr> software package.
 
-![CryoSPARC Architecture with cryosparc-tools](_static/cryosparc-tools-architecture.png)
+<figure>
+  <div class="video-16x9">
+    <iframe src="https://www.youtube-nocookie.com/embed/QY7t67c9bQ8?si=EGpiAyalrCJmnKyT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  </div>
+  <figcaption>Video: How to get started with CryoSPARC Tools + Python scripting to facilitate advanced cryo-EM data-processing workflows.</figcaption>
+</figure>
 
 Use it for the following use cases:
 
@@ -15,11 +20,15 @@ Use it for the following use cases:
 This guide documents usage of the `cryosparc-tools` Python library. For CryoSPARC installation or general CryoSPARC usage instructions, [read the official guide](https://guide.cryosparc.com).
 ```
 
-For usage questions and general discussion about `cryosparc-tools` scripts and functions, please post to the [CryoSPARC discussion forum](https://discuss.cryosparc.com/c/scripting) under the Scripting category.
+For usage questions and general discussion about CryoSPARC Tools scripts and functions, please post to the [CryoSPARC discussion forum](https://discuss.cryosparc.com/c/scripting) under the Scripting category.
 
-If you would like to request or propose a feature, change or fix for `cryosparc-tools` source code, please either [report an issue](https://github.com/cryoem-uoft/cryosparc-tools/issues/new) or [submit a pull request](https://github.com/cryoem-uoft/cryosparc-tools/compare).
+If you would like to request or propose a feature, change or fix for CryoSPARC Tools source code, please either [report an issue](https://github.com/cryoem-uoft/cryosparc-tools/issues/new) or [submit a pull request](https://github.com/cryoem-uoft/cryosparc-tools/compare).
 
 Source code is [available on GitHub](https://github.com/cryoem-uoft/cryosparc-tools).
+
+:::{figure} \_static/cryosparc-tools-architecture.png
+Overview of how CryoSPARC Tools works: Write Python scripts that load data from CryoSPARC, manipulate it with Python libraries and save it back to CryoSPARC via External job.
+:::
 
 ## v5
 
@@ -34,7 +43,7 @@ Most scripts written for v4 will work with v5 without changes. Scripts that use 
 ## Pre-requisites
 
 - [Python ≥ 3.8](https://www.python.org/downloads/)
-- [CryoSPARC ≥ v4.1](https://cryosparc.com/download)
+- [CryoSPARC ≥ v5.0](https://cryosparc.com/download)
 - A terminal program to run commands
 
 CryoSPARC installation must be accessible via one of the following methods:
@@ -51,40 +60,38 @@ As of v5, only the `BASE_PORT`, e.g., 39000, needs to be forwarded.
 See [SSH Port Forwarding documentation](https://guide.cryosparc.com/setup-configuration-and-management/how-to-download-install-and-configure/accessing-cryosparc#ssh-local-port-forwarding) for more information.
 ```
 
-cryosparc-tools is only available for CryoSPARC v4.1 or newer. If using CryoSPARC v4.0 or older, please see the [Manipulating .cs Files Created By CryoSPARC](https://guide.cryosparc.com/setup-configuration-and-management/software-system-guides/manipulating-.cs-files-created-by-cryosparc) guide.
+CryoSPARC Tools is only available for CryoSPARC v4.1 or newer. If using CryoSPARC v4.0 or older, please see the [Manipulating .cs Files Created By CryoSPARC](https://guide.cryosparc.com/setup-configuration-and-management/software-system-guides/manipulating-.cs-files-created-by-cryosparc) guide.
 
 ### Python Environment
 
-cryosparc-tools is intended to be used in a dedicated Python environment
-_outside_ of the CryoSPARC installation. A virtual environment is recommended to
-avoid conflicts with global Python installations.
+The `cryosparc-tools` Python library is intended to be used in a dedicated Python environment _outside_ of the CryoSPARC installation. A virtual environment is recommended to avoid conflicts with global Python installations.
 
 Virtual environment tools such as
 [venv](https://docs.python.org/3/tutorial/venv.html),
 [Conda](https://docs.conda.io/en/latest/),
 [Mamba](https://mamba.readthedocs.io/en/latest/),
 [Poetry](https://python-poetry.org) and
-[uv](https://docs.astral.sh/uv/) all work with cryosparc-tools.
+[uv](https://docs.astral.sh/uv/) all work with CryoSPARC Tools.
 
 Ensure that the virtual environment is based on a supported version of Python
 (see Pre-requisites above).
 
 ## Installation
 
-In a terminal, enter the following command to install the latest version of cryosparc-tools from [PyPI](https://pypi.org) into the current Python environment:
+In a terminal, enter the following command to install the latest version of `cryosparc-tools` from [PyPI](https://pypi.org) into the current Python environment:
 
 ```sh
 pip install cryosparc-tools
 ```
 
-Alternatively, update an existing installation of cryosparc-tools to the latest version:
+Alternatively, update an existing installation of `cryosparc-tools` to the latest version:
 
 ```sh
 pip install -U cryosparc-tools
 ```
 
 ```{note}
-Use the version of cryosparc-tools that corresponds to your CryoSPARC _minor_
+Use the version of `cryosparc-tools` that corresponds to your CryoSPARC _minor_
 release version. i.e., if the CryoSPARC version is vX.Y.Z, use the latest vX.Y
 tools package. The Z component does not need to match.
 
@@ -131,7 +138,7 @@ python data_processing.py
 
 You should see the message `Success: Connected to CryoSPARC API at <URL>` printed to the terminal.
 
-cryosparc-tools allows you to query projects, jobs and result datasets. For example, you can add the following code to your script to print the paths of all micrographs in a motion correction job with ID `J42` in project `P3`:
+CryoSPARC Tools allows you to query projects, jobs and result datasets. For example, you can add the following code to your script to print the paths of all micrographs in a motion correction job with ID `J42` in project `P3`:
 
 ```py
 project = cs.find_project("P3")
@@ -169,9 +176,9 @@ shift_y, shift_x = particles["alignments2D/shift"].T
 project.upload_dataset("J43/particles.cs", particles)
 ```
 
-Browse the included guides and examples to get a better idea of what you can do with cryosparc-tools.
+Browse the included guides and examples to get a better idea of what you can do with CryoSPARC Tools.
 
-For full details about available functions and classes in cryosparc-tools, including their capabilities and expected arguments, read the <abbr title="Application Programming Interface">API</abbr> Reference. The [`cryosparc.tools` module](api/cryosparc.tools) is the best place to start.
+For full details about available functions and classes in CryoSPARC Tools, including their capabilities and expected arguments, read the <abbr title="Application Programming Interface">API</abbr> Reference. The [`cryosparc.tools` module](api/cryosparc.tools) is the best place to start.
 
 ## Jupyter Notebooks
 
@@ -241,5 +248,5 @@ If you publish an open-source tool that uses this package to GitHub, add the
 
 ## License
 
-cryosparc-tools is licensed under the BSD-3-Clause license.
+CryoSPARC Tools is licensed under the BSD-3-Clause license.
 [View full license text](https://github.com/cryoem-uoft/cryosparc-tools/blob/main/LICENSE).

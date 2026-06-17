@@ -148,7 +148,7 @@ class ExposureGroup(BaseModel):
     """
     Number of exposures found in this group so far
     """
-    file_engine_strategy: Literal["entity", "timestamp", "eclathena"] = "entity"
+    file_engine_strategy: Literal["entity", "eclathena"] = "entity"
     """
     Strategy for detecting new exposures within this group
     """
@@ -776,6 +776,10 @@ class Session(BaseModel):
     """
     Username of user who has locked the notes for editing
     """
+    started_by_user_id: Optional[str] = None
+    """
+    User ID of the user who started the session
+    """
     phase_one_wait_for_exposures: bool = False
     """
     Whether to wait until exposures are available before queuing the session's
@@ -805,14 +809,6 @@ class Session(BaseModel):
     file_engine_last_run: Optional[float] = None
     """
     Timestamp of the last time the file engine ran
-    """
-    max_timestamps: List[Any] = []
-    """
-    Set by the file engine to track the most recent modification timestamps seen in each exposure group
-    """
-    known_files: List[Any] = []
-    """
-    :meta private:
     """
     rtp_childs: List[RtpChild] = []
     """
@@ -893,12 +889,12 @@ class Session(BaseModel):
     phase2_class2D_params_spec: LiveClass2DParams = LiveClass2DParams()
     """
     """
-    phase2_class2D_params_spec_used: Optional[LiveClass2DParams] = None
-    """
-    Streaming 2D classification parameters used at last launch, must be same as ``phase2_class2D_params_spec`` to resume
-    """
     phase2_class2D_job: Optional[str] = None
     """
+    """
+    phase2_class2D_job_used: Optional[str] = None
+    """
+    Previously ran 2D classification job
     """
     phase2_class2D_ready: bool = False
     """
@@ -958,10 +954,6 @@ class Session(BaseModel):
     """
     Refinement parameters specified for next launch
     """
-    phase2_refine_params_spec_used: Optional[LiveRefineParams] = None
-    """
-    Refinement parameters used at last launch, must be same as ``phase2_refine_params_spec_used`` to resume
-    """
     phase2_refine_job: Optional[str] = None
     """
     """
@@ -994,6 +986,9 @@ class Session(BaseModel):
     """
     """
     last_processed_exposure_priority: Literal["normal", "oldest", "latest", "alternate"] = "oldest"
+    """
+    """
+    size: int = 0
     """
     """
     athena_epu_run_id: Optional[str] = None

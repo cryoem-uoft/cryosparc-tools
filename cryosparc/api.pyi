@@ -120,7 +120,7 @@ from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePrep
 from .models.tag import Tag
 from .models.user import User
 from .models.workflow import Workflow, WorkflowJob, WorkflowParameter
-from .models.workspace import Workspace
+from .models.workspace import JobGroup, JobGroupUpdate, Workspace
 from .stream import Stream
 
 Auth = Union[str, Tuple[str, str]]
@@ -802,7 +802,7 @@ class ResourcesAPI(APINamespace):
     def find_nodes(self, *, lane: Optional[str] = None) -> List[SchedulerTargetNode]:
         """
         Find a list of targets with type "node" that jobs may be scheduled to.
-        These correspond to discrete worker hostnames accessible over SSH.
+        These correspond to discrete worker hosts accessible over SSH.
 
         Args:
             lane (str, optional): Defaults to None
@@ -5436,16 +5436,35 @@ class WorkflowsAPI(APINamespace):
         """
         ...
     def apply(
-        self, workflow_id: str, /, parent_juids: List[str] = [], *, project_uid: str, workspace_uid: str
+        self,
+        body: Workflow,
+        *,
+        project_uid: str,
+        workspace_uid: str,
+        parent_juids: List[str] = [],
+        lane: Optional[str] = None,
+        tag_title: Optional[str] = None,
+        tag_description: Optional[str] = None,
+        group: bool = False,
+        group_title: str = "",
+        group_description: str = "",
+        group_color: str = "",
     ) -> List[Job]:
         """
         Apply a workflow to a workspace
 
         Args:
-            workflow_id (str):
-            parent_juids (List[str], optional): Defaults to []
+            body (Workflow):
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
+            parent_juids (List[str], optional): Parent job UIDs to connect workflow inputs to. Defaults to []
+            lane (str, optional): Defaults to None
+            tag_title (str, optional): Defaults to None
+            tag_description (str, optional): Defaults to None
+            group (bool, optional): Defaults to False
+            group_title (str, optional): Defaults to ''
+            group_description (str, optional): Defaults to ''
+            group_color (str, optional): Defaults to ''
 
         Returns:
             List[Job]: Successful Response
@@ -5540,6 +5559,64 @@ class BenchmarksAPI(APINamespace):
         """
         ...
 
+class JobgroupsAPI(APINamespace):
+    """
+    Functions available in ``api.job_groups``, e.g., ``api.job_groups.get(...)``
+    """
+    def get(self, project_uid: str, workspace_uid: str, group_id: int, /) -> JobGroup:
+        """
+        Get a job group by ID.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+            group_id (int):
+
+        Returns:
+            JobGroup: Successful Response
+
+        """
+        ...
+    def edit(self, project_uid: str, workspace_uid: str, group_id: int, /, body: JobGroupUpdate) -> Workspace:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+            group_id (int):
+            body (JobGroupUpdate):
+
+        Returns:
+            Workspace: Successful Response
+
+        """
+        ...
+    def delete(self, project_uid: str, workspace_uid: str, group_id: int, /) -> Workspace:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+            group_id (int):
+
+        Returns:
+            Workspace: Successful Response
+
+        """
+        ...
+    def create(self, project_uid: str, workspace_uid: str, /, body: JobGroupUpdate) -> JobGroup:
+        """
+        Create a job group
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+            body (JobGroupUpdate):
+
+        Returns:
+            JobGroup: Successful Response
+
+        """
+        ...
+
 class DeveloperAPI(APINamespace):
     """
     Functions available in ``api.developer``, e.g., ``api.developer.get_developers(...)``
@@ -5621,6 +5698,8 @@ class APIClient:
     """``api.external`` functions"""
     benchmarks: BenchmarksAPI
     """``api.benchmarks`` functions"""
+    job_groups: JobgroupsAPI
+    """``api.job_groups`` functions"""
     developer: DeveloperAPI
     """``api.developer`` functions"""
 
