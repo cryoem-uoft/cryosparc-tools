@@ -24,6 +24,7 @@ dependencies = [
     "numpy >= 1.17, < 3.0",
     "httpx ~= 0.25",
     "pydantic ~= 2.8",
+    "pyarrow >= 18.0",
     "typing-extensions >= 4.0",
 ]
 
