@@ -502,8 +502,20 @@ def test_load_format_newest(benchmark, big_dset):
 
         def _load():
             f.seek(0)
-            result = Dataset.load(f)
-            return result
+            return Dataset.load(f)
+
+        result = benchmark(_load)
+        assert len(result) == len(big_dset)
+
+
+def test_load_format_newest_uid(benchmark, big_dset):
+    with TemporaryFile() as f:
+        big_dset.save(f, format=NEWEST_FORMAT)
+        f.seek(0)
+
+        def _load():
+            f.seek(0)
+            return Dataset.load(f, fields=["uid"])
 
         result = benchmark(_load)
         assert len(result) == len(big_dset)
