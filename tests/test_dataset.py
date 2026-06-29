@@ -51,7 +51,8 @@ def small_dset_path(tmp_path, small_dset):
 @pytest.fixture
 def small_dset_stream(small_dset):
     stream = BytesIO()
-    small_dset.save(stream, format=NEWEST_FORMAT)
+    for chunk in small_dset.stream():
+        stream.write(chunk)
     stream.seek(0)
     return stream
 
@@ -72,7 +73,8 @@ def empty_dset():
 @pytest.fixture
 def empty_dset_stream(empty_dset):
     stream = BytesIO()
-    empty_dset.save(stream, format=NEWEST_FORMAT)
+    for chunk in empty_dset.stream():
+        stream.write(chunk)
     stream.seek(0)
     return stream
 
@@ -293,12 +295,12 @@ def test_load_stream_prefixes(small_dset, small_dset_path):
 
 
 def test_load_stream_fields(small_dset, small_dset_stream):
-    result = Dataset.load(small_dset_stream, fields=["field/2"])
+    result = Dataset.from_stream(small_dset_stream, fields=["field/2"])
     assert result == small_dset.filter_fields(["field/2"], copy=True)
 
 
 def test_load_empty_stream(empty_dset, empty_dset_stream):
-    result = Dataset.load(empty_dset_stream)
+    result = Dataset.from_stream(empty_dset_stream)
     assert result == empty_dset
 
 
