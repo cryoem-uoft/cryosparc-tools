@@ -385,7 +385,7 @@ def test_streaming_bytes(benchmark, dset: Dataset):
 
     stream.seek(0)
     result = Dataset.from_stream(stream)
-    assert len(result) == len(dset)
+    assert result == dset
 
 
 def test_from_streaming_bytes(benchmark, big_dset: Dataset):
@@ -399,7 +399,7 @@ def test_from_streaming_bytes(benchmark, big_dset: Dataset):
         return result
 
     result = benchmark(load)
-    assert len(result) == len(big_dset)
+    assert result == big_dset
 
 
 def test_to_cstrs(benchmark, dset: Dataset):
@@ -484,12 +484,12 @@ def test_save_format_numpy(benchmark, big_dset: Dataset):
 def test_save_format_newest(benchmark, big_dset: Dataset):
     with TemporaryFile() as f:
 
-        def _save():
+        @benchmark
+        def _():
             f.seek(0)
             f.truncate()
             big_dset.save(f, format=NEWEST_FORMAT)
 
-        benchmark(_save)
         f.seek(0)
         result = Dataset.load(f)
         assert len(result) == len(big_dset)
