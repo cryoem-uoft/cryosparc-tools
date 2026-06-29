@@ -1,9 +1,10 @@
 from io import BytesIO
+from tempfile import TemporaryFile
 
 import numpy as n
 import pytest
 
-import cryosparc.dataset as ds
+from cryosparc.dataset import NEWEST_FORMAT, NUMPY_FORMAT
 
 from .conftest import Dataset
 
@@ -374,14 +375,17 @@ def test_streaming_bytes(benchmark, dset: Dataset):
 
     @benchmark
     def _():
+        stream.seek(0)
+        stream.truncate()
         total_bytes = 0
         for dat in dset.stream(compression="lz4"):
             stream.write(dat)
             total_bytes += len(dat)
-        stream.seek(0)
         assert total_bytes > 0
 
-    assert stream.read(6) == ds.FORMAT_MAGIC_PREFIXES[ds.NEWEST_FORMAT]
+    stream.seek(0)
+    result = Dataset.from_stream(stream)
+    assert len(result) == len(dset)
 
 
 def test_from_streaming_bytes(benchmark, big_dset: Dataset):
@@ -391,7 +395,7 @@ def test_from_streaming_bytes(benchmark, big_dset: Dataset):
 
     def load():
         stream.seek(0)
-        result = Dataset.load(stream)
+        result = Dataset.from_stream(stream)
         return result
 
     result = benchmark(load)
@@ -415,10 +419,9 @@ def test_inspect(big_dset_path, fields):
     assert result["length"] == 1961726
     assert result["dtype"] == fields
     assert result["compression"] is None
-    assert result["compressed_fields"] == []
 
 
-def test_load(benchmark, big_dset_path, fields):
+def test_load_format_numpy(benchmark, big_dset_path, fields):
     result = benchmark(Dataset.load, big_dset_path)
     assert len(result) == 1961726
     assert result.descr() == fields
@@ -462,3 +465,45 @@ def test_load_prefixes_fields(benchmark, big_dset_path, fields):
     ]
     assert len(result) == 1961726
     assert result.descr() == expected_fields
+
+
+def test_save_format_numpy(benchmark, big_dset: Dataset):
+    with TemporaryFile() as f:
+
+        def _save():
+            f.seek(0)
+            f.truncate()
+            big_dset.save(f, format=NUMPY_FORMAT)
+
+        benchmark(_save)
+        f.seek(0)
+        result = Dataset.load(f)
+        assert len(result) == len(big_dset)
+
+
+def test_save_format_newest(benchmark, big_dset: Dataset):
+    with TemporaryFile() as f:
+
+        def _save():
+            f.seek(0)
+            f.truncate()
+            big_dset.save(f, format=NEWEST_FORMAT)
+
+        benchmark(_save)
+        f.seek(0)
+        result = Dataset.load(f)
+        assert len(result) == len(big_dset)
+
+
+def test_load_format_newest(benchmark, big_dset):
+    with TemporaryFile() as f:
+        big_dset.save(f, format=NEWEST_FORMAT)
+        f.seek(0)
+
+        def _load():
+            f.seek(0)
+            result = Dataset.load(f)
+            return result
+
+        result = benchmark(_load)
+        assert len(result) == len(big_dset)

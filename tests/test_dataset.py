@@ -4,7 +4,7 @@ from io import BytesIO
 import numpy as n
 import pytest
 
-from cryosparc.dataset import CSDAT_FORMAT, Column
+from cryosparc.dataset import NEWEST_FORMAT, Column
 from cryosparc.dataset.row import Row
 
 from .conftest import Dataset
@@ -44,14 +44,14 @@ def small_dset():
 @pytest.fixture
 def small_dset_path(tmp_path, small_dset):
     path = tmp_path / "small_dset.cs"
-    small_dset.save(path, format=CSDAT_FORMAT)
+    small_dset.save(path, format=NEWEST_FORMAT)
     return path
 
 
 @pytest.fixture
 def small_dset_stream(small_dset):
     stream = BytesIO()
-    small_dset.save(stream, format=CSDAT_FORMAT)
+    small_dset.save(stream, format=NEWEST_FORMAT)
     stream.seek(0)
     return stream
 
@@ -72,7 +72,7 @@ def empty_dset():
 @pytest.fixture
 def empty_dset_stream(empty_dset):
     stream = BytesIO()
-    empty_dset.save(stream, format=CSDAT_FORMAT)
+    empty_dset.save(stream, format=NEWEST_FORMAT)
     stream.seek(0)
     return stream
 
