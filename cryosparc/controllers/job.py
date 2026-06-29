@@ -15,6 +15,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    Iterator,
     List,
     Literal,
     Optional,
@@ -30,6 +31,7 @@ from typing_extensions import Self
 from ..dataset import DEFAULT_FORMAT, Dataset
 from ..errors import APIError, ExternalJobError, JobError
 from ..models.asset import GridFSAsset, GridFSFile
+from ..models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
 from ..models.job import Job, JobStatus
 from ..models.job_register import JobRegisterJobSpec
 from ..models.job_spec import Input, InputSpec, Output, OutputSpec, Params
@@ -710,6 +712,48 @@ class JobController(Controller[Job]):
                 slots = sorted(list(slot_set))
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
+    def find_events(
+        self,
+        *,
+        pattern: Union[str, Pattern[str], None] = None,
+        type: Literal["text", "warning", "error", "image", "interactive", None] = None,
+        checkpoint: int | None = None,
+    ) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]:
+        """
+        Find all events in the job log matching the given pattern.
+
+        Args:
+            pattern (str | Pattern, optional): Regular expression to match
+                against event text. If not specified, shows all events.
+                Defaults to None.
+            type (Literal["text", "warning", "error", "image", "interactive"], optional):
+                If specified, only return events with the given log level.
+                Defaults to None.
+            checkpoint (int, optional): If specified, only return events logged
+                after the given checkpoint. Specify 0 to show initial logs
+                before the first checkpoint. Specify -1 to show logs after
+                the last checkpoint. Defaults to None.
+
+        Yields:
+            TextEvent | ImageEvent | InteractiveEvent: Matching event log entry
+        """
+        regex = None
+        if pattern is not None:
+            regex = re.compile(pattern) if isinstance(pattern, str) else pattern
+        checkpoint, max_checkpoint = (0, float("inf")) if checkpoint is None else (checkpoint, checkpoint + 1)
+        while events := self.cs.api.jobs.get_event_logs(self.project_uid, self.uid, checkpoint=checkpoint):
+            for event in events:
+                if isinstance(event, (Event, CheckpointEvent)):
+                    continue  # unused type
+                if type and event.type != type:
+                    continue  # incorrect type
+                if regex and not regex.search(event.text):
+                    continue  # no pattern match
+                yield event
+            checkpoint += 1
+            if checkpoint >= max_checkpoint:
+                return
+
     @overload
     def log(self, text: str, *, level: LogLevel = ...) -> str: ...
     @overload
@@ -1191,6 +1235,7 @@ class JobController(Controller[Job]):
     def subprocess(
         self,
         args: Union[str, list],
+        *,
         mute: bool = False,
         checkpoint: bool = False,
         checkpoint_line_pattern: Union[str, Pattern[str], None] = None,
