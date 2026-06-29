@@ -77,8 +77,6 @@ void *     dset_dump (uint64_t dset);
 
 uint64_t   dset_strheapsz (uint64_t dset);
 char *     dset_strheap (uint64_t dset);
-int        dset_setstrheap (uint64_t dset, const char *heap, size_t length);
-int        dset_stralloc (uint64_t dset, const char *value, size_t length, uint64_t *index);
 
 #endif
 
@@ -1709,42 +1707,6 @@ uint64_t dset_strheapsz(uint64_t dset) {
 char *dset_strheap(uint64_t dset) {
 	ds *d = handle_lookup(dset, "dset_strheap", 0, 0);
 	return (char *) d + d->strheap_start;
-}
-
-int dset_setstrheap(uint64_t dset, const char *heap, size_t size) {
-	uint64_t dsetidx;
-	ds *d = handle_lookup(dset, "dset_setstrheap", 0, &dsetidx);
-	ds_slot *slot = &ds_module.slots[dsetidx];
-
-	// erase current strings
-	d->strheap_sz = 1; // 1 for empty string
-	ht64_clear(&slot->ht);
-
-	const char *s = heap;
-	size_t len;
-	uint64_t idx;
-	while (d && s < heap + size) {
-		len = strlen(s);
-		d = stralloc(dsetidx, s, len, &idx);
-		if (!d) return 0;
-		s += len + 1;
-	}
-
-	return d != 0;
-}
-
-// Raw string allocation for the dataset without assigning to any column
-// Returns 0 if the string couldn't be allocated
-// Returns 1 if given index was successfully assigned a value.
-// Returns 2 if the index was assigned AND a reallocation occured
-// Should not normally be used.
-int dset_stralloc(uint64_t dset, const char *value, size_t length, uint64_t *index) {
-	uint64_t dsetidx;
-	ds *d = handle_lookup(dset, "dset_stralloc", 0, &dsetidx);
-	ds *newd = stralloc(dsetidx, value, length, index);
-	if (newd == 0) return 0;
-	else if (newd == d) return 1;
-	else return 2;
 }
 
 #endif

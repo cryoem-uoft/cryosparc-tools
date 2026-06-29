@@ -31,9 +31,6 @@ class DatasetHeader(TypedDict):
     compression: Literal["lz4", None]
     """Compression library used for in the dataset"""
 
-    compressed_fields: List[str]
-    """Field names that require decompression."""
-
 
 DSET_TO_TYPE_MAP: Dict[DsetType, Type[Union[n.number, n.object_]]] = {
     DsetType.T_F32: n.float32,
@@ -62,10 +59,6 @@ TYPE_TO_DSET_MAP = {
         object: DsetType.T_OBJ,
     },
 }
-
-# Set of dataset fields that should not be compressed when saving in
-# NEWEST_FORMAT
-NEVER_COMPRESS_FIELDS = {"uid"}
 
 
 def normalize_field(name: str, dtype: "DTypeLike") -> Field:
@@ -155,20 +148,15 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
             None,
             "lz4",
         }, 'Dataset header "compression" key missing or has incorrect type'
-        assert "compressed_fields" in header or isinstance(header["compressed_fields"], list), (
-            'Dataset header "compressed_fields" key missing or has incorrect type'
-        )
 
         length: int = header["length"]
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
         compression: Literal["lz4", None] = header["compression"]
-        compressed_fields: List[str] = header["compressed_fields"]
 
         return DatasetHeader(
             length=length,
             dtype=dtype,
             compression=compression,
-            compressed_fields=compressed_fields,
         )
     except Exception as e:
         raise DatasetLoadError(

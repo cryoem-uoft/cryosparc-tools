@@ -51,26 +51,31 @@ from typing import (
 
 import numpy as n
 
-from ..constants import ONE_MIB
+from ..constants import EIGHT_MIB
 from ..errors import DatasetLoadError
 from ..stream import AsyncReadable, Streamable
-from ..util import bopen, default_rng, random_integers, u32bytesle, u32intle
+from ..util import bopen, default_rng, random_integers
+from .arrow import (
+    ARROW_FILE_MAGIC,
+    inspect_arrow_file,
+    load_arrow_file,
+    load_arrow_stream,
+    stream_arrow,
+    write_arrow_file,
+)
 from .column import Column
-from .core import Data, DsetType, Stream
+from .core import Data, DsetType
 from .dtype import (
-    NEVER_COMPRESS_FIELDS,
     TYPE_TO_DSET_MAP,
     DatasetHeader,
     Field,
     arraydtype,
-    decode_dataset_header,
-    encode_dataset_header,
     fielddtype,
-    filter_descr,
     get_data_field,
     get_data_field_dtype,
     normalize_field,
 )
+from .numpy import NUMPY_FILE_MAGIC, inspect_numpy_file, load_numpy_file, write_numpy_file
 from .row import R, Row, Spool
 
 if TYPE_CHECKING:
@@ -83,7 +88,7 @@ NUMPY_FORMAT = 1
 Numpy-array .cs file format. Same as ``DEFAULT_FORMAT``.
 """
 
-CSDAT_FORMAT = 2
+ARROW_FORMAT = 2
 """
 Compressed stream .cs file format. Same as ``NEWEST_FORMAT``.
 """
@@ -93,20 +98,16 @@ DEFAULT_FORMAT = NUMPY_FORMAT
 Default save .cs file format. Same as ``NUMPY_FORMAT``.
 """
 
-NEWEST_FORMAT = CSDAT_FORMAT
+NEWEST_FORMAT = ARROW_FORMAT
 """
-Newest save .cs file format. Same as ``CSDAT_FORMAT``.
+Newest save .cs file format. Same as ``ARROW_FORMAT``.
 """
 
 FORMAT_MAGIC_PREFIXES = {
-    NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
-    CSDAT_FORMAT: b"\x95CSDAT",  # .csl compressed stream format
+    NUMPY_FORMAT: NUMPY_FILE_MAGIC,  # .npy file format
+    ARROW_FORMAT: ARROW_FILE_MAGIC,  # .arrow compressed stream format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
-
-_NUMPY_MAJOR_MINOR_VERSION = tuple(map(int, n.__version__.split(".")[:2]))  # e.g., "1.23.4" -> (1, 23)
-_NUMPY_LOAD_KWARGS: Dict[str, Any] = {"max_header_size": 1024**3} if _NUMPY_MAJOR_MINOR_VERSION >= (1, 24) else {}
-"""Numpy >= 1.24 load function require max_header_size, which is 10000 by default and too small for some datasets."""
 
 
 class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
@@ -558,14 +559,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         try:
             with open(file, "rb") as f:
                 prefix = f.read(6)
-                if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
-                    f.seek(0)  # will be done after context block for mmapping
-                elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-                    return cls._load_stream_header(f)
-                else:
-                    raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
-            # numpy format
-            return cls._load_numpy_header(file)
+                f.seek(0)
+            if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                return inspect_numpy_file(file)
+            elif prefix == FORMAT_MAGIC_PREFIXES[ARROW_FORMAT]:
+                return inspect_arrow_file(file)
+            else:
+                raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
@@ -576,26 +576,26 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         *,
         prefixes: Optional[Sequence[str]] = None,
         fields: Optional[Sequence[str]] = None,
-        cstrs: bool = False,
         media_type: Optional[str] = None,  # for interface, otherwise unused
     ):
         """
         Read a dataset from path or file handle.
 
-        If given a file handle pointing to data in the usual numpy array format
-        (i.e., created by ``numpy.save()``), then the handle must be seekable.
-        This restriction does not apply when loading the newer ``CSDAT_FORMAT``.
+        Datasets are stored on disk either in the usual numpy array format
+        (``NUMPY_FORMAT``, created by ``numpy.save()``) or in the Apache Arrow
+        IPC file format (``ARROW_FORMAT``, a.k.a. Feather). Both formats require
+        a seekable file handle when loading from an already-open handle.
+
+        To load a dataset from a sequential (non-seekable) byte stream produced
+        by :meth:`stream`, use :meth:`from_stream` or :meth:`from_iterator`
+        instead.
 
         Args:
-            file (str | Path | IO): Readable file path or handle. Must be
-                seekable if loading a dataset saved in the default
-                ``NUMPY_FORMAT``
+            file (str | Path | IO): Readable file path or seekable handle.
             prefixes (list[str], optional): Which field prefixes to load. If
                 not specified, loads either all or specified `fields`.
             fields (list[str], optional): Which fields to load. If not
                 specified, loads either all or specified `prefixes`.
-            cstrs (bool): If True, load internal string columns as C strings
-                instead of Python strings. Defaults to False.
 
         Raises:
             DatasetLoadError: If cannot load dataset file.
@@ -607,240 +607,116 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         try:
             with bopen(file, "rb") as f:
                 prefix = f.read(6)
+                f.seek(0)
                 if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
-                    f.seek(0)  # will be done after context block for mmapping
-                elif prefix == FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-                    return cls._load_stream(
-                        f,
-                        prefixes=prefixes,
-                        fields=fields,
-                        cstrs=cstrs,
-                        seekable=isinstance(file, (str, PurePath)),
-                    )
+                    return load_numpy_file(cls, file, prefixes=prefixes, fields=fields)
+                elif prefix == ARROW_FILE_MAGIC:
+                    return load_arrow_file(cls, file, prefixes=prefixes, fields=fields)
                 else:
                     raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
-            # numpy
-            return cls._load_numpy(file, prefixes=prefixes, fields=fields, cstrs=cstrs)
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
     @classmethod
-    def _load_numpy_header(cls, file: Union[str, PurePath]) -> DatasetHeader:
-        indata = n.load(str(file), mmap_mode="r", allow_pickle=False)
-        fields = [normalize_field(f[0], fielddtype(f)) for f in indata.dtype.descr]
-        return DatasetHeader(length=len(indata), dtype=fields, compression=None, compressed_fields=[])
-
-    @classmethod
-    def _load_numpy(
+    def from_stream(
         cls,
-        file: Union[str, PurePath, IO[bytes]],
+        source: IO[bytes],
+        *,
         prefixes: Optional[Sequence[str]] = None,
         fields: Optional[Sequence[str]] = None,
-        cstrs: bool = False,
+        media_type: Optional[str] = None,  # for interface, otherwise unused
     ):
-        import os
+        """
+        Load a dataset from a readable byte stream in the Arrow IPC stream
+        format (as produced by :meth:`stream`). The stream is read sequentially
+        and does not need to be seekable.
 
-        # disable mmap by setting CRYOSPARC_DATASET_MMAP=false or dataset is small
-        if (
-            os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true"
-            and isinstance(file, (str, PurePath))
-            and os.stat(file).st_size > ONE_MIB
-        ):
-            # Use mmap to avoid loading full record array into memory
-            # cast path to a string for older numpy/python
-            mmap_mode, f = "r", str(file)
-            chunk_size = 2**14  # magic number optimizes memory and performance
-        else:
-            mmap_mode, f = None, file
-            chunk_size = 2**60  # huge enough number so you don't use chunks
+        Args:
+            source (IO): Readable byte stream implementing ``read(size)``.
+            prefixes (list[str], optional): Which field prefixes to load.
+            fields (list[str], optional): Which fields to load.
 
-        indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False, **_NUMPY_LOAD_KWARGS)
-        size = len(indata)
-        descr = filter_descr(indata.dtype.descr, keep_prefixes=prefixes, keep_fields=fields)
-        dset = cls.allocate(size, descr)
-        offset = 0
-        while offset < size:
-            end = min(offset + chunk_size, size)
-            chunk = indata[offset:end]
-            for field in descr:
-                dset[field[0]][offset:end] = chunk[field[0]]
-            offset += chunk_size
-            if mmap_mode and offset < size:
-                # reset mmap to avoid excessive memory usage
-                del indata
-                indata = n.load(f, mmap_mode=mmap_mode, allow_pickle=False, **_NUMPY_LOAD_KWARGS)
-
-        if cstrs:
-            dset.to_cstrs()
-        return dset
-
-    @classmethod
-    def _load_stream_header(cls, f: IO[bytes]) -> DatasetHeader:
-        # NOTE: assumes prefix header bytes have already been read
-        headersize = u32intle(f.read(4))
-        return decode_dataset_header(f.read(headersize))
-
-    @classmethod
-    def _load_stream(
-        cls,
-        f: IO[bytes],
-        prefixes: Optional[Sequence[str]] = None,
-        fields: Optional[Sequence[str]] = None,
-        cstrs: bool = False,
-        seekable: bool = False,
-    ):
-        # NOTE: assumes prefix header bytes have already been read
-        header = cls._load_stream_header(f)
-        descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
-        field_names = {field[0] for field in descr}
-
-        # Calling addrows separately to minimize column-based allocations,
-        # improves performance by ~20%
-        dset = cls.allocate(0, descr)
-        data = dset._data
-        data.addrows(header["length"])
-
-        # If a dataset is empty, it won't have anything in its data section.
-        # Just the string heap at the end.
-        dtype = [] if header["length"] == 0 else header["dtype"]
-        loader = Stream(data)
-        for field in dtype:
-            colsize = u32intle(f.read(4))
-            if field[0] not in field_names:
-                # try to seek instead of read to reduce memory usage
-                f.seek(colsize, 1) if seekable else f.read(colsize)
-                continue  # skip fields that were not selected
-            buffer = f.read(colsize)
-            if field[0] in header["compressed_fields"]:
-                loader.decompress_col(field[0], buffer)
-                continue
-            mem = data.getbuf(field[0])
-            assert mem is not None, f"Could not load stream (missing {field[0]} buffer)"
-            mem[:] = buffer
-
-        # Read in the string heap (rest of stream)
-        # NOTE: There will be a bug here for long column keys that are
-        # added when there's already an allocated string in a T_STR
-        # column in the saved dataset (should be rare).
-        heap = f.read()
-        data.setstrheap(heap)
-
-        # Convert C strings to Python strings
-        loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
-        if not cstrs:
-            dset.to_pystrs()
-        return dset
+        Returns:
+            Dataset: loaded dataset.
+        """
+        return load_arrow_stream(cls, source, prefixes=prefixes, fields=fields)
 
     @classmethod
     async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None):
-        prefix = await stream.read(6)
-        if prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
-            raise DatasetLoadError(
-                f"Incorrect async dataset stream format {prefix}. "
-                "Only CSDAT-formatted datasets may be loaded as async streams"
-            )
-        headersize = u32intle(await stream.read(4))
-        header = decode_dataset_header(await stream.read(headersize))
+        # PyArrow has no asynchronous IPC reader, so spool the incoming stream
+        # format bytes to a temporary file and load it sequentially from there.
+        # This keeps peak memory to a single record batch during parsing.
+        import tempfile
 
-        # Calling addrows separately to minimizes column-based allocations
-        dset = cls.allocate(0, header["dtype"])
-        data = dset._data
-        data.addrows(header["length"])
-
-        # If a dataset is empty, it won't have anything in its data section.
-        # Just the string heap at the end.
-        dtype = [] if header["length"] == 0 else header["dtype"]
-        loader = Stream(data)
-        for field in dtype:
-            colsize = u32intle(await stream.read(4))
-            buffer = await stream.read(colsize)
-            if field[0] in header["compressed_fields"]:
-                loader.decompress_col(field[0], buffer)
-                continue
-            mem = data.getbuf(field[0])
-            assert mem is not None, f"Could not load stream (missing {field[0]} buffer)"
-            mem[:] = buffer
-
-        heap = await stream.read()
-        data.setstrheap(heap)
-
-        # Convert C strings to Python strings
-        loader.cast_objs_to_strs()  # dtype may be T_OBJ but actually all are T_STR
-        dset.to_pystrs()
-        return dset
+        with tempfile.TemporaryFile() as tmp:
+            while chunk := await stream.read(EIGHT_MIB):
+                tmp.write(chunk)
+            tmp.seek(0)
+            return cls.from_stream(tmp, media_type=media_type)
 
     def save(self, file: Union[str, PurePath, IO[bytes]], *, format: int = DEFAULT_FORMAT):
         """
         Save a dataset to the given path or I/O buffer.
 
         By default, saves as a numpy record array in the .npy format. Specify
-        ``format=CSDAT_FORMAT`` to save in the latest .cs file format which is
-        faster and results in a smaller file size but is not numpy-compatible.
+        ``format=ARROW_FORMAT`` to save in the Apache Arrow IPC file format
+        (a.k.a. Feather), which is faster and results in a smaller file size but
+        is not numpy-compatible.
 
         Args:
             file (str | Path | IO): Writeable file path or handle
             format (int, optional): Must be of the constants ``DEFAULT_FORMAT``,
                 ``NUMPY_FORMAT`` (same as ``DEFAULT_FORMAT``), or
-                ``CSDAT_FORMAT``. Defaults to ``DEFAULT_FORMAT``.
+                ``ARROW_FORMAT``. Defaults to ``DEFAULT_FORMAT``.
+
+        Raises:
+            TypeError: If invalid format specified
+        """
+        with bopen(file, "wb") as f:
+            self.dump(f, format=format)
+
+    def dump(self, file: IO[bytes], *, format: int = DEFAULT_FORMAT):
+        """
+        Write a dataset to the given writable byte stream.
+
+        Like :meth:`save`, but takes an already-open writable file object. For
+        ``ARROW_FORMAT``, the handle must be writable (the Arrow IPC file format
+        is written sequentially).
+
+        Args:
+            file (IO): Writeable file handle
+            format (int, optional): One of ``NUMPY_FORMAT`` or ``ARROW_FORMAT``.
+                Defaults to ``DEFAULT_FORMAT``.
 
         Raises:
             TypeError: If invalid format specified
         """
         if format == NUMPY_FORMAT:
-            outdata = self.to_records(fixed=True)
-            with bopen(file, "wb") as f:
-                n.save(f, outdata, allow_pickle=False)
-        elif format == CSDAT_FORMAT:
-            with bopen(file, "wb") as f:
-                for chunk in self.stream(compression="lz4"):
-                    f.write(chunk)
+            write_numpy_file(self, file)
+        elif format == ARROW_FORMAT:
+            write_arrow_file(self, file, compression="lz4")
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-    def stream(self, compression: Literal["lz4", None] = None) -> Iterator[bytes]:
+    def stream(self, compression: Literal["lz4", None] = "lz4") -> Iterator[bytes]:
         """
-        Generate a binary representation for this dataset. Results may be
-        written to a file or buffer to be sent over the network.
+        Generate a binary representation for this dataset in the Apache Arrow
+        IPC stream format. Results may be written to a buffer or sent over the
+        network and re-loaded with :meth:`from_stream` or :meth:`from_iterator`.
 
-        Buffer will have the same format as Dataset files saved with
-        ``format=CSDAT_FORMAT``. Call ``Dataset.load`` on the resulting
-        file/buffer to retrieve the original data.
+        Note:
+            This produces the Arrow IPC **stream** format, which differs from
+            the Arrow IPC **file** format written by :meth:`save`/:meth:`dump`.
+            Use :meth:`from_stream` (not :meth:`load`) to read it back.
 
         Args:
-            compression (Literal["lz4", None], optional):
+            compression (Literal["lz4", None], optional): Buffer compression
+                codec. Defaults to None (uncompressed).
 
         Yields:
-            bytes: Dataset file chunks
+            bytes: Dataset stream chunks
         """
-        data = self._data
-        stream = Stream(data)
-
-        yield FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]
-
-        compressed_fields = [f for f in self if compression and f not in NEVER_COMPRESS_FIELDS]
-        header = encode_dataset_header(
-            DatasetHeader(
-                length=len(self),
-                dtype=self.descr(),
-                compression=compression,
-                compressed_fields=compressed_fields,
-            )
-        )
-        yield u32bytesle(len(header))
-        yield header
-
-        fields = [] if len(self) == 0 else self.fields()
-        for f in fields:
-            if f in compressed_fields:
-                # obj columns added to strheap and loaded as indexes
-                fielddata = stream.compress_col(f)
-            else:
-                fielddata = stream.stralloc_col(f) or data.getbuf(f)
-            assert fielddata is not None, f"Could not stream dataset (missing {f} buffer)"
-            yield u32bytesle(len(fielddata))
-            yield bytes(fielddata.memview)
-
-        yield bytes(data.dumpstrheap().memview)
+        yield from stream_arrow(self, compression=compression)
 
     def __init__(
         self,
