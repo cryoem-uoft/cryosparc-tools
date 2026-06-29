@@ -153,11 +153,7 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
         compression: Literal["lz4", None] = header["compression"]
 
-        return DatasetHeader(
-            length=length,
-            dtype=dtype,
-            compression=compression,
-        )
+        return DatasetHeader(length=length, dtype=dtype, compression=compression)
     except Exception as e:
         raise DatasetLoadError(
             f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}"

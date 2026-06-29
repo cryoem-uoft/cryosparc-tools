@@ -1,10 +1,7 @@
 from . cimport dataset
-from . cimport lz4
 from libc.stdint cimport uint8_t, uint16_t, uint64_t
 from cpython.ref cimport PyObject, Py_XINCREF, Py_XDECREF
 from cpython.mem cimport PyMem_Realloc, PyMem_Free
-
-cdef int LZ4_ACCELERATION = 1000
 
 
 # Mirror of equivalent C-datatype enumeration
