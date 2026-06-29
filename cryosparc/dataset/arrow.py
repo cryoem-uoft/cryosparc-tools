@@ -46,9 +46,6 @@ from .dtype import (
 if TYPE_CHECKING:
     from . import Dataset
 
-ARROW_FILE_MAGIC = b"ARROW1"
-"""First 6 bytes of an Arrow IPC file (Feather v2)."""
-
 _METADATA_KEY = b"cryosparc-dataset-header"
 """Arrow schema metadata key holding the JSON-encoded :class:`DatasetHeader`."""
 

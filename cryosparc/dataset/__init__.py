@@ -55,14 +55,6 @@ from ..constants import EIGHT_MIB
 from ..errors import DatasetLoadError
 from ..stream import AsyncReadable, Streamable
 from ..util import bopen, default_rng, random_integers
-from .arrow import (
-    ARROW_FILE_MAGIC,
-    inspect_arrow_file,
-    load_arrow_file,
-    load_arrow_stream,
-    stream_arrow,
-    write_arrow_file,
-)
 from .column import Column
 from .core import Data, DsetType
 from .dtype import (
@@ -75,7 +67,6 @@ from .dtype import (
     get_data_field_dtype,
     normalize_field,
 )
-from .numpy import NUMPY_FILE_MAGIC, inspect_numpy_file, load_numpy_file, write_numpy_file
 from .row import R, Row, Spool
 
 if TYPE_CHECKING:
@@ -90,7 +81,7 @@ Numpy-array .cs file format. Same as ``DEFAULT_FORMAT``.
 
 ARROW_FORMAT = 2
 """
-Compressed stream .cs file format. Same as ``NEWEST_FORMAT``.
+Compressed Arrow IPC file format (Feather). Same as ``NEWEST_FORMAT``.
 """
 
 DEFAULT_FORMAT = NUMPY_FORMAT
@@ -104,8 +95,8 @@ Newest save .cs file format. Same as ``ARROW_FORMAT``.
 """
 
 FORMAT_MAGIC_PREFIXES = {
-    NUMPY_FORMAT: NUMPY_FILE_MAGIC,  # .npy file format
-    ARROW_FORMAT: ARROW_FILE_MAGIC,  # .arrow compressed stream format
+    NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
+    ARROW_FORMAT: b"ARROW1",  # .arrow/feather IPC file format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
@@ -561,8 +552,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 prefix = f.read(6)
                 f.seek(0)
             if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                from .numpy import inspect_numpy_file
+
                 return inspect_numpy_file(file)
             elif prefix == FORMAT_MAGIC_PREFIXES[ARROW_FORMAT]:
+                from .arrow import inspect_arrow_file
+
                 return inspect_arrow_file(file)
             else:
                 raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
@@ -603,14 +598,17 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: loaded dataset.
         """
-        prefix = None
         try:
             with bopen(file, "rb") as f:
                 prefix = f.read(6)
                 f.seek(0)
                 if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+                    from .numpy import load_numpy_file
+
                     return load_numpy_file(cls, file, prefixes=prefixes, fields=fields)
-                elif prefix == ARROW_FILE_MAGIC:
+                elif prefix == FORMAT_MAGIC_PREFIXES[ARROW_FORMAT]:
+                    from .arrow import load_arrow_file
+
                     return load_arrow_file(cls, file, prefixes=prefixes, fields=fields)
                 else:
                     raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
@@ -639,6 +637,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: loaded dataset.
         """
+        from .arrow import load_arrow_stream
+
         return load_arrow_stream(cls, source, prefixes=prefixes, fields=fields)
 
     @classmethod
@@ -692,8 +692,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             TypeError: If invalid format specified
         """
         if format == NUMPY_FORMAT:
+            from .numpy import write_numpy_file
+
             write_numpy_file(self, file)
         elif format == ARROW_FORMAT:
+            from .arrow import write_arrow_file
+
             write_arrow_file(self, file, compression="lz4")
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
@@ -716,6 +720,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Yields:
             bytes: Dataset stream chunks
         """
+        from .arrow import stream_arrow
+
         yield from stream_arrow(self, compression=compression)
 
     def __init__(

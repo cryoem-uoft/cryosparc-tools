@@ -13,8 +13,6 @@ from .dtype import DatasetHeader, fielddtype, filter_descr, normalize_field
 if TYPE_CHECKING:
     from . import Dataset
 
-NUMPY_FILE_MAGIC = b"\x93NUMPY"
-
 _NUMPY_MAJOR_MINOR_VERSION = tuple(map(int, n.__version__.split(".")[:2]))  # e.g., "1.23.4" -> (1, 23)
 _NUMPY_LOAD_KWARGS: Dict[str, Any] = {"max_header_size": 1024**3} if _NUMPY_MAJOR_MINOR_VERSION >= (1, 24) else {}
 """Numpy >= 1.24 load function require max_header_size, which is 10000 by default and too small for some datasets."""
