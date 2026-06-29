@@ -717,7 +717,7 @@ class JobController(Controller[Job]):
         *,
         pattern: Union[str, Pattern[str], None] = None,
         type: Literal["text", "warning", "error", "image", "interactive", None] = None,
-        checkpoint: int | None = None,
+        checkpoint: Optional[int] = None,
     ) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]:
         """
         Find all events in the job log matching the given pattern.
