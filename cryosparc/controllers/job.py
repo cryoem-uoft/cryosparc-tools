@@ -334,7 +334,7 @@ class JobController(Controller[Job]):
                 JSON-encodable.
             timeout (int, optional): Maximum time to wait for the action to
                 complete, in seconds. Defaults to 10.
-            refresh (bool, optional): If True, refresh the job document after
+            refresh (bool, optional): If True, refresh the job model after
                 posting. Defaults to False.
         """
         result: Any = self.cs.api.jobs.interactive_post(
@@ -353,7 +353,7 @@ class JobController(Controller[Job]):
     def clone(self, workspace: Union[str, "WorkspaceController", None] = None) -> Self:
         """
         Clone this job, creating a new job with the same spec and parameters but
-        no connections or results.
+        without connections or results.
 
         Args:
             workspace (str | WorkspaceController, optional): Target workspace to
@@ -439,7 +439,7 @@ class JobController(Controller[Job]):
         Set the given parameter name on the current job to the given value.
 
         Args:
-            name (str): Param name, as defined in the job document's ``params_base``.
+            name (str): Param name, a key in the job's ``spec.params`` field.
             value (any): Target parameter value.
 
         Returns:
@@ -467,7 +467,7 @@ class JobController(Controller[Job]):
         Set multiple job parameters.
 
         Args:
-            params (dict[str, any]): Dict of param names and target values.
+            params (dict[str, Any]): Dict of param names and target values.
 
         Raises:
             APIError: Invalid param name or value, or if job is not in "building" status.
@@ -487,7 +487,7 @@ class JobController(Controller[Job]):
         Reset the given parameter to its default value.
 
         Args:
-            param (str): Param name, as defined in the job document's ``params_base``.
+            param (str): Param name, a key in the job's ``spec.params`` field.
 
         Raises:
             APIError: Invalid param name, or if job is not in "building" status.

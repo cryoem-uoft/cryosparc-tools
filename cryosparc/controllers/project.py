@@ -330,7 +330,7 @@ class ProjectController(Controller[Project]):
             connections (dict[str, tuple[str, str] | list[tuple[str, str]]]):
                 Initial input connections. Each key is an input name and each
                 value is a (job uid, output name) tuple. Defaults to {}
-            params (dict[str, any], optional): Specify parameter values.
+            params (dict[str, Any], optional): Specify parameter values.
                 Defaults to {}.
             title (str, optional): Job title. Defaults to "".
             desc (str, optional): Job markdown description. Defaults to "".
