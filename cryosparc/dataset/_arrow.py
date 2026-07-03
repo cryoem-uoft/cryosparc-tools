@@ -126,24 +126,6 @@ def numpy_to_arrow_array(values: n.ndarray, pa_type: pa.DataType) -> pa.Array:
     return pa.array(n.ascontiguousarray(values), type=pa_type)
 
 
-def _column_to_array(dset: "Dataset", field: Field, offset: int, length: int, pa_type: pa.DataType) -> pa.Array:
-    dt = n.dtype(fielddtype(field))
-    sub = n.asarray(dset[field[0]][offset : offset + length])
-    if dt.base.kind == "O":
-        # Strings: not zero-copy, Arrow needs contiguous offset/data buffers.
-        return pa.array(sub, type=pa.large_string())
-    if dt.shape:
-        # Multi-dimensional: build (possibly nested) fixed-size lists from the
-        # base values outward. The flattened base array is a zero-copy view into
-        # dataset memory.
-        values: pa.Array = pa.array(n.ascontiguousarray(sub).reshape(-1))
-        for dim in reversed(dt.shape):
-            values = pa.FixedSizeListArray.from_arrays(values, dim)
-        return values
-    # Scalar numeric: zero-copy view into dataset memory.
-    return pa.array(sub, type=pa_type)
-
-
 def dataset_to_batches(dset: "Dataset", schema: pa.Schema, descr: List[Field]) -> Iterator[pa.RecordBatch]:
     """
     Yield the dataset as a sequence of Arrow record batches (near ~8MiB each)
@@ -156,8 +138,13 @@ def dataset_to_batches(dset: "Dataset", schema: pa.Schema, descr: List[Field]) -
     pa_types = [schema.field(i).type for i in range(len(descr))]
     for offset in range(0, nrow, per_batch):
         length = min(per_batch, nrow - offset)
-        arrays = [_column_to_array(dset, field, offset, length, pa_types[i]) for i, field in enumerate(descr)]
-        yield pa.record_batch(arrays, schema=schema)
+        yield pa.record_batch(
+            [
+                numpy_to_arrow_array(dset[field[0]][offset : offset + length], pa_types[i])
+                for i, field in enumerate(descr)
+            ],
+            schema=schema,
+        )
 
 
 def parse_header(schema: pa.Schema) -> DatasetHeader:
@@ -171,18 +158,15 @@ def parse_header(schema: pa.Schema) -> DatasetHeader:
     return decode_dataset_header(raw)
 
 
-def _write_batch_into_dataset(dset: "Dataset", field: Field, array: pa.Array, offset: int, length: int):
-    dt = n.dtype(fielddtype(field))
-    col = dset[field[0]]
-    if dt.base.kind == "O":
-        col[offset : offset + length] = array.to_numpy(zero_copy_only=False)
-    elif dt.shape:
+def _array_to_column(array: pa.Array, dtype: n.dtype) -> Union[n.ndarray, pa.Array]:
+    if dtype.shape:
+        # must represent FixedSizeListArray as a multi-dimensional numpy array
+        # to assign to a dataset column.
         values = array
-        for _ in range(len(dt.shape)):
+        for _ in range(len(dtype.shape)):
             values = values.flatten()
-        col[offset : offset + length] = values.to_numpy(zero_copy_only=False).reshape((length, *dt.shape))
-    else:
-        col[offset : offset + length] = array.to_numpy(zero_copy_only=False)
+        return values.to_numpy(zero_copy_only=True).reshape((len(array), *dtype.shape))
+    return array  # otherwise, can set array in numpy array directly
 
 
 def load_from_batches(
@@ -212,7 +196,8 @@ def load_from_batches(
             field = descr_by_name.get(name)
             if field is None:
                 continue  # skip fields that were not selected
-            _write_batch_into_dataset(dset, field, batch.column(index), offset, batch.num_rows)
+            dtype = n.dtype(fielddtype(field))
+            dset[name][offset : offset + batch.num_rows] = _array_to_column(batch.column(index), dtype)
         offset += batch.num_rows
     return dset
 
