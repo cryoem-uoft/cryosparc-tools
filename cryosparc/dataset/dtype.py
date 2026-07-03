@@ -3,7 +3,7 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Type, TypedDict, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Type, TypedDict, Union
 
 import numpy as n
 
@@ -28,8 +28,8 @@ class DatasetHeader(TypedDict):
     Column description
     """
 
-    compression: Literal["lz4", None]
-    """Compression library used for in the dataset"""
+    compression: Optional[str]
+    """Compression codec used for the dataset, or None if uncompressed"""
 
 
 DSET_TO_TYPE_MAP: Dict[DsetType, Type[Union[n.number, n.object_]]] = {
@@ -144,14 +144,13 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         assert "dtype" in header and isinstance(header["dtype"], list), (
             'Dataset header "dtype" key missing or has incorrect type'
         )
-        assert "compression" in header and header["compression"] in {
-            None,
-            "lz4",
-        }, 'Dataset header "compression" key missing or has incorrect type'
+        assert "compression" in header and (header["compression"] is None or isinstance(header["compression"], str)), (
+            'Dataset header "compression" key missing or has incorrect type'
+        )
 
         length: int = header["length"]
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
-        compression: Literal["lz4", None] = header["compression"]
+        compression: Optional[str] = header["compression"]
 
         return DatasetHeader(length=length, dtype=dtype, compression=compression)
     except Exception as e:

@@ -1,29 +1,29 @@
 """
-Apache Arrow (Feather / IPC) serialization for :class:`~cryosparc.dataset.Dataset`.
+Apache Arrow (IPC stream) serialization for :class:`~cryosparc.dataset.Dataset`.
 
-Two related Arrow encodings are used:
+Implements the streaming wire format (:meth:`Dataset.stream` / :meth:`Dataset.from_stream`)
+using the Arrow IPC **stream** format, which can be produced and consumed
+sequentially (e.g., over a network) without random access.
 
-- The Arrow IPC **file** format (a.k.a. Feather v2) for :meth:`Dataset.save`,
-  :meth:`Dataset.load` and :meth:`Dataset.dump`. This format embeds a footer
-  and requires random access to read, so it is only used with seekable files.
-- The Arrow IPC **stream** format for :meth:`Dataset.stream` and
-  :meth:`Dataset.from_stream`, which can be produced and consumed sequentially
-  (e.g., over a network).
+Also includes shared Arrow <-> Dataset conversion helpers (:func:`build_schema`,
+:func:`dataset_to_batches`, :func:`parse_header`, :func:`load_from_batches`,
+:func:`rows_per_batch`), used by the on-disk Parquet format in
+:mod:`cryosparc.dataset.parquet`.
 
-In both cases the dataset's full field description and row count are stored in
-the Arrow schema metadata so that the exact dataset layout (including the order
-of fields and the distinction between scalar and multi-dimensional columns) can
-be reconstructed on load.
-
-Memory notes:
-
-- When saving/streaming, record batches are built as zero-copy views into the
-  dataset's own memory for numeric columns. Only string columns are copied
-  (Arrow requires contiguous offset/data buffers for strings).
-- When loading, the destination dataset is fully pre-allocated up front and each
-  record batch is written directly into dataset memory, so only a single batch
-  is ever materialized at a time.
+The dataset's full field description and row count are stored in the Arrow
+schema metadata so the exact dataset layout (including the order of fields
+and the distinction between scalar and multi-dimensional columns) is
+reconstructed on load.
 """
+
+# Memory notes:
+#
+# - When saving/streaming, record batches are built as zero-copy views into the
+#   dataset's own memory for numeric columns. Only string columns are copied
+#   (Arrow requires contiguous offset/data buffers for strings).
+# - When loading, the destination dataset is fully pre-allocated up front and
+#   each record batch is written directly into dataset memory, so only a single
+#   batch is ever materialized at a time.
 
 import io
 from pathlib import PurePath
@@ -54,7 +54,7 @@ _TARGET_BATCH_BYTES = EIGHT_MIB
 
 
 # ==============================================================================
-# Arrow writing/serialization
+# Shared Arrow <-> Dataset conversion helpers
 # ==============================================================================
 
 
@@ -78,13 +78,19 @@ def _field_arrow_type(field: Field) -> pa.DataType:
     return pa_type
 
 
-def _build_schema(dset: "Dataset", descr: List[Field], compression: Literal["lz4", None]) -> pa.Schema:
+def build_schema(dset: "Dataset", descr: List[Field], compression: Optional[str]) -> pa.Schema:
+    """
+    Build an Arrow schema for the given field description, embedding the dataset
+    header (row count + field description + compression codec) as schema
+    metadata. Raises ``TypeError`` for unsupported (e.g., complex) columns.
+    """
     pa_fields = [pa.field(f[0], _field_arrow_type(f)) for f in descr]
     header = DatasetHeader(length=len(dset), dtype=descr, compression=compression)
     return pa.schema(pa_fields, metadata={_METADATA_KEY: encode_dataset_header(header)})
 
 
-def _rows_per_batch(descr: Sequence[Field]) -> int:
+def rows_per_batch(descr: Sequence[Field]) -> int:
+    """Number of rows that keeps a record batch near ``_TARGET_BATCH_BYTES``."""
     rowsize = 0
     for field in descr:
         dt = n.dtype(fielddtype(field))
@@ -115,11 +121,15 @@ def _column_to_array(dset: "Dataset", field: Field, offset: int, length: int, pa
     return pa.array(sub, type=pa_type)
 
 
-def _dataset_to_batches(dset: "Dataset", schema: pa.Schema, descr: List[Field]) -> Iterator[pa.RecordBatch]:
+def dataset_to_batches(dset: "Dataset", schema: pa.Schema, descr: List[Field]) -> Iterator[pa.RecordBatch]:
+    """
+    Yield the dataset as a sequence of Arrow record batches (near ~8MiB each)
+    built as zero-copy views into dataset memory for numeric columns.
+    """
     nrow = len(dset)
     if nrow == 0:
         return
-    per_batch = _rows_per_batch(descr)
+    per_batch = rows_per_batch(descr)
     pa_types = [schema.field(i).type for i in range(len(descr))]
     for offset in range(0, nrow, per_batch):
         length = min(per_batch, nrow - offset)
@@ -127,37 +137,78 @@ def _dataset_to_batches(dset: "Dataset", schema: pa.Schema, descr: List[Field]) 
         yield pa.record_batch(arrays, schema=schema)
 
 
+def parse_header(schema: pa.Schema) -> DatasetHeader:
+    """
+    Decode the embedded :class:`DatasetHeader` from Arrow schema metadata.
+    """
+    metadata = schema.metadata or {}
+    raw = metadata.get(_METADATA_KEY)
+    if raw is None:
+        raise DatasetLoadError("Arrow dataset is missing CryoSPARC schema metadata")
+    return decode_dataset_header(raw)
+
+
+def _write_batch_into_dataset(dset: "Dataset", field: Field, array: pa.Array, offset: int, length: int):
+    dt = n.dtype(fielddtype(field))
+    col = dset[field[0]]
+    if dt.base.kind == "O":
+        col[offset : offset + length] = array.to_numpy(zero_copy_only=False)
+    elif dt.shape:
+        values = array
+        for _ in range(len(dt.shape)):
+            values = values.flatten()
+        col[offset : offset + length] = values.to_numpy(zero_copy_only=False).reshape((length, *dt.shape))
+    else:
+        col[offset : offset + length] = array.to_numpy(zero_copy_only=False)
+
+
+def load_from_batches(
+    cls: Type["Dataset"],
+    schema: pa.Schema,
+    batches: Iterable[pa.RecordBatch],
+    prefixes: Optional[Sequence[str]],
+    fields: Optional[Sequence[str]],
+) -> "Dataset":
+    """
+    Pre-allocate a dataset from the header embedded in ``schema``, then write
+    each incoming record batch directly into dataset memory. Only a single batch
+    is materialized at a time. Batches may contain a subset of columns (e.g.,
+    when the caller has already applied column projection).
+    """
+    header = parse_header(schema)
+    descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
+    descr_by_name = {field[0]: field for field in descr}
+
+    dset = cls.allocate(0, descr)
+    dset._data.addrows(header["length"])
+
+    offset = 0
+    for batch in batches:
+        names = batch.schema.names
+        for index, name in enumerate(names):
+            field = descr_by_name.get(name)
+            if field is None:
+                continue  # skip fields that were not selected
+            _write_batch_into_dataset(dset, field, batch.column(index), offset, batch.num_rows)
+        offset += batch.num_rows
+    return dset
+
+
+# ==============================================================================
+# Arrow IPC stream format (streaming wire format)
+# ==============================================================================
+
+
 def _write_options(compression: Optional[str]) -> Optional["pa.ipc.IpcWriteOptions"]:
     return pa.ipc.IpcWriteOptions(compression=compression) if compression else None
-
-
-def write_arrow_file(
-    dset: "Dataset",
-    sink: Union[str, PurePath, IO[bytes]],
-    *,
-    compression: Literal["lz4", None] = "lz4",
-):
-    """
-    Write the dataset to ``sink`` in the Arrow IPC file format (Feather v2).
-
-    ``sink`` may be a file path or any writable binary file object.
-    """
-    descr = dset.descr()
-    schema = _build_schema(dset, descr, compression)  # raises early on complex columns
-    with pa.ipc.new_file(sink, schema, options=_write_options(compression)) as writer:
-        for batch in _dataset_to_batches(dset, schema, descr):
-            writer.write_batch(batch)
-
-
-# ==============================================================================
-# Arrow streaming
-# ==============================================================================
 
 
 class _ChunkSink(io.RawIOBase):
     """
     Writable file object that buffers writes so they can be yielded
     incrementally while an Arrow stream writer produces them.
+
+    :meta private:
     """
 
     def __init__(self):
@@ -189,98 +240,17 @@ def stream_arrow(dset: "Dataset", *, compression: Literal["lz4", None] = None) -
     sequential consumers (e.g., sending over a network) that cannot seek.
     """
     descr = dset.descr()
-    schema = _build_schema(dset, descr, compression)  # raises early on complex columns
+    schema = build_schema(dset, descr, compression)  # raises early on complex columns
     sink = _ChunkSink()
     writer = pa.ipc.new_stream(sink, schema, options=_write_options(compression))
     try:
         yield from sink.drain()  # schema message
-        for batch in _dataset_to_batches(dset, schema, descr):
+        for batch in dataset_to_batches(dset, schema, descr):
             writer.write_batch(batch)
             yield from sink.drain()
     finally:
         writer.close()
     yield from sink.drain()  # end-of-stream marker
-
-
-# ==============================================================================
-# Arrow loading/deserialization
-# ==============================================================================
-
-
-def _parse_header(schema: pa.Schema) -> DatasetHeader:
-    metadata = schema.metadata or {}
-    raw = metadata.get(_METADATA_KEY)
-    if raw is None:
-        raise DatasetLoadError("Arrow dataset is missing CryoSPARC schema metadata")
-    return decode_dataset_header(raw)
-
-
-def _write_batch_into_dataset(dset: "Dataset", field: Field, array: pa.Array, offset: int, length: int):
-    dt = n.dtype(fielddtype(field))
-    col = dset[field[0]]
-    if dt.base.kind == "O":
-        col[offset : offset + length] = array.to_numpy(zero_copy_only=False)
-    elif dt.shape:
-        values = array
-        for _ in range(len(dt.shape)):
-            values = values.flatten()
-        col[offset : offset + length] = values.to_numpy(zero_copy_only=True).reshape((length, *dt.shape))
-    else:
-        col[offset : offset + length] = array.to_numpy(zero_copy_only=True)
-
-
-def _load_from_batches(
-    cls: Type["Dataset"],
-    schema: pa.Schema,
-    batches: Iterable[pa.RecordBatch],
-    prefixes: Optional[Sequence[str]],
-    fields: Optional[Sequence[str]],
-) -> "Dataset":
-    header = _parse_header(schema)
-    descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
-    descr_by_name = {field[0]: field for field in descr}
-
-    # Pre-allocate the full dataset, then write each batch directly into memory.
-    dset = cls.allocate(0, descr)
-    dset._data.addrows(header["length"])
-
-    offset = 0
-    for batch in batches:
-        names = batch.schema.names
-        for index, name in enumerate(names):
-            field = descr_by_name.get(name)
-            if field is None:
-                continue  # skip fields that were not selected
-            _write_batch_into_dataset(dset, field, batch.column(index), offset, batch.num_rows)
-        offset += batch.num_rows
-    return dset
-
-
-def load_arrow_file(
-    cls: Type["Dataset"],
-    file: Union[str, PurePath, IO[bytes]],
-    *,
-    prefixes: Optional[Sequence[str]] = None,
-    fields: Optional[Sequence[str]] = None,
-) -> "Dataset":
-    """
-    Load a dataset from the Arrow IPC file format (Feather v2). Requires a
-    seekable source (file path or seekable file object).
-    """
-    if isinstance(file, (str, PurePath)):
-        source: pa.NativeFile = pa.memory_map(str(file), "r")
-        close_source = True
-    else:
-        source = file  # type: ignore[assignment]
-        close_source = False
-
-    try:
-        reader = pa.ipc.open_file(source)
-        batches = (reader.get_batch(i) for i in range(reader.num_record_batches))
-        return _load_from_batches(cls, reader.schema, batches, prefixes, fields)
-    finally:
-        if close_source:
-            source.close()
 
 
 def load_arrow_stream(
@@ -295,19 +265,4 @@ def load_arrow_stream(
     not require a seekable source.
     """
     reader = pa.ipc.open_stream(source)
-    return _load_from_batches(cls, reader.schema, reader, prefixes, fields)
-
-
-def inspect_arrow_file(file: Union[str, PurePath, "io.IOBase"]) -> DatasetHeader:
-    """Read just the schema metadata (length + field description) from a file."""
-    if isinstance(file, (str, PurePath)):
-        source: pa.NativeFile = pa.memory_map(str(file), "r")
-        close_source = True
-    else:
-        source = file  # type: ignore[assignment]
-        close_source = False
-    try:
-        return _parse_header(pa.ipc.open_file(source).schema)
-    finally:
-        if close_source:
-            source.close()
+    return load_from_batches(cls, reader.schema, reader, prefixes, fields)

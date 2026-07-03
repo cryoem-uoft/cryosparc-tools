@@ -79,9 +79,9 @@ NUMPY_FORMAT = 1
 Numpy-array .cs file format. Same as ``DEFAULT_FORMAT``.
 """
 
-ARROW_FORMAT = 2
+PARQUET_FORMAT = 2
 """
-Compressed Arrow IPC file format (Feather). Same as ``NEWEST_FORMAT``.
+Apache Parquet on-disk file format. Same as ``NEWEST_FORMAT``.
 """
 
 DEFAULT_FORMAT = NUMPY_FORMAT
@@ -89,14 +89,14 @@ DEFAULT_FORMAT = NUMPY_FORMAT
 Default save .cs file format. Same as ``NUMPY_FORMAT``.
 """
 
-NEWEST_FORMAT = ARROW_FORMAT
+NEWEST_FORMAT = PARQUET_FORMAT
 """
-Newest save .cs file format. Same as ``ARROW_FORMAT``.
+Newest save .cs file format. Same as ``PARQUET_FORMAT``.
 """
 
 FORMAT_MAGIC_PREFIXES = {
     NUMPY_FORMAT: b"\x93NUMPY",  # .npy file format
-    ARROW_FORMAT: b"ARROW1",  # .arrow/feather IPC file format
+    PARQUET_FORMAT: b"PAR1",  # Apache Parquet file format
 }
 MAGIC_PREFIX_FORMATS = {v: k for k, v in FORMAT_MAGIC_PREFIXES.items()}  # inverse dict
 
@@ -551,14 +551,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             with open(file, "rb") as f:
                 prefix = f.read(6)
                 f.seek(0)
-            if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
+            if prefix.startswith(FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]):
                 from .numpy import inspect_numpy_file
 
                 return inspect_numpy_file(file)
-            elif prefix == FORMAT_MAGIC_PREFIXES[ARROW_FORMAT]:
-                from .arrow import inspect_arrow_file
+            elif prefix.startswith(FORMAT_MAGIC_PREFIXES[PARQUET_FORMAT]):
+                from .parquet import inspect_parquet_file
 
-                return inspect_arrow_file(file)
+                return inspect_parquet_file(file)
             else:
                 raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
         except Exception as err:
@@ -577,9 +577,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Read a dataset from path or file handle.
 
         Datasets are stored on disk either in the usual numpy array format
-        (``NUMPY_FORMAT``, created by ``numpy.save()``) or in the Apache Arrow
-        IPC file format (``ARROW_FORMAT``, a.k.a. Feather). Both formats require
-        a seekable file handle when loading from an already-open handle.
+        (``NUMPY_FORMAT``, created by ``numpy.save()``) or in the Apache Parquet
+        format (``PARQUET_FORMAT``). Both formats require a seekable file handle
+        when loading from an already-open handle.
 
         To load a dataset from a sequential (non-seekable) byte stream produced
         by :meth:`stream`, use :meth:`from_stream` or :meth:`from_iterator`
@@ -602,16 +602,17 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             with bopen(file, "rb") as f:
                 prefix = f.read(6)
                 f.seek(0)
-                if prefix == FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]:
-                    from .numpy import load_numpy_file
+            if prefix.startswith(FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]):
+                from .numpy import load_numpy_file
 
-                    return load_numpy_file(cls, file, prefixes=prefixes, fields=fields)
-                elif prefix == FORMAT_MAGIC_PREFIXES[ARROW_FORMAT]:
-                    from .arrow import load_arrow_file
+                return load_numpy_file(cls, file, prefixes=prefixes, fields=fields)
+            elif prefix.startswith(FORMAT_MAGIC_PREFIXES[PARQUET_FORMAT]):
+                from .parquet import load_parquet_file
 
-                    return load_arrow_file(cls, file, prefixes=prefixes, fields=fields)
-                else:
-                    raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
+                return load_parquet_file(cls, file, prefixes=prefixes, fields=fields)
+            else:
+                raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
+
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 
@@ -659,15 +660,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Save a dataset to the given path or I/O buffer.
 
         By default, saves as a numpy record array in the .npy format. Specify
-        ``format=ARROW_FORMAT`` to save in the Apache Arrow IPC file format
-        (a.k.a. Feather), which is faster and results in a smaller file size but
-        is not numpy-compatible.
+        ``format=PARQUET_FORMAT`` to save in the Apache Parquet format, which is
+        more compact but is not numpy-compatible.
 
         Args:
             file (str | Path | IO): Writeable file path or handle
             format (int, optional): Must be of the constants ``DEFAULT_FORMAT``,
                 ``NUMPY_FORMAT`` (same as ``DEFAULT_FORMAT``), or
-                ``ARROW_FORMAT``. Defaults to ``DEFAULT_FORMAT``.
+                ``PARQUET_FORMAT``. Defaults to ``DEFAULT_FORMAT``.
 
         Raises:
             TypeError: If invalid format specified
@@ -679,14 +679,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         Write a dataset to the given writable byte stream.
 
-        Like :meth:`save`, but takes an already-open writable file object. For
-        ``ARROW_FORMAT``, the handle must be writable (the Arrow IPC file format
-        is written sequentially).
+        Like :meth:`save`, but takes an already-open writable file object.
 
         Args:
             file (IO): Writeable file handle
-            format (int, optional): One of ``NUMPY_FORMAT`` or ``ARROW_FORMAT``.
-                Defaults to ``DEFAULT_FORMAT``.
+            format (int, optional): One of ``NUMPY_FORMAT`` or
+                ``PARQUET_FORMAT``. Defaults to ``DEFAULT_FORMAT``.
 
         Raises:
             TypeError: If invalid format specified
@@ -695,10 +693,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             from .numpy import write_numpy_file
 
             write_numpy_file(self, file)
-        elif format == ARROW_FORMAT:
-            from .arrow import write_arrow_file
+        elif format == PARQUET_FORMAT:
+            from .parquet import write_parquet_file
 
-            write_arrow_file(self, file, compression="lz4")
+            write_parquet_file(self, file)
         else:
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
@@ -710,12 +708,12 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         Note:
             This produces the Arrow IPC **stream** format, which differs from
-            the Arrow IPC **file** format written by :meth:`save`/:meth:`dump`.
+            the on-disk Parquet format written by :meth:`save`/:meth:`dump`.
             Use :meth:`from_stream` (not :meth:`load`) to read it back.
 
         Args:
             compression (Literal["lz4", None], optional): Buffer compression
-                codec. Defaults to None (uncompressed).
+                codec. Defaults to "lz4".
 
         Yields:
             bytes: Dataset stream chunks
