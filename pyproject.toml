@@ -75,3 +75,8 @@ exclude = [
 line-length = 120
 extend-include = ["*.ipynb"]
 extend-exclude = [".venv*", "cryosparc/include"]
+
+[tool.pytest.ini_options]
+markers = [
+    "io: marks tests for data input/output testing (datasets, etc.)",
+]

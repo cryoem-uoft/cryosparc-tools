@@ -369,6 +369,7 @@ def test_copy(benchmark, dset: Dataset):
     assert len(new_dset) == len(dset)
 
 
+@pytest.mark.io
 def test_streaming_bytes(benchmark, dset: Dataset):
     def _stream():
         stream = BytesIO()
@@ -377,10 +378,12 @@ def test_streaming_bytes(benchmark, dset: Dataset):
         return stream
 
     stream = benchmark(_stream)
+    stream.seek(0)
     result = Dataset.from_stream(stream)
     assert result == dset
 
 
+@pytest.mark.io
 def test_from_streaming_bytes(benchmark, big_dset: Dataset):
     stream = BytesIO()
     for dat in big_dset.stream(compression="lz4"):
@@ -453,26 +456,30 @@ def test_load_prefixes_fields(benchmark, big_dset_path, fields):
     assert result.descr() == expected_fields
 
 
+@pytest.mark.io
 def test_save_format_numpy(benchmark, tmp_path, big_dset: Dataset):
     dset_path = tmp_path / "big_dset_numpy.cs"
     benchmark(big_dset.save, dset_path, format=NUMPY_FORMAT)
     result = Dataset.load(dset_path)
-    assert len(result) == len(big_dset)
+    assert result == big_dset
 
 
+@pytest.mark.io
 def test_save_format_newest(benchmark, tmp_path, big_dset: Dataset):
     dset_path = tmp_path / "big_dset_new.cs"
     benchmark(big_dset.save, dset_path, format=NEWEST_FORMAT)
     result = Dataset.load(dset_path)
-    assert len(result) == len(big_dset)
+    assert result == big_dset
 
 
+@pytest.mark.io
 def test_load_format_numpy(benchmark, big_dset_path, fields):
     result = benchmark(Dataset.load, big_dset_path)
     assert len(result) == 1961726
     assert result.descr() == fields
 
 
+@pytest.mark.io
 def test_load_format_newest(benchmark, big_dset, tmp_path):
     dset_path = tmp_path / "big_dset_newest.cs"
     big_dset.save(dset_path, format=NEWEST_FORMAT)
@@ -480,12 +487,14 @@ def test_load_format_newest(benchmark, big_dset, tmp_path):
     assert len(result) == len(big_dset)
 
 
+@pytest.mark.io
 def test_load_format_numpy_uid(benchmark, big_dset_path):
     result = benchmark(Dataset.load, big_dset_path, fields=["uid"])
     assert len(result) == 1961726
     assert result.fields() == ["uid"]
 
 
+@pytest.mark.io
 def test_load_format_newest_uid(benchmark, big_dset, tmp_path):
     dset_path = tmp_path / "big_dset_newest.cs"
     big_dset.save(dset_path, format=NEWEST_FORMAT)
