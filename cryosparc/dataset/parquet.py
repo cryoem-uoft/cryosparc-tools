@@ -18,10 +18,11 @@ so the exact dataset layout is reconstructed on load.
 from pathlib import PurePath
 from typing import IO, TYPE_CHECKING, Optional, Sequence, Type, Union
 
+import pyarrow as pa
 import pyarrow.parquet as pq
 
-from .arrow import build_schema, dataset_to_batches, load_from_batches, parse_header, rows_per_batch
-from .dtype import DatasetHeader, filter_descr
+from .arrow import build_schema, dataset_to_batches, load_from_batches, parse_header
+from .dtype import DatasetHeader, filter_descr, rows_per_batch
 
 if TYPE_CHECKING:
     from . import Dataset
@@ -93,6 +94,25 @@ def load_parquet_file(
     columns = [field[0] for field in descr]
     batches = pf.iter_batches(batch_size=rows_per_batch(descr), columns=columns)
     return load_from_batches(cls, schema, batches, prefixes, fields)
+
+
+def load_parquet_table(
+    file: Union[str, PurePath, IO[bytes]],
+    *,
+    prefixes: Optional[Sequence[str]] = None,
+    fields: Optional[Sequence[str]] = None,
+) -> pa.Table:
+    """
+    Load a Parquet file directly into an Arrow table without constructing an
+    intermediate dataset. Only the requested columns are read from disk, and the
+    embedded schema metadata (including fixed-size-list column types) is
+    preserved on the returned table.
+    """
+    pf = _open_parquet_file(file)
+    header = parse_header(pf.schema_arrow)
+    descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
+    columns = [field[0] for field in descr]
+    return pf.read(columns=columns)
 
 
 def inspect_parquet_file(file: Union[str, PurePath, IO[bytes]]) -> DatasetHeader:

@@ -588,9 +588,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Args:
             file (str | Path | IO): Readable file path or seekable handle.
             prefixes (list[str], optional): Which field prefixes to load. If
-                not specified, loads either all or specified `fields`.
+                not specified, loads either all or specified `fields`. Defaults
+                to None.
             fields (list[str], optional): Which fields to load. If not
-                specified, loads either all or specified `prefixes`.
+                specified, loads either all or specified `prefixes`. Defaults
+                to None.
 
         Raises:
             DatasetLoadError: If cannot load dataset file.
@@ -613,6 +615,49 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             else:
                 raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
 
+        except Exception as err:
+            raise DatasetLoadError(f"Could not load dataset from file {file}") from err
+
+    @classmethod
+    def load_arrow(
+        cls,
+        file: Union[str, PurePath, IO[bytes]],
+        *,
+        prefixes: Optional[Sequence[str]] = None,
+        fields: Optional[Sequence[str]] = None,
+    ):
+        """
+        Load a dataset in either Numpy or Parquet format as an Arrow table.
+
+        Args:
+            file (str | Path | IO): Readable file path or seekable handle.
+            prefixes (list[str], optional): Which field prefixes to load. If
+                not specified, loads either all or specified `fields`. Defaults
+                to None.
+            fields (list[str], optional): Which fields to load. If not
+                specified, loads either all or specified `prefixes`. Defaults
+                to None.
+
+        Raises:
+            DatasetLoadError: If cannot load dataset file.
+
+        Returns:
+            pyarrow.Table: loaded table.
+        """
+        try:
+            with bopen(file, "rb") as f:
+                prefix = f.read(6)
+                f.seek(0)
+            if prefix.startswith(FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]):
+                from .numpy import load_numpy_table
+
+                return load_numpy_table(file, prefixes=prefixes, fields=fields)
+            elif prefix.startswith(FORMAT_MAGIC_PREFIXES[PARQUET_FORMAT]):
+                from .parquet import load_parquet_table
+
+                return load_parquet_table(file, prefixes=prefixes, fields=fields)
+            else:
+                raise ValueError(f"Could not determine dataset format (prefix is {prefix})")
         except Exception as err:
             raise DatasetLoadError(f"Could not load dataset from file {file}") from err
 

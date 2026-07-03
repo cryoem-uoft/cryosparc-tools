@@ -32,7 +32,6 @@ from typing import IO, TYPE_CHECKING, Iterable, Iterator, List, Literal, Optiona
 import numpy as n
 import pyarrow as pa
 
-from ..constants import EIGHT_MIB
 from ..errors import DatasetLoadError
 from .dtype import (
     DatasetHeader,
@@ -41,6 +40,7 @@ from .dtype import (
     encode_dataset_header,
     fielddtype,
     filter_descr,
+    rows_per_batch,
 )
 
 if TYPE_CHECKING:
@@ -48,9 +48,6 @@ if TYPE_CHECKING:
 
 _METADATA_KEY = b"cryosparc-dataset-header"
 """Arrow schema metadata key holding the JSON-encoded :class:`DatasetHeader`."""
-
-_TARGET_BATCH_BYTES = EIGHT_MIB
-"""Approximate target size (in bytes) of each record batch when saving."""
 
 
 # ==============================================================================
@@ -78,29 +75,55 @@ def _field_arrow_type(field: Field) -> pa.DataType:
     return pa_type
 
 
-def build_schema(dset: "Dataset", descr: List[Field], compression: Optional[str]) -> pa.Schema:
+def build_schema_from_descr(descr: List[Field], length: int, compression: Optional[str]) -> pa.Schema:
     """
-    Build an Arrow schema for the given field description, embedding the dataset
-    header (row count + field description + compression codec) as schema
-    metadata. Raises ``TypeError`` for unsupported (e.g., complex) columns.
+    Build an Arrow schema for the given field description and row count,
+    embedding the dataset header (row count + field description + compression
+    codec) as schema metadata. Raises ``TypeError`` for unsupported (e.g.,
+    complex) columns.
     """
     pa_fields = [pa.field(f[0], _field_arrow_type(f)) for f in descr]
-    header = DatasetHeader(length=len(dset), dtype=descr, compression=compression)
+    header = DatasetHeader(length=length, dtype=descr, compression=compression)
     return pa.schema(pa_fields, metadata={_METADATA_KEY: encode_dataset_header(header)})
 
 
-def rows_per_batch(descr: Sequence[Field]) -> int:
-    """Number of rows that keeps a record batch near ``_TARGET_BATCH_BYTES``."""
-    rowsize = 0
-    for field in descr:
-        dt = n.dtype(fielddtype(field))
-        if dt.base.kind == "O":
-            rowsize += 8  # rough estimate for a string entry
-        elif dt.shape:
-            rowsize += dt.base.itemsize * int(n.prod(dt.shape))
-        else:
-            rowsize += dt.base.itemsize
-    return max(1, _TARGET_BATCH_BYTES // max(rowsize, 1))
+def build_schema(dset: "Dataset", descr: List[Field], compression: Optional[str]) -> pa.Schema:
+    """
+    Build an Arrow schema for the given dataset and field description. See
+    :func:`build_schema_from_descr`.
+    """
+    return build_schema_from_descr(descr, len(dset), compression)
+
+
+def numpy_to_arrow_array(values: n.ndarray, pa_type: pa.DataType) -> pa.Array:
+    """
+    Convert a single numpy column (extracted from a record array or dataset)
+    into an Arrow array matching ``pa_type``.
+
+    Handles fixed-width byte/unicode string columns (decoded to UTF-8), Python
+    object string columns, and multi-dimensional columns (converted to nested
+    fixed-size lists). Numeric columns are copied into a contiguous Arrow array.
+    """
+    from ..util import hashcache
+
+    if values.dtype.char == "S":
+        # Fixed-width byte strings (the on-disk .npy string representation).
+        decoded = n.vectorize(hashcache(bytes.decode), otypes="O")(values) if values.size else values.astype(object)
+        return pa.array(decoded, type=pa.large_string())
+    if values.dtype.char == "U":
+        decoded = n.vectorize(hashcache(str), otypes="O")(values) if values.size else values.astype(object)
+        return pa.array(decoded, type=pa.large_string())
+    if values.dtype.kind == "O":
+        # Python string objects.
+        return pa.array(values, type=pa.large_string())
+    if values.ndim > 1:
+        # Multi-dimensional: build (possibly nested) fixed-size lists from the
+        # base values outward, one list level per trailing dimension.
+        arr: pa.Array = pa.array(n.ascontiguousarray(values).reshape(-1))
+        for dim in reversed(values.shape[1:]):
+            arr = pa.FixedSizeListArray.from_arrays(arr, dim)
+        return arr
+    return pa.array(n.ascontiguousarray(values), type=pa_type)
 
 
 def _column_to_array(dset: "Dataset", field: Field, offset: int, length: int, pa_type: pa.DataType) -> pa.Array:

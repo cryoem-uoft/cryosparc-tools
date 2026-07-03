@@ -7,12 +7,16 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Type, TypedDic
 
 import numpy as n
 
+from ..constants import EIGHT_MIB
 from ..errors import DatasetLoadError
 from ..spec import DType, Field
 from .core import Data, DsetType
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
+
+_TARGET_BATCH_BYTES = EIGHT_MIB
+"""Approximate target size (in bytes) of each record batch when saving."""
 
 
 class DatasetHeader(TypedDict):
@@ -157,3 +161,17 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         raise DatasetLoadError(
             f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}"
         ) from e
+
+
+def rows_per_batch(descr: Sequence[Field]) -> int:
+    """Number of rows that keeps a record batch near ``_TARGET_BATCH_BYTES``."""
+    rowsize = 0
+    for field in descr:
+        dt = n.dtype(fielddtype(field))
+        if dt.base.kind == "O":
+            rowsize += 8  # rough estimate for a string entry
+        elif dt.shape:
+            rowsize += dt.base.itemsize * int(n.prod(dt.shape))
+        else:
+            rowsize += dt.base.itemsize
+    return max(1, _TARGET_BATCH_BYTES // max(rowsize, 1))
