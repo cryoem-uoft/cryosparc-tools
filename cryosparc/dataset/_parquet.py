@@ -4,6 +4,8 @@ Apache Parquet on-disk file format support for CryoSPARC datasets.
 The dataset's field description and row count are stored in the Arrow schema
 metadata, which PyArrow preserves inside the Parquet file's key/value metadata,
 so the exact dataset layout is reconstructed on load.
+
+:meta private:
 """
 
 # Datasets are written to and read from Parquet via Arrow record batches. Batch
@@ -21,7 +23,7 @@ from typing import IO, TYPE_CHECKING, Optional, Sequence, Type, Union
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from .arrow import build_schema, dataset_to_batches, load_from_batches, parse_header
+from ._arrow import build_schema, dataset_to_batches, load_from_batches, parse_header
 from .dtype import DatasetHeader, filter_descr, rows_per_batch
 
 if TYPE_CHECKING:

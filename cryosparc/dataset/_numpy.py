@@ -1,5 +1,7 @@
 """
-Default Numpy file format support for CryoSPARC datasets.
+Numpy file format support for CryoSPARC datasets.
+
+:meta private:
 """
 
 from pathlib import PurePath
@@ -27,6 +29,10 @@ def write_numpy_file(
     dset: "Dataset",
     file: Union[str, PurePath, IO[bytes]],
 ):
+    """
+    Write the dataset to ``file`` in the Numpy .npy format. Written as a single
+    record array. Python strings are stored as byte arrays.
+    """
     n.save(file, dset.to_records(fixed=True), allow_pickle=False)
 
 
@@ -41,6 +47,9 @@ def load_numpy_file(
     prefixes: Optional[Sequence[str]] = None,
     fields: Optional[Sequence[str]] = None,
 ):
+    """
+    Load a .npy record-array directly into a CryoSPARC dataset.
+    """
     # Use mmap to avoid loading full record array into memory
     # cast path to a string for older numpy/python
     mmap_mode, f = ("r", str(file)) if _use_mmap(file) else (None, file)
@@ -72,19 +81,12 @@ def load_numpy_table(
     fields: Optional[Sequence[str]] = None,
 ):
     """
-    Load a .npy record-array file directly into an Arrow table without
-    constructing an intermediate dataset.
-
-    The file is read in chunks (memory-mapped when possible) and each chunk is
-    converted into an Arrow record batch, so only a single chunk is materialized
-    at a time. The returned table uses the same field-type conventions as the
-    Parquet format (large UTF-8 strings, fixed-size lists for multi-dimensional
-    columns) and carries the dataset header as schema metadata.
+    Load a .npy record-array file as an Arrow table.
     """
 
     import pyarrow as pa
 
-    from .arrow import build_schema_from_descr, numpy_to_arrow_array
+    from ._arrow import build_schema_from_descr, numpy_to_arrow_array
 
     # Use mmap to avoid loading full record array into memory
     mmap_mode, f = ("r", str(file)) if _use_mmap(file) else (None, file)
@@ -92,7 +94,7 @@ def load_numpy_table(
     size = len(indata)
     chunk_size = rows_per_batch(indata.dtype.descr) if mmap_mode else size
 
-    # ``descr_raw`` preserves the on-disk numpy dtypes (used to index columns out
+    # descr_raw preserves the on-disk numpy dtypes (used to index columns out
     # of the record array), while ``descr`` normalizes them (S/U -> object,
     # shape metadata) to match the Arrow field types.
     descr_raw = filter_descr(indata.dtype.descr, keep_prefixes=prefixes, keep_fields=fields)

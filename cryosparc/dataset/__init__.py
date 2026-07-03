@@ -13,11 +13,13 @@ The only required field is ``uid``. This field is automatically added to every
 new dataset.
 
 Datasets are created in on the following ways:
+
 - allocated empty with a specific size and field definitions
 - from a previous dataset source that already has uids (file, record array)
 - by appending datasets to each other or joining on ``uid``
 
 Dataset supports:
+
 - adding new rows (via appending)
 - adding new fields
 - joining fields from another dataset on UID
@@ -81,7 +83,7 @@ Numpy-array .cs file format. Same as ``DEFAULT_FORMAT``.
 
 PARQUET_FORMAT = 2
 """
-Apache Parquet on-disk file format. Same as ``NEWEST_FORMAT``.
+Apache Parquet .cs file format. Same as ``NEWEST_FORMAT``.
 """
 
 DEFAULT_FORMAT = NUMPY_FORMAT
@@ -552,11 +554,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 prefix = f.read(6)
                 f.seek(0)
             if prefix.startswith(FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]):
-                from .numpy import inspect_numpy_file
+                from ._numpy import inspect_numpy_file
 
                 return inspect_numpy_file(file)
             elif prefix.startswith(FORMAT_MAGIC_PREFIXES[PARQUET_FORMAT]):
-                from .parquet import inspect_parquet_file
+                from ._parquet import inspect_parquet_file
 
                 return inspect_parquet_file(file)
             else:
@@ -605,11 +607,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 prefix = f.read(6)
                 f.seek(0)
             if prefix.startswith(FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]):
-                from .numpy import load_numpy_file
+                from ._numpy import load_numpy_file
 
                 return load_numpy_file(cls, file, prefixes=prefixes, fields=fields)
             elif prefix.startswith(FORMAT_MAGIC_PREFIXES[PARQUET_FORMAT]):
-                from .parquet import load_parquet_file
+                from ._parquet import load_parquet_file
 
                 return load_parquet_file(cls, file, prefixes=prefixes, fields=fields)
             else:
@@ -649,11 +651,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 prefix = f.read(6)
                 f.seek(0)
             if prefix.startswith(FORMAT_MAGIC_PREFIXES[NUMPY_FORMAT]):
-                from .numpy import load_numpy_table
+                from ._numpy import load_numpy_table
 
                 return load_numpy_table(file, prefixes=prefixes, fields=fields)
             elif prefix.startswith(FORMAT_MAGIC_PREFIXES[PARQUET_FORMAT]):
-                from .parquet import load_parquet_table
+                from ._parquet import load_parquet_table
 
                 return load_parquet_table(file, prefixes=prefixes, fields=fields)
             else:
@@ -683,7 +685,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             Dataset: loaded dataset.
         """
-        from .arrow import load_arrow_stream
+        from ._arrow import load_arrow_stream
 
         return load_arrow_stream(cls, source, prefixes=prefixes, fields=fields)
 
@@ -735,11 +737,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             TypeError: If invalid format specified
         """
         if format == NUMPY_FORMAT:
-            from .numpy import write_numpy_file
+            from ._numpy import write_numpy_file
 
             write_numpy_file(self, file)
         elif format == PARQUET_FORMAT:
-            from .parquet import write_parquet_file
+            from ._parquet import write_parquet_file
 
             write_parquet_file(self, file)
         else:
@@ -763,7 +765,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Yields:
             bytes: Dataset stream chunks
         """
-        from .arrow import stream_arrow
+        from ._arrow import stream_arrow
 
         yield from stream_arrow(self, compression=compression)
 

@@ -66,8 +66,11 @@ TYPE_TO_DSET_MAP = {
 
 
 def normalize_field(name: str, dtype: "DTypeLike") -> Field:
-    # Note: field name "uid" is always uint64, regardless of given dtype
-    # Note: sd
+    """
+    Note: field name "uid" is always uint64, regardless of given dtype
+
+    :meta private:
+    """
     dt = n.dtype(dtype)
     if name == "uid":
         return name, n.dtype(n.uint64).str
@@ -80,16 +83,19 @@ def normalize_field(name: str, dtype: "DTypeLike") -> Field:
 
 
 def fielddtype(field: Field) -> DType:
+    """:meta private:"""
     _, dt, *rest = field
     return (dt, rest[0]) if rest else dt
 
 
 def arraydtype(a: "NDArray") -> DType:
+    """:meta private:"""
     assert len(a.dtype.descr) == 1, "Cannot get dtype from record array"
     return (a.dtype.str, a.shape[1:]) if len(a.shape) > 1 else a.dtype.str
 
 
 def dtypestr(dtype: "DTypeLike") -> str:
+    """:meta private:"""
     dt = n.dtype(dtype)
     if dt.shape:
         shape = ",".join(map(str, dt.shape))
@@ -99,10 +105,12 @@ def dtypestr(dtype: "DTypeLike") -> str:
 
 
 def get_data_field(data: Data, field: str) -> Field:
+    """:meta private:"""
     return normalize_field(field, get_data_field_dtype(data, field))
 
 
 def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
+    """:meta private:"""
     t = data.type(field)
     if t == 0:
         raise KeyError(f"Unknown dataset field {field}")
@@ -119,9 +127,13 @@ def filter_descr(
     keep_prefixes: Optional[Sequence[str]] = None,
     keep_fields: Optional[Sequence[str]] = None,
 ) -> List[Field]:
-    # Get a filtered list of fields based on the user-specified prefixies
-    # and/or fields. Returns all fields if no filter params are specified.
-    # Always returns at least uid field, if it exists.
+    """
+    Get a filtered list of fields based on the user-specified prefixies
+    and/or fields. Returns all fields if no filter params are specified.
+    Always returns at least uid field, if it exists.
+
+    :meta private:
+    """
     filtered: List[Field] = []
     for field in descr:
         if (
@@ -135,10 +147,12 @@ def filter_descr(
 
 
 def encode_dataset_header(fields: DatasetHeader) -> bytes:
+    """:meta private:"""
     return json.dumps(fields).encode()
 
 
 def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
+    """:meta private:"""
     try:
         header = json.loads(data) if isinstance(data, bytes) else data
         assert isinstance(header, dict), f"Incorrect decoded header type (expected dict, got {type(header)})"
@@ -164,7 +178,13 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
 
 
 def rows_per_batch(descr: Sequence[Field]) -> int:
-    """Number of rows that keeps a record batch near ``_TARGET_BATCH_BYTES``."""
+    """
+    Number of rows that keeps a record batch near ``_TARGET_BATCH_BYTES``.
+    Used by Parquet and Numpy serialization to avoid allocating read/write
+    buffers that are too large.
+
+    :meta private:
+    """
     rowsize = 0
     for field in descr:
         dt = n.dtype(fielddtype(field))

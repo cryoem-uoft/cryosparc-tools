@@ -6,6 +6,9 @@ from cpython.mem cimport PyMem_Realloc, PyMem_Free
 
 # Mirror of equivalent C-datatype enumeration
 cpdef enum DsetType:
+    """
+    Dataset field type enumeration.
+    """
     T_F32 = 1
     T_F64 = 2
     T_C32 = 3
@@ -23,6 +26,9 @@ cpdef enum DsetType:
 
 
 cdef class Data:
+    """
+    Low-level dataset native backend interface.
+    """
     cdef dataset.Dset _handle
 
     def __cinit__(self, other = None):

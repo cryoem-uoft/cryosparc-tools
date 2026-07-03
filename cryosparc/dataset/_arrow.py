@@ -1,19 +1,19 @@
 """
-Apache Arrow (IPC stream) serialization for :class:`~cryosparc.dataset.Dataset`.
+Apache Arrow (IPC stream) serialization for Dataset.
 
-Implements the streaming wire format (:meth:`Dataset.stream` / :meth:`Dataset.from_stream`)
+Implements the streaming wire format (`Dataset.stream` / `Dataset.from_stream`)
 using the Arrow IPC **stream** format, which can be produced and consumed
 sequentially (e.g., over a network) without random access.
 
-Also includes shared Arrow <-> Dataset conversion helpers (:func:`build_schema`,
-:func:`dataset_to_batches`, :func:`parse_header`, :func:`load_from_batches`,
-:func:`rows_per_batch`), used by the on-disk Parquet format in
-:mod:`cryosparc.dataset.parquet`.
+Also includes shared Arrow <-> Dataset conversion helpers, used by the on-disk
+Parquet format in _parquet.py
 
 The dataset's full field description and row count are stored in the Arrow
 schema metadata so the exact dataset layout (including the order of fields
 and the distinction between scalar and multi-dimensional columns) is
 reconstructed on load.
+
+:meta private:
 """
 
 # Memory notes:

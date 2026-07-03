@@ -4,6 +4,10 @@ from typing import SupportsBytes
 __all__ = ["DsetType", "Data"]
 
 class MemoryView(SupportsBytes):  # Note: Supports buffer protocol.
+    """
+    Memory view of a dataset column.
+    """
+
     base: "Array"
     size: int
     itemsize: int
@@ -20,6 +24,10 @@ class MemoryView(SupportsBytes):  # Note: Supports buffer protocol.
     def is_f_contig(self) -> bool: ...
 
 class Array:
+    """
+    Array accessor class.
+    """
+
     memview: MemoryView
 
     def __len__(self) -> int: ...
@@ -27,6 +35,10 @@ class Array:
     def __setitem__(self, key: int | slice, item: bytes): ...
 
 class DsetType(int, Enum):
+    """
+    Dataset field type enumeration.
+    """
+
     T_F32 = ...
     T_F64 = ...
     T_C32 = ...
@@ -43,6 +55,10 @@ class DsetType(int, Enum):
     T_OBJ = ...
 
 class Data:
+    """
+    Low-level dataset native backend interface.
+    """
+
     def __init__(self, other: "Data" | None = None) -> None: ...
     def innerjoin(self, key: str, other: "Data") -> "Data": ...
     def totalsz(self) -> int: ...
