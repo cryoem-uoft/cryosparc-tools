@@ -1,5 +1,4 @@
 from io import BytesIO
-from tempfile import TemporaryFile
 
 import numpy as n
 import pytest
@@ -371,19 +370,13 @@ def test_copy(benchmark, dset: Dataset):
 
 
 def test_streaming_bytes(benchmark, dset: Dataset):
-    stream = BytesIO()
-
-    @benchmark
-    def _():
-        stream.seek(0)
-        stream.truncate()
-        total_bytes = 0
+    def _stream():
+        stream = BytesIO()
         for dat in dset.stream(compression="lz4"):
             stream.write(dat)
-            total_bytes += len(dat)
-        assert total_bytes > 0
+        return stream
 
-    stream.seek(0)
+    stream = benchmark(_stream)
     result = Dataset.from_stream(stream)
     assert result == dset
 
@@ -395,8 +388,7 @@ def test_from_streaming_bytes(benchmark, big_dset: Dataset):
 
     def load():
         stream.seek(0)
-        result = Dataset.from_stream(stream)
-        return result
+        return Dataset.from_stream(stream)
 
     result = benchmark(load)
     assert result == big_dset
@@ -419,12 +411,6 @@ def test_inspect(big_dset_path, fields):
     assert result["length"] == 1961726
     assert result["dtype"] == fields
     assert result["compression"] is None
-
-
-def test_load_format_numpy(benchmark, big_dset_path, fields):
-    result = benchmark(Dataset.load, big_dset_path)
-    assert len(result) == 1961726
-    assert result.descr() == fields
 
 
 def test_load_prefixes(benchmark, big_dset_path, fields):
@@ -467,55 +453,42 @@ def test_load_prefixes_fields(benchmark, big_dset_path, fields):
     assert result.descr() == expected_fields
 
 
-def test_save_format_numpy(benchmark, big_dset: Dataset):
-    with TemporaryFile() as f:
-
-        def _save():
-            f.seek(0)
-            f.truncate()
-            big_dset.save(f, format=NUMPY_FORMAT)
-
-        benchmark(_save)
-        f.seek(0)
-        result = Dataset.load(f)
-        assert len(result) == len(big_dset)
+def test_save_format_numpy(benchmark, tmp_path, big_dset: Dataset):
+    dset_path = tmp_path / "big_dset_numpy.cs"
+    benchmark(big_dset.save, dset_path, format=NUMPY_FORMAT)
+    result = Dataset.load(dset_path)
+    assert len(result) == len(big_dset)
 
 
-def test_save_format_newest(benchmark, big_dset: Dataset):
-    with TemporaryFile() as f:
-
-        @benchmark
-        def _():
-            f.seek(0)
-            f.truncate()
-            big_dset.save(f, format=NEWEST_FORMAT)
-
-        f.seek(0)
-        result = Dataset.load(f)
-        assert len(result) == len(big_dset)
+def test_save_format_newest(benchmark, tmp_path, big_dset: Dataset):
+    dset_path = tmp_path / "big_dset_new.cs"
+    benchmark(big_dset.save, dset_path, format=NEWEST_FORMAT)
+    result = Dataset.load(dset_path)
+    assert len(result) == len(big_dset)
 
 
-def test_load_format_newest(benchmark, big_dset):
-    with TemporaryFile() as f:
-        big_dset.save(f, format=NEWEST_FORMAT)
-        f.seek(0)
-
-        def _load():
-            f.seek(0)
-            return Dataset.load(f)
-
-        result = benchmark(_load)
-        assert len(result) == len(big_dset)
+def test_load_format_numpy(benchmark, big_dset_path, fields):
+    result = benchmark(Dataset.load, big_dset_path)
+    assert len(result) == 1961726
+    assert result.descr() == fields
 
 
-def test_load_format_newest_uid(benchmark, big_dset):
-    with TemporaryFile() as f:
-        big_dset.save(f, format=NEWEST_FORMAT)
-        f.seek(0)
+def test_load_format_newest(benchmark, big_dset, tmp_path):
+    dset_path = tmp_path / "big_dset_newest.cs"
+    big_dset.save(dset_path, format=NEWEST_FORMAT)
+    result = benchmark(Dataset.load, dset_path)
+    assert len(result) == len(big_dset)
 
-        def _load():
-            f.seek(0)
-            return Dataset.load(f, fields=["uid"])
 
-        result = benchmark(_load)
-        assert len(result) == len(big_dset)
+def test_load_format_numpy_uid(benchmark, big_dset_path):
+    result = benchmark(Dataset.load, big_dset_path, fields=["uid"])
+    assert len(result) == 1961726
+    assert result.fields() == ["uid"]
+
+
+def test_load_format_newest_uid(benchmark, big_dset, tmp_path):
+    dset_path = tmp_path / "big_dset_newest.cs"
+    big_dset.save(dset_path, format=NEWEST_FORMAT)
+    result = benchmark(Dataset.load, dset_path, fields=["uid"])
+    assert len(result) == len(big_dset)
+    assert result.fields() == ["uid"]
