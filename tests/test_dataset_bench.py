@@ -501,3 +501,19 @@ def test_load_format_newest_uid(benchmark, big_dset, tmp_path):
     result = benchmark(Dataset.load, dset_path, fields=["uid"])
     assert len(result) == len(big_dset)
     assert result.fields() == ["uid"]
+
+
+@pytest.mark.io
+def test_load_arrow_numpy(benchmark, big_dset_path, fields):
+    result = benchmark(Dataset.load_arrow, big_dset_path)
+    assert len(result) == 1961726
+    assert result.schema.names == [f[0] for f in fields]
+
+
+@pytest.mark.io
+def test_load_arrow_newest(benchmark, big_dset, tmp_path):
+    dset_path = tmp_path / "big_dset_newest.cs"
+    big_dset.save(dset_path, format=NEWEST_FORMAT)
+    result = benchmark(Dataset.load_arrow, dset_path)
+    assert len(result) == len(big_dset)
+    assert result.schema.names == [f[0] for f in big_dset.descr()]
