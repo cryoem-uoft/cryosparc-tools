@@ -167,6 +167,9 @@ class Project(BaseModel):
     detached: bool = False
     """
     """
+    detaching: bool = False
+    """
+    """
     generate_intermediate_results_settings: GenerateIntermediateResultsSettings = GenerateIntermediateResultsSettings()
     """
     """
@@ -181,10 +184,13 @@ class Project(BaseModel):
     imported_at: Optional[datetime.datetime] = None
     """
     """
-    import_status: Optional[Literal["importing", "moving", "complete", "failed", "accepted"]] = None
+    import_status: Literal["importing", "complete", "failed", "accepted", None] = None
     """
     """
     import_failed_job_count: int = 0
+    """
+    """
+    move_status: Literal["moving", "failed", None] = None
     """
     """
     project_stats: ProjectStats = ProjectStats()

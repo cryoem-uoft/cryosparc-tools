@@ -4820,10 +4820,24 @@ class ProjectsAPI(APINamespace):
 
         """
         ...
+    def accept(self, project_uid: str, /, *, path: Optional[str] = None) -> Project:
+        """
+        Accept a project that was failed to attach or move, allowing it to be modified.
+        Optionally provide the new directory where the project exists.
+        This will not fix any underlying issues with the project directory.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            path (str, optional): Defaults to None
+
+        Returns:
+            Project: Successful Response
+
+        """
+        ...
     def accept_failed_attach(self, project_uid: str, /) -> Project:
         """
-        Accept a project that was attached with failed import status, allowing it to be modified.
-        This will not fix any underlying issues with the project directory.
+        Deprecated, use POST /projects/{project_uid}:accept instead.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"

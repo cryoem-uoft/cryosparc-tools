@@ -189,12 +189,17 @@ class ProjectController(Controller[Project]):
             path (str | Path): New file system path for the project directory.
             wait (bool, optional): If True, wait for the move operation to
             complete before returning. Defaults to False.
+
+        Raise:
+            ProjectError: Project move could not be completed
         """
         self.cs.api.projects.move(self.uid, path=str(path))
-        self.model.import_status = "moving"  # backend will set this on next refresh
-        while wait and self.model.import_status == "moving":
+        self.model.move_status = "moving"  # backend will set this on next refresh
+        while wait and self.model.move_status == "moving":
             time.sleep(3)
             self.refresh()
+        if self.model.move_status == "failed":
+            raise ProjectError("Project move failed", project=self)
 
     def archive(self, *, wait: bool = False):
         """
