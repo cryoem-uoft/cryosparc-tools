@@ -288,7 +288,7 @@ class ProjectController(Controller[Project]):
         if not self.model.deleted and not self.model.deleting:
             raise ProjectError("Could not be deleted. See cryosparcm log api for details.", project=self)
 
-    def accept(self, path: str | PurePosixPath | None = None) -> None:
+    def accept(self, path: Union[str, PurePosixPath, None] = None) -> None:
         """
         Accept a failed attach or move for this project. This allows the project
         to be visible and modifiable again after a failed attach attempt. Some
