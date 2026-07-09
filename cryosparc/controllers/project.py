@@ -288,14 +288,18 @@ class ProjectController(Controller[Project]):
         if not self.model.deleted and not self.model.deleting:
             raise ProjectError("Could not be deleted. See cryosparcm log api for details.", project=self)
 
-    def accept_failed_attach(self):
+    def accept(self, path: str | PurePosixPath | None = None) -> None:
         """
-        Accept a failed attach for this project. This allows the project to be
-        visible and modifiable again after a failed attach attempt. Some
+        Accept a failed attach or move for this project. This allows the project
+        to be visible and modifiable again after a failed attach attempt. Some
         job or workspace data may be inaccessible or lost after a failed attach,
         so use with caution.
+
+        Args:
+            path (str | Path, optional): If specified, sets the project
+                directory to the given path. Defaults to None.
         """
-        self.model = self.cs.api.projects.accept_failed_attach(self.uid)
+        self.model = self.cs.api.projects.accept(self.uid, path=str(path) if path else None)
 
     def create_workspace(self, title: str, desc: Optional[str] = None) -> WorkspaceController:
         """
