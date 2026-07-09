@@ -1334,7 +1334,7 @@ class JobController(Controller[Job]):
                 self.refresh()
             except APIError as err:
                 if err.code == 404:
-                    return  # not found, workspace successfully deleted
+                    return  # not found, job successfully deleted
                 raise
         if not self.model.deleted and not self.model.deleting:
             raise JobError("Could not be deleted. See cryosparcm log api for details.", job=self)
