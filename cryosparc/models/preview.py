@@ -120,3 +120,82 @@ class DeleteWorkspacePreview(BaseModel):
     jobs: List[DeleteJobPreview]
     """
     """
+
+
+class JobPreview(BaseModel):
+    """
+    Base class for job previews.
+    """
+
+    project_uid: str
+    """
+    """
+    uid: str
+    """
+    """
+    workspace_uids: List[str]
+    """
+    """
+    status: str
+    """
+    """
+    title: str
+    """
+    """
+    type: str
+    """
+    """
+
+
+class SplitWorkspacePreview(BaseModel):
+    """
+    Workspace that will be included in the split.
+    """
+
+    project_uid: str
+    """
+    """
+    uid: str
+    """
+    """
+    title: Optional[str]
+    """
+    """
+
+
+class SplitSessionPreview(BaseModel):
+    """
+    Live session that will be included in the split.
+    """
+
+    project_uid: str
+    """
+    """
+    uid: str
+    """
+    """
+    session_uid: str
+    """
+    """
+    title: Optional[str]
+    """
+    """
+
+
+class SplitProjectPreview(BaseModel):
+    """
+    Preview of a project split operation.
+    """
+
+    jobs: List[JobPreview]
+    """
+    """
+    external_parent_jobs: List[JobPreview]
+    """
+    """
+    workspaces: List[SplitWorkspacePreview]
+    """
+    """
+    sessions: List[SplitSessionPreview]
+    """
+    """

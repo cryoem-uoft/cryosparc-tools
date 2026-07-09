@@ -6,10 +6,11 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-class JobGroup(BaseModel):
-    jobs: List[str]
+class JobGroupMeta(BaseModel):
     """
+    Meta information a user-defined group of jobs within a workspace.
     """
+
     title: Optional[str] = None
     """
     """
@@ -17,6 +18,21 @@ class JobGroup(BaseModel):
     """
     """
     color: Optional[str] = None
+    """
+    """
+
+
+class JobGroup(BaseModel):
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    color: Optional[str] = None
+    """
+    """
+    jobs: List[str]
     """
     """
     id: int
@@ -24,14 +40,11 @@ class JobGroup(BaseModel):
     """
 
 
-class JobGroupUpdate(BaseModel):
+class JobGroupCreate(BaseModel):
     """
-    User-defined group of jobs within a workspace.
+    Create a user-defined group of jobs within a workspace.
     """
 
-    jobs: List[str]
-    """
-    """
     title: Optional[str] = None
     """
     """
@@ -39,6 +52,28 @@ class JobGroupUpdate(BaseModel):
     """
     """
     color: Optional[str] = None
+    """
+    """
+    jobs: List[str]
+    """
+    """
+
+
+class JobGroupUpdate(BaseModel):
+    """
+    Update a user-defined group of jobs within a workspace.
+    """
+
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    color: Optional[str] = None
+    """
+    """
+    jobs: Optional[List[str]] = None
     """
     """
 

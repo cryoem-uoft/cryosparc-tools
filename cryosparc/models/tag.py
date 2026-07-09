@@ -6,6 +6,38 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
+class CreateTag(BaseModel):
+    """
+    Fields required to create a tag.
+    """
+
+    description: Optional[str] = None
+    """
+    """
+    colour: Optional[
+        Literal[
+            "black",
+            "gray",
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "teal",
+            "cyan",
+            "sky",
+            "blue",
+            "indigo",
+            "purple",
+            "pink",
+        ]
+    ] = None
+    """
+    """
+    title: str
+    """
+    """
+
+
 class TagCounts(BaseModel):
     """
     Counts of tagged items by type.
@@ -89,4 +121,36 @@ class Tag(BaseModel):
     uid_num: int
     """
     Numeric part of the tag UID.
+    """
+
+
+class UpdateTag(BaseModel):
+    """
+    Editable tag properties
+    """
+
+    description: Optional[str] = None
+    """
+    """
+    colour: Optional[
+        Literal[
+            "black",
+            "gray",
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "teal",
+            "cyan",
+            "sky",
+            "blue",
+            "indigo",
+            "purple",
+            "pink",
+        ]
+    ] = None
+    """
+    """
+    title: Optional[str] = None
+    """
     """

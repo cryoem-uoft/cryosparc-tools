@@ -1,11 +1,43 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
 from .job_spec import JobSpec
+from .workspace import JobGroupMeta
+
+
+class AppliedWorkflowTag(BaseModel):
+    description: Optional[str] = None
+    """
+    """
+    colour: Optional[
+        Literal[
+            "black",
+            "gray",
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "teal",
+            "cyan",
+            "sky",
+            "blue",
+            "indigo",
+            "purple",
+            "pink",
+        ]
+    ] = None
+    """
+    """
+    title: Optional[str] = None
+    """
+    """
+    uid: Optional[str] = None
+    """
+    """
 
 
 class WorkflowParentGroup(BaseModel):
@@ -30,7 +62,7 @@ class WorkflowParent(BaseModel):
 
 
 class WorkflowParameter(BaseModel):
-    value: Union[str, int, float, bool, None]
+    value: Union[str, int, float, bool, None] = None
     """
     """
     locked: bool = False
@@ -120,5 +152,48 @@ class Workflow(BaseModel):
     Dictionary of jobs for the workflow, where the key is JXX
     """
     reference: bool = False
+    """
+    """
+
+
+class ApplyWorkflowRequest(BaseModel):
+    """
+    Request body for the workflow apply endpoint.
+    """
+
+    workflow: Workflow
+    """
+    """
+    parent_juids: List[str] = []
+    """
+    """
+    lane: Optional[str] = None
+    """
+    """
+    tag: Optional[AppliedWorkflowTag] = None
+    """
+    """
+    group: Optional[JobGroupMeta] = None
+    """
+    """
+
+
+class UpdateWorkflow(BaseModel):
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    category: Optional[str] = None
+    """
+    """
+    pinned: Optional[bool] = None
+    """
+    """
+    parents: Optional[Dict[str, WorkflowParent]] = None
+    """
+    """
+    jobs: Optional[Dict[str, WorkflowJob]] = None
     """
     """

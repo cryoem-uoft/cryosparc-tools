@@ -184,6 +184,9 @@ class Project(BaseModel):
     import_status: Optional[Literal["importing", "moving", "complete", "failed", "accepted"]] = None
     """
     """
+    import_failed_job_count: int = 0
+    """
+    """
     project_stats: ProjectStats = ProjectStats()
     """
     """
