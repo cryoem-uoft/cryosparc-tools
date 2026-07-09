@@ -100,9 +100,9 @@ from .models.file_browser import BrowseFileResponse, FileBrowserSettings
 from .models.job import Job, JobStatus
 from .models.job_register import JobRegister
 from .models.job_spec import Category, InputSpec, OutputResult, OutputSpec
-from .models.license import LicenseInstance, UpdateTag
+from .models.license import LicenseInstance, UpdateLicenseTag
 from .models.notification import Notification
-from .models.preview import DeleteProjectPreview, DeleteWorkspacePreview
+from .models.preview import DeleteProjectPreview, DeleteWorkspacePreview, SplitProjectPreview
 from .models.project import GenerateIntermediateResultsSettings, Project, ProjectSymlink
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget, SchedulerTargetCluster, SchedulerTargetNode
@@ -117,10 +117,10 @@ from .models.session import (
 )
 from .models.session_config_profile import SessionConfigProfile, SessionConfigProfileBody
 from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
-from .models.tag import Tag
+from .models.tag import CreateTag, Tag, UpdateTag
 from .models.user import User
-from .models.workflow import Workflow, WorkflowJob, WorkflowParameter
-from .models.workspace import JobGroup, JobGroupUpdate, Workspace
+from .models.workflow import ApplyWorkflowRequest, UpdateWorkflow, Workflow, WorkflowJob, WorkflowParameter
+from .models.workspace import JobGroup, JobGroupCreate, JobGroupUpdate, Workspace
 from .stream import Stream
 
 Auth = Union[str, Tuple[str, str]]
@@ -265,12 +265,12 @@ class InstanceAPI(APINamespace):
     """
     Functions available in ``api.instance``, e.g., ``api.instance.get_update_tag(...)``
     """
-    def get_update_tag(self) -> Optional[UpdateTag]:
+    def get_update_tag(self) -> Optional[UpdateLicenseTag]:
         """
         Get information about the latest CryoSPARC version update, if one is available.
 
         Returns:
-            UpdateTag | None: Successful Response
+            UpdateLicenseTag | None: Successful Response
 
         """
         ...
@@ -2766,6 +2766,32 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
+    def split(self, project_uid: str, workspace_uid: str, /, *, title: Optional[str] = None, parent_dir: str) -> None:
+        """
+        Create a new project at target_dir containing the specified jobs and their
+        external parent jobs.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+            title (str, optional): Defaults to None
+            parent_dir (str):
+
+        """
+        ...
+    def preview_split(self, project_uid: str, workspace_uid: str, /) -> SplitProjectPreview:
+        """
+        Preview which jobs, sessions, and workspaces would be included in a split call.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            workspace_uid (str): Workspace UID, e.g., "W3"
+
+        Returns:
+            SplitProjectPreview: Successful Response
+
+        """
+        ...
 
 class SessionsAPI(APINamespace):
     """
@@ -5010,77 +5036,31 @@ class TagsAPI(APINamespace):
         ...
     def create(
         self,
+        body: CreateTag,
         *,
         type: Literal["general", "project", "workspace", "session", "job"],
-        colour: Optional[
-            Literal[
-                "black",
-                "gray",
-                "red",
-                "orange",
-                "yellow",
-                "green",
-                "teal",
-                "cyan",
-                "sky",
-                "blue",
-                "indigo",
-                "purple",
-                "pink",
-            ]
-        ] = None,
-        description: Optional[str] = None,
         created_by_workflow: Optional[str] = None,
-        title: Optional[str],
     ) -> Tag:
         """
         Create a new tag
 
         Args:
+            body (CreateTag):
             type (Literal['general', 'project', 'workspace', 'session', 'job']):
-            colour (Literal['black', 'gray', 'red', 'orange', 'yellow', 'green', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'purple', 'pink'], optional): Defaults to None
-            description (str, optional): Defaults to None
             created_by_workflow (str, optional): Defaults to None
-            title (str | None):
 
         Returns:
             Tag: Successful Response
 
         """
         ...
-    def update(
-        self,
-        tag_uid: str,
-        /,
-        *,
-        colour: Optional[
-            Literal[
-                "black",
-                "gray",
-                "red",
-                "orange",
-                "yellow",
-                "green",
-                "teal",
-                "cyan",
-                "sky",
-                "blue",
-                "indigo",
-                "purple",
-                "pink",
-            ]
-        ] = None,
-        description: Optional[str] = None,
-        title: Optional[str],
-    ) -> Tag:
+    def update(self, tag_uid: str, /, body: UpdateTag) -> Tag:
         """
         Update tag title, colour and/or description
 
         Args:
             tag_uid (str):
-            colour (Literal['black', 'gray', 'red', 'orange', 'yellow', 'green', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'purple', 'pink'], optional): Defaults to None
-            description (str, optional): Defaults to None
-            title (str | None):
+            body (UpdateTag):
 
         Returns:
             Tag: Successful Response
@@ -5394,13 +5374,13 @@ class WorkflowsAPI(APINamespace):
 
         """
         ...
-    def edit(self, workflow_id: str, /, body: Workflow) -> Workflow:
+    def edit(self, workflow_id: str, /, body: UpdateWorkflow) -> Workflow:
         """
         Update a workflow.
 
         Args:
             workflow_id (str):
-            body (Workflow):
+            body (UpdateWorkflow):
 
         Returns:
             Workflow: Successful Response
@@ -5433,36 +5413,14 @@ class WorkflowsAPI(APINamespace):
 
         """
         ...
-    def apply(
-        self,
-        body: Workflow,
-        *,
-        project_uid: str,
-        workspace_uid: str,
-        parent_juids: List[str] = [],
-        lane: Optional[str] = None,
-        tag_title: Optional[str] = None,
-        tag_description: Optional[str] = None,
-        group: bool = False,
-        group_title: str = "",
-        group_description: str = "",
-        group_color: str = "",
-    ) -> List[Job]:
+    def apply(self, body: ApplyWorkflowRequest, *, project_uid: str, workspace_uid: str) -> List[Job]:
         """
         Apply a workflow to a workspace
 
         Args:
-            body (Workflow):
+            body (ApplyWorkflowRequest):
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-            parent_juids (List[str], optional): Parent job UIDs to connect workflow inputs to. Defaults to []
-            lane (str, optional): Defaults to None
-            tag_title (str, optional): Defaults to None
-            tag_description (str, optional): Defaults to None
-            group (bool, optional): Defaults to False
-            group_title (str, optional): Defaults to ''
-            group_description (str, optional): Defaults to ''
-            group_color (str, optional): Defaults to ''
 
         Returns:
             List[Job]: Successful Response
@@ -5600,14 +5558,14 @@ class JobgroupsAPI(APINamespace):
 
         """
         ...
-    def create(self, project_uid: str, workspace_uid: str, /, body: JobGroupUpdate) -> JobGroup:
+    def create(self, project_uid: str, workspace_uid: str, /, body: JobGroupCreate) -> JobGroup:
         """
         Create a job group
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-            body (JobGroupUpdate):
+            body (JobGroupCreate):
 
         Returns:
             JobGroup: Successful Response

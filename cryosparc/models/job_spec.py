@@ -6,39 +6,40 @@ from pydantic import BaseModel, ConfigDict, RootModel
 
 from .resource import ResourceSpec
 
-BuilderTag = Literal[
-    "new", "interactive", "gpuEnabled", "multiGpu", "utility", "import", "live", "benchmark", "wrapper"
-]
-"""
-Visual indicators for jobs in the builder.
-"""
 
-Category = Literal[
-    "import",
-    "motion_correction",
-    "ctf_estimation",
-    "exposure_curation",
-    "particle_picking",
-    "extraction",
-    "deep_picker",
-    "particle_curation",
-    "reconstruction",
-    "refinement",
-    "ctf_refinement",
-    "variability",
-    "flexibility",
-    "postprocessing",
-    "local_refinement",
-    "helix",
-    "utilities",
-    "simulations",
-    "live",
-    "instance_testing",
-    "workflows",
-]
-"""
-Section under which to group a job in the builder.
-"""
+class Params(BaseModel):
+    """
+    Job parameter specifications. See API function projects.get_job_register
+    for allowed parameters based on job spec type.
+    """
+
+    model_config = ConfigDict(extra="allow")
+    if TYPE_CHECKING:
+
+        def __init__(self, **kwargs: Any) -> None: ...
+        def __getattr__(self, key: str) -> Any: ...
+
+
+class InputSlot(BaseModel):
+    """
+    Specification of an input slot in the job configuration. Each input includes one or more.
+    """
+
+    name: str
+    """
+    where to find field in a corresponding .cs file e.g.,
+    background_blob
+    """
+    dtype: str
+    """
+    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
+    alignments2D.
+    """
+    required: bool = False
+    """
+    whether this field must necessarily exist in acorresponding
+    input/output
+    """
 
 
 class InputResult(BaseModel):
@@ -90,109 +91,6 @@ class Connection(BaseModel):
     results: List[InputResult] = []
     """
     Specific results from parent job. Some slots may have a different job UID.
-    """
-
-
-class OutputSlot(BaseModel):
-    """
-    Specification of an output slot in the job configuration. Each output includes one or more.
-    """
-
-    name: str
-    """
-    where to find field in a corresponding .cs file e.g.,
-    background_blob
-    """
-    dtype: str
-    """
-    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
-    alignments2D.
-    """
-
-
-class OutputSpec(BaseModel):
-    """
-    Used to defined output specifiction, with some generated data based on data
-    forwarded from input inheritance.
-    """
-
-    type: Literal[
-        "exposure",
-        "particle",
-        "template",
-        "volume",
-        "volume_multi",
-        "mask",
-        "live",
-        "ml_model",
-        "symmetry_candidate",
-        "flex_mesh",
-        "flex_model",
-        "hyperparameter",
-        "denoise_model",
-        "annotation_model",
-    ]
-    """
-    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
-    """
-    title: str
-    """
-    Human-readable title
-    """
-    description: str = ""
-    """
-    Detailed description.
-    """
-    slots: List[Union[OutputSlot, str]] = []
-    """
-    Expected input/output result slots.
-
-    "str" is a shortcut for ``Slot(dtype="str", "prefix="str")``
-
-    For input specs:
-    "str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=True)``
-    "?str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=False)``
-    """
-    passthrough: Optional[str] = None
-    """
-    Associated passthrough input name
-    """
-
-
-class OutputRef(BaseModel):
-    """
-    Minimal name reference to a specific job output
-    """
-
-    job_uid: str
-    """
-    Connected parent output job uid.
-    """
-    output: str
-    """
-    Name of output on connected parent output job.
-    """
-
-
-class InputSlot(BaseModel):
-    """
-    Specification of an input slot in the job configuration. Each input includes one or more.
-    """
-
-    name: str
-    """
-    where to find field in a corresponding .cs file e.g.,
-    background_blob
-    """
-    dtype: str
-    """
-    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
-    alignments2D.
-    """
-    required: bool = False
-    """
-    whether this field must necessarily exist in acorresponding
-    input/output
     """
 
 
@@ -252,79 +150,6 @@ class Input(BaseModel):
     """
 
 
-class InputSpec(BaseModel):
-    """
-    Input specification. Used to define the expected connections to a job input.
-    """
-
-    type: Literal[
-        "exposure",
-        "particle",
-        "template",
-        "volume",
-        "volume_multi",
-        "mask",
-        "live",
-        "ml_model",
-        "symmetry_candidate",
-        "flex_mesh",
-        "flex_model",
-        "hyperparameter",
-        "denoise_model",
-        "annotation_model",
-    ]
-    """
-    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
-    """
-    title: str
-    """
-    Human-readable title
-    """
-    description: str = ""
-    """
-    Detailed description.
-    """
-    slots: List[Union[InputSlot, str]] = []
-    """
-    Expected input/output result slots.
-
-    "str" is a shortcut for ``Slot(dtype="str", "prefix="str")``
-
-    For input specs:
-    "str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=True)``
-    "?str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=False)``
-    """
-    count_min: int = 0
-    """
-    Minimum number of connections to this input.
-    """
-    count_max: Union[int, Literal["inf"]] = "inf"
-    """
-    Maximum number of connections supported for this input. Should be any
-    integer >= 0 and <= 500. Inputs with a ``count_max`` set to ``"inf"`` also
-    support a maximum of 500 connections.
-    """
-    repeat_allowed: bool = False
-    """
-    Whether repeated connections to the same output allowed for this input.
-    """
-    match_result_by: Literal["type", "default", "default_strict", "name_and_type"] = "default"
-    """
-    Slot -> Result match strategy when connecting outputs to this input.
-    """
-
-
-class InputSpecs(RootModel):
-    """
-    Dictionary of input specifications, where each key is the input name.
-    """
-
-    root: Dict[str, InputSpec] = {}
-    """
-    Dictionary of input specifications, where each key is the input name.
-    """
-
-
 class Inputs(RootModel):
     """
     Dictionary of job input connection details, where each key is the input name.
@@ -336,17 +161,21 @@ class Inputs(RootModel):
     """
 
 
-class Params(BaseModel):
+class OutputSlot(BaseModel):
     """
-    Job parameter specifications. See API function projects.get_job_register
-    for allowed parameters based on job spec type.
+    Specification of an output slot in the job configuration. Each output includes one or more.
     """
 
-    model_config = ConfigDict(extra="allow")
-    if TYPE_CHECKING:
-
-        def __init__(self, **kwargs: Any) -> None: ...
-        def __getattr__(self, key: str) -> Any: ...
+    name: str
+    """
+    where to find field in a corresponding .cs file e.g.,
+    background_blob
+    """
+    dtype: str
+    """
+    Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
+    alignments2D.
+    """
 
 
 class OutputResult(BaseModel):
@@ -493,6 +322,178 @@ class JobSpec(BaseModel):
     resource_spec: ResourceSpec
     """
     Compute resource requirements for this job.
+    """
+
+
+BuilderTag = Literal[
+    "new", "interactive", "gpuEnabled", "multiGpu", "utility", "import", "live", "benchmark", "wrapper"
+]
+"""
+Visual indicators for jobs in the builder.
+"""
+
+Category = Literal[
+    "import",
+    "motion_correction",
+    "ctf_estimation",
+    "exposure_curation",
+    "particle_picking",
+    "extraction",
+    "deep_picker",
+    "particle_curation",
+    "reconstruction",
+    "refinement",
+    "ctf_refinement",
+    "variability",
+    "flexibility",
+    "postprocessing",
+    "local_refinement",
+    "helix",
+    "utilities",
+    "simulations",
+    "live",
+    "instance_testing",
+    "workflows",
+]
+"""
+Section under which to group a job in the builder.
+"""
+
+
+class OutputSpec(BaseModel):
+    """
+    Used to defined output specifiction, with some generated data based on data
+    forwarded from input inheritance.
+    """
+
+    type: Literal[
+        "exposure",
+        "particle",
+        "template",
+        "volume",
+        "volume_multi",
+        "mask",
+        "live",
+        "ml_model",
+        "symmetry_candidate",
+        "flex_mesh",
+        "flex_model",
+        "hyperparameter",
+        "denoise_model",
+        "annotation_model",
+    ]
+    """
+    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
+    """
+    title: str
+    """
+    Human-readable title
+    """
+    description: str = ""
+    """
+    Detailed description.
+    """
+    slots: List[Union[OutputSlot, str]] = []
+    """
+    Expected input/output result slots.
+
+    "str" is a shortcut for ``Slot(dtype="str", "prefix="str")``
+
+    For input specs:
+    "str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=True)``
+    "?str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=False)``
+    """
+    passthrough: Optional[str] = None
+    """
+    Associated passthrough input name
+    """
+
+
+class OutputRef(BaseModel):
+    """
+    Minimal name reference to a specific job output
+    """
+
+    job_uid: str
+    """
+    Connected parent output job uid.
+    """
+    output: str
+    """
+    Name of output on connected parent output job.
+    """
+
+
+class InputSpec(BaseModel):
+    """
+    Input specification. Used to define the expected connections to a job input.
+    """
+
+    type: Literal[
+        "exposure",
+        "particle",
+        "template",
+        "volume",
+        "volume_multi",
+        "mask",
+        "live",
+        "ml_model",
+        "symmetry_candidate",
+        "flex_mesh",
+        "flex_model",
+        "hyperparameter",
+        "denoise_model",
+        "annotation_model",
+    ]
+    """
+    Cryo-EM native data type, e.g., "exposure", "particle" or "volume"
+    """
+    title: str
+    """
+    Human-readable title
+    """
+    description: str = ""
+    """
+    Detailed description.
+    """
+    slots: List[Union[InputSlot, str]] = []
+    """
+    Expected input/output result slots.
+
+    "str" is a shortcut for ``Slot(dtype="str", "prefix="str")``
+
+    For input specs:
+    "str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=True)``
+    "?str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=False)``
+    """
+    count_min: int = 0
+    """
+    Minimum number of connections to this input.
+    """
+    count_max: Union[int, Literal["inf"]] = "inf"
+    """
+    Maximum number of connections supported for this input. Should be any
+    integer >= 0 and <= 500. Inputs with a ``count_max`` set to ``"inf"`` also
+    support a maximum of 500 connections.
+    """
+    repeat_allowed: bool = False
+    """
+    Whether repeated connections to the same output allowed for this input.
+    """
+    match_result_by: Literal["type", "default", "default_strict", "name_and_type"] = "default"
+    """
+    Slot -> Result match strategy when connecting outputs to this input.
+    """
+
+
+class InputSpecs(RootModel):
+    """
+    Dictionary of input specifications, where each key is the input name.
+    """
+
+    root: Dict[str, InputSpec] = {}
+    """
+    Dictionary of input specifications, where each key is the input name.
     """
 
 
