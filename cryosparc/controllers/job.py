@@ -70,6 +70,9 @@ Severity level for job event logs.
 FileOrFigure = Union[str, PurePath, IO[bytes], Any]
 """A file path, a file-like object, or a matplotlib figure."""
 
+OptPattern = Union[str, Pattern[str], None]
+"""Optional pattern type alias for matching strings."""
+
 
 class JobController(Controller[Job]):
     """
@@ -712,11 +715,21 @@ class JobController(Controller[Job]):
                 slots = sorted(list(slot_set))
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
+    # fmt: off
+    @overload
+    def find_events(self, *,                                            pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]: ...
+    @overload
+    def find_events(self, *, type: Literal["text", "warning", "error"], pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[TextEvent]: ...
+    @overload
+    def find_events(self, *, type: Literal["image"],                    pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[ImageEvent]: ...
+    @overload
+    def find_events(self, *, type: Literal["interactive"],              pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[InteractiveEvent]: ...
+    # fmt: on
     def find_events(
         self,
         *,
-        pattern: Union[str, Pattern[str], None] = None,
         type: Literal["text", "warning", "error", "image", "interactive", None] = None,
+        pattern: OptPattern = None,
         checkpoint: Optional[int] = None,
     ) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]:
         """
@@ -1238,7 +1251,7 @@ class JobController(Controller[Job]):
         *,
         mute: bool = False,
         checkpoint: bool = False,
-        checkpoint_line_pattern: Union[str, Pattern[str], None] = None,
+        checkpoint_line_pattern: OptPattern = None,
         **kwargs,
     ):
         """
