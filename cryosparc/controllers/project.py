@@ -194,12 +194,10 @@ class ProjectController(Controller[Project]):
             ProjectError: Project move could not be completed
         """
         self.cs.api.projects.move(self.uid, path=str(path))
-        self.model.move_status = "moving"  # backend will set this on next refresh
-        while wait and self.model.move_status == "moving":
+        self.model.moving = True  # backend will set this on next refresh
+        while wait and self.model.moving:
             time.sleep(3)
             self.refresh()
-        if self.model.move_status == "failed":
-            raise ProjectError("Project move failed", project=self)
 
     def archive(self, *, wait: bool = False):
         """
