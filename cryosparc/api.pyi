@@ -1216,7 +1216,7 @@ class JobsAPI(APINamespace):
 
         """
         ...
-    def get_active_count(self) -> int:
+    def count_active(self) -> int:
         """
         Count number of active jobs.
 
@@ -2402,7 +2402,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Job: Successful Response
@@ -2416,7 +2416,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Job: Successful Response
@@ -2674,7 +2674,7 @@ class WorkspacesAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Workspace | Session: Successful Response
@@ -2688,7 +2688,7 @@ class WorkspacesAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Workspace | Session: Successful Response
@@ -3108,7 +3108,7 @@ class SessionsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Session: Successful Response
@@ -3122,7 +3122,7 @@ class SessionsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Session: Successful Response
@@ -4374,9 +4374,8 @@ class ProjectsAPI(APINamespace):
         project_dir: Optional[str] = None,
         owner_user_id: Optional[str] = None,
         users_with_access: Optional[List[str]] = None,
-        deleted: Optional[bool] = False,
-        archived: Optional[bool] = None,
-        detached: Optional[bool] = None,
+        archived: Optional[bool] = False,
+        detached: Optional[bool] = False,
         order: Literal[-1, 1] = 1,
         after: Optional[str] = None,
         limit: Optional[int] = 100,
@@ -4392,9 +4391,8 @@ class ProjectsAPI(APINamespace):
             project_dir (str, optional): Defaults to None
             owner_user_id (str, optional): Defaults to None
             users_with_access (List[str], optional): Defaults to None
-            deleted (bool, optional): Defaults to False
-            archived (bool, optional): Defaults to None
-            detached (bool, optional): Defaults to None
+            archived (bool, optional): Defaults to False
+            detached (bool, optional): Defaults to False
             order (Literal[-1, 1], optional): 1 for ascending order, -1 for descending order. Defaults to 1
             after (str, optional): Cursor for pagination; only return results with id greater than (if order=1) or less than (if order=-1) this value. Defaults to None
             limit (int, optional): Defaults to 100
@@ -4424,9 +4422,8 @@ class ProjectsAPI(APINamespace):
         *,
         project_dir: Optional[str] = None,
         owner_user_id: Optional[str] = None,
-        deleted: Optional[bool] = False,
-        archived: Optional[bool] = None,
-        detached: Optional[bool] = None,
+        archived: Optional[bool] = False,
+        detached: Optional[bool] = False,
         order: Literal[-1, 1] = 1,
         after: Optional[str] = None,
         limit: Optional[int] = 100,
@@ -4442,9 +4439,8 @@ class ProjectsAPI(APINamespace):
         Args:
             project_dir (str, optional): Defaults to None
             owner_user_id (str, optional): Defaults to None
-            deleted (bool, optional): Defaults to False
-            archived (bool, optional): Defaults to None
-            detached (bool, optional): Defaults to None
+            archived (bool, optional): Defaults to False
+            detached (bool, optional): Defaults to False
             order (Literal[-1, 1], optional): Defaults to 1
             after (str, optional): Defaults to None
             limit (int, optional): Defaults to 100
@@ -4627,7 +4623,8 @@ class ProjectsAPI(APINamespace):
     def delete(self, project_uid: str, /) -> None:
         """
         Start project deletion task. Will delete the project, its full directory,
-        all associated workspaces, sessions, jobs and results.
+        all associated workspaces, sessions, jobs and results. Kills any running
+        jobs or active sessions in the project before deleting.
 
         The directory for an archived or detached project will not be deleted,
         but the project and all associated jobs will be removed from the interface.
@@ -4822,7 +4819,7 @@ class ProjectsAPI(APINamespace):
         ...
     def accept(self, project_uid: str, /, *, path: Optional[str] = None) -> Project:
         """
-        Accept a project that was failed to attach or move, allowing it to be modified.
+        Accept a project that was failed to attach, allowing it to be modified.
         Optionally provide the new directory where the project exists.
         This will not fix any underlying issues with the project directory.
 
@@ -4913,7 +4910,7 @@ class ProjectsAPI(APINamespace):
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Project: Successful Response
@@ -4926,7 +4923,7 @@ class ProjectsAPI(APINamespace):
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         Returns:
             Project: Successful Response
@@ -5075,7 +5072,7 @@ class TagsAPI(APINamespace):
         Update tag title, colour and/or description
 
         Args:
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
             body (UpdateTag):
 
         Returns:
@@ -5088,7 +5085,7 @@ class TagsAPI(APINamespace):
         Delete a tag
 
         Args:
-            tag_uid (str):
+            tag_uid (str): Tag UID, e.g., "T1"
 
         """
         ...
@@ -5429,7 +5426,7 @@ class WorkflowsAPI(APINamespace):
 
         """
         ...
-    def apply(self, body: ApplyWorkflowRequest, *, project_uid: str, workspace_uid: str) -> List[Job]:
+    def apply(self, body: ApplyWorkflowRequest, *, project_uid: str, workspace_uid: str) -> None:
         """
         Apply a workflow to a workspace
 
@@ -5437,9 +5434,6 @@ class WorkflowsAPI(APINamespace):
             body (ApplyWorkflowRequest):
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-
-        Returns:
-            List[Job]: Successful Response
 
         """
         ...
@@ -5788,7 +5782,9 @@ class APIClient:
         ...
     def start_and_migrate(self, *, license_id: str) -> None:
         """
-        Start up CryoSPARC for the first time and perform database migrations
+        Start up CryoSPARC for the first time after installation or after an upgrade.
+        Triggers any migrations, refreshes connected targets and updates on-disk
+        project files to the latest schema.
 
         Args:
             license_id (str):
