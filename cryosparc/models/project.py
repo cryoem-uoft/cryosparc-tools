@@ -131,6 +131,12 @@ class Project(BaseModel):
     """
     User-specified detailed project description.
     """
+    schema_version: int = 1
+    """
+    Version of the project and associated entity schema stored on disk. If this
+    value is not equal to the current schema version, project is dumped to disk
+    before detaching to maximize compatibility with future versions of CryoSPARC.
+    """
     project_params_pdef: Dict[str, Any] = {}
     """
     Default job parameter definitions to be used within the project.
@@ -143,9 +149,13 @@ class Project(BaseModel):
     """
     deleted: bool = False
     """
+    Not used, but kept for backwards compatibility with app.
+    Deleted projects are removed from the database
+    :meta private:
     """
     deleting: bool = False
     """
+    :meta private:
     """
     users_with_access: List[str] = []
     """
@@ -164,7 +174,16 @@ class Project(BaseModel):
     archived: bool = False
     """
     """
+    archiving: bool = False
+    """
+    """
     detached: bool = False
+    """
+    """
+    detaching: bool = False
+    """
+    """
+    moving: bool = False
     """
     """
     generate_intermediate_results_settings: GenerateIntermediateResultsSettings = GenerateIntermediateResultsSettings()
@@ -181,7 +200,7 @@ class Project(BaseModel):
     imported_at: Optional[datetime.datetime] = None
     """
     """
-    import_status: Optional[Literal["importing", "complete", "failed", "accepted"]] = None
+    import_status: Literal["importing", "complete", "failed", "accepted", None] = None
     """
     """
     import_failed_job_count: int = 0

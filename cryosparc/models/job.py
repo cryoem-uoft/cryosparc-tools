@@ -156,6 +156,11 @@ class Job(BaseModel):
     """
     List of workspace UIDs this job belongs to. Must have at least one item
     """
+    schema_version: int = 1
+    """
+    Job schema version for determinining exported job compatibility between
+    CryoSPARC versions, similar to the ``schema_version`` present in projects.
+    """
     spec: JobSpec
     """
     Job type-specific settings, including params, inputs, outputs, resources, etc.

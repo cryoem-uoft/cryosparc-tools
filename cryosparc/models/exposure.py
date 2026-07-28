@@ -80,6 +80,12 @@ class CtfStats(BaseModel):
     ice_thickness_rel: float
     """
     """
+    relative_ice_power_total: List[Any] = [0, 0, 0]
+    """
+    """
+    relative_ice_power_max: List[Any] = [0, 0, 0]
+    """
+    """
     spectrum_dim: int
     """
     """
@@ -437,6 +443,24 @@ class LiveExposureAttributes(BaseModel):
     """
     """
     ice_thickness_rel: float = 0
+    """
+    """
+    relative_ice_power_total_3_66A: float = 0
+    """
+    """
+    relative_ice_power_max_3_66A: float = 0
+    """
+    """
+    relative_ice_power_total_2_24A: float = 0
+    """
+    """
+    relative_ice_power_max_2_24A: float = 0
+    """
+    """
+    relative_ice_power_total_1_91A: float = 0
+    """
+    """
+    relative_ice_power_max_1_91A: float = 0
     """
     """
     df_tilt_angle: float = 0

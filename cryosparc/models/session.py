@@ -712,6 +712,36 @@ class Session(BaseModel):
         SessionAttribute(name="phase_shift", title="Phase Shift (deg)", min=None, max=None, round=1),
         SessionAttribute(name="ctf_fit_to_A", title="CTF fit resolution (A)", min=None, max=None, round=3),
         SessionAttribute(name="ice_thickness_rel", title="Relative Ice Thickness", min=None, max=None, round=3),
+        SessionAttribute(
+            name="relative_ice_power_total_3_66A",
+            title="Relative Ice Power Total (3.66 Å)",
+            min=None,
+            max=None,
+            round=3,
+        ),
+        SessionAttribute(
+            name="relative_ice_power_max_3_66A", title="Relative Ice Power Max (3.66 Å)", min=None, max=None, round=3
+        ),
+        SessionAttribute(
+            name="relative_ice_power_total_2_24A",
+            title="Relative Ice Power Total (2.24 Å)",
+            min=None,
+            max=None,
+            round=3,
+        ),
+        SessionAttribute(
+            name="relative_ice_power_max_2_24A", title="Relative Ice Power Max (2.24 Å)", min=None, max=None, round=3
+        ),
+        SessionAttribute(
+            name="relative_ice_power_total_1_91A",
+            title="Relative Ice Power Total (1.91 Å)",
+            min=None,
+            max=None,
+            round=3,
+        ),
+        SessionAttribute(
+            name="relative_ice_power_max_1_91A", title="Relative Ice Power Max (1.91 Å)", min=None, max=None, round=3
+        ),
         SessionAttribute(name="df_tilt_angle", title="Defocus Tilt Angle (degrees)", min=None, max=None, round=1),
         SessionAttribute(name="astigmatism_angle", title="Astigmatism Angle (deg)", min=None, max=None, round=1),
         SessionAttribute(name="max_intra_frame_motion", title="Max In-Frame Motion", min=None, max=None, round=3),
