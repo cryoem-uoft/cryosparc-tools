@@ -25,7 +25,7 @@ Dataset supports:
 """
 
 from functools import reduce
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -1107,6 +1107,53 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             ["field", "foo", "bar"]
         """
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
+
+    @staticmethod
+    def is_path_field(field: str) -> bool:
+        """
+        Whether the given field name looks like it holds a relative file path.
+
+        Args:
+            field (str): Field name, e.g. ``"blob/path"``.
+
+        Returns:
+            bool: True if the field name suggests it holds path values.
+        """
+        return "path" in field
+
+    @classmethod
+    def load_path_field_values(
+        cls,
+        file: Union[str, PurePath],
+        result_names: Collection[str],
+        is_path_field: Optional[Callable[[str], bool]] = None,
+    ) -> Dict[str, List[str]]:
+        """
+        Load only the path field columns belonging to the given result names
+        from a dataset file, mapping each path field name to its values.
+        Reads the file header first so only matching columns are loaded.
+
+        Args:
+            file (str | Path): Readable dataset file path.
+            result_names (Collection[str]): Result name prefixes to include
+                path fields for.
+            is_path_field (Callable[[str], bool], optional): Predicate used to
+                identify path fields. Defaults to `Dataset.is_path_field`.
+
+        Returns:
+            dict[str, list[str]]: Map of path field name to its values. Empty
+            if the file is missing or has no matching path fields.
+        """
+        if not Path(file).is_file():
+            return {}
+        is_path_field = is_path_field or cls.is_path_field
+        path_field_names = [
+            f[0] for f in cls.inspect(file)["dtype"] if is_path_field(f[0]) and f[0].split("/")[0] in result_names
+        ]
+        if not path_field_names:
+            return {}
+        dset = cls.load(file, fields=path_field_names)
+        return {name: dset[name].tolist() for name in path_field_names}
 
     @overload
     def add_fields(self, fields: Sequence[Field]) -> "Dataset[R]": ...
