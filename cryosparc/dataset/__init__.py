@@ -1119,7 +1119,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             bool: True if the field name suggests it holds path values.
         """
-        return "path" in field
+        return "path" in field or "processed_mics" in field  # Topaz model field that is a directory to export
 
     @classmethod
     def load_path_field_values(
