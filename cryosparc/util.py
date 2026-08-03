@@ -194,7 +194,7 @@ def strencodenull(s: Any) -> bytes:
 
 
 @contextmanager
-def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r"):
+def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r") -> Iterator[IO[str]]:
     """
     "with open(...)" alias for text files that tranparently yields open file or
     file-like object.
@@ -214,7 +214,7 @@ def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r"):
 
 
 @contextmanager
-def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
+def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb") -> Iterator[IO[bytes]]:
     """
     "with open(...)" alias for binary files that tranparently yields an open
     file or file-like object.

@@ -207,16 +207,30 @@ class Streamable(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]], *, media_type: Optional[str] = None) -> "Self":
+    def from_stream(cls, source: IO[bytes], *, media_type: Optional[str] = None) -> "Self":
         """
-        Load stream from a file path or readable byte stream. The stream must
-        at least implement the `read(size)` function.
+        Load stream from a readable byte stream. The stream must at least implement
+        the `read(size)` function.
         """
         ...
 
     @classmethod
+    def load(cls, file: Union[str, PurePath, IO[bytes]], *, media_type: Optional[str] = None) -> "Self":
+        """
+        Load stream from a file path or readable byte stream. If a binary
+        format is specified, the stream must at least implement the
+        `read(size)` function.
+
+        By default, opens the file and calls the from_stream() method on it.
+        May be overriden if the stream format differs from the default
+        file format.
+        """
+        with bopen(file, "rb") as f:
+            return cls.from_stream(f, media_type=media_type)
+
+    @classmethod
     def from_iterator(cls, source: Iterator[bytes], *, media_type: Optional[str] = None):
-        return cls.load(BinaryIteratorIO(source), media_type=media_type)
+        return cls.from_stream(BinaryIteratorIO(source), media_type=media_type)
 
     @classmethod
     @abstractmethod
@@ -232,35 +246,66 @@ class Streamable(ABC):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator), media_type=media_type)
 
     @abstractmethod
-    def stream(self) -> Iterator[bytes]: ...
+    def stream(self) -> Iterator[bytes]:
+        """
+        Synchronously yield bytes from the stream.
+        """
+        ...
 
     async def astream(self) -> AsyncIterator[bytes]:
         for chunk in self.stream():
             yield chunk
 
-    def save(self, file: Union[str, PurePath, IO[bytes]]):
-        with bopen(file, "wb") as f:
-            self.dump(f)
-
     def dump(self, file: IO[bytes]):
+        """
+        Save stream to a writable byte stream. The stream must at least implement
+        the `write(buffer)` function.
+
+        By default, calls the stream() method to get the stream data and writes
+        it to the file. May be overridden if the stream format is different from
+        the default file format.
+        """
         for chunk in self.stream():
             file.write(chunk)
 
     def dumps(self) -> bytes:
-        return b"".join(self.stream())
+        from io import BytesIO
+
+        self.dump(data := BytesIO())
+        return data.getvalue()
 
     async def adump(self, file: Union[IO[bytes], AsyncWritable]):
+        """
+        Asynchronously save stream to a writable byte stream. The stream must at
+        least implement the `async write(buffer)` function.
+
+        By default, calls the astream() method to get the stream data and writes
+        it to the file. May be overridden if the stream format is different from
+        the default file format.
+        """
         async for chunk in self.astream():
             result = file.write(chunk)
             if isinstance(result, Awaitable):
                 await result
 
     async def adumps(self) -> bytes:
+        """
+        Like dumps() but asynchronously returns the stream data as bytes.
+        """
         from io import BytesIO
 
-        data = BytesIO()
-        await self.adump(data)
+        await self.adump(data := BytesIO())
         return data.getvalue()
+
+    def save(self, file: Union[str, PurePath, IO[bytes]]):
+        """
+        Save stream to a file path or writable byte stream. If an IO object is
+        specified, the stream must at least implement the `write(buffer)`.
+
+        Avoid overriding, should override dump() instead.
+        """
+        with bopen(file, "wb") as f:
+            self.dump(f)
 
 
 class Stream(Streamable):
@@ -298,6 +343,10 @@ class Stream(Streamable):
     @property
     def asynchronous(self):
         return (self._astream is not None) or (self._aiterator is not None)
+
+    @classmethod
+    def from_stream(cls, source: IO[bytes], *, media_type: Optional[str] = None):
+        return cls(stream=source, media_type=media_type)
 
     @classmethod
     def load(cls, file: Union[str, PurePath, IO[bytes]], *, media_type: Optional[str] = None):

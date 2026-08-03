@@ -3,16 +3,20 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Type, TypedDict, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Type, TypedDict, Union
 
 import numpy as n
 
+from ..constants import EIGHT_MIB
 from ..errors import DatasetLoadError
 from ..spec import DType, Field
 from .core import Data, DsetType
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike, NDArray
+
+_TARGET_BATCH_BYTES = EIGHT_MIB
+"""Approximate target size (in bytes) of each record batch when saving."""
 
 
 class DatasetHeader(TypedDict):
@@ -28,11 +32,8 @@ class DatasetHeader(TypedDict):
     Column description
     """
 
-    compression: Literal["lz4", None]
-    """Compression library used for in the dataset"""
-
-    compressed_fields: List[str]
-    """Field names that require decompression."""
+    compression: Optional[str]
+    """Compression codec used for the dataset, or None if uncompressed"""
 
 
 DSET_TO_TYPE_MAP: Dict[DsetType, Type[Union[n.number, n.object_]]] = {
@@ -63,14 +64,13 @@ TYPE_TO_DSET_MAP = {
     },
 }
 
-# Set of dataset fields that should not be compressed when saving in
-# NEWEST_FORMAT
-NEVER_COMPRESS_FIELDS = {"uid"}
-
 
 def normalize_field(name: str, dtype: "DTypeLike") -> Field:
-    # Note: field name "uid" is always uint64, regardless of given dtype
-    # Note: sd
+    """
+    Note: field name "uid" is always uint64, regardless of given dtype
+
+    :meta private:
+    """
     dt = n.dtype(dtype)
     if name == "uid":
         return name, n.dtype(n.uint64).str
@@ -83,16 +83,19 @@ def normalize_field(name: str, dtype: "DTypeLike") -> Field:
 
 
 def fielddtype(field: Field) -> DType:
+    """:meta private:"""
     _, dt, *rest = field
     return (dt, rest[0]) if rest else dt
 
 
 def arraydtype(a: "NDArray") -> DType:
+    """:meta private:"""
     assert len(a.dtype.descr) == 1, "Cannot get dtype from record array"
     return (a.dtype.str, a.shape[1:]) if len(a.shape) > 1 else a.dtype.str
 
 
 def dtypestr(dtype: "DTypeLike") -> str:
+    """:meta private:"""
     dt = n.dtype(dtype)
     if dt.shape:
         shape = ",".join(map(str, dt.shape))
@@ -102,10 +105,12 @@ def dtypestr(dtype: "DTypeLike") -> str:
 
 
 def get_data_field(data: Data, field: str) -> Field:
+    """:meta private:"""
     return normalize_field(field, get_data_field_dtype(data, field))
 
 
 def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
+    """:meta private:"""
     t = data.type(field)
     if t == 0:
         raise KeyError(f"Unknown dataset field {field}")
@@ -122,9 +127,13 @@ def filter_descr(
     keep_prefixes: Optional[Sequence[str]] = None,
     keep_fields: Optional[Sequence[str]] = None,
 ) -> List[Field]:
-    # Get a filtered list of fields based on the user-specified prefixies
-    # and/or fields. Returns all fields if no filter params are specified.
-    # Always returns at least uid field, if it exists.
+    """
+    Get a filtered list of fields based on the user-specified prefixies
+    and/or fields. Returns all fields if no filter params are specified.
+    Always returns at least uid field, if it exists.
+
+    :meta private:
+    """
     filtered: List[Field] = []
     for field in descr:
         if (
@@ -138,10 +147,12 @@ def filter_descr(
 
 
 def encode_dataset_header(fields: DatasetHeader) -> bytes:
+    """:meta private:"""
     return json.dumps(fields).encode()
 
 
 def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
+    """:meta private:"""
     try:
         header = json.loads(data) if isinstance(data, bytes) else data
         assert isinstance(header, dict), f"Incorrect decoded header type (expected dict, got {type(header)})"
@@ -151,26 +162,36 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         assert "dtype" in header and isinstance(header["dtype"], list), (
             'Dataset header "dtype" key missing or has incorrect type'
         )
-        assert "compression" in header and header["compression"] in {
-            None,
-            "lz4",
-        }, 'Dataset header "compression" key missing or has incorrect type'
-        assert "compressed_fields" in header or isinstance(header["compressed_fields"], list), (
-            'Dataset header "compressed_fields" key missing or has incorrect type'
+        assert "compression" in header and (header["compression"] is None or isinstance(header["compression"], str)), (
+            'Dataset header "compression" key missing or has incorrect type'
         )
 
         length: int = header["length"]
         dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
-        compression: Literal["lz4", None] = header["compression"]
-        compressed_fields: List[str] = header["compressed_fields"]
+        compression: Optional[str] = header["compression"]
 
-        return DatasetHeader(
-            length=length,
-            dtype=dtype,
-            compression=compression,
-            compressed_fields=compressed_fields,
-        )
+        return DatasetHeader(length=length, dtype=dtype, compression=compression)
     except Exception as e:
         raise DatasetLoadError(
             f"Incorrect dataset field format: {data.decode() if isinstance(data, bytes) else data}"
         ) from e
+
+
+def rows_per_batch(descr: Sequence[Field]) -> int:
+    """
+    Number of rows that keeps a record batch near ``_TARGET_BATCH_BYTES``.
+    Used by Parquet and Numpy serialization to avoid allocating read/write
+    buffers that are too large.
+
+    :meta private:
+    """
+    rowsize = 0
+    for field in descr:
+        dt = n.dtype(fielddtype(field))
+        if dt.base.kind == "O":
+            rowsize += 8  # rough estimate for a string entry
+        elif dt.shape:
+            rowsize += dt.base.itemsize * int(n.prod(dt.shape))
+        else:
+            rowsize += dt.base.itemsize
+    return max(1, _TARGET_BATCH_BYTES // max(rowsize, 1))

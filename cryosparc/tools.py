@@ -32,7 +32,7 @@ from .controllers import as_output_slot
 from .controllers.job import ExternalJobController, FileOrFigure, JobController
 from .controllers.project import ProjectController
 from .controllers.workspace import WorkspaceController
-from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
+from .dataset import DEFAULT_FORMAT, Dataset
 from .dataset.row import R
 from .models.asset import GridFSFile
 from .models.external import ExternalOutputSpec
@@ -947,10 +947,7 @@ class CryoSPARC:
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        if format == CSDAT_FORMAT:
-            return self.upload(project_uid, target_path, Stream.from_iterator(dset.stream()), overwrite=overwrite)
-
-        if len(dset) < 100:
+        if len(dset) < 10_000:
             # Probably small enough to upload from memory
             f = BytesIO()
             dset.save(f, format=format)

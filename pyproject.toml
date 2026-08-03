@@ -24,6 +24,7 @@ dependencies = [
     "numpy >= 1.17, < 3.0",
     "httpx ~= 0.25",
     "pydantic ~= 2.8",
+    "pyarrow >= 15.0",
     "typing-extensions >= 4.0",
 ]
 
@@ -74,3 +75,8 @@ exclude = [
 line-length = 120
 extend-include = ["*.ipynb"]
 extend-exclude = [".venv*", "cryosparc/include"]
+
+[tool.pytest.ini_options]
+markers = [
+    "io: marks tests for data input/output testing (datasets, etc.)",
+]

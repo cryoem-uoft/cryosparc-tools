@@ -32,7 +32,6 @@ setup(
         Extension(
             name="cryosparc.dataset.core",
             sources=[
-                "cryosparc/include/lz4/lib/lz4.c",
                 "cryosparc/dataset/dataset.c",
                 "cryosparc/dataset/core.pyx",
             ],
@@ -43,9 +42,7 @@ setup(
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
             depends=[
-                "cryosparc/include/lz4/lib/lz4.h",
                 "cryosparc/include/cryosparc-tools/dataset.h",
-                "cryosparc/dataset/lz4.pxd",
                 "cryosparc/dataset/dataset.pxd",
             ],
         ),
