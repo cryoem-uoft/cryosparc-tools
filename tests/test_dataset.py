@@ -271,6 +271,50 @@ def test_load_fields(io_data):
     assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
 
 
+def test_load_path_fields(tmp_path):
+    path = tmp_path / "paths.cs"
+    dset = Dataset(
+        {
+            "particles/blob/path": ["particles/1.mrc", "particles/2.mrc"],
+            "particles/location/center_x": [10.0, 20.0],
+            "micrographs/processed_mics": ["micrographs", "micrographs"],
+            "volumes/map_path": ["volumes/map.mrc", "volumes/map.mrc"],
+        }
+    )
+    dset.save(path)
+
+    result = Dataset.load_path_fields(path, prefixes=["particles", "micrographs"])
+
+    assert result.fields() == ["uid", "particles/blob/path", "micrographs/processed_mics"]
+    assert result["particles/blob/path"].tolist() == ["particles/1.mrc", "particles/2.mrc"]
+    assert result["micrographs/processed_mics"].tolist() == ["micrographs", "micrographs"]
+
+
+def test_load_path_fields_returns_empty_dataset_without_matches(tmp_path):
+    path = tmp_path / "paths.cs"
+    Dataset({"particles/blob/path": ["particles/1.mrc"]}).save(path)
+
+    assert Dataset.load_path_fields(path, prefixes=["particle"]).fields() == ["uid"]
+    assert Dataset.load_path_fields(tmp_path / "missing.cs", prefixes=["particles"]).fields() == ["uid"]
+
+
+def test_load_path_fields_from_stream():
+    stream = BytesIO()
+    Dataset(
+        {
+            "particles/blob/path": ["particles/1.mrc"],
+            "particles/location/center_x": [10.0],
+            "volumes/map_path": ["volumes/map.mrc"],
+        }
+    ).save(stream, format=CSDAT_FORMAT)
+    stream.seek(0)
+
+    result = Dataset.load_path_fields(stream, prefixes=["particles"])
+
+    assert result.fields() == ["uid", "particles/blob/path"]
+    assert result["particles/blob/path"].tolist() == ["particles/1.mrc"]
+
+
 def test_subset_range_out_of_bounds():
     data = Dataset.allocate(size=3, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     subset = data.slice(2, 100)

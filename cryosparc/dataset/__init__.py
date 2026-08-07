@@ -1122,38 +1122,29 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return "path" in field or "processed_mics" in field  # Topaz model field that is a directory to export
 
     @classmethod
-    def load_path_field_values(
+    def load_path_fields(
         cls,
-        file: Union[str, PurePath],
-        result_names: Collection[str],
-        is_path_field: Optional[Callable[[str], bool]] = None,
-    ) -> Dict[str, List[str]]:
+        file: Union[str, PurePath, IO[bytes]],
+        prefixes: Sequence[str],
+    ) -> "Dataset":
         """
-        Load only the path field columns belonging to the given result names
-        from a dataset file, mapping each path field name to its values.
-        Reads the file header first so only matching columns are loaded.
+        Load only the path field columns belonging to the given prefixes from a
+        dataset file.
 
         Args:
-            file (str | Path): Readable dataset file path.
-            result_names (Collection[str]): Result name prefixes to include
-                path fields for.
-            is_path_field (Callable[[str], bool], optional): Predicate used to
-                identify path fields. Defaults to `Dataset.is_path_field`.
+            file (str | Path | IO): Readable file path or handle. Must be
+                seekable if loading a dataset saved in the default
+                ``NUMPY_FORMAT``
+            prefixes (Sequence[str]): Result name prefixes to include path
+                fields for.
 
         Returns:
-            dict[str, list[str]]: Map of path field name to its values. Empty
-            if the file is missing or has no matching path fields.
+            Dataset: Dataset containing matching path fields. Empty if the file
+            is missing or has no matching path fields.
         """
-        if not Path(file).is_file():
-            return {}
-        is_path_field = is_path_field or cls.is_path_field
-        path_field_names = [
-            f[0] for f in cls.inspect(file)["dtype"] if is_path_field(f[0]) and f[0].split("/")[0] in result_names
-        ]
-        if not path_field_names:
-            return {}
-        dset = cls.load(file, fields=path_field_names)
-        return {name: dset[name].tolist() for name in path_field_names}
+        if isinstance(file, (str, PurePath)) and not Path(file).is_file():
+            return cls()
+        return cls.load(file, prefixes=prefixes).filter_fields(cls.is_path_field)
 
     @overload
     def add_fields(self, fields: Sequence[Field]) -> "Dataset[R]": ...
