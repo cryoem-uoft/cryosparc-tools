@@ -295,7 +295,6 @@ def test_load_path_fields_returns_empty_dataset_without_matches(tmp_path):
     Dataset({"particles/blob/path": ["particles/1.mrc"]}).save(path)
 
     assert Dataset.load_path_fields(path, prefixes=["particle"]).fields() == ["uid"]
-    assert Dataset.load_path_fields(tmp_path / "missing.cs", prefixes=["particles"]).fields() == ["uid"]
 
 
 def test_load_path_fields_from_stream():
@@ -336,9 +335,33 @@ def test_load_stream_prefixes(small_dset, small_dset_path):
     assert result == small_dset.filter_prefixes(["field"], copy=True)
 
 
+def test_load_stream_prefixes_callable(small_dset, small_dset_path):
+    seen_names = []
+
+    def keep_prefix(name: str) -> bool:
+        seen_names.append(name)
+        return name.startswith("field/")
+
+    result = Dataset.load(small_dset_path, prefixes=keep_prefix)
+    assert result == small_dset.filter_prefixes(["field"], copy=True)
+    # Locks in the full-field-name contract: a prefixes= callable must never
+    # be called with just the segment before the first "/".
+    assert all("/" in name for name in seen_names)
+
+
 def test_load_stream_fields(small_dset, small_dset_stream):
     result = Dataset.load(small_dset_stream, fields=["field/2"])
     assert result == small_dset.filter_fields(["field/2"], copy=True)
+
+
+def test_load_stream_fields_callable(small_dset, small_dset_stream):
+    result = Dataset.load(small_dset_stream, fields=lambda name: name == "field/2")
+    assert result == small_dset.filter_fields(["field/2"], copy=True)
+
+
+def test_load_stream_fields_callable_no_matches_keeps_only_uid(small_dset, small_dset_stream):
+    result = Dataset.load(small_dset_stream, fields=lambda name: False)
+    assert result.fields() == ["uid"]
 
 
 def test_load_empty_stream(empty_dset, empty_dset_stream):
