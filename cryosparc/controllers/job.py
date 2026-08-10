@@ -15,6 +15,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    Iterator,
     List,
     Literal,
     Optional,
@@ -25,9 +26,12 @@ from typing import (
     overload,
 )
 
+from typing_extensions import Self
+
 from ..dataset import DEFAULT_FORMAT, Dataset
-from ..errors import ExternalJobError
+from ..errors import APIError, ExternalJobError, JobError
 from ..models.asset import GridFSAsset, GridFSFile
+from ..models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
 from ..models.job import Job, JobStatus
 from ..models.job_register import JobRegisterJobSpec
 from ..models.job_spec import Input, InputSpec, Output, OutputSpec, Params
@@ -50,6 +54,7 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
 
     from ..tools import CryoSPARC
+    from .workspace import WorkspaceController
 
 
 GROUP_NAME_PATTERN = r"^[A-Za-z][0-9A-Za-z_]*$"
@@ -64,6 +69,9 @@ Severity level for job event logs.
 
 FileOrFigure = Union[str, PurePath, IO[bytes], Any]
 """A file path, a file-like object, or a matplotlib figure."""
+
+OptPattern = Union[str, Pattern[str], None]
+"""Optional pattern type alias for matching strings."""
 
 
 class JobController(Controller[Job]):
@@ -329,7 +337,7 @@ class JobController(Controller[Job]):
                 JSON-encodable.
             timeout (int, optional): Maximum time to wait for the action to
                 complete, in seconds. Defaults to 10.
-            refresh (bool, optional): If True, refresh the job document after
+            refresh (bool, optional): If True, refresh the job model after
                 posting. Defaults to False.
         """
         result: Any = self.cs.api.jobs.interactive_post(
@@ -344,6 +352,72 @@ class JobController(Controller[Job]):
         Clear this job and reset to building status.
         """
         self.model = self.cs.api.jobs.clear(self.project_uid, self.uid)
+
+    def clone(self, workspace: Union[str, "WorkspaceController", None] = None) -> Self:
+        """
+        Clone this job, creating a new job with the same spec and parameters but
+        without connections or results.
+
+        Args:
+            workspace (str | WorkspaceController, optional): Target workspace to
+                create the cloned job in. Can specify by name or UID, or with a
+                WorkspaceController instance. If not specified, clones into the
+                first workspace the job is available in. Defaults to None.
+        Returns:
+            JobController: Controller for the newly cloned job.
+        """
+        workspace_uid = workspace if workspace is None or isinstance(workspace, str) else workspace.uid
+        new_job = self.cs.api.jobs.clone(self.project_uid, self.uid, workspace_uid=workspace_uid)
+        return type(self)(self.cs, new_job)
+
+    def link_to_workspace(self, workspace: Union[str, "WorkspaceController"]):
+        """
+        Link this job to an additional workspace.
+
+        Args:
+            workspace (str | WorkspaceController): Target workspace to link this
+                job to. Can specify by UID, or with a WorkspaceController
+                instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
+                or :py:meth:`project.create_workspace() <cryosparc.controllers.project.ProjectController.create_workspace>`.
+        """
+        workspace_uid = workspace if isinstance(workspace, str) else workspace.uid
+        self.model = self.cs.api.jobs.link_to_workspace(self.project_uid, self.uid, workspace_uid)
+
+    def unlink_from_workspace(self, workspace: Union[str, "WorkspaceController"]):
+        """
+        Unlink this job from a workspace.
+
+        Args:
+            workspace (str | WorkspaceController): Target workspace to unlink this
+                job from. Can specify by UID, or with a WorkspaceController
+                instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
+                or :py:meth:`project.create_workspace() <cryosparc.controllers.project.ProjectController.create_workspace>`.
+        """
+        workspace_uid = workspace if isinstance(workspace, str) else workspace.uid
+        self.model = self.cs.api.jobs.unlink_from_workspace(self.project_uid, self.uid, workspace_uid)
+
+    def move(self, from_workspace: Union[str, "WorkspaceController"], to_workspace: Union[str, "WorkspaceController"]):
+        """
+        Move this job from one workspace to another. Equivalent to linking to the
+        new workspace and unlinking from the old one.
+
+        Args:
+            from_workspace (str | WorkspaceController): Workspace to move this
+                job from. Can specify by UID, or with a ``WorkspaceController``
+                instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
+            to_workspace (str | WorkspaceController): Workspace to move this job to.
+
+        Raises:
+            APIError: If job cannot be moved.
+        """
+        from_workspace_uid = from_workspace if isinstance(from_workspace, str) else from_workspace.uid
+        to_workspace_uid = to_workspace if isinstance(to_workspace, str) else to_workspace.uid
+        self.model = self.cs.api.jobs.move(
+            self.project_uid,
+            self.uid,
+            from_workspace_uid=from_workspace_uid,
+            to_workspace_uid=to_workspace_uid,
+        )
 
     def set_title(self, title: str):
         """
@@ -365,15 +439,17 @@ class JobController(Controller[Job]):
 
     def set_param(self, name: str, value: Any, **kwargs) -> bool:
         """
-        Set the given param name on the current job to the given value. Only
-        works if the job is in "building" status.
+        Set the given parameter name on the current job to the given value.
 
         Args:
-            name (str): Param name, as defined in the job document's ``params_base``.
+            name (str): Param name, a key in the job's ``spec.params`` field.
             value (any): Target parameter value.
 
         Returns:
             bool: False if the job encountered a build error.
+
+        Raises:
+            APIError: Invalid param name or value, or if job is not in "building" status.
 
         Examples:
 
@@ -389,7 +465,67 @@ class JobController(Controller[Job]):
         self.model = self.cs.api.jobs.set_param(self.project_uid, self.uid, name, value=value)
         return True
 
-    def connect(self, target_input: str, source_job_uid: str, source_output: str, **kwargs) -> bool:
+    def set_params(self, params: Dict[str, Any]):
+        """
+        Set multiple job parameters.
+
+        Args:
+            params (dict[str, Any]): Dict of param names and target values.
+
+        Raises:
+            APIError: Invalid param name or value, or if job is not in "building" status.
+
+        Examples:
+
+            Set multiple parameters at once.
+
+            >>> cs = CryoSPARC("http://localhost:61000")
+            >>> job = cs.find_job("P3", "J42")
+            >>> job.set_params({"compute_num_gpus": 4, "abinit_K": 3})
+        """
+        self.model = self.cs.api.jobs.set_params(self.project_uid, self.uid, params)
+
+    def clear_param(self, param: str):
+        """
+        Reset the given parameter to its default value.
+
+        Args:
+            param (str): Param name, a key in the job's ``spec.params`` field.
+
+        Raises:
+            APIError: Invalid param name, or if job is not in "building" status.
+        """
+        self.model = self.cs.api.jobs.clear_param(self.project_uid, self.uid, param)
+
+    def clear_params(self):
+        """
+        Reset all job parameters.
+
+        Raises:
+            APIError: If job is not in "building" status.
+        """
+        self.model = self.cs.api.jobs.clear_params(self.project_uid, self.uid)
+
+    def set_priority(self, priority: int):
+        """
+        Set the job priority. Once queued, higher priority jobs are scheduled
+        before lower priority ones.
+
+        Args:
+            priority (int): Target job priority, where higher numbers indicate
+                higher priority.
+        """
+        self.model = self.cs.api.jobs.set_priority(self.project_uid, self.uid, priority=priority)
+
+    def connect(
+        self,
+        target_input: str,
+        source_job_uid: str,
+        source_output: str,
+        *,
+        connection_idx: Optional[int] = None,
+        **kwargs,
+    ) -> bool:
         """
         Connect the given input for this job to an output with given job UID and
         name.
@@ -400,9 +536,16 @@ class JobController(Controller[Job]):
             source_job_uid (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
+            connection_idx (int, optional): Replace the given connection index
+                for this input, where 0 is the first connection, 1 is the
+                second, etc. If not specified, appends a new connection.
+                Defaults to None.
 
         Returns:
             bool: False if the job encountered a build error.
+
+        Raises:
+            APIError: If job is not in "building" status.
 
         Examples:
 
@@ -419,9 +562,25 @@ class JobController(Controller[Job]):
             warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
         if source_job_uid == self.uid:
             raise ValueError(f"Cannot connect job {self.uid} to itself")
-        self.model = self.cs.api.jobs.connect(
-            self.project_uid, self.uid, target_input, source_job_uid=source_job_uid, source_output_name=source_output
+        self.model = (
+            self.cs.api.jobs.connect(
+                self.project_uid,
+                self.uid,
+                target_input,
+                source_job_uid=source_job_uid,
+                source_output_name=source_output,
+            )
+            if connection_idx is None
+            else self.cs.api.jobs.reconnect(
+                self.project_uid,
+                self.uid,
+                target_input,
+                connection_idx,
+                source_job_uid=source_job_uid,
+                source_output_name=source_output,
+            )
         )
+
         return True
 
     def connect_result(
@@ -555,6 +714,58 @@ class JobController(Controller[Job]):
                 warnings.warn(f"only whole slots can be loaded, not fields. Loading {slot_set}", stacklevel=2)
                 slots = sorted(list(slot_set))
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
+
+    # fmt: off
+    @overload
+    def find_events(self, *,                                            pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]: ...
+    @overload
+    def find_events(self, *, type: Literal["text", "warning", "error"], pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[TextEvent]: ...
+    @overload
+    def find_events(self, *, type: Literal["image"],                    pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[ImageEvent]: ...
+    @overload
+    def find_events(self, *, type: Literal["interactive"],              pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[InteractiveEvent]: ...
+    # fmt: on
+    def find_events(
+        self,
+        *,
+        type: Literal["text", "warning", "error", "image", "interactive", None] = None,
+        pattern: OptPattern = None,
+        checkpoint: Optional[int] = None,
+    ) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]:
+        """
+        Find all events in the job log matching the given pattern.
+
+        Args:
+            pattern (str | Pattern, optional): Regular expression to match
+                against event text. If not specified, shows all events.
+                Defaults to None.
+            type (Literal["text", "warning", "error", "image", "interactive"], optional):
+                If specified, only return events with the given log level.
+                Defaults to None.
+            checkpoint (int, optional): If specified, only return events logged
+                after the given checkpoint. Specify 0 to show initial logs
+                before the first checkpoint. Specify -1 to show logs after
+                the last checkpoint. Defaults to None.
+
+        Yields:
+            TextEvent | ImageEvent | InteractiveEvent: Matching event log entry
+        """
+        regex = None
+        if pattern is not None:
+            regex = re.compile(pattern) if isinstance(pattern, str) else pattern
+        checkpoint, max_checkpoint = (0, float("inf")) if checkpoint is None else (checkpoint, checkpoint + 1)
+        while events := self.cs.api.jobs.get_event_logs(self.project_uid, self.uid, checkpoint=checkpoint):
+            for event in events:
+                if isinstance(event, (Event, CheckpointEvent)):
+                    continue  # unused type
+                if type and event.type != type:
+                    continue  # incorrect type
+                if regex and not regex.search(event.text):
+                    continue  # no pattern match
+                yield event
+            checkpoint += 1
+            if checkpoint >= max_checkpoint:
+                return
 
     @overload
     def log(self, text: str, *, level: LogLevel = ...) -> str: ...
@@ -895,7 +1106,7 @@ class JobController(Controller[Job]):
             fmt = path.suffix[1:].lower()
             if fmt not in IMAGE_CONTENT_TYPES:
                 raise ValueError(f"Invalid figure format {fmt}")
-            filename = f"{name or path.stem}.{fmt}"
+            filename = f"{name or basename}.{fmt}"
             figdata.append((figure, filename, fmt))
         else:  # Binary IO
             fmt = first(iter(formats))
@@ -1037,9 +1248,10 @@ class JobController(Controller[Job]):
     def subprocess(
         self,
         args: Union[str, list],
+        *,
         mute: bool = False,
         checkpoint: bool = False,
-        checkpoint_line_pattern: Union[str, Pattern[str], None] = None,
+        checkpoint_line_pattern: OptPattern = None,
         **kwargs,
     ):
         """
@@ -1102,6 +1314,43 @@ class JobController(Controller[Job]):
                 raise RuntimeError(msg)
 
             self.log("─────────────────────── Subprocess complete. ─────────────────────────")
+
+    def set_final(self, final: bool = True):
+        """
+        Set the job's final status. Final jobs and their connected ancestors
+        cannot be modified or deleted.
+
+        Args:
+            final (bool, optional): Set job's final status. Defaults to True.
+        """
+        self.model = self.cs.api.jobs.set_final_result(self.project_uid, self.uid, is_final_result=final)
+
+    def delete(self, *, wait: bool = False):
+        """
+        Delete the job. This action cannot be undone. May fail if job has final
+        status or has active descendants.
+
+        Args:
+            wait (bool, optional): If True, wait for the delete operations to
+                complete before returning. Defaults to False.
+
+        Raises:
+            APIError: If the job fails to pass pre-delete checks, e.g., if it
+                has active descendants
+            JobError: If the delete operation fails after waiting.
+        """
+        self.cs.api.jobs.delete(self.project_uid, self.uid)
+        self.model.deleting = True
+        while wait and self.model.deleting:
+            sleep(1)
+            try:
+                self.refresh()
+            except APIError as err:
+                if err.code == 404:
+                    return  # not found, job successfully deleted
+                raise
+        if not self.model.deleted and not self.model.deleting:
+            raise JobError("Could not be deleted. See cryosparcm log api for details.", job=self)
 
     def print_param_spec(self):
         """
@@ -1707,16 +1956,23 @@ class ExternalJobController(JobController):
         finally:
             self.stop(error=error)
 
+    def clone(self, *_, **__):
+        """
+        :meta private:
+        """
+        raise ExternalJobError("Cannot clone an external job", job=self)
+
     def queue(self, *_, **__):
         """
         :meta private:
         """
         raise ExternalJobError(
-            "Cannot queue an external job; use `job.start()`/`job.stop()` or `with job.run()` instead"
+            "Cannot queue an external job; use `job.start()`/`job.stop()` or `with job.run()` instead",
+            job=self,
         )
 
     def kill(self):
         """
         :meta private:
         """
-        raise ExternalJobError("Cannot kill an external job; use `job.stop()` instead")
+        raise ExternalJobError("Cannot kill an external job; use `job.stop()` instead", job=self)
