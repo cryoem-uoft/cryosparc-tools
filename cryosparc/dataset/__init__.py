@@ -62,6 +62,7 @@ from .dtype import (
     TYPE_TO_DSET_MAP,
     DatasetHeader,
     Field,
+    FieldFilter,
     arraydtype,
     decode_dataset_header,
     encode_dataset_header,
@@ -574,8 +575,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         cls,
         file: Union[str, PurePath, IO[bytes]],
         *,
-        prefixes: Optional[Sequence[str]] = None,
-        fields: Optional[Sequence[str]] = None,
+        prefixes: Optional[FieldFilter] = None,
+        fields: Optional[FieldFilter] = None,
         cstrs: bool = False,
         media_type: Optional[str] = None,  # for interface, otherwise unused
     ):
@@ -590,10 +591,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
-            prefixes (list[str], optional): Which field prefixes to load. If
-                not specified, loads either all or specified `fields`.
-            fields (list[str], optional): Which fields to load. If not
-                specified, loads either all or specified `prefixes`.
+            prefixes (list[str] | (str) -> bool, optional): Which field
+                prefixes to load, or a function that takes a field name and
+                returns True if it should be loaded. If not specified, loads
+                either all or specified `fields`.
+            fields (list[str] | (str) -> bool, optional): Which fields to
+                load, or a function that takes a field name and returns True
+                if it should be loaded. If not specified, loads either all or
+                specified `prefixes`.
             cstrs (bool): If True, load internal string columns as C strings
                 instead of Python strings. Defaults to False.
 
@@ -634,8 +639,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def _load_numpy(
         cls,
         file: Union[str, PurePath, IO[bytes]],
-        prefixes: Optional[Sequence[str]] = None,
-        fields: Optional[Sequence[str]] = None,
+        prefixes: Optional[FieldFilter] = None,
+        fields: Optional[FieldFilter] = None,
         cstrs: bool = False,
     ):
         import os
@@ -684,8 +689,8 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def _load_stream(
         cls,
         f: IO[bytes],
-        prefixes: Optional[Sequence[str]] = None,
-        fields: Optional[Sequence[str]] = None,
+        prefixes: Optional[FieldFilter] = None,
+        fields: Optional[FieldFilter] = None,
         cstrs: bool = False,
         seekable: bool = False,
     ):
@@ -1107,6 +1112,54 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             ["field", "foo", "bar"]
         """
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
+
+    @staticmethod
+    def is_path_field(field: str) -> bool:
+        """
+        Whether the given field name looks like it holds a relative file path.
+
+        Args:
+            field (str): Field name, e.g. ``"blob/path"``.
+
+        Returns:
+            bool: True if the field name suggests it holds path values.
+        """
+        return "path" in field or "processed_mics" in field  # Topaz model field that is a directory to export
+
+    @classmethod
+    def load_path_fields(
+        cls,
+        file: Union[str, PurePath, IO[bytes]],
+        prefixes: Optional[Sequence[str]] = None,
+    ) -> "Dataset":
+        """
+        Load only the path field columns belonging to the given prefixes from a
+        dataset file.
+
+        Args:
+            file (str | Path | IO): Readable file path or handle. Must be
+                seekable if loading a dataset saved in the default
+                ``NUMPY_FORMAT``
+            prefixes (Sequence[str], optional): Result name prefixes to
+                include path fields for. If not specified, loads path fields
+                for all prefixes.
+
+        Raises:
+            DatasetLoadError: If cannot load dataset file.
+
+        Returns:
+            Dataset: Dataset containing matching path fields. Empty if the
+            file has no matching path fields.
+        """
+        if prefixes is None:
+            return cls.load(file, fields=cls.is_path_field)
+
+        prefix_set = set(prefixes)
+
+        def is_matching_path_field(name: str) -> bool:
+            return cls.is_path_field(name) and name.split("/", 1)[0] in prefix_set
+
+        return cls.load(file, fields=is_matching_path_field)
 
     @overload
     def add_fields(self, fields: Sequence[Field]) -> "Dataset[R]": ...
