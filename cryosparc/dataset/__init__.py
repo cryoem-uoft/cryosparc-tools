@@ -1130,7 +1130,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def load_path_fields(
         cls,
         file: Union[str, PurePath, IO[bytes]],
-        prefixes: Sequence[str],
+        prefixes: Optional[Sequence[str]] = None,
     ) -> "Dataset":
         """
         Load only the path field columns belonging to the given prefixes from a
@@ -1140,8 +1140,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
-            prefixes (Sequence[str]): Result name prefixes to include path
-                fields for.
+            prefixes (Sequence[str], optional): Result name prefixes to
+                include path fields for. If not specified, loads path fields
+                for all prefixes.
 
         Raises:
             DatasetLoadError: If cannot load dataset file.
@@ -1150,6 +1151,9 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             Dataset: Dataset containing matching path fields. Empty if the
             file has no matching path fields.
         """
+        if prefixes is None:
+            return cls.load(file, fields=cls.is_path_field)
+
         prefix_set = set(prefixes)
 
         def is_matching_path_field(name: str) -> bool:

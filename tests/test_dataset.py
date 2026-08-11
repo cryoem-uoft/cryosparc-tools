@@ -290,6 +290,21 @@ def test_load_path_fields(tmp_path):
     assert result["micrographs/processed_mics"].tolist() == ["micrographs", "micrographs"]
 
 
+def test_load_path_fields_without_prefixes_loads_all(tmp_path):
+    path = tmp_path / "paths.cs"
+    Dataset(
+        {
+            "particles/blob/path": ["particles/1.mrc", "particles/2.mrc"],
+            "particles/location/center_x": [10.0, 20.0],
+            "volumes/map_path": ["volumes/map.mrc", "volumes/map.mrc"],
+        }
+    ).save(path)
+
+    result = Dataset.load_path_fields(path)
+
+    assert result.fields() == ["uid", "particles/blob/path", "volumes/map_path"]
+
+
 def test_load_path_fields_returns_empty_dataset_without_matches(tmp_path):
     path = tmp_path / "paths.cs"
     Dataset({"particles/blob/path": ["particles/1.mrc"]}).save(path)
@@ -345,7 +360,11 @@ def test_load_stream_prefixes_callable(small_dset, small_dset_path):
     result = Dataset.load(small_dset_path, prefixes=keep_prefix)
     assert result == small_dset.filter_prefixes(["field"], copy=True)
     # Locks in the full-field-name contract: a prefixes= callable must never
-    # be called with just the segment before the first "/".
+    # be called with just the segment before the first "/". Also locks in
+    # that "uid" (always kept regardless) is never passed to the callable at
+    # all -- it's not a candidate field the caller's predicate should have
+    # an opinion about.
+    assert "uid" not in seen_names
     assert all("/" in name for name in seen_names)
 
 

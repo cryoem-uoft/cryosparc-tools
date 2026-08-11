@@ -131,19 +131,17 @@ def filter_descr(
     filtered: List[Field] = []
     for field in descr:
         name = field[0]
-        if (
-            name == "uid"
-            or (keep_prefixes is None and keep_fields is None)
-            or (
-                keep_prefixes is not None
-                and (
-                    keep_prefixes(name)
-                    if callable(keep_prefixes)
-                    else any(name.startswith(f"{p}/") for p in keep_prefixes)
-                )
+        is_uid = name == "uid"
+        no_filters = keep_prefixes is None and keep_fields is None
+        prefix_match = field_match = False
+        if not is_uid and keep_prefixes is not None:
+            prefix_match = (
+                keep_prefixes(name) if callable(keep_prefixes) else any(name.startswith(f"{p}/") for p in keep_prefixes)
             )
-            or (keep_fields is not None and (keep_fields(name) if callable(keep_fields) else name in keep_fields))
-        ):
+        if not is_uid and keep_fields is not None:
+            field_match = keep_fields(name) if callable(keep_fields) else name in keep_fields
+
+        if is_uid or no_filters or prefix_match or field_match:
             filtered.append(field)
     return filtered
 
