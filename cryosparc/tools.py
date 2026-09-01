@@ -162,11 +162,17 @@ class CryoSPARC:
         if host or base_port:
             if base_url:
                 raise TypeError("Cannot specify host or base_port when base_url is specified")
-            host = host or "localhost"
-            port = int(base_port or 39000)
-            self.base_url = f"http://{host}:{port}"
+            host = (host or "localhost").strip().rstrip("/")
+
+            # If user passed full URL in host, respect it and ignore base_port
+            if host.startswith("http://") or host.startswith("https://"):
+                self.base_url = host
+            else:
+                port = int(base_port or 39000)
+                scheme = "https" if port == 443 else "http"
+                self.base_url = f"{scheme}://{host}:{port}"
         elif base_url:
-            self.base_url = base_url
+            self.base_url = base_url.strip().rstrip("/")
         else:
             raise TypeError("Must specify either base_url or host + base_port")
 
