@@ -519,7 +519,10 @@ class CryoSPARC:
         return ExternalJobController(self, (project_uid, job_uid))
 
     def create_project(
-        self, parent_path: Union[str, PurePosixPath], title: str, desc: Optional[str] = None
+        self,
+        parent_path: Union[str, PurePosixPath],
+        title: str,
+        desc: Optional[str] = None,
     ) -> ProjectController:
         """
         Create a new empty project.
@@ -931,8 +934,8 @@ class CryoSPARC:
                 target /= path.name
                 counter = 1
                 while target.exists():  # avoid overwriting existing files
-                    counter += 1
                     target = target.with_stem(f"{path.stem}_{counter}")
+                    counter += 1
         stream = self.api.projects.download_file(project_uid, path=str(path))
         stream.save(target)
         return target
@@ -1038,12 +1041,12 @@ class CryoSPARC:
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        if isinstance(source, Buffer):
+        if isinstance(source, (bytes, bytearray, memoryview)):
             source = BytesIO(source)
         if isinstance(source, TextIOBase):  # e.g., open(p, "r") or StringIO()
             source = Stream.from_iterator(s.encode() for s in source)
         if not isinstance(source, Stream):
-            source = Stream.load(source)
+            source = Stream.load(source)  # type: ignore
         self.api.projects.upload_file(project_uid, source, path=str(target_path), overwrite=overwrite)
 
     def upload_dataset(

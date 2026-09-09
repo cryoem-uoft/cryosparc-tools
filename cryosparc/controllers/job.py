@@ -271,7 +271,7 @@ class JobController(Controller[Job]):
                 unspecified to use first available GPU(s). Defaults to [].
             cluster_vars (dict[str, Any], optional): Specify custom cluster
                 variables when queuing to a cluster. Keys are variable names.
-                Defaults to False.
+                Defaults to {}.
             check_inputs_ready (bool, optional): If False, launch job without
                 waiting for parent jobs to complete. Defaults to True.
             oversubscribe_gpus (bool, optional): If True, launch job even if
@@ -403,7 +403,7 @@ class JobController(Controller[Job]):
         """
         Clone this job, creating a new building job with the same inputs and
         parameters but no outputs. The new job may be queued with
-        :py:meth:`queue() <cryosparc.controllers.jobs.JobController.queue>`.
+        :py:meth:`queue() <cryosparc.controllers.job.JobController.queue>`.
 
         Args:
             workspace (str | WorkspaceController, optional): Target workspace to
@@ -542,8 +542,7 @@ class JobController(Controller[Job]):
             >>> # or
             >>> job.set_params({"compute_num_gpus": 4, "abinit_K": 3})
         """
-        kwparams.update(params)
-        self.model = self.cs.api.jobs.set_params(self.project_uid, self.uid, kwparams)
+        self.model = self.cs.api.jobs.set_params(self.project_uid, self.uid, {**params, **kwparams})
 
     def clear_param(self, param: str):
         """
@@ -592,8 +591,7 @@ class JobController(Controller[Job]):
             target_input (str): Input name to connect into. Will be created if
                 not specified.
             source_job (str | JobController): Job to connect from, e.g., "J42"
-            source_output (str): Job output name to connect from , e.g.,
-                "particles"
+            source_output (str): Job output name to connect from , e.g., "particles"
             connection_idx (int, optional): Replace the given connection index
                 for this input, where 0 is the first connection, 1 is the
                 second, etc. If not specified, appends a new connection.
@@ -667,8 +665,7 @@ class JobController(Controller[Job]):
                 the job's first connection on that input, 1 for the second, etc.
             slot (str): Input slot name to connect into, e.g., "location"
             source_job (str | JobController): Job to connect from, e.g., "J42"
-            source_output (str): Job output name to connect from , e.g.,
-                "particles_selected"
+            source_output (str): Job output name to connect from , e.g., "particles"
             source_result (str): Result name to connect from, e.g., "location"
 
         Returns:
@@ -1784,14 +1781,13 @@ class ExternalJobController(JobController):
     ) -> bool:
         """
         Connect a job input to another job's output. If the input does not exist,
-        it is be added with a provided slot specification.
+        it is added with the provided slot specification.
 
         Args:
             target_input (str): Input name to connect into. Will be created if
                 does not already exist.
-            source_job (str): Job UID to connect from, e.g., "J42"
-            source_output (str): Job output name to connect from , e.g.,
-                "particles"
+            source_job (str | JobController): Job UID to connect from, e.g., "J42"
+            source_output (str): Job output name to connect from , e.g., "particles"
             slots (list[SlotSpec], optional): List of input slots (e.g.,
                 "particle" or "blob") to explicitly required for the created
                 input. If the given source job is missing these slots, the

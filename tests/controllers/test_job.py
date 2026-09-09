@@ -45,7 +45,7 @@ def test_queue(job: JobController, mock_enqueue_endpoint: mock.Mock):
 
 
 def test_queue_worker(job: JobController, mock_enqueue_endpoint: mock.Mock):
-    job.queue(lane="workers", hostname="worker1", gpus=[1], oversubscribe_gpus=True)
+    job.queue(lane="workers", target="worker1", gpus=[1], oversubscribe_gpus=True)
     assert job.model.status == "queued"
     mock_enqueue_endpoint.assert_called_once_with(
         job.project_uid,
