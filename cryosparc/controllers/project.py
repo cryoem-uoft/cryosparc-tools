@@ -106,6 +106,10 @@ class ProjectController(Controller[Project]):
         """
         Get all workspaces available in the project.
 
+        Args:
+            order (int, optional): Sort order for resulting workspaces, 1 for
+                ascending, -1 for descending. Defaults to 1.
+
         Returns:
             Iterable[WorkspaceController]: workspace accessor objects
         """
@@ -151,6 +155,8 @@ class ProjectController(Controller[Project]):
             workspace_uid (str | list[str] | None): Workspace unique ID, e.g.,
                 "W1". If not specified, returns jobs from all workspaces.
                 Defaults to None.
+            order (int, optional): Sort order for resulting jobs, 1 for
+                ascending, -1 for descending. Defaults to 1.
             **search (JobSearch): Additional search parameters to filter jobs,
                 specified as keyword arguments.
 

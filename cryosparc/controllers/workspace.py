@@ -118,6 +118,8 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
             ...     print(job.uid)
 
         Args:
+            order (int, optional): Sort order for resulting jobs, 1 for
+                ascending, -1 for descending. Defaults to 1.
             **search (JobSearch): Additional search parameters to filter jobs,
                 specified as keyword arguments.
 

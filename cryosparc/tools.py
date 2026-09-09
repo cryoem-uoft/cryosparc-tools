@@ -350,8 +350,8 @@ class CryoSPARC:
         Search for projects available to the current user.
 
         Args:
-            order (int, optional): Sort order for projects, 1 for ascending, -1
-                for descending. Defaults to 1.
+            order (int, optional): Sort order for resulting projects, 1 for
+                ascending, -1 for descending. Defaults to 1.
 
         Returns:
             Iterable[ProjectController]: project accessor objects
@@ -389,7 +389,7 @@ class CryoSPARC:
         Args:
             project_uid (str | list[str] | None): Project unique ID, e.g., "P3".
                 If not specified, returns workspaces from all projects.
-            order (int, optional): Order in which to sort the results. 1 for
+            order (int, optional): Sort order for resulting workspaces, 1 for
                 ascending, -1 for descending. Defaults to 1.
         Returns:
             Iterable[WorkspaceController]: workspace accessor objects
@@ -451,7 +451,7 @@ class CryoSPARC:
                 If not specified, returns jobs from all projects. Defaults to None.
             workspace_uid (str | list[str] | None): Workspace unique ID, e.g., "W1".
                 If not specified, returns jobs from all workspaces. Defaults to None.
-            order (int, optional): Order in which to sort the results. 1 for
+            order (int, optional): Sort order for resulting jobs, 1 for
                 ascending, -1 for descending. Defaults to 1.
             **search (JobSearch): Additional search parameters to filter jobs,
                 specified as keyword arguments.
