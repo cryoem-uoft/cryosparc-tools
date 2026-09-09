@@ -2,7 +2,6 @@
 Helper module for reading and writing relion star files.
 """
 
-from pathlib import PurePath
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -15,7 +14,6 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    Union,
     overload,
 )
 
@@ -24,7 +22,7 @@ import numpy as n
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
 
-from .util import topen
+from .util import TextFile, topen
 
 # Available star file fields and their types. Fields marked as type ``object``
 # should always be interepreted as strings.
@@ -486,7 +484,7 @@ RLN_DTYPES: Dict[str, Type[object]] = dict(
 )
 
 
-def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
+def read(file: TextFile) -> Dict[str, "NDArray"]:
     """
     Read the given STAR file into memory.
 
@@ -602,7 +600,7 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
 
 
 def write(
-    file: Union[str, PurePath, IO[str]],
+    file: TextFile,
     data: Any,
     name: str = "",
     labels: Optional[List[str]] = None,
@@ -646,7 +644,7 @@ def write(
     return write_blocks(file, {name: data})
 
 
-def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDArray"]):
+def write_blocks(file: TextFile, blocks: Mapping[str, "NDArray"]):
     """
     Write a single star file composed of multiple data blocks:
 

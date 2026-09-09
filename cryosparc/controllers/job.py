@@ -1,5 +1,13 @@
 """
 Defines the Job and External job classes for accessing CryoSPARC jobs.
+
+Use :py:meth:`cs.find_job() <cryosparc.tools.CryoSPARC.find_job>` or
+:py:meth:`project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`
+to get a :py:class:`JobController` instance for an existing job.
+
+Use :py:meth:`cs.create_job() <cryosparc.tools.CryoSPARC.create_job>` or
+:py:meth:`project.create_job() <cryosparc.controllers.project.ProjectController.create_job>`
+to create a new job and get a :py:class:`JobController` instance for it.
 """
 
 import re
@@ -7,7 +15,7 @@ import traceback
 import warnings
 from contextlib import contextmanager
 from io import BytesIO
-from pathlib import PurePath, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from time import sleep, time
 from typing import (
     IO,
@@ -26,7 +34,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Buffer, Self
 
 from ..dataset import DEFAULT_FORMAT, Dataset
 from ..errors import APIError, ExternalJobError, JobError
@@ -47,19 +55,22 @@ from ..spec import (
     TextFormat,
 )
 from ..stream import Stream
-from ..util import PurePosixPathProperty, first, print_table
+from ..util import BinaryFile, PurePosixPathProperty, first, print_table
 from . import Controller, as_input_slot, as_output_slot
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
 
+    from .. import mrc
     from ..tools import CryoSPARC
     from .workspace import WorkspaceController
 
 
 GROUP_NAME_PATTERN = r"^[A-Za-z][0-9A-Za-z_]*$"
 """
-Input and output result groups may only contain, letters, numbers and underscores.
+`Regular expression <https://docs.python.org/3/howto/regex.html#regex-howto>`_
+for job input and output names. May only contain Latin letters, numbers and
+underscores, and must start with a letter.
 """
 
 LogLevel = Literal["text", "warning", "error"]
@@ -67,17 +78,20 @@ LogLevel = Literal["text", "warning", "error"]
 Severity level for job event logs.
 """
 
-FileOrFigure = Union[str, PurePath, IO[bytes], Any]
+FileOrFigure = Union[BinaryFile, Any]
 """A file path, a file-like object, or a matplotlib figure."""
 
 OptPattern = Union[str, Pattern[str], None]
 """Optional pattern type alias for matching strings."""
 
+JobOutput = Tuple[Union[str, "JobController"], str]
+"""Job output type alias for connecting jobs. Tuple of (job, output_name)."""
+
 
 class JobController(Controller[Job]):
     """
     Accessor class to a job in CryoSPARC with ability to load inputs and
-    outputs, add to job log, download job files. Should be created with
+    outputs, add to job log, download job files. Should be initialized with
     :py:meth:`cs.find_job() <cryosparc.tools.CryoSPARC.find_job>` or
     :py:meth:`project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`.
 
@@ -218,36 +232,50 @@ class JobController(Controller[Job]):
     def queue(
         self,
         lane: Optional[str] = None,
-        hostname: Optional[str] = None,
+        target: Optional[str] = None,
         gpus: List[int] = [],
+        *,
         cluster_vars: Dict[str, Any] = {},
+        check_inputs_ready: bool = True,
+        oversubscribe_gpus: bool = False,
+        hostname: Optional[str] = None,
     ):
         """
-        Queue a job to a target lane. Available lanes may be queried with
-        :py:meth:`cs.get_lanes() <cryosparc.tools.CryoSPARC.get_lanes>`.
+        Queue a job for execution. Specify either ``lane`` or ``target``, but
+        exclude both for interactive jobs. One or more ``gpus`` options may be
+        specified with ``target``.
 
-        Optionally specify a hostname for a node or cluster in the given lane.
-        Optionally specify specific GPUs indexes to use for computation.
+        Queued jobs will launch when
 
-        Available hostnames for a given lane may be queried with
-        :py:meth:`cs.get_targets() <cryosparc.tools.CryoSPARC.get_targets>`.
+        - all connected input jobs are completed
+        - enough CPU/GPU/RAM is available on the lane or target
+        - enough license tokens are available
+
+        Find available lanes with :py:meth:`cs.get_lanes() <cryosparc.tools.CryoSPARC.get_lanes>`.
+
+        Find available targets with :py:meth:`cs.get_targets() <cryosparc.tools.CryoSPARC.get_targets>`.
 
         .. note::
             This function is not available for External Jobs. use
-            ``job.start()``/``job.stop()`` or ``with job.run()`` instead.
+            :py:meth:`job.start() <cryosparc.controllers.job.ExternalJobController.start>`
+            / :py:meth:`job.stop() <cryosparc.controllers.job.ExternalJobController.stop>`
+            or :py:meth:`with job.run() <cryosparc.controllers.job.ExternalJobController.run>`
+            instead.
 
         Args:
-            lane (str, optional): Configuried compute lane to queue to. Leave
-                unspecified to run directly on the master or current
-                workstation. Defaults to None.
-            hostname (str, optional): Specific hostname in compute lane, if more
-                than one is available. Defaults to None.
-            gpus (list[int], optional): GPUs to queue to. If specified, must
-                have as many GPUs as required in job parameters. Leave
+            lane (str, optional): Connected scheduler lane to queue to. Defaults to None.
+            target (str, optional): Specific worker hostname in compute lane,
+                if more than one is available. Defaults to None.
+            gpus (list[int], optional): GPU(s) to queue to. If specified, must
+                have as many GPUs as required by job parameters. Leave
                 unspecified to use first available GPU(s). Defaults to [].
             cluster_vars (dict[str, Any], optional): Specify custom cluster
                 variables when queuing to a cluster. Keys are variable names.
                 Defaults to False.
+            check_inputs_ready (bool, optional): If False, launch job without
+                waiting for parent jobs to complete. Defaults to True.
+            oversubscribe_gpus (bool, optional): If True, launch job even if
+                target GPU(s) are already in use by another job. Defaults to False.
 
         Examples:
 
@@ -263,11 +291,22 @@ class JobController(Controller[Job]):
         """
         if cluster_vars:
             self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, cluster_vars)
-        self.model = self.cs.api.jobs.enqueue(self.project_uid, self.uid, lane=lane, hostname=hostname, gpus=gpus)
+        if hostname is not None:
+            warnings.warn("hostname argument is deprecated, use target instead", DeprecationWarning, stacklevel=2)
+            target = hostname
+        self.model = self.cs.api.jobs.enqueue(
+            self.project_uid,
+            self.uid,
+            lane=lane,
+            hostname=target,
+            gpus=gpus,
+            no_check_inputs_ready=not check_inputs_ready,
+            oversubscribe_gpus=oversubscribe_gpus,
+        )
 
     def kill(self):
         """
-        Kill this job.
+        Kill this job if running.
 
         .. note::
             This function is not available for External Jobs. use ``job.stop()`` instead.
@@ -328,8 +367,9 @@ class JobController(Controller[Job]):
 
     def interact(self, action: str, body: Any = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
         """
-        Call an interactive action on a waiting interactive job. The possible
-        actions and expected body depends on the job type.
+        Perform an interactive action on a waiting interactive job.
+        Possible actions and expected body depends on the job type.
+        See `Custom Workflow </examples/custom-workflow.html>`_.
 
         Args:
             action (str): Interactive endpoint to call.
@@ -347,22 +387,29 @@ class JobController(Controller[Job]):
             self.refresh()
         return result
 
-    def clear(self):
+    def clear(self, *, descendants: bool = False):
         """
-        Clear this job and reset to building status.
+        Clear a job's outputs and events to get it back to building status.
+        Launched, running or waiting jobs must be killed before clearing.
+
+        Retains input connections and parameter overrides.
+
+        Args:
+            descendants (bool, optional): If True, also clear all descendant jobs. Defaults to False.
         """
-        self.model = self.cs.api.jobs.clear(self.project_uid, self.uid)
+        self.model = self.cs.api.jobs.clear(self.project_uid, self.uid, descendants=descendants)
 
     def clone(self, workspace: Union[str, "WorkspaceController", None] = None) -> Self:
         """
-        Clone this job, creating a new job with the same spec and parameters but
-        without connections or results.
+        Clone this job, creating a new building job with the same inputs and
+        parameters but no outputs. The new job may be queued with
+        :py:meth:`queue() <cryosparc.controllers.jobs.JobController.queue>`.
 
         Args:
             workspace (str | WorkspaceController, optional): Target workspace to
                 create the cloned job in. Can specify by name or UID, or with a
                 WorkspaceController instance. If not specified, clones into the
-                first workspace the job is available in. Defaults to None.
+                oldest workspace the original job is linked to. Defaults to None.
         Returns:
             JobController: Controller for the newly cloned job.
         """
@@ -392,6 +439,10 @@ class JobController(Controller[Job]):
                 job from. Can specify by UID, or with a WorkspaceController
                 instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
                 or :py:meth:`project.create_workspace() <cryosparc.controllers.project.ProjectController.create_workspace>`.
+
+        Raises:
+            APIError: If job is not linked to the workspace, or if this is
+                the only workspace the job is linked to.
         """
         workspace_uid = workspace if isinstance(workspace, str) else workspace.uid
         self.model = self.cs.api.jobs.unlink_from_workspace(self.project_uid, self.uid, workspace_uid)
@@ -421,7 +472,7 @@ class JobController(Controller[Job]):
 
     def set_title(self, title: str):
         """
-        Set the job title.
+        Set job title.
 
         Args:
             title (str): New job title
@@ -430,7 +481,7 @@ class JobController(Controller[Job]):
 
     def set_description(self, desc: str):
         """
-        Set the job description. May include Markdown formatting.
+        Set job description. May include `Markdown <https://markdown.org>`_ formatting.
 
         Args:
             desc (str): New job description
@@ -439,7 +490,7 @@ class JobController(Controller[Job]):
 
     def set_param(self, name: str, value: Any, **kwargs) -> bool:
         """
-        Set the given parameter name on the current job to the given value.
+        Set job parameter to a value.
 
         Args:
             name (str): Param name, a key in the job's ``spec.params`` field.
@@ -465,12 +516,18 @@ class JobController(Controller[Job]):
         self.model = self.cs.api.jobs.set_param(self.project_uid, self.uid, name, value=value)
         return True
 
-    def set_params(self, params: Dict[str, Any]):
+    @overload
+    def set_params(self, params: Dict[str, Any], /) -> None: ...
+    @overload
+    def set_params(self, /, **params: Any) -> None: ...
+    def set_params(self, params: Dict[str, Any] = {}, /, **kwparams: Any) -> None:
         """
-        Set multiple job parameters.
+        Update job parameters with the given values. Only parameters that are
+        valid for the job type are updated.
 
         Args:
-            params (dict[str, Any]): Dict of param names and target values.
+            params (dict[str, Any]): Dictionary of param names and target values.
+                May be specified as keyword arguments.
 
         Raises:
             APIError: Invalid param name or value, or if job is not in "building" status.
@@ -481,13 +538,16 @@ class JobController(Controller[Job]):
 
             >>> cs = CryoSPARC("http://localhost:61000")
             >>> job = cs.find_job("P3", "J42")
+            >>> job.set_params(compute_num_gpus=4, abinit_K=3)
+            >>> # or
             >>> job.set_params({"compute_num_gpus": 4, "abinit_K": 3})
         """
-        self.model = self.cs.api.jobs.set_params(self.project_uid, self.uid, params)
+        kwparams.update(params)
+        self.model = self.cs.api.jobs.set_params(self.project_uid, self.uid, kwparams)
 
     def clear_param(self, param: str):
         """
-        Reset the given parameter to its default value.
+        Reset a parameter to its default value.
 
         Args:
             param (str): Param name, a key in the job's ``spec.params`` field.
@@ -508,32 +568,30 @@ class JobController(Controller[Job]):
 
     def set_priority(self, priority: int):
         """
-        Set the job priority. Once queued, higher priority jobs are scheduled
+        Set job priority. Once queued, higher priority jobs are scheduled
         before lower priority ones.
 
         Args:
-            priority (int): Target job priority, where higher numbers indicate
-                higher priority.
+            priority (int): Larger number indicates higher priority.
         """
         self.model = self.cs.api.jobs.set_priority(self.project_uid, self.uid, priority=priority)
 
     def connect(
         self,
         target_input: str,
-        source_job_uid: str,
+        source_job: Union[str, "JobController"],
         source_output: str,
         *,
         connection_idx: Optional[int] = None,
         **kwargs,
     ) -> bool:
         """
-        Connect the given input for this job to an output with given job UID and
-        name.
+        Connect a job input to another job's output.
 
         Args:
             target_input (str): Input name to connect into. Will be created if
                 not specified.
-            source_job_uid (str): Job UID to connect from, e.g., "J42"
+            source_job (str | JobController): Job to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
             connection_idx (int, optional): Replace the given connection index
@@ -560,6 +618,12 @@ class JobController(Controller[Job]):
         """
         if "refresh" in kwargs:
             warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
+        if "source_job_uid" in kwargs:
+            warnings.warn(
+                "source_job_uid argument is deprecated, use source_job instead", DeprecationWarning, stacklevel=2
+            )
+            source_job = str(kwargs.pop("source_job_uid"))
+        source_job_uid = source_job if isinstance(source_job, str) else source_job.uid
         if source_job_uid == self.uid:
             raise ValueError(f"Cannot connect job {self.uid} to itself")
         self.model = (
@@ -588,20 +652,21 @@ class JobController(Controller[Job]):
         target_input: str,
         connection_idx: int,
         slot: str,
-        source_job_uid: str,
+        source_job: Union[str, "JobController"],
         source_output: str,
         source_result: str,
         source_version: Union[int, Literal["F"]] = "F",
+        **kwargs,
     ):
         """
-        Connect a low-level input result slot with a result from another job.
+        Connect a low-level input result slot to a result from another job.
 
         Args:
             target_input (str): Input name to connect into, e.g., "particles"
             connection_idx (int): Connection index to connect into, use 0 for
                 the job's first connection on that input, 1 for the second, etc.
             slot (str): Input slot name to connect into, e.g., "location"
-            source_job_uid (str): Job UID to connect from, e.g., "J42"
+            source_job (str | JobController): Job to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles_selected"
             source_result (str): Result name to connect from, e.g., "location"
@@ -617,7 +682,14 @@ class JobController(Controller[Job]):
             >>> job = project.find_job("J3")
             >>> job.connect_result("particles", 0, "location", "J2", "particles_selected", "location")
         """
-        assert source_job_uid != self.uid, f"Cannot connect job {self.uid} to itself"
+        if "source_job_uid" in kwargs:
+            warnings.warn(
+                "source_job_uid argument is deprecated, use source_job instead", DeprecationWarning, stacklevel=2
+            )
+            source_job = str(kwargs.pop("source_job_uid"))
+        source_job_uid = source_job if isinstance(source_job, str) else source_job.uid
+        if source_job_uid == self.uid:
+            raise ValueError(f"Cannot connect job {self.uid} to itself")
         self.model = self.cs.api.jobs.connect_result(
             self.project_uid,
             self.uid,
@@ -633,13 +705,14 @@ class JobController(Controller[Job]):
 
     def disconnect(self, target_input: str, connection_idx: Optional[int] = None, **kwargs):
         """
-        Clear the given job input group.
+        Disconnect a job input.
 
         Args:
             target_input (str): Name of input to disconnect
             connection_idx (int, optional): Connection index to clear.
-                Set to 0 to clear the first connection, 1 for the second, etc.
-                If unspecified, clears all connections. Defaults to None.
+                Set to 0 to remove the first connection, 1 for the second, etc.
+                Set to -1 to remove the last connection, -2 for the second-last, etc.
+                If unspecified, clears all input connections. Defaults to None.
         """
         if "refresh" in kwargs:
             warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
@@ -651,7 +724,7 @@ class JobController(Controller[Job]):
 
     def disconnect_result(self, target_input: str, connection_idx: int, slot: str):
         """
-        Clear the job's given input result slot.
+        Clear a job's low-level input result slot.
 
         Args:
             target_input (str): Name of input to disconnect
@@ -667,10 +740,10 @@ class JobController(Controller[Job]):
 
     def load_input(self, name: str, slots: LoadableSlots = "all"):
         """
-        Load the dataset connected to the job's input with the given name.
+        Load the dataset connected to a job input.
 
         Args:
-            name (str): Input to load
+            name (str): Input name to load
             slots (Literal["default", "passthrough", "all"] | list[str], optional):
                 List of specific slots to load, such as ``movie_blob`` or
                 ``locations``, or all slots if not specified (including
@@ -678,8 +751,7 @@ class JobController(Controller[Job]):
                 "all".
 
         Raises:
-            TypeError: If the job doesn't have the given input or the dataset
-                cannot be loaded.
+            APIError: If the job doesn't have the given input or the dataset cannot be loaded.
 
         Returns:
             Dataset: Loaded dataset
@@ -688,10 +760,10 @@ class JobController(Controller[Job]):
 
     def load_output(self, name: str, slots: LoadableSlots = "all", version: Union[int, Literal["F"]] = "F"):
         """
-        Load the dataset for the job's output with the given name.
+        Load the dataset for a job output.
 
         Args:
-            name (str): Output to load
+            name (str): Output name to load
             slots (Literal["default", "passthrough", "all"] | list[str], optional):
                 List of specific slots to load, such as ``movie_blob`` or
                 ``locations``, or all slots if not specified (including
@@ -703,7 +775,7 @@ class JobController(Controller[Job]):
                 "F"
 
         Raises:
-            TypeError: If job does not have any results for the given output
+            APIError: If job does not have any results for the given output, or the dataset cannot be loaded.
 
         Returns:
             Dataset: Loaded dataset
@@ -733,7 +805,7 @@ class JobController(Controller[Job]):
         checkpoint: Optional[int] = None,
     ) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]:
         """
-        Find all events in the job log matching the given pattern.
+        Find all events in the job log, optionally matching a type, pattern or checkpoint.
 
         Args:
             pattern (str | Pattern, optional): Regular expression to match
@@ -825,7 +897,7 @@ class JobController(Controller[Job]):
 
     def log_checkpoint(self, meta: dict = {}):
         """
-        Append a checkpoint to the job's event log. Also resets named events.
+        Add a checkpoint to the job's event log. Also resets named events.
 
         Args:
             meta (dict, optional): Additional meta information. Defaults to {}.
@@ -843,13 +915,13 @@ class JobController(Controller[Job]):
         text: str,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
         raw_data: Union[str, bytes, None] = None,
-        raw_data_file: Union[str, PurePath, IO[bytes], None] = None,
+        raw_data_file: Optional[BinaryFile] = None,
         raw_data_format: Optional[TextFormat] = None,
         flags: List[str] = ["plots"],
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ):
         """
-        Add a log line with the given figure.
+        Add an event log with a figure.
 
         ``figure`` must be one of the following
 
@@ -857,7 +929,7 @@ class JobController(Controller[Job]):
         - A file handle-like object with the binary data of an image
         - A matplotlib plot
 
-        If a matplotlib figure is specified, Uploads the plots in ``png`` and
+        If a matplotlib figure is specified, uploads the plots in ``png`` and
         ``pdf`` formats. Override the ``formats`` argument with
         ``formats=['<format1>', '<format2>', ...]`` to save in different image
         formats.
@@ -871,7 +943,7 @@ class JobController(Controller[Job]):
         Args:
             figure (str | Path | IO | Figure): Image file path, file handle or
                 matplotlib figure instance
-            text (str): Associated description for given figure
+            text (str): Associated description for the figure
             formats (list[ImageFormat], optional): Image formats to save plot
                 into. If a ``figure`` is a file handle, specify
                 ``formats=['<format>']``, where ``<format>`` is a valid image
@@ -924,15 +996,15 @@ class JobController(Controller[Job]):
 
     def download(self, path: Union[str, PurePosixPath]):
         """
-        Initiate a download request for a file inside the job's directory. Use
-        to get files from a remote CryoSPARC instance where the job directory
-        is not available on the client file system.
+        Initiate a download request for a file in the job directory. Use to get
+        files from a remote CryoSPARC instance whose job directories are not
+        available on the file system where this script runs.
 
         Args:
             path (str | Path): Name or path of file in job directory.
 
         Yields:
-            HTTPResponse: Use a context manager to read the file from the
+            BinaryIteratorIO: Use a context manager to read the file from the
                 request body.
 
         Examples:
@@ -948,16 +1020,21 @@ class JobController(Controller[Job]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download(self.project_uid, path)
 
-    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]] = ""):
+    @overload
+    def download_file(self, path: Union[str, PurePosixPath]) -> Path: ...
+    @overload
+    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath]) -> Path: ...
+    @overload
+    def download_file(self, path: Union[str, PurePosixPath], target: IO[bytes]) -> IO[bytes]: ...
+    def download_file(self, path: Union[str, PurePosixPath], target: BinaryFile = "") -> Union[Path, IO[bytes]]:
         """
-        Download file from job directory to the given target path or writeable
-        file handle.
+        Download file from job directory to the target path or writeable file handle.
 
         Args:
             path (str | Path): Name or path of file in job directory.
             target (str | Path | IO): Local file path, directory path or
                 writeable file handle to write response data. If not specified,
-                downloads to current working directory with same file name.
+                downloads to current working directory with a similar file name.
                 Defaults to "".
 
         Returns:
@@ -966,10 +1043,9 @@ class JobController(Controller[Job]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download_file(self.project_uid, path, target)
 
-    def download_dataset(self, path: Union[str, PurePosixPath]):
+    def download_dataset(self, path: Union[str, PurePosixPath]) -> Dataset:
         """
-        Download a .cs dataset file from the given path in the job
-        directory.
+        Download a .cs dataset file from the job directory.
 
         Args:
             path (str | Path): Name or path of .cs file in job directory.
@@ -980,9 +1056,9 @@ class JobController(Controller[Job]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download_dataset(self.project_uid, path)
 
-    def download_mrc(self, path: Union[str, PurePosixPath]):
+    def download_mrc(self, path: Union[str, PurePosixPath]) -> Tuple["mrc.Header", "NDArray"]:
         """
-        Download a .mrc file from the given relative path in the job directory.
+        Download a .mrc file from the job directory.
 
         Args:
             path (str | Path): Name or path of .mrc file in job directory.
@@ -1005,7 +1081,11 @@ class JobController(Controller[Job]):
         """
         return self.cs.list_assets(self.project_uid, self.uid)
 
-    def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
+    @overload
+    def download_asset(self, fileid: str, target: Union[str, PurePath]) -> Path: ...
+    @overload
+    def download_asset(self, fileid: str, target: IO[bytes]) -> IO[bytes]: ...
+    def download_asset(self, fileid: str, target: BinaryFile) -> Union[Path, IO[bytes]]:
         """
         Download a job asset from the database with the given ID. Note that the
         file does not necessary have to belong to the current job.
@@ -1016,7 +1096,7 @@ class JobController(Controller[Job]):
                 to write response data.
 
         Returns:
-            str | Path | IO: resulting target path or file handle.
+            Path | IO: resulting target path or file handle.
 
         """
         return self.cs.download_asset(fileid, target)
@@ -1024,13 +1104,12 @@ class JobController(Controller[Job]):
     def upload(
         self,
         target_path: Union[str, PurePosixPath],
-        source: Union[str, bytes, PurePath, IO],
+        source: Union[str, PurePath, IO, Buffer, Stream],
         *,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
-        Upload the given file to the job directory at the given path. Fails if
-        target already exists.
+        Upload a file to the job directory. Fails if target already exists.
 
         Args:
             target_path (str | Path): Name or path of file to write in job
@@ -1045,7 +1124,7 @@ class JobController(Controller[Job]):
 
     def _upload_asset(
         self,
-        file: Union[str, PurePath, IO[bytes]],
+        file: BinaryFile,
         filename: Optional[str] = None,
         format: Optional[AssetFormat] = None,
     ) -> GridFSAsset:
@@ -1080,7 +1159,7 @@ class JobController(Controller[Job]):
         name: Optional[str] = None,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
         raw_data: Union[str, bytes, None] = None,
-        raw_data_file: Union[str, PurePath, IO[bytes], None] = None,
+        raw_data_file: Optional[BinaryFile] = None,
         raw_data_format: Optional[TextFormat] = None,
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> List[GridFSAsset]:
@@ -1144,7 +1223,7 @@ class JobController(Controller[Job]):
         *,
         format: int = DEFAULT_FORMAT,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
         Upload a dataset as a CS file into the job directory. Fails if target
         already exists.
@@ -1168,10 +1247,9 @@ class JobController(Controller[Job]):
         psize: float,
         *,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
-        Upload a numpy 2D or 3D array to the job directory as an MRC file. Fails
-        if target already exists.
+        Upload a numpy 2D or 3D array to the job directory as an MRC file.
 
         Args:
             target_path (str | Path): Name or path of MRC file to save in the
@@ -1189,9 +1267,9 @@ class JobController(Controller[Job]):
         target_path: Union[str, PurePosixPath],
         parents: bool = False,
         exist_ok: bool = False,
-    ):
+    ) -> None:
         """
-        Create a folder in the given job.
+        Create a folder in the job directory.
 
         Args:
             target_path (str | Path): Name or path of folder to create inside
@@ -1209,7 +1287,7 @@ class JobController(Controller[Job]):
             exist_ok=exist_ok,
         )
 
-    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
+    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
         """
         Copy a file or folder into the job directory.
 
@@ -1227,9 +1305,9 @@ class JobController(Controller[Job]):
             target_path=PurePosixPath(self.uid) / target_path,
         )
 
-    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
+    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
         """
-        Create a symbolic link in job's directory.
+        Create a symbolic link in the job directory.
 
         Args:
             source_path (str | Path): Relative or absolute path of source file
@@ -1253,10 +1331,9 @@ class JobController(Controller[Job]):
         checkpoint: bool = False,
         checkpoint_line_pattern: OptPattern = None,
         **kwargs,
-    ):
+    ) -> None:
         """
-        Launch a subprocess and write its text-based output and error to the job
-        log.
+        Launch a subprocess and write its text-based output and error to the event log.
 
         Args:
             args (str | list): Process arguments to run
@@ -1317,7 +1394,7 @@ class JobController(Controller[Job]):
 
     def set_final(self, final: bool = True):
         """
-        Set the job's final status. Final jobs and their connected ancestors
+        Set job final status. Final jobs and their connected ancestors
         cannot be modified or deleted.
 
         Args:
@@ -1327,7 +1404,7 @@ class JobController(Controller[Job]):
 
     def delete(self, *, wait: bool = False):
         """
-        Delete the job. This action cannot be undone. May fail if job has final
+        Delete job. This action cannot be undone. Fails if job has final
         status or has active descendants.
 
         Args:
@@ -1335,8 +1412,7 @@ class JobController(Controller[Job]):
                 complete before returning. Defaults to False.
 
         Raises:
-            APIError: If the job fails to pass pre-delete checks, e.g., if it
-                has active descendants
+            APIError: If the job fails to pass pre-delete checks, e.g., if it has active descendants
             JobError: If the delete operation fails after waiting.
         """
         self.cs.api.jobs.delete(self.project_uid, self.uid)
@@ -1354,8 +1430,7 @@ class JobController(Controller[Job]):
 
     def print_param_spec(self):
         """
-        Print a table of parameter keys, their title, type and default to
-        standard output:
+        Print a table of job-specific parameter keys, their title, type and default.
 
         Examples:
 
@@ -1463,13 +1538,13 @@ class JobController(Controller[Job]):
 
 class ExternalJobController(JobController):
     """
-    Mutable custom output job with customizeble input slots and output results.
+    Scripting output job with customizeable input slots and output results.
     Use External jobs to save data save cryo-EM data generated by a software
     package outside of CryoSPARC.
 
-    Created external jobs may be connected to any other CryoSPARC job result as
-    an input. Its outputs must be created manually and may be configured to
-    passthrough inherited input fields, just as with regular CryoSPARC jobs.
+    External jobs may be connected to any other CryoSPARC job result as input.
+    Its outputs must be created manually and may be configured to passthrough
+    inherited input fields, just as with regular CryoSPARC jobs.
 
     Create a new External Job with :py:meth:`project.create_external_job() <cryosparc.controllers.project.ProjectController.create_external_job>`.
     or :py:meth:`workspace.create_external_job() <cryosparc.controllers.workspace.WorkspaceController.create_external_job>`.
@@ -1514,12 +1589,12 @@ class ExternalJobController(JobController):
         desc: Optional[str] = None,
     ):
         """
-        Add an input slot to the current job. May be connected to zero or more
+        Add an input to the current job. May be connected to zero or more
         outputs from other jobs (depending on the min and max values).
 
         Args:
-            type (Datatype): cryo-EM data type for this output, e.g., "particle"
-            name (str, optional): Output name key, e.g., "picked_particles".
+            type (Datatype): cryo-EM data type for this input, e.g., "particle"
+            name (str, optional): Input name key, e.g., "picked_particles".
                 Same as ``type`` if not specified. Defaults to None.
             min (int, optional): Minimum number of required input connections.
                 Defaults to 0.
@@ -1527,7 +1602,7 @@ class ExternalJobController(JobController):
                 connections. Specify ``"inf"`` for unlimited connections.
                 Defaults to "inf".
             slots (list[SlotSpec], optional): List of slots that should
-                be connected to this input, such as ``"location"`` or  ``"blob"``.
+                be connected to this input, such as ``"location"`` or ``"blob"``.
                 When connecting the input, if the source job output is missing
                 these slots, the external job cannot start or accept outputs.
                 Defaults to [].
@@ -1537,8 +1612,7 @@ class ExternalJobController(JobController):
                 Defaults to None.
 
         Raises:
-            CommandError: General CryoSPARC network access error such as
-                timeout, URL or HTTP
+            APIError: General CryoSPARC network access error such as timeout, URL or HTTP
             InvalidSlotsError: slots argument is invalid
 
         Returns:
@@ -1607,8 +1681,8 @@ class ExternalJobController(JobController):
         alloc: Union[int, Dataset, None] = None,
     ) -> Union[str, Dataset]:
         """
-        Add an output slot to the current job. Optionally returns the
-        corresponding empty dataset if ``alloc`` is specified.
+        Add an output to the current job. Optionally returns a corresponding
+        empty dataset if ``alloc`` is specified.
 
         Args:
             type (Datatype): cryo-EM datatype for this output, e.g., "particle"
@@ -1630,8 +1704,7 @@ class ExternalJobController(JobController):
                 outputs). Defaults to None.
 
         Raises:
-            CommandError: General CryoSPARC network access error such as
-                timeout, URL or HTTP
+            APIError: General CryoSPARC network access error such as timeout, URL or HTTP
             InvalidSlotsError: slots argument is invalid
 
         Returns:
@@ -1701,7 +1774,7 @@ class ExternalJobController(JobController):
     def connect(
         self,
         target_input: str,
-        source_job_uid: str,
+        source_job: Union[str, "JobController"],
         source_output: str,
         *,
         slots: Sequence[SlotSpec] = [],
@@ -1710,14 +1783,13 @@ class ExternalJobController(JobController):
         **kwargs,
     ) -> bool:
         """
-        Connect the given input for this job to an output with given job UID and
-        name. If this input does not exist, it will be added with the given
-        slots.
+        Connect a job input to another job's output. If the input does not exist,
+        it is be added with a provided slot specification.
 
         Args:
             target_input (str): Input name to connect into. Will be created if
                 does not already exist.
-            source_job_uid (str): Job UID to connect from, e.g., "J42"
+            source_job (str): Job UID to connect from, e.g., "J42"
             source_output (str): Job output name to connect from , e.g.,
                 "particles"
             slots (list[SlotSpec], optional): List of input slots (e.g.,
@@ -1730,8 +1802,7 @@ class ExternalJobController(JobController):
                 Defaults to "".
 
         Raises:
-            CommandError: General CryoSPARC network access error such as
-                timeout, URL or HTTP
+            APIError: General CryoSPARC network access error such as timeout, URL or HTTP
             InvalidSlotsError: slots argument is invalid
 
         Examples:
@@ -1747,27 +1818,33 @@ class ExternalJobController(JobController):
         """
         if "refresh" in kwargs:
             warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
-        if source_job_uid == self.uid:
+        if "source_job_uid" in kwargs:
+            source_job = str(kwargs.pop("source_job_uid"))
+            warnings.warn(
+                "source_job_uid argument is deprecated; use source_job instead", DeprecationWarning, stacklevel=2
+            )
+        if (source_job if isinstance(source_job, str) else source_job.uid) == self.uid:
             raise ValueError(f"Cannot connect job {self.uid} to itself")
-        source_job = self.cs.api.jobs.find_one(self.project_uid, source_job_uid)
-        if source_output not in source_job.spec.outputs.root:
-            raise ValueError(f"Source job {source_job_uid} does not have output {source_output}")
-        output = source_job.spec.outputs.root[source_output]
-        if target_input not in self.model.spec.inputs.root:
+        if isinstance(source_job, str):
+            source_job = JobController(self.cs, (self.project_uid, source_job))
+        if source_output not in source_job.outputs:
+            raise ValueError(f"Source job {source_job.uid} does not have output {source_output}")
+        output = source_job.outputs[source_output]
+        if target_input not in self.inputs:
             if any(isinstance(s, dict) and "prefix" in s for s in slots):
                 warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
                 # convert to prevent from warning again
                 slots = [as_input_slot(slot) for slot in slots]  # type: ignore
             self.add_input(output.type, target_input, min=1, slots=slots, title=title, desc=desc)
-        return super().connect(target_input, source_job_uid, source_output)
+        return super().connect(target_input, source_job.uid, source_output)
 
     def alloc_output(
         self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: Dict[str, Any] = {}
     ) -> Dataset:
         """
-        Allocate an empty dataset for the given output with the given name.
-        Initialize with the given number of empty rows. The result may be
-        used with ``save_output`` with the same output name.
+        Allocate an empty dataset for a job output. Initialize with the given
+        number of empty rows. The result may be filled in and saved with
+        ``save_output``.
 
         Args:
             name (str): Name of job output to allocate
@@ -1870,7 +1947,9 @@ class ExternalJobController(JobController):
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ):
         """
-        Set the output image for the given output to the given image file or matplotlib Figure.
+        Set the output image for an output, visible from the job's Outputs tab.
+        Specify either an image file or matplotlib Figure.
+
         Args:
             name (str): Name of output to set image for.
             image (str | Path | IO | Figure): Image file or matplotlib Figure.
@@ -1891,7 +1970,8 @@ class ExternalJobController(JobController):
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ):
         """
-        Set the job tile image to the given image file or matplotlib Figure.
+        Set the job tile image, visible when viewing the job from a workspace.
+        Specify either an image file or a matplotlib Figure.
 
         Args:
             image (str | Path | IO | Figure): Image file or matplotlib Figure.

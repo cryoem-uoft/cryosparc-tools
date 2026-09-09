@@ -19,18 +19,32 @@ from contextlib import contextmanager
 from functools import cached_property
 from hashlib import sha256
 from io import BytesIO, TextIOBase
-from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Container, Dict, Iterable, List, Literal, Optional, Tuple, Union, get_args
+from pathlib import Path, PurePath, PurePosixPath
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Container,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    get_args,
+    overload,
+)
 
 import numpy as n
-from typing_extensions import Unpack
+from typing_extensions import Buffer, Unpack
 
 from . import __version__, model_registry, mrc, registry, stream_registry
 from .api import APIClient
 from .auth import InstanceAuthSessions
 from .constants import API_SUFFIX
 from .controllers import as_output_slot
-from .controllers.job import ExternalJobController, FileOrFigure, JobController
+from .controllers.job import ExternalJobController, FileOrFigure, JobController, JobOutput
 from .controllers.project import ProjectController
 from .controllers.workspace import WorkspaceController
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
@@ -46,10 +60,11 @@ from .models.user import User
 from .search import In, JobSearch
 from .spec import Datatype, JobSection, SlotSpec
 from .stream import BinaryIteratorIO, Stream
-from .util import clear_cached_property, padarray, print_table, trimarray
+from .util import BinaryFile, clear_cached_property, padarray, print_table, trimarray
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
 
 assert stream_registry
 assert model_registry
@@ -77,11 +92,8 @@ Supported micrograph file formats.
 
 class CryoSPARC:
     """
-    High-level session class for interfacing with a CryoSPARC instance.
-
-    Initialize with the host and base port of the running CryoSPARC instance.
-    This host and (at minimum) ``base_port + 2`` should be accessible on the
-    network.
+    High-level object for interfacing with CryoSPARC. Initialize with the URL of
+    a local or remote CryoSPARC instance.
 
     Args:
         base_url (str, optional): CryoSPARC instance URL, e.g.,
@@ -108,12 +120,7 @@ class CryoSPARC:
         Load project job and micrographs
 
         >>> from cryosparc.tools import CryoSPARC
-        >>> cs = CryoSPARC(
-        ...     email="ali@example.com",
-        ...     password="password123",
-        ...     host="localhost",
-        ...     base_port=61000
-        ... )
+        >>> cs = CryoSPARC("localhost:61000", email="ali@example.com", password="password123")
         >>> job = cs.find_job("P3", "J42")
         >>> micrographs = job.load_output('exposures')
 
@@ -135,7 +142,7 @@ class CryoSPARC:
 
     api: APIClient
     """
-    HTTP REST API client for ``api`` service (port + 2).
+    HTTP REST API client for ``api`` service.
     """
 
     base_url: str
@@ -177,7 +184,7 @@ class CryoSPARC:
             base_url, session = authdata
             auth = session.token.access_token
         elif license:  # superadmin
-            assert base_url, "Base URL must be specified to license authentication"
+            assert base_url, "Base URL must be specified for license authentication"
             auth = ("cryosparc", sha256(license.encode()).hexdigest())
         else:
             raise ValueError(
@@ -340,7 +347,7 @@ class CryoSPARC:
 
     def find_projects(self, *, order: Literal[1, -1] = 1) -> Iterable[ProjectController]:
         """
-        Get all projects available to the current user.
+        Search for projects available to the current user.
 
         Args:
             order (int, optional): Sort order for projects, 1 for ascending, -1
@@ -377,11 +384,13 @@ class CryoSPARC:
         order: Literal[1, -1] = 1,
     ) -> Iterable[WorkspaceController]:
         """
-        Get all workspaces available in the given project.
+        Search for available workspaces.
 
         Args:
             project_uid (str | list[str] | None): Project unique ID, e.g., "P3".
                 If not specified, returns workspaces from all projects.
+            order (int, optional): Order in which to sort the results. 1 for
+                ascending, -1 for descending. Defaults to 1.
         Returns:
             Iterable[WorkspaceController]: workspace accessor objects
         """
@@ -401,8 +410,7 @@ class CryoSPARC:
 
     def find_workspace(self, project_uid: str, workspace_uid: str) -> WorkspaceController:
         """
-        Get a workspace accessor instance for the workspace in the given project
-        with the given UID. Fails with an error if workspace does not exist.
+        Get a workspace in a project by its unique ID.
 
         Args:
             project_uid (str): Project unique ID, e.g,. "P3"
@@ -410,6 +418,9 @@ class CryoSPARC:
 
         Returns:
             WorkspaceController: workspace accessor object
+
+        Raises:
+            APIError: Workspace does not exist or cannot be accessed.
         """
         return WorkspaceController(self, (project_uid, workspace_uid))
 
@@ -440,6 +451,8 @@ class CryoSPARC:
                 If not specified, returns jobs from all projects. Defaults to None.
             workspace_uid (str | list[str] | None): Workspace unique ID, e.g., "W1".
                 If not specified, returns jobs from all workspaces. Defaults to None.
+            order (int, optional): Order in which to sort the results. 1 for
+                ascending, -1 for descending. Defaults to 1.
             **search (JobSearch): Additional search parameters to filter jobs,
                 specified as keyword arguments.
 
@@ -488,15 +501,16 @@ class CryoSPARC:
 
     def find_external_job(self, project_uid: str, job_uid: str) -> ExternalJobController:
         """
-        Get the External job accessor instance for an External job in this
-        project with the given UID. Fails if the job does not exist or is not an
-        external job.
+        Get an External job by its unique project and job ID. External jobs
+        may be used to save custom results from external tools or scripts
+        to a CryoSPARC project.
 
         Args:
             project_uid (str): Project unique ID, e.g,. "P3"
             job_uid (str): Job unique ID, e.g,. "J42"
 
         Raises:
+            APIError: External job does not exist or cannot be accessed.
             TypeError: If job is not an external job
 
         Returns:
@@ -505,7 +519,7 @@ class CryoSPARC:
         return ExternalJobController(self, (project_uid, job_uid))
 
     def create_project(
-        self, parent_path: Union[str, PurePath], title: str, desc: Optional[str] = None
+        self, parent_path: Union[str, PurePosixPath], title: str, desc: Optional[str] = None
     ) -> ProjectController:
         """
         Create a new empty project.
@@ -516,7 +530,8 @@ class CryoSPARC:
                 hosted remotely, this should be a path available on the server
                 file system.
             title (str): Title of new project.
-            desc (str, optional): Markdown text description. Defaults to None.
+            desc (str, optional): `Markdown <https://markdown.org>`_ text description.
+                Defaults to None.
 
         Returns:
             ProjectController: created project accessor object
@@ -527,22 +542,25 @@ class CryoSPARC:
         project = self.api.projects.create(title=title, description=desc, parent_dir=str(parent_path))
         return ProjectController(self, project)
 
-    def attach_project(self, path: Union[str, PurePath], *, wait: bool = False) -> ProjectController:
+    def attach_project(self, path: Union[str, PurePosixPath], *, wait: bool = False) -> ProjectController:
         """
-        Attach an existing project to the database by specifying the absolute path
-        to the project directory. Must not be attached to any other CryoSPARC
-        instance.
+        Attach an existing project directory to this instance.
+
+        The directory may not already be attached to any other CryoSPARC instance.
 
         Project will not be available to modify until attachment process
         completes, which may take some time depending on the size of the
         project. Set ``wait=True`` to block until the project is fully attached
         and available.
 
+        Once attach completes, the project will be visible and modifiable in
+        the web UI. The project is assigned a new unique ID upon attaching.
+
         Args:
             path (str | Path): Absolute path to project directory, e.g.
-                ``/home/user/cryosparc-projects/CS-t20s``. If the CryoSPARC instance is
-                hosted remotely, this should be a path available on the server
-                file system.
+                ``/home/user/cryosparc-projects/CS-t20s``. If the CryoSPARC
+                instance is hosted remotely, this should be a path available
+                on the server file system.
             wait (bool, optional): If True, wait and poll until project is
                 attached and available. Defaults to False.
 
@@ -570,7 +588,8 @@ class CryoSPARC:
         Args:
             project_uid (str): Project UID to create in, e.g., "P3".
             title (str): Title of new workspace.
-            desc (str, optional): Markdown text description. Defaults to None.
+            desc (str, optional): `Markdown <https://markdown.org>`_ text description.
+                Defaults to None.
 
         Returns:
             WorkspaceController: created workspace accessor object
@@ -586,7 +605,7 @@ class CryoSPARC:
         project_uid: str,
         workspace_uid: str,
         type: str,
-        connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
+        connections: Dict[str, Union[JobOutput, List[JobOutput]]] = {},
         params: Dict[str, Any] = {},
         title: str = "",
         desc: str = "",
@@ -599,19 +618,20 @@ class CryoSPARC:
             project_uid (str): Project UID to create job in, e.g., "P3"
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             type (str): Job type identifier, e.g., "homo_abinit"
-            connections (dict[str, tuple[str, str] | list[tuple[str, str]]]):
+            connections (dict[str, tuple[str | JobController, str] | list[tuple[str | JobController, str]]]):
                 Initial input connections. Each key is an input name and each
-                value is a (job uid, output name) tuple. Defaults to {}
+                value is a (job, output name) tuple. Defaults to {}
             params (dict[str, Any], optional): Specify parameter values.
                 Defaults to {}.
             title (str, optional): Job title. Defaults to "".
-            desc (str, optional): Job markdown description. Defaults to "".
+            desc (str, optional): Job `Markdown <https://markdown.org>`_ description.
+                Defaults to "".
 
         Returns:
             JobController: created job accessor object.
 
         Raises:
-            APIError: Job cannot be created.
+            APIError: Job cannot be created or connected.
 
         Examples:
 
@@ -633,7 +653,8 @@ class CryoSPARC:
         job = self.api.jobs.create(project_uid, workspace_uid, params=params, type=type, title=title, description=desc)
         for input_name, connection in connections.items():
             connection = [connection] if isinstance(connection, tuple) else connection
-            for source_job_uid, source_output_name in connection:
+            for source_job, source_output_name in connection:
+                source_job_uid = source_job if isinstance(source_job, str) else source_job.uid
                 job = self.api.jobs.connect(
                     job.project_uid,
                     job.uid,
@@ -658,7 +679,7 @@ class CryoSPARC:
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             title (str, optional): Title for external job (recommended).
                 Defaults to "".
-            desc (str, optional): Markdown description for external job.
+            desc (str, optional): `Markdown <https://markdown.org>`_ description for external job.
                 Defaults to "".
 
         Returns:
@@ -669,11 +690,11 @@ class CryoSPARC:
 
     def import_job(self, project_uid: str, workspace_uid: str, path: Union[str, PurePosixPath]):
         """
-        Import a job from a location on disk
+        Import a job to a project workspace from a location on disk.
 
         Args:
-            project_uid (str): Project UID to create in, e.g., "P3"
-            workspace_uid (str): Workspace UID to create job in, e.g., "W1"
+            project_uid (str): Project UID to import in, e.g., "P3"
+            workspace_uid (str): Workspace UID to import job in, e.g., "W1"
             path (str | Path): Path to job directory, must be in the project
                 directory. If the CryoSPARC instance is hosted remotely,
                 this should be a path available on the server file system.
@@ -700,8 +721,8 @@ class CryoSPARC:
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> str:
         """
-        Save the given result dataset to the project. Specify at least the
-        dataset to save and the type of data.
+        Save the given result dataset to the project, via External Job.
+        Specify at least the dataset to save and the type of data.
 
         Returns UID of the External job where the results were saved.
 
@@ -738,9 +759,9 @@ class CryoSPARC:
             ...     type="particle",
             ...     name="particle_alignments",
             ...     slots=[
-            ...         {"dtype": "alignments3D", "prefix": "alignments_class_0", "required": True},
-            ...         {"dtype": "alignments3D", "prefix": "alignments_class_1", "required": True},
-            ...         {"dtype": "alignments3D", "prefix": "alignments_class_2", "required": True},
+            ...         {"dtype": "alignments3D", "name": "alignments_class_0"},
+            ...         {"dtype": "alignments3D", "name": "alignments_class_1"},
+            ...         {"dtype": "alignments3D", "name": "alignments_class_2"},
             ...     ]
             ... )
             "J45"
@@ -762,8 +783,8 @@ class CryoSPARC:
                 ``("J1", "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
                 Defaults to "".
-            desc (str, optional): Markdown description for this output. Defaults
-                to "".
+            desc (str, optional): `Markdown <https://markdown.org>`_ description
+                for this output. Defaults to "".
             image (str | Path | IO | Figure, optional): Optional image file
                 or matplotlib Figure to set as the image for this output.
                 Defaults to None.
@@ -772,11 +793,10 @@ class CryoSPARC:
                 to ``dict(bbox_inches="tight", pad_inches=0)``.
 
         Raises:
-            APIError: General CryoSPARC network access error such as
-                timeout, URL or HTTP
+            APIError: Output could not be created.
 
         Returns:
-            str: UID of created job where this output was saved
+            str: UID of External job where output was saved
         """
         # Check slot names if present. If not provided, use all slots specified
         # in the dataset prefixes.
@@ -850,17 +870,17 @@ class CryoSPARC:
     @contextmanager
     def download(self, project_uid: str, path: Union[str, PurePosixPath]):
         """
-        Open a file in the given project for reading. Use to get files from a
-        remote CryoSPARC instance whose the project directories are not
-        available on the client file system.
+        Open a file in a project for reading. Use to get files from a remote
+        CryoSPARC instance whose project directories are not available on the
+        file system where this script runs.
 
         Args:
-            project_uid (str): Short unique ID of CryoSPARC project, e.g., "P3"
+            project_uid (str): Project unique ID, e.g., "P3"
             path (str | Path): Name or path of file in project directory.
 
         Yields:
-            HTTPResponse: Use a context manager to read the file from the
-            request body.
+            BinaryIteratorIO: Use a context manager to read the file from the
+                request body.
 
         Examples:
             Download a job's metadata
@@ -873,15 +893,22 @@ class CryoSPARC:
         if not path:
             raise ValueError("Download path cannot be empty")
         stream = self.api.projects.download_file(project_uid, path=str(path))
-        iterator = BinaryIteratorIO(stream.stream())
-        yield iterator
+        yield BinaryIteratorIO(stream.stream())
 
+    # fmt: off
+    @overload
+    def download_file(self, project_uid: str, path: Union[str, PurePosixPath]) -> Path: ...
+    @overload
+    def download_file(self, project_uid: str, path: Union[str, PurePosixPath], target: Union[str, PurePath]) -> Path: ...
+    @overload
+    def download_file(self, project_uid: str, path: Union[str, PurePosixPath], target: IO[bytes]) -> IO[bytes]: ...
+    # fmt: on
     def download_file(
         self,
         project_uid: str,
         path: Union[str, PurePosixPath],
-        target: Union[str, PurePath, IO[bytes]] = "",
-    ):
+        target: BinaryFile = "",
+    ) -> Union[Path, IO[bytes]]:
         """
         Download a file from the directory of the specified project to the given
         target path or writeable file handle.
@@ -891,24 +918,32 @@ class CryoSPARC:
             path (str | Path): Name or path of file in project directory.
             target (str | Path | IO, optional): Local file path, directory path
                 or writeable file handle to write response data. If not
-                specified, downloads to current working directory with same file
-                name. Defaults to "".
+                specified, downloads to current working directory with a similar
+                file name. Defaults to "".
 
         Returns:
             Path | IO: resulting target path or file handle.
         """
+        if isinstance(target, (str, PurePath)):
+            target = Path(target)
+            if target.is_dir():
+                path = PurePosixPath(path)
+                target /= path.name
+                counter = 1
+                while target.exists():  # avoid overwriting existing files
+                    counter += 1
+                    target = target.with_stem(f"{path.stem}_{counter}")
         stream = self.api.projects.download_file(project_uid, path=str(path))
         stream.save(target)
         return target
 
-    def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]):
+    def download_dataset(self, project_uid: str, path: Union[str, PurePosixPath]) -> Dataset:
         """
-        Download a .cs dataset file from the given relative path in the project
-        directory.
+        Download a .cs dataset file from a project directory.
 
         Args:
             project_uid (str): Project unique ID, e.g., "P3".
-            path (str | Path): Name or path to .cs file in project directory.
+            path (str | Path): Path to .cs file in project directory.
 
         Returns:
             Dataset: Loaded dataset instance
@@ -924,10 +959,9 @@ class CryoSPARC:
             f.seek(0)
             return Dataset.load(f)
 
-    def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]):
+    def download_mrc(self, project_uid: str, path: Union[str, PurePosixPath]) -> Tuple["mrc.Header", "NDArray"]:
         """
-        Download a .mrc file from the given relative path in the project
-        directory.
+        Download a .mrc file from a project directory.
 
         Args:
             project_uid (str): Project unique ID, e.g., "P3"
@@ -937,10 +971,11 @@ class CryoSPARC:
             tuple[Header, NDArray]: MRC file header and data as a numpy array
         """
         stream = self.api.projects.download_file(project_uid, path=str(path))
+        # numpy fromfile requires real file API, cannot treat stream as a file-like object
         with tempfile.TemporaryFile("w+b", suffix=".mrc") as f:
             stream.save(f)
             f.seek(0)
-            return mrc.read(f)  # FIXME: Optimize file reading
+            return mrc.read(f)
 
     def list_assets(self, project_uid: str, job_uid: str) -> List[GridFSFile]:
         """
@@ -958,7 +993,11 @@ class CryoSPARC:
         """
         return self.api.assets.find(project_uid=project_uid, job_uid=job_uid)
 
-    def download_asset(self, fileid: str, target: Union[str, PurePath, IO[bytes]]):
+    @overload
+    def download_asset(self, fileid: str, target: Union[str, PurePath]) -> Path: ...
+    @overload
+    def download_asset(self, fileid: str, target: IO[bytes]) -> IO[bytes]: ...
+    def download_asset(self, fileid: str, target: BinaryFile) -> Union[Path, IO[bytes]]:
         """
         Download a file from CryoSPARC's MongoDB GridFS storage.
 
@@ -968,8 +1007,12 @@ class CryoSPARC:
                 to write response data.
 
         Returns:
-            str | Path | IO: resulting target path or file handle.
+            Path | IO: resulting target path or file handle.
         """
+        if isinstance(target, (str, PurePath)):
+            target = Path(target)
+            if target.is_dir():
+                raise ValueError("Target must be a file path, not a directory")
         stream = self.api.assets.download(fileid)
         stream.save(target)
         return target
@@ -978,10 +1021,10 @@ class CryoSPARC:
         self,
         project_uid: str,
         target_path: Union[str, PurePosixPath],
-        source: Union[str, bytes, PurePath, IO, Stream],
+        source: Union[str, PurePath, IO, Buffer, Stream],
         *,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
         Upload the given source file to the project directory at the given
         relative path. Fails if target already exists.
@@ -990,12 +1033,12 @@ class CryoSPARC:
             project_uid (str): Project unique ID, e.g., "P3"
             target_path (str | Path): Name or path of file to write in project
                 directory.
-            source (str | bytes | Path | IO | Stream): Local path or file handle
+            source (str | Path | IO | Buffer | Stream): Local path or file handle
                 to upload. May also specified as raw bytes.
             overwrite (bool, optional): If True, overwrite existing files.
                 Defaults to False.
         """
-        if isinstance(source, bytes):
+        if isinstance(source, Buffer):
             source = BytesIO(source)
         if isinstance(source, TextIOBase):  # e.g., open(p, "r") or StringIO()
             source = Stream.from_iterator(s.encode() for s in source)
@@ -1011,7 +1054,7 @@ class CryoSPARC:
         *,
         format: int = DEFAULT_FORMAT,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
         Upload a dataset as a CS file into the project directory. Fails if
         target already exists.
@@ -1029,7 +1072,7 @@ class CryoSPARC:
         if format == CSDAT_FORMAT:
             return self.upload(project_uid, target_path, Stream.from_iterator(dset.stream()), overwrite=overwrite)
 
-        if len(dset) < 100:
+        if len(dset) < 1000:
             # Probably small enough to upload from memory
             f = BytesIO()
             dset.save(f, format=format)
@@ -1050,10 +1093,9 @@ class CryoSPARC:
         psize: float,
         *,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
-        Upload a numpy 2D or 3D array to the job directory as an MRC file.
-        Fails if target already exists.
+        Upload a numpy 2D or 3D array to a project directory as an MRC file.
 
         Args:
             project_uid (str): Project unique ID, e.g., "P3"
@@ -1075,7 +1117,7 @@ class CryoSPARC:
         target_path: Union[str, PurePosixPath],
         parents: bool = False,
         exist_ok: bool = False,
-    ):
+    ) -> None:
         """
         Create a directory in the given project.
 
@@ -1096,7 +1138,12 @@ class CryoSPARC:
             exist_ok=exist_ok,
         )
 
-    def cp(self, project_uid: str, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
+    def cp(
+        self,
+        project_uid: str,
+        source_path: Union[str, PurePosixPath],
+        target_path: Union[str, PurePosixPath] = "",
+    ) -> None:
         """
         Copy a file or folder within a project to another location within that
         same project.
@@ -1117,7 +1164,7 @@ class CryoSPARC:
         project_uid: str,
         source_path: Union[str, PurePosixPath],
         target_path: Union[str, PurePosixPath] = "",
-    ):
+    ) -> None:
         """
         Create a symbolic link in the given project. May only create links for
         files within the project.
@@ -1134,7 +1181,7 @@ class CryoSPARC:
         self.api.projects.symlink(project_uid, source=str(source_path), path=str(target_path))
 
 
-def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]):
+def get_import_signatures(abs_paths: Union[str, Iterable[str], "NDArray"]) -> List[int]:
     """
     Get list of import signatures for the given path or paths.
 

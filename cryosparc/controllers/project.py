@@ -1,9 +1,16 @@
+"""
+Defines Project class for accessing and managing CryoSPARC projects.
+
+Use :py:meth:`cs.find_project() <cryosparc.tools.CryoSPARC.find_project>` to get
+a :py:class:`ProjectController` instance.
+"""
+
 import time
 import warnings
-from pathlib import PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+from pathlib import Path, PurePath, PurePosixPath
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union, overload
 
-from typing_extensions import Unpack
+from typing_extensions import Buffer, Unpack
 
 from ..dataset import DEFAULT_FORMAT, Dataset
 from ..dataset.row import R
@@ -11,21 +18,23 @@ from ..errors import APIError, ProjectError
 from ..models.project import Project
 from ..search import In, JobSearch
 from ..spec import Datatype, SlotSpec
-from ..util import PurePosixPathProperty
+from ..stream import Stream
+from ..util import BinaryFile, PurePosixPathProperty
 from . import Controller, as_output_slot
-from .job import ExternalJobController, FileOrFigure, JobController
+from .job import ExternalJobController, FileOrFigure, JobController, JobOutput
 from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+    from .. import mrc
     from ..tools import CryoSPARC
 
 
 class ProjectController(Controller[Project]):
     """
     Accessor instance for CryoSPARC projects with ability to add workspaces, jobs
-    and upload/download project files. Should be created with
+    and upload/download project files. Should be initialized with
     :py:meth:`cs.find_project() <cryosparc.tools.CryoSPARC.find_project>`.
 
     Arguments:
@@ -77,7 +86,7 @@ class ProjectController(Controller[Project]):
 
     def set_title(self, title: str):
         """
-        Set the project title.
+        Set project title.
 
         Args:
             title (str): New project title
@@ -86,7 +95,7 @@ class ProjectController(Controller[Project]):
 
     def set_description(self, desc: str):
         """
-        Set the project description. May include Markdown formatting.
+        Set project description. May include `Markdown <https://markdown.org>`_ formatting.
 
         Args:
             desc (str): New project description
@@ -95,7 +104,7 @@ class ProjectController(Controller[Project]):
 
     def find_workspaces(self, *, order: Literal[1, -1] = 1) -> Iterable[WorkspaceController]:
         """
-        Get all workspaces available in the current project.
+        Get all workspaces available in the project.
 
         Returns:
             Iterable[WorkspaceController]: workspace accessor objects
@@ -104,14 +113,16 @@ class ProjectController(Controller[Project]):
 
     def find_workspace(self, workspace_uid: str) -> WorkspaceController:
         """
-        Get a workspace accessor instance for the workspace in this project
-        with the given UID. Fails with an error if workspace does not exist.
+        Get workspace in the project with the given unique ID.
 
         Args:
             workspace_uid (str): Workspace unique ID, e.g., "W1"
 
         Returns:
             WorkspaceController: workspace accessor object
+
+        Raises:
+            APIError: Workspace does not exist.
         """
         return WorkspaceController(self.cs, (self.uid, workspace_uid))
 
@@ -123,7 +134,7 @@ class ProjectController(Controller[Project]):
         **search: Unpack[JobSearch],
     ) -> Iterable[JobController]:
         """
-        Search jobs available in the current project.
+        Search jobs available in the project.
 
         Example:
             >>> jobs = project.find_jobs("W3")
@@ -150,28 +161,29 @@ class ProjectController(Controller[Project]):
 
     def find_job(self, job_uid: str) -> JobController:
         """
-        Get a job accessor instance for the job in this project with the given
-        UID. Fails with an error if job does not exist.
+        Get job in the project with the given unique ID.
 
         Args:
             job_uid (str): Job unique ID, e.g., "J42"
 
         Returns:
             JobController: job accessor instance
+
+        Raises:
+            APIError: Job does not exist.
         """
         return JobController(self.cs, (self.uid, job_uid))
 
     def find_external_job(self, job_uid: str) -> ExternalJobController:
         """
-        Get the External job accessor instance for an External job in this
-        project with the given UID. Fails if the job does not exist or is not an
-        external job.
+        Get external job in this project with the given unique ID.
 
         Args:
             job_uid (str): Job unique ID, e.g,. "J42"
 
         Raises:
-            TypeError: If job is not an external job
+            APIError: Job does not exist
+            TypeError: Job is not an external job
 
         Returns:
             ExternalJobController: external job accessor object
@@ -180,18 +192,13 @@ class ProjectController(Controller[Project]):
 
     def move(self, path: Union[str, PurePath], *, wait: bool = False):
         """
-        Move this project to a new location on the file system. This is useful
-        for moving projects to long-term storage locations. The project directory
-        will be moved to the given path and the project will continue to be
-        accessible through the same project UID.
+        Move the project directory to a new location on the file system. Useful
+        for moving projects to long-term storage locations.
 
         Args:
             path (str | Path): New file system path for the project directory.
             wait (bool, optional): If True, wait for the move operation to
             complete before returning. Defaults to False.
-
-        Raise:
-            ProjectError: Project move could not be completed
         """
         self.cs.api.projects.move(self.uid, path=str(path))
         self.model.moving = True  # backend will set this on next refresh
@@ -203,8 +210,9 @@ class ProjectController(Controller[Project]):
         """
         Archive this project. Archived projects are hidden from the CryoSPARC UI
         and cannot be modified. An admin may move their directories to a long-
-        term storage location. Project may be restored with the :py:meth:`unarchive`
-        function, which requires the path to its current location.
+        term storage location.
+
+        Restore an archived project with :py:meth:`unarchive`.
 
         Args:
             wait (bool, optional): If False, waits for the archive operation to
@@ -226,9 +234,9 @@ class ProjectController(Controller[Project]):
 
     def attach(self, *, wait: bool = False):
         """
-        Attach this project to the CryoSPARC instance. Attached projects are
-        accessible through the UI and can be modified. Project will be assigned
-        a new UID upon attaching.
+        Attach a previously-detached project to the CryoSPARC instance.
+        Once attach completes, the project will be visible and modifiable in
+        the web UI. The project is assigned a new unique ID upon attaching.
 
         Args:
             wait (bool, optional): If True, wait for the attach operation to
@@ -247,7 +255,7 @@ class ProjectController(Controller[Project]):
     def detach(self, *, wait: bool = False):
         """
         Detach this project from the CryoSPARC instance. Detached projects are
-        not accessible through the UI and may be attached to other instances.
+        not accessible from the web UI and may be attached to other instances.
 
         See :py:meth:`cs.attach_project() <cryosparc.tools.CryoSPARC.attach_project>`
         to re-attach.
@@ -306,7 +314,8 @@ class ProjectController(Controller[Project]):
 
         Args:
             title (str): Title of new workspace
-            desc (str, optional): Markdown text description. Defaults to None.
+            desc (str, optional): `Markdown <https://markdown.org>`_ text description.
+                Defaults to None.
 
         Returns:
             WorkspaceController: created workspace accessor object
@@ -320,7 +329,7 @@ class ProjectController(Controller[Project]):
         self,
         workspace_uid: str,
         type: str,
-        connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
+        connections: Dict[str, Union[JobOutput, List[JobOutput]]] = {},
         params: Dict[str, Any] = {},
         title: str = "",
         desc: str = "",
@@ -334,13 +343,14 @@ class ProjectController(Controller[Project]):
             project_uid (str): Project UID to create job in, e.g., "P3"
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             type (str): Job type identifier, e.g., "homo_abinit"
-            connections (dict[str, tuple[str, str] | list[tuple[str, str]]]):
+            connections (dict[str, tuple[str | JobController, str] | list[tuple[str | JobController, str]]]):
                 Initial input connections. Each key is an input name and each
-                value is a (job uid, output name) tuple. Defaults to {}
+                value is a (job, output name) tuple. Defaults to {}
             params (dict[str, Any], optional): Specify parameter values.
                 Defaults to {}.
             title (str, optional): Job title. Defaults to "".
-            desc (str, optional): Job markdown description. Defaults to "".
+            desc (str, optional): Job `Markdown <https://markdown.org>`_ description.
+                Defaults to "".
 
         Returns:
             JobController: created job accessor object.
@@ -383,7 +393,7 @@ class ProjectController(Controller[Project]):
             workspace_uid (str): Workspace UID to create job in, e.g., "W3".
             title (str, optional): Title for external job (recommended).
                 Defaults to "".
-            desc (str, optional): Markdown description for external job.
+            desc (str, optional): `Markdown <https://markdown.org>`_ description for external job.
                 Defaults to "".
 
         Returns:
@@ -486,8 +496,8 @@ class ProjectController(Controller[Project]):
                 "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
                 Defaults to "".
-            desc (str, optional): Markdown description for this output. Defaults
-                to "".
+            desc (str, optional): `Markdown <https://markdown.org>`_ description for this output.
+                Defaults to "".
             image (str | Path | IO | Figure, optional): Optional image file
                 or matplotlib Figure to set as the image for this output.
                 Defaults to None.
@@ -556,16 +566,16 @@ class ProjectController(Controller[Project]):
 
     def download(self, path: Union[str, PurePosixPath]):
         """
-        Open a file in the current project for reading. Use to get files from a
-        remote CryoSPARC instance where the project directory is not available
-        on the client file system.
+        Open a file in the project for reading. Use to get files from a remote
+        CryoSPARC instance whose project directories are not available on the
+        file system where this script runs.
 
         Args:
             path (str | Path): Name or path of file in project directory.
 
         Yields:
-            HTTPResponse: Use a context manager to read the file from the
-            request body.
+            BinaryIteratorIO: Use a context manager to read the file from the
+                request body.
 
         Examples:
 
@@ -579,7 +589,13 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.download(self.uid, path)
 
-    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath, IO[bytes]] = ""):
+    @overload
+    def download_file(self, path: Union[str, PurePosixPath]) -> Path: ...
+    @overload
+    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath]) -> Path: ...
+    @overload
+    def download_file(self, path: Union[str, PurePosixPath], target: IO[bytes]) -> IO[bytes]: ...
+    def download_file(self, path: Union[str, PurePosixPath], target: BinaryFile = "") -> Union[Path, IO[bytes]]:
         """
         Download a file from the project directory to the given target path or
         writeable file handle.
@@ -588,7 +604,7 @@ class ProjectController(Controller[Project]):
             path (str | Path): Name or path of file in project directory.
             target (str | Path | IO, optional): Local file path, directory path or
                 writeable file handle to write response data. If not specified,
-                downloads to current working directory with same file name.
+                downloads to current working directory with a similar file name.
                 Defaults to "".
 
         Returns:
@@ -596,7 +612,7 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.download_file(self.uid, path, target)
 
-    def download_dataset(self, path: Union[str, PurePosixPath]):
+    def download_dataset(self, path: Union[str, PurePosixPath]) -> Dataset:
         """
         Download a .cs dataset file from the given relative path in the project
         directory.
@@ -609,10 +625,9 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.download_dataset(self.uid, path)
 
-    def download_mrc(self, path: Union[str, PurePosixPath]):
+    def download_mrc(self, path: Union[str, PurePosixPath]) -> Tuple["mrc.Header", "NDArray"]:
         """
-        Download a .mrc file from the given relative path in the project
-        directory.
+        Download a .mrc file from the project directory.
 
         Args:
             path (str | Path): Name or path to .mrc file in project directory.
@@ -625,10 +640,10 @@ class ProjectController(Controller[Project]):
     def upload(
         self,
         target_path: Union[str, PurePosixPath],
-        source: Union[str, bytes, PurePath, IO],
+        source: Union[str, PurePath, IO, Buffer, Stream],
         *,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
         Upload the given file to the project directory at the given relative
         path. Fails if target already exists.
@@ -650,7 +665,7 @@ class ProjectController(Controller[Project]):
         *,
         format: int = DEFAULT_FORMAT,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
         Upload a dataset as a CS file into the project directory. Fails if
         target already exists.
@@ -673,10 +688,9 @@ class ProjectController(Controller[Project]):
         psize: float,
         *,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """
-        Upload a numpy 2D or 3D array to the project directory as an MRC file. Fails
-        if target already exists.
+        Upload a numpy 2D or 3D array to the project directory as an MRC file.
 
         Args:
             target_path (str | Path): Name or path of MRC file to save in the
@@ -713,7 +727,7 @@ class ProjectController(Controller[Project]):
             exist_ok=exist_ok,
         )
 
-    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
+    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
         """
         Copy a file or folder into the job direcotry.
 
@@ -731,7 +745,7 @@ class ProjectController(Controller[Project]):
             target_path=target_path,
         )
 
-    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = ""):
+    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
         """
         Create a symbolic link in the given project. May only create links for
         files within the project.

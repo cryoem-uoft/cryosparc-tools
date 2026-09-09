@@ -1,3 +1,14 @@
+"""
+Defines the Workspace class for managing workspaces in CryoSPARC.
+
+Use :py:meth:`cs.find_workspace() <cryosparc.tools.CryoSPARC.find_workspace>` or
+:py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
+to get a :py:class:`WorkspaceController` instance.
+
+Use :py:meth:`project.create_workspace() <cryosparc.controllers.project.ProjectController.create_workspace>`
+to create a new workspace in a project.
+"""
+
 import time
 import warnings
 from pathlib import PurePosixPath
@@ -13,7 +24,7 @@ from ..models.workspace import Workspace
 from ..search import JobSearch
 from ..spec import Datatype, SlotSpec
 from . import Controller, as_output_slot
-from .job import ExternalJobController, FileOrFigure, JobController
+from .job import ExternalJobController, FileOrFigure, JobController, JobOutput
 
 if TYPE_CHECKING:
     from ..tools import CryoSPARC
@@ -22,7 +33,7 @@ if TYPE_CHECKING:
 class WorkspaceController(Controller[Union[Workspace, Session]]):
     """
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
-    results. Should be created with`
+    results. Should be initialized with
     :py:meth:`cs.find_workspace() <cryosparc.tools.CryoSPARC.find_workspace>` or
     :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`.
 
@@ -76,7 +87,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def set_title(self, title: str):
         """
-        Set the workspace title.
+        Set workspace title.
 
         Args:
             title (str): New workspace title
@@ -85,7 +96,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def set_description(self, desc: str):
         """
-        Set the workspace description. May include Markdown formatting.
+        Set workspace description. May include `Markdown <https://markdown.org>`_ formatting.
 
         Args:
             desc (str): New workspace description
@@ -94,7 +105,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def find_jobs(self, *, order: Literal[1, -1] = 1, **search: Unpack[JobSearch]) -> Iterable[JobController]:
         """
-        Search jobs in the current workspace.
+        Search jobs in the workspace.
 
         Example:
             >>> jobs = workspace.find_jobs()  # all jobs in workspace
@@ -117,7 +128,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def find_job(self, job_uid: str) -> JobController:
         """
-        Find a job in the current workspace by its UID.
+        Find a job in the workspace by its UID.
 
         Args:
             job_uid (str): Job UID to find, e.g., "J42"
@@ -133,13 +144,13 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
     def create_job(
         self,
         type: str,
-        connections: Dict[str, Union[Tuple[str, str], List[Tuple[str, str]]]] = {},
+        connections: Dict[str, Union[JobOutput, List[JobOutput]]] = {},
         params: Dict[str, Any] = {},
         title: str = "",
         desc: str = "",
     ) -> JobController:
         """
-        Create a new job with the given type. Use
+        Add a new job to the workspace with the given type. Use
         :py:attr:`cs.job_register <cryosparc.tools.CryoSPARC.job_register>`
         to find available job types on the connected CryoSPARC instance.
 
@@ -147,16 +158,20 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
             project_uid (str): Project UID to create job in, e.g., "P3"
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             type (str): Job type identifier, e.g., "homo_abinit"
-            connections (dict[str, tuple[str, str] | list[tuple[str, str]]]):
+            connections (dict[str, tuple[str | JobController, str] | list[tuple[str | JobController, str]]]):
                 Initial input connections. Each key is an input name and each
-                value is a (job uid, output name) tuple. Defaults to {}
+                value is a (job, output name) tuple. Defaults to {}
             params (dict[str, Any], optional): Specify parameter values.
                 Defaults to {}.
             title (str, optional): Job title. Defaults to "".
-            desc (str, optional): Job markdown description. Defaults to "".
+            desc (str, optional): Job `Markdown <https://markdown.org>`_ description.
+                Defaults to "".
 
         Returns:
-            JobController: created job instance. Raises error if job cannot be created.
+            JobController: created job instance.
+
+        Raises:
+           APIError: Job cannot be created.
 
         Examples:
 
@@ -186,13 +201,13 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         desc: str = "",
     ) -> ExternalJobController:
         """
-        Add a new External job to this workspace to save generated outputs to.
+        Add a new External job to the workspace to save computed outputs to.
 
         Args:
             workspace_uid (str): Workspace UID to create job in, e.g., "W1"
             title (str, optional): Title for external job (recommended).
                 Defaults to "".
-            desc (str, optional): Markdown description for external job.
+            desc (str, optional): `Markdown <https://markdown.org>`_ description for external job.
                 Defaults to "".
 
         Returns:
@@ -202,7 +217,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def import_job(self, path: Union[str, PurePosixPath]):
         """
-        Import a job from a location on disk into the current workspace.
+        Import a job from a location on disk to the workspace.
 
         Args:
             path (str | Path): Path to job directory, must be in the project
@@ -218,7 +233,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def link_job(self, job: Union[str, JobController]):
         """
-        Link the given job into this workspace.
+        Link a job into this workspace.
 
         Args:
             job (str | JobController): Target job to link into this workspace.
@@ -227,15 +242,14 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
                 or :py:meth:`project.create_job() <cryosparc.controllers.project.ProjectController.create_job>`.
 
         Raises:
-            APIError: If the job cannot be linked, e.g. if it is already linked
-                to this workspace.
+            APIError: If the job cannot be linked, e.g. if it is already linked to this workspace.
         """
         job_uid = job if isinstance(job, str) else job.uid
         self.cs.api.jobs.link_to_workspace(self.project_uid, job_uid, self.uid)
 
     def unlink_job(self, job: Union[str, JobController]):
         """
-        Unlink the given job from this workspace.
+        Unlink a job from this workspace.
 
         Args:
             job (str | JobController): Target job to unlink from this workspace.
@@ -243,8 +257,8 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
                 from `project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`.
 
         Raises:
-            APIError: If the job cannot be unlinked, e.g. if it is not linked
-                to this workspace.
+            APIError: If job is not linked to the workspace, or if this is
+                the only workspace the job is linked to.
         """
         job_uid = job if isinstance(job, str) else job.uid
         self.cs.api.jobs.unlink_from_workspace(self.project_uid, job_uid, self.uid)
@@ -262,7 +276,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> str:
         """
-        Save the given result dataset to a workspace.
+        Save the a result dataset to a workspace, via External Job.
 
         Args:
             dataset (Dataset): Result dataset.
@@ -278,8 +292,8 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
                 "particles")``. Defaults to None.
             title (str, optional): Human-readable title for this output.
                 Defaults to "".
-            desc (str, optional): Markdown description for this output. Defaults
-                to "".
+            desc (str, optional): `Markdown <https://markdown.org>`_ description
+                for this output. Defaults to "".
             image (str | Path | IO | Figure, optional): Optional image file
                 or matplotlib Figure to set as the image for this output.
                 Defaults to None.
@@ -288,7 +302,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
                 to ``dict(bbox_inches="tight", pad_inches=0)``.
 
         Returns:
-            str: UID of created job where this output was saved.
+            str: UID of External job where output was saved
 
         Examples:
 
