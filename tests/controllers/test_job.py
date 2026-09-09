@@ -33,24 +33,46 @@ def mock_enqueue_endpoint(mock_job: Job):
 def test_queue(job: JobController, mock_enqueue_endpoint: mock.Mock):
     job.queue()
     assert job.model.status == "queued"
-    mock_enqueue_endpoint.assert_called_once_with(job.project_uid, job.uid, lane=None, hostname=None, gpus=[])
+    mock_enqueue_endpoint.assert_called_once_with(
+        job.project_uid,
+        job.uid,
+        lane=None,
+        hostname=None,
+        gpus=[],
+        no_check_inputs_ready=False,
+        oversubscribe_gpus=False,
+    )
 
 
 def test_queue_worker(job: JobController, mock_enqueue_endpoint: mock.Mock):
-    job.queue(lane="workers", hostname="worker1", gpus=[1])
+    job.queue(lane="workers", hostname="worker1", gpus=[1], oversubscribe_gpus=True)
     assert job.model.status == "queued"
     mock_enqueue_endpoint.assert_called_once_with(
-        job.project_uid, job.uid, lane="workers", hostname="worker1", gpus=[1]
+        job.project_uid,
+        job.uid,
+        lane="workers",
+        hostname="worker1",
+        gpus=[1],
+        no_check_inputs_ready=False,
+        oversubscribe_gpus=True,
     )
 
 
 def test_queue_cluster(job: JobController, mock_enqueue_endpoint: mock.Mock):
     assert isinstance(mock_vars_endpoint := APIClient.jobs.set_cluster_custom_vars, mock.Mock)
     vars = {"var1": 42, "var2": "test"}
-    job.queue(lane="cluster", cluster_vars=vars)
+    job.queue(lane="cluster", cluster_vars=vars, check_inputs_ready=False)
     assert job.model.status == "queued"
     mock_vars_endpoint.assert_called_once_with(job.project_uid, job.uid, vars)
-    mock_enqueue_endpoint.assert_called_once_with(job.project_uid, job.uid, lane="cluster", hostname=None, gpus=[])
+    mock_enqueue_endpoint.assert_called_once_with(
+        job.project_uid,
+        job.uid,
+        lane="cluster",
+        hostname=None,
+        gpus=[],
+        no_check_inputs_ready=True,
+        oversubscribe_gpus=False,
+    )
 
 
 def test_load_output_all_slots(job: JobController, t20s_particles, t20s_particles_passthrough):
