@@ -32,6 +32,7 @@ from .models import (
     session_params,
     session_spec,
     signature,
+    symlink,
     tag,
     user,
     version,
@@ -76,5 +77,6 @@ register_model_module(session_config_profile, include_literals=True)
 register_model_module(diagnostics, include_literals=True)
 register_model_module(scheduler_lane, include_literals=True)
 register_model_module(session_spec, include_literals=True)
+register_model_module(symlink, include_literals=True)
 register_model_module(config, include_literals=True)
 register_model_module(auth, include_literals=True)

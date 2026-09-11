@@ -163,6 +163,12 @@ class Workspace(BaseModel):
     """
     Workspace type, always 'base'.
     """
+    schema_version: int = 1
+    """
+    Workspace schema version for determining exported workspace and session
+    compatibility between CryoSPARC versions, similar to the ``schema_version``
+    present in projects.
+    """
     created_by_user_id: Optional[str] = None
     """
     User ID that created the workspace.

@@ -97,13 +97,14 @@ from .models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, 
 from .models.exposure import Exposure
 from .models.external import ExternalOutputSpec
 from .models.file_browser import BrowseFileResponse, FileBrowserSettings
+from .models.instance import InstanceActivity
 from .models.job import Job, JobStatus
 from .models.job_register import JobRegister
 from .models.job_spec import Category, InputSpec, OutputResult, OutputSpec
 from .models.license import LicenseInstance, UpdateLicenseTag
 from .models.notification import Notification
 from .models.preview import DeleteProjectPreview, DeleteWorkspacePreview, SplitProjectPreview
-from .models.project import GenerateIntermediateResultsSettings, Project, ProjectSymlink
+from .models.project import GenerateIntermediateResultsSettings, Project
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget, SchedulerTargetCluster, SchedulerTargetNode
 from .models.services import LoggingService
@@ -117,6 +118,7 @@ from .models.session import (
 )
 from .models.session_config_profile import SessionConfigProfile, SessionConfigProfileBody
 from .models.session_params import LiveAbinitParams, LiveClass2DParams, LivePreprocessingParams, LiveRefineParams
+from .models.symlink import SymlinkInfo
 from .models.tag import CreateTag, Tag, UpdateTag
 from .models.user import User
 from .models.workflow import ApplyWorkflowRequest, UpdateWorkflow, Workflow, WorkflowJob, WorkflowParameter
@@ -338,11 +340,17 @@ class InstanceAPI(APINamespace):
         max_lines: Optional[int] = None,
     ) -> Any:
         """
-        Get master service logs, filterable by date.
+        Get master service logs. Serves the whole log by default.
 
-        .. note::
-            Only database, api, scheduler and command_vis services support date and
-            days filtering.
+        Provide a maximum number of lines to return from the end of the log file.
+        If no maximum is provided, return the entire log file.
+
+        Provide a start and/or end time to filter logs to a specific time range.
+        If the start and end times do not include a timezone, they will be assumed
+        to be in server time.
+
+        If only ``start`` is provided, reads from the first line after ``start``.
+        If only ``end`` is provided, reads in reverse order from ``end``.
 
         Args:
             service (LoggingService):
@@ -373,6 +381,16 @@ class InstanceAPI(APINamespace):
 
         Returns:
             str | None: Successful Response
+
+        """
+        ...
+    def get_instance_activity(self, *, limit: Optional[int] = 100) -> List[InstanceActivity]:
+        """
+        Args:
+            limit (int, optional): Defaults to 100
+
+        Returns:
+            List[InstanceActivity]: Successful Response
 
         """
         ...
@@ -786,6 +804,20 @@ class ResourcesAPI(APINamespace):
 
         """
         ...
+    def reorder_lanes(self, order: List[int]) -> List[SchedulerLane]:
+        """
+        Reorder the lanes according to the given index list.
+        Accepts partial reordering, i.e., the list of indices does not need to include all lanes.
+        The lanes not included in the list will be appended to the end of the reordered list in their original order.
+
+        Args:
+            order (List[int]):
+
+        Returns:
+            List[SchedulerLane]: Successful Response
+
+        """
+        ...
     def find_targets(self, *, lane: Optional[str] = None) -> List[SchedulerTarget]:
         """
         Find a list of connected worker node or cluster targets that jobs may be
@@ -1119,6 +1151,8 @@ class JobsAPI(APINamespace):
         failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         deleted: Optional[bool] = False,
+        deleting: Optional[bool] = None,
+        import_status: Optional[str] = None,
         order: Literal[-1, 1] = 1,
         after: Optional[str] = None,
         limit: Optional[int] = 100,
@@ -1144,6 +1178,8 @@ class JobsAPI(APINamespace):
             failed_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             exported_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             deleted (bool, optional): Defaults to False
+            deleting (bool, optional): Defaults to None
+            import_status (str, optional): Defaults to None
             order (Literal[-1, 1], optional): 1 for ascending order, -1 for descending order. Defaults to 1
             after (str, optional): Cursor for pagination; only return results with id greater than (if order=1) or less than (if order=-1) this value. Defaults to None
             limit (int, optional): Defaults to 100
@@ -1188,6 +1224,8 @@ class JobsAPI(APINamespace):
         failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         deleted: Optional[bool] = False,
+        deleting: Optional[bool] = None,
+        import_status: Optional[str] = None,
     ) -> int:
         """
         Count jobs that match the given filters (all if not specified).
@@ -1210,6 +1248,8 @@ class JobsAPI(APINamespace):
             failed_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             exported_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             deleted (bool, optional): Defaults to False
+            deleting (bool, optional): Defaults to None
+            import_status (str, optional): Defaults to None
 
         Returns:
             int: Successful Response
@@ -2136,6 +2176,8 @@ class JobsAPI(APINamespace):
         failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         deleted: Optional[bool] = False,
+        deleting: Optional[bool] = None,
+        import_status: Optional[str] = None,
         order: Literal[-1, 1] = 1,
         after: Optional[str] = None,
         limit: Optional[int] = 100,
@@ -2161,6 +2203,8 @@ class JobsAPI(APINamespace):
             failed_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             exported_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             deleted (bool, optional): Defaults to False
+            deleting (bool, optional): Defaults to None
+            import_status (str, optional): Defaults to None
             order (Literal[-1, 1], optional): 1 for ascending order, -1 for descending order. Defaults to 1
             after (str, optional): Cursor for pagination; only return results with id greater than (if order=1) or less than (if order=-1) this value. Defaults to None
             limit (int, optional): Defaults to 100
@@ -2203,6 +2247,16 @@ class JobsAPI(APINamespace):
 
         Returns:
             Job: Successful Response
+
+        """
+        ...
+    def restart(self, project_uid: str, job_uid: str, /) -> None:
+        """
+        Restarts a job
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
 
         """
         ...
@@ -2380,6 +2434,19 @@ class JobsAPI(APINamespace):
 
         """
         ...
+    def get_symlinks(self, project_uid: str, job_uid: str, /) -> List[SymlinkInfo]:
+        """
+        Get all symbolic links in the job directory
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+
+        Returns:
+            List[SymlinkInfo]: Successful Response
+
+        """
+        ...
     def update_directory_symlinks(self, project_uid: str, job_uid: str, /, *, prefix_cut: str, prefix_new: str) -> int:
         """
         Rewrites all symbolic links in the job directory, modifying links prefixed with `prefix_cut` to instead be prefixed with `prefix_new`.
@@ -2423,16 +2490,23 @@ class JobsAPI(APINamespace):
 
         """
         ...
-    def import_job(self, project_uid: str, workspace_uid: str, /, *, path: str = "") -> None:
+    def import_job(self, project_uid: str, workspace_uid: str, /, *, path: str = "") -> Job:
         """
-        Imports the exported job directory into the project. Exported job
-        directory must be copied to the target project directory with all its symbolic links resolved.
-        By convention, the exported job directory should be located in the project directory → exports subfolder
+        Import a job into a project workspace from a location on disk.
+
+        The exported job directory must be copied into the target project directory
+        with all its symbolic links resolved. By convention, the exported job
+        directory should be located in the project directory → ``imports`` subfolder.
+
+        Resulting job will not be ready to use until ``import_status`` is "complete".
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
             path (str, optional): Relative path or absolute path within project directory. Defaults to ''
+
+        Returns:
+            Job: Successful Response
 
         """
         ...
@@ -2517,6 +2591,7 @@ class WorkspacesAPI(APINamespace):
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         deleted: Optional[bool] = False,
+        deleting: Optional[bool] = None,
         order: Literal[-1, 1] = 1,
         after: Optional[str] = None,
         limit: Optional[int] = 100,
@@ -2531,6 +2606,7 @@ class WorkspacesAPI(APINamespace):
             created_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             updated_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             deleted (bool, optional): Defaults to False
+            deleting (bool, optional): Defaults to None
             order (Literal[-1, 1], optional): 1 for ascending order, -1 for descending order. Defaults to 1
             after (str, optional): Cursor for pagination; only return results with id greater than (if order=1) or less than (if order=-1) this value. Defaults to None
             limit (int, optional): Defaults to 100
@@ -2549,6 +2625,7 @@ class WorkspacesAPI(APINamespace):
         created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
         deleted: Optional[bool] = False,
+        deleting: Optional[bool] = None,
     ) -> int:
         """
         Count workspaces that match the given filters (all if not specified).
@@ -2560,6 +2637,7 @@ class WorkspacesAPI(APINamespace):
             created_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             updated_at (Tuple[datetime.datetime, datetime.datetime], optional): Defaults to None
             deleted (bool, optional): Defaults to False
+            deleting (bool, optional): Defaults to None
 
         Returns:
             int: Successful Response
@@ -3026,6 +3104,36 @@ class SessionsAPI(APINamespace):
 
         """
         ...
+    def get_symlinks(self, project_uid: str, session_uid: str, /) -> List[SymlinkInfo]:
+        """
+        Get all symbolic links in the session directory
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+
+        Returns:
+            List[SymlinkInfo]: Successful Response
+
+        """
+        ...
+    def update_directory_symlinks(
+        self, project_uid: str, session_uid: str, /, *, prefix_cut: str, prefix_new: str
+    ) -> int:
+        """
+        Rewrites all symbolic links in the session directory, modifying links prefixed with `prefix_cut` to instead be prefixed with `prefix_new`.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+            prefix_cut (str):
+            prefix_new (str):
+
+        Returns:
+            int: Number of symlinks updated
+
+        """
+        ...
     def start(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Build and start a CryoSPARC Live Session. Resources, parameters and exposure
@@ -3341,7 +3449,7 @@ class SessionsAPI(APINamespace):
         direction: Literal["above", "below"] = "above",
     ) -> Session:
         """
-        Select or deselect all templates above or below a specific template for a
+        Select or deselect all templates inclusively above or below a specific template for a
         session's streaming 2D Classification. All templates within the threshold of
         the specified template index will be selected, and all others will be
         deselected.
@@ -4708,7 +4816,7 @@ class ProjectsAPI(APINamespace):
 
         """
         ...
-    def get_symlinks(self, project_uid: str, /) -> List[ProjectSymlink]:
+    def get_symlinks(self, project_uid: str, /) -> List[SymlinkInfo]:
         """
         Get all symbolic links in the project directory
 
@@ -4716,7 +4824,21 @@ class ProjectsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
 
         Returns:
-            List[ProjectSymlink]: Successful Response
+            List[SymlinkInfo]: Successful Response
+
+        """
+        ...
+    def update_directory_symlinks(self, project_uid: str, /, *, prefix_cut: str, prefix_new: str) -> int:
+        """
+        Rewrites all symbolic links in the project directory, modifying links prefixed with `prefix_cut` to instead be prefixed with `prefix_new`.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            prefix_cut (str):
+            prefix_new (str):
+
+        Returns:
+            int: Number of symlinks updated
 
         """
         ...

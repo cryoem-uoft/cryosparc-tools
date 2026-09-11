@@ -243,22 +243,3 @@ class Project(BaseModel):
     """
     Numeric part of the project UID.
     """
-
-
-class ProjectSymlink(BaseModel):
-    """
-    Information about a symlink in a project directory.
-    """
-
-    path: str
-    """
-    Path of the symlink.
-    """
-    target: str
-    """
-    Target of the symlink.
-    """
-    exists: bool
-    """
-    Whether the target of the symlink exists.
-    """

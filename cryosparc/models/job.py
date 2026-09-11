@@ -158,7 +158,7 @@ class Job(BaseModel):
     """
     schema_version: int = 1
     """
-    Job schema version for determinining exported job compatibility between
+    Job schema version for determining exported job compatibility between
     CryoSPARC versions, similar to the ``schema_version`` present in projects.
     """
     spec: JobSpec
