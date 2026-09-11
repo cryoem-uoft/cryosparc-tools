@@ -21,7 +21,7 @@ classifiers = [
 license = { file = "LICENSE" }
 # license = "BSD-3-Clause"  # Note: replace line above with this when supported
 dependencies = [
-    "numpy >= 1.17, < 3.0",
+    "numpy >= 1.17, < 3",
     "httpx ~= 0.25",
     "pydantic ~= 2.8",
     "typing-extensions >= 4.0",
@@ -31,7 +31,7 @@ dependencies = [
 dev = [
     "autodocsumm",
     "build",
-    "cython",
+    "cython >= 3.1.0, < 4",
     "jupyter-book < 2.0",
     "pre-commit",
     "pyright==1.1.404",
