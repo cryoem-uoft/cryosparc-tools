@@ -130,7 +130,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def find_job(self, job_uid: str) -> JobController:
         """
-        Find a job in the workspace by its UID.
+        Get job in the workspace with by its unique ID.
 
         Args:
             job_uid (str): Job UID to find, e.g., "J42"
@@ -152,9 +152,10 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         desc: str = "",
     ) -> JobController:
         """
-        Add a new job to the workspace with the given type. Use
-        :py:attr:`cs.job_register <cryosparc.tools.CryoSPARC.job_register>`
-        to find available job types on the connected CryoSPARC instance.
+        Add a new job with the given type to the workspace.
+
+        All available job types and associated metadata are available from
+        :py:attr:`cs.job_register <cryosparc.tools.CryoSPARC.job_register>`.
 
         Args:
             project_uid (str): Project UID to create job in, e.g., "P3"
@@ -217,9 +218,18 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         """
         return self.cs.create_external_job(self.project_uid, self.uid, title, desc)
 
-    def import_job(self, path: Union[str, PurePosixPath]):
+    def import_job(self, path: Union[str, PurePosixPath], *, wait: bool = False) -> JobController:
         """
-        Import a job from a location on disk to the workspace.
+        Import a job into the workspace from a location on disk.
+
+        The exported job directory must be copied into the target project
+        directory with all its symbolic links resolved. By convention, the
+        exported job directory should be located in the project directory →
+        ``imports`` subfolder.
+
+        The resulting job will be in an "importing" state until CryoSPARC
+        verifies its contents and outputs. Set ``wait=True`` to block until the
+        job is ready to use.
 
         Args:
             path (str | Path): Path to job directory, must be in the project
@@ -227,11 +237,14 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
                 this should be a path available on the server file system.
                 e.g., ``"/projects/CS-project/imports/jobs/J134_homo_abinit"``
                 or ``"imports/jobs/J134_homo_abinit"``
+            wait (bool, optional): If True, wait until job import is complete
+                before returning. Defaults to False.
 
         Raises:
             APIError: Job cannot be imported.
+            JobError: Job import failed. See cryosparc log api for details.
         """
-        return self.cs.import_job(self.project_uid, self.uid, path)
+        return self.cs.import_job(self.project_uid, self.uid, path, wait=wait)
 
     def link_job(self, job: Union[str, JobController]):
         """
@@ -240,8 +253,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         Args:
             job (str | JobController): Target job to link into this workspace.
                 Can specify by UID, or with a ``JobController`` instance, e.g.,
-                from `project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`
-                or :py:meth:`project.create_job() <cryosparc.controllers.project.ProjectController.create_job>`.
+                from :py:meth:`project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`.
 
         Raises:
             APIError: If the job cannot be linked, e.g. if it is already linked to this workspace.
@@ -256,10 +268,10 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         Args:
             job (str | JobController): Target job to unlink from this workspace.
                 Can specify by UID, or with a ``JobController`` instance, e.g.,
-                from `project.find_job() <cryosparc.controllers.project.ProjectController.find_job>`.
+                from :py:meth:`find_job` or :py:meth:`create_job`.
 
         Raises:
-            APIError: If job is not linked to the workspace, or if this is
+            APIError: If the job is not linked to the workspace, or if this is
                 the only workspace the job is linked to.
         """
         job_uid = job if isinstance(job, str) else job.uid
@@ -278,7 +290,8 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
     ) -> str:
         """
-        Save the a result dataset to a workspace, via External Job.
+        Save the a result dataset to a workspace, via External Job. Specify at
+        least the dataset to save and the type of data.
 
         Args:
             dataset (Dataset): Result dataset.
@@ -362,8 +375,15 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def delete(self, *, wait: bool = False):
         """
-        Delete this workspace. Cannot be undone. May fail if jobs in the
-        workspace have final status or have descendants in other workspaces.
+        Delete the workspace and any jobs exclusively in the workspace.
+
+        Workspace jobs with the following conditions are never deleted:
+        - Linked to other workspaces (unlinked instead)
+        - Have "final" or "ancestor of final" status
+        - Have descendants in other workspaces.
+
+        If the workspace cannot be emptied due to these conditions, it is not
+        marked as deleted.
 
         Args:
             wait (bool, optional): If True, wait for the delete operation to

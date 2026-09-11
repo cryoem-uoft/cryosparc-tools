@@ -14,6 +14,7 @@ import re
 import traceback
 import warnings
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path, PurePath, PurePosixPath
 from time import sleep, time
@@ -241,7 +242,7 @@ class JobController(Controller[Job]):
         hostname: Optional[str] = None,
     ):
         """
-        Queue a job for execution. Specify either ``lane`` or ``target``, but
+        Queue the job for execution. Specify either ``lane`` or ``target``, but
         exclude both for interactive jobs. One or more ``gpus`` options may be
         specified with ``target``.
 
@@ -315,7 +316,7 @@ class JobController(Controller[Job]):
 
     def wait_for_status(self, status: Union[JobStatus, Iterable[JobStatus]], *, timeout: Optional[int] = None) -> str:
         """
-        Wait for a job's status to reach the specified value. Must be one of
+        Wait for the job's status to reach the specified value. Must be one of
         the following:
 
         - 'building'
@@ -349,7 +350,7 @@ class JobController(Controller[Job]):
 
     def wait_for_done(self, *, error_on_incomplete: bool = False, timeout: Optional[int] = None) -> str:
         """
-        Wait until a job reaches status "completed", "killed" or "failed".
+        Wait until the job reaches status "completed", "killed" or "failed".
 
         Args:
             error_on_incomplete (bool, optional): If True, raises an assertion
@@ -365,20 +366,32 @@ class JobController(Controller[Job]):
         )
         return status
 
+    def restart(self):
+        """
+        Kill and clear a completed or partially-completed job, queue it with the
+        same scheduler settings as its previous run.
+
+        Retains input connections and parameter overrides.
+        """
+        self.cs.api.jobs.restart(self.project_uid, self.uid)
+
     def interact(self, action: str, body: Any = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
         """
-        Perform an interactive action on a waiting interactive job.
+        Send a message to or perform an interactive action on a waiting interactive job.
         Possible actions and expected body depends on the job type.
         See `Custom Workflow </examples/custom-workflow.html>`_.
 
         Args:
             action (str): Interactive endpoint to call.
-            body (any): Body parameters for the interactive endpoint. Must be
+            body (any): Data to send to the interactive job endpoint. Must be
                 JSON-encodable.
-            timeout (int, optional): Maximum time to wait for the action to
+            timeout (int, optional): Maximum time to wait for action to
                 complete, in seconds. Defaults to 10.
             refresh (bool, optional): If True, refresh the job model after
                 posting. Defaults to False.
+
+        Returns:
+            any: Response from the interactive endpoint.
         """
         result: Any = self.cs.api.jobs.interactive_post(
             self.project_uid, self.uid, body=body, endpoint=action, timeout=timeout
@@ -389,7 +402,7 @@ class JobController(Controller[Job]):
 
     def clear(self, *, descendants: bool = False):
         """
-        Clear a job's outputs and events to get it back to building status.
+        Clear the job's outputs and events to get it back to building status.
         Launched, running or waiting jobs must be killed before clearing.
 
         Retains input connections and parameter overrides.
@@ -408,8 +421,11 @@ class JobController(Controller[Job]):
         Args:
             workspace (str | WorkspaceController, optional): Target workspace to
                 create the cloned job in. Can specify by name or UID, or with a
-                WorkspaceController instance. If not specified, clones into the
-                oldest workspace the original job is linked to. Defaults to None.
+                ``WorkspaceController`` instance from
+                :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
+                or :py:meth:`project.create_workspace() <cryosparc.controllers.project.ProjectController.create_workspace>`.
+                If not specified, clones into the oldest workspace the original
+                job is linked to. Defaults to None.
         Returns:
             JobController: Controller for the newly cloned job.
         """
@@ -419,11 +435,11 @@ class JobController(Controller[Job]):
 
     def link_to_workspace(self, workspace: Union[str, "WorkspaceController"]):
         """
-        Link this job to an additional workspace.
+        Link the job to an additional workspace.
 
         Args:
             workspace (str | WorkspaceController): Target workspace to link this
-                job to. Can specify by UID, or with a WorkspaceController
+                job to. Can specify by UID, or with a ``WorkspaceController``
                 instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
                 or :py:meth:`project.create_workspace() <cryosparc.controllers.project.ProjectController.create_workspace>`.
         """
@@ -432,16 +448,15 @@ class JobController(Controller[Job]):
 
     def unlink_from_workspace(self, workspace: Union[str, "WorkspaceController"]):
         """
-        Unlink this job from a workspace.
+        Unlink the job from a workspace.
 
         Args:
             workspace (str | WorkspaceController): Target workspace to unlink this
                 job from. Can specify by UID, or with a WorkspaceController
-                instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
-                or :py:meth:`project.create_workspace() <cryosparc.controllers.project.ProjectController.create_workspace>`.
+                instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`.
 
         Raises:
-            APIError: If job is not linked to the workspace, or if this is
+            APIError: If the job is not linked to the workspace, or if this is
                 the only workspace the job is linked to.
         """
         workspace_uid = workspace if isinstance(workspace, str) else workspace.uid
@@ -455,7 +470,7 @@ class JobController(Controller[Job]):
         Args:
             from_workspace (str | WorkspaceController): Workspace to move this
                 job from. Can specify by UID, or with a ``WorkspaceController``
-                instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`
+                instance from :py:meth:`project.find_workspace() <cryosparc.controllers.project.ProjectController.find_workspace>`.
             to_workspace (str | WorkspaceController): Workspace to move this job to.
 
         Raises:
@@ -469,6 +484,42 @@ class JobController(Controller[Job]):
             from_workspace_uid=from_workspace_uid,
             to_workspace_uid=to_workspace_uid,
         )
+
+    @overload
+    def export(self) -> None: ...
+    @overload
+    def export(self, *, wait: Literal[True], timeout: float = ...) -> PurePosixPath: ...
+    def export(self, *, wait: bool = False, timeout: float = 300) -> PurePosixPath | None:
+        """
+        Export the job to its project directory's ``exports`` subfolder.
+
+        Args:
+            wait (bool, optional): If True, wait for the export to complete
+                before returning. Defaults to False.
+            timeout (float, optional): Maximum time to wait for the export to
+                complete, in seconds. Only applies if ``wait`` is True.
+                Defaults to 300.
+
+        Returns:
+            PurePosixPath | None: If waited, path to the exported job directory.
+                None if not waited. Path may be moved to another project for import.
+
+        Raises:
+            JobError: If the job export could not be completed.
+            TimeoutError: If ``wait`` is True and the export does not complete
+                within the specified timeout.
+        """
+        now = datetime.now(timezone.utc)
+        self.cs.api.jobs.export_job(self.project_uid, self.uid)
+        while wait and (not self.model.last_exported_at or self.model.last_exported_at < now):
+            if (datetime.now(timezone.utc) - now).total_seconds() > timeout:
+                raise TimeoutError(f"Job export did not complete within {timeout} seconds")
+            sleep(1)
+            self.refresh()
+        if wait:
+            if not self.model.last_exported_location:
+                raise JobError("Job export did not complete", job=self)
+            return PurePosixPath(self.model.last_exported_location)
 
     def set_title(self, title: str):
         """
@@ -587,6 +638,9 @@ class JobController(Controller[Job]):
         """
         Connect a job input to another job's output.
 
+        This action is available while the job is building. Only External jobs
+        may be connected while running or waiting for results.
+
         Args:
             target_input (str): Input name to connect into. Will be created if
                 not specified.
@@ -657,7 +711,8 @@ class JobController(Controller[Job]):
         **kwargs,
     ):
         """
-        Connect a low-level input result slot to a result from another job.
+        Connect a low-level input result slot to an output result from another
+        (source) job.
 
         Args:
             target_input (str): Input name to connect into, e.g., "particles"
@@ -725,8 +780,9 @@ class JobController(Controller[Job]):
 
         Args:
             target_input (str): Name of input to disconnect
-            connection_idx (int): Connection index to modify. Set to 0 for the
-                first connection, 1 for the second, etc.
+            connection_idx (int): Connection index to modify.
+                Set to 0 to remove the first connection, 1 for the second, etc.
+                Set to -1 to remove the last connection, -2 for the second-last, etc.
             slot (str): Input slot name to disconnect, e.g., "location"
 
         Returns:
@@ -737,7 +793,8 @@ class JobController(Controller[Job]):
 
     def load_input(self, name: str, slots: LoadableSlots = "all"):
         """
-        Load the dataset connected to a job input.
+        Load the :py:class:`dataset <cryosparc.dataset.Dataset>` connected to a
+        job input.
 
         Args:
             name (str): Input name to load
@@ -757,7 +814,7 @@ class JobController(Controller[Job]):
 
     def load_output(self, name: str, slots: LoadableSlots = "all", version: Union[int, Literal["F"]] = "F"):
         """
-        Load the dataset for a job output.
+        Load the :py:class:`dataset <cryosparc.dataset.Dataset>` for a job output.
 
         Args:
             name (str): Output name to load
@@ -844,7 +901,7 @@ class JobController(Controller[Job]):
     def log(self, text: str, *, level: LogLevel = ..., id: str) -> str: ...
     def log(self, text: str, *, level: LogLevel = "text", name: Optional[str] = None, id: Optional[str] = None) -> str:
         """
-        Append to a job's event log. Update an existing log by providing a name
+        Append to the job's event log. Update an existing log by providing a name
         or ID.
 
         Args:
@@ -939,7 +996,7 @@ class JobController(Controller[Job]):
 
         Args:
             figure (str | Path | IO | Figure): Image file path, file handle or
-                matplotlib figure instance
+                matplotlib figure instance.
             text (str): Associated description for the figure
             formats (list[ImageFormat], optional): Image formats to save plot
                 into. If a ``figure`` is a file handle, specify
@@ -976,12 +1033,15 @@ class JobController(Controller[Job]):
 
     def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:
         """
-        Get a list of files inside the job directory.
+        List files in the job directory.
+
+        Note that enabling ``recursive`` includes *both* subdirectories and
+        their files in the list.
 
         Args:
-            prefix (str | Path, optional): Subdirectory inside job to list.
+            prefix (str | Path, optional): Subfolder inside job to list.
                 Defaults to "".
-            recursive (bool, optional): If True, lists files recursively.
+            recursive (bool, optional): If True, include files in all subfolders.
                 Defaults to False.
 
         Returns:
@@ -1025,7 +1085,10 @@ class JobController(Controller[Job]):
     def download_file(self, path: Union[str, PurePosixPath], target: IO[bytes]) -> IO[bytes]: ...
     def download_file(self, path: Union[str, PurePosixPath], target: BinaryFile = "") -> Union[Path, IO[bytes]]:
         """
-        Download file from job directory to the target path or writeable file handle.
+        Download file from the job directory to a target path or writeable file handle.
+
+        Use to get files from a remote CryoSPARC instance whose job directories
+        are not available on the file system where this script runs.
 
         Args:
             path (str | Path): Name or path of file in job directory.
@@ -1068,10 +1131,11 @@ class JobController(Controller[Job]):
 
     def list_assets(self) -> List[GridFSFile]:
         """
-        Get a list of files available in the database for this job. Returns a
-        list with details about the assets. Each entry is a dict with a ``_id``
-        key which may be used to download the file with the ``download_asset``
-        method.
+        Find files available in the database for this job. Returns a list with
+        details about the assets.
+
+        Each entry is an object with an ``id`` key. Use ``id`` to download the
+        file with :py:meth:`download_asset`.
 
         Returns:
             list[GridFSFile]: Asset details
@@ -1084,8 +1148,7 @@ class JobController(Controller[Job]):
     def download_asset(self, fileid: str, target: IO[bytes]) -> IO[bytes]: ...
     def download_asset(self, fileid: str, target: BinaryFile) -> Union[Path, IO[bytes]]:
         """
-        Download a job asset from the database with the given ID. Note that the
-        file does not necessary have to belong to the current job.
+        Download the job asset with the given ID from the database.
 
         Args:
             fileid (str): GridFS file object ID
@@ -1106,15 +1169,15 @@ class JobController(Controller[Job]):
         overwrite: bool = False,
     ) -> None:
         """
-        Upload a file to the job directory. Fails if target already exists.
+        Upload a file to the job directory.
 
         Args:
-            target_path (str | Path): Name or path of file to write in job
-                directory.
+            target_path (str | Path): Name or path of file to write in the
+                job directory.
             source (str | bytes | Path | IO): Local path or file handle to
                 upload. May also specified as raw bytes.
             overwrite (bool, optional): If True, overwrite existing files.
-                Defaults to False.
+                If False, raises error on existing files. Defaults to False.
         """
         target_path = PurePosixPath(self.uid) / target_path
         return self.cs.upload(self.project_uid, target_path, source, overwrite=overwrite)
@@ -1222,8 +1285,7 @@ class JobController(Controller[Job]):
         overwrite: bool = False,
     ) -> None:
         """
-        Upload a dataset as a CS file into the job directory. Fails if target
-        already exists.
+        Upload a dataset as a .cs file into the job directory.
 
         Args:
             target_path (str | Path): Name or path of dataset to save in the job
@@ -1232,7 +1294,7 @@ class JobController(Controller[Job]):
             format (int): Format to save in from ``cryosparc.dataset.*_FORMAT``,
                 defaults to NUMPY_FORMAT)
             overwrite (bool, optional): If True, overwrite existing files.
-                Defaults to False.
+                If False, raises error on existing files. Defaults to False.
         """
         target_path = PurePosixPath(self.uid) / target_path
         return self.cs.upload_dataset(self.project_uid, target_path, dset, format=format, overwrite=overwrite)
@@ -1254,7 +1316,7 @@ class JobController(Controller[Job]):
             data (NDArray): Numpy array with MRC file data.
             psize (float): Pixel size to include in MRC header.
             overwrite (bool, optional): If True, overwrite existing files.
-                Defaults to False.
+                If False, raises error on existing files. Defaults to False.
         """
         target_path = PurePosixPath(self.uid) / target_path
         return self.cs.upload_mrc(self.project_uid, target_path, data, psize, overwrite=overwrite)
@@ -1266,7 +1328,7 @@ class JobController(Controller[Job]):
         exist_ok: bool = False,
     ) -> None:
         """
-        Create a folder in the job directory.
+        Create a subfolder in the job directory.
 
         Args:
             target_path (str | Path): Name or path of folder to create inside
@@ -1286,7 +1348,13 @@ class JobController(Controller[Job]):
 
     def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
         """
-        Copy a file or folder into the job directory.
+        Copy a file or folder to the job directory. May only copy files
+        within the project directory or from paths the user is authorized to
+        access by an administrator.
+
+        If copying to a remote CryoSPARC instance, the source path must be
+        accessible on the server file system. If the source path is only
+        available locally, use :py:meth:`upload` instead.
 
         Args:
             source_path (str | Path): Relative or absolute path of source file
@@ -1304,7 +1372,8 @@ class JobController(Controller[Job]):
 
     def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
         """
-        Create a symbolic link in the job directory.
+        Create a symbolic link in a project directory. May only create links to
+        files or folders the user is authorized to access by an administrator.
 
         Args:
             source_path (str | Path): Relative or absolute path of source file
@@ -1391,8 +1460,8 @@ class JobController(Controller[Job]):
 
     def set_final(self, final: bool = True):
         """
-        Set job final status. Final jobs and their connected ancestors
-        cannot be modified or deleted.
+        Mark or unmark the job as a final result. Final jobs and their connected
+        ancestors cannot be modified or deleted, and are protected during data cleanup.
 
         Args:
             final (bool, optional): Set job's final status. Defaults to True.
@@ -1401,8 +1470,15 @@ class JobController(Controller[Job]):
 
     def delete(self, *, wait: bool = False):
         """
-        Delete job. This action cannot be undone. Fails if job has final
-        status or has active descendants.
+        Delete the job and all associated events and results.
+
+        A job cannot be deleted if it is in any of the following states:
+
+        - Active (running or waiting); please kill the job first
+        - Marked as final
+        - Ancestor of a job marked as final
+        - Has connected child jobs that are running, waiting, completed, killed or failed;
+          please clear or delete all connected jobs first
 
         Args:
             wait (bool, optional): If True, wait for the delete operations to
@@ -1586,8 +1662,16 @@ class ExternalJobController(JobController):
         desc: Optional[str] = None,
     ):
         """
-        Add an input to the current job. May be connected to zero or more
-        outputs from other jobs (depending on the min and max values).
+        Add or replace an External Job input. Connect the resulting input to
+        outputs from other jobs with :py:meth:`connect`. Load connected
+        inputs with :py:meth:`load_input`.
+
+        Use to place External Jobs in the workspace job tree in the context
+        where they apply, and to merge multiple sets of results of the same
+        type from different outputs or jobs.
+
+        This action is available while the job is building, running or waiting
+        for results. Completed or failed External jobs cannot accept new inputs.
 
         Args:
             type (Datatype): cryo-EM data type for this input, e.g., "particle"
@@ -1632,6 +1716,15 @@ class ExternalJobController(JobController):
             ...     title="Input micrographs for picking
             ... )
             "input_micrographs"
+            >>> job.connect("input_micrographs", "J1", "exposures")
+            >>> job.connect("input_micrographs", "J2", "exposures")
+            >>> input_micrographs = job.load_input("input_micrographs")
+            >>> input_micrographs
+            Dataset([  # 5000 items, 11 fields
+                ("uid": [...]),
+                ("micrograph_blob/path", ["...", ...]),
+                ...
+            ])
         """
         if name and not re.fullmatch(GROUP_NAME_PATTERN, name):
             raise ValueError(
@@ -1780,8 +1873,9 @@ class ExternalJobController(JobController):
         **kwargs,
     ) -> bool:
         """
-        Connect a job input to another job's output. If the input does not exist,
-        it is added with the provided slot specification.
+        Connect a job input to another job's output. If the input does not
+        exist, it is added with the provided slot specification (similar to
+        calling :py:meth:`add_input`).
 
         Args:
             target_input (str): Input name to connect into. Will be created if
@@ -1838,23 +1932,23 @@ class ExternalJobController(JobController):
         self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: Dict[str, Any] = {}
     ) -> Dataset:
         """
-        Allocate an empty dataset for a job output. Initialize with the given
-        number of empty rows. The result may be filled in and saved with
-        ``save_output``.
+        Allocate an empty dataset for a job output. Initialize with empty rows
+        matching the given ``alloc`` argument. The result may be filled in and
+        saved with :py:meth:`save_output`.
 
         Args:
             name (str): Name of job output to allocate
             size (int | ArrayLike | Dataset, optional): Specify as one of the
                 following: (A) integer to allocate a specific number of rows,
-                (B) a numpy array of numbers to use for UIDs in the allocated
+                (B) an array of numbers to use for `uid` column in the allocated
                 dataset or (C) a dataset from which to inherit unique row IDs
-                (useful  for allocating passthrough outputs). Defaults to 0.
+                (useful for allocating passthrough outputs). Defaults to 0.
             dtype_params (dict, optional): Data type parameters when allocating
                 results with dynamic column sizes such as ``particle`` ->
                 ``alignments3D_multi``. Defaults to {}.
 
         Returns:
-            Dataset: Empty dataset with the given number of rows
+            Dataset: Empty dataset
 
         Examples:
 
@@ -1899,14 +1993,14 @@ class ExternalJobController(JobController):
         **kwargs,
     ):
         """
-        Save output dataset to external job.
+        Save output dataset to External Job. Job must be running or waiting
+        to accept outputs.
 
         Args:
             name (str): Name of output on this job.
             dataset (Dataset): Value of output with only required fields.
             version (int, optional): Version number, when saving multiple
-                intermediate iterations. Only the last saved version is kept.
-                Defaults to 0.
+                intermediate iterations. Defaults to 0.
             image (str | Path | IO | Figure, optional): Optional image file
                 or matplotlib Figure to set as the thumbnail for this output.
                 Defaults to None.
@@ -1981,7 +2075,8 @@ class ExternalJobController(JobController):
 
     def start(self, status: Literal["running", "waiting"] = "waiting"):
         """
-        Set job status to "running" or "waiting"
+        Set External Job status to "running" or "waiting". This allows the job
+        to accept outputs.
 
         Args:
             status (str, optional): "running" or "waiting". Defaults to "waiting".
@@ -1990,7 +2085,8 @@ class ExternalJobController(JobController):
 
     def stop(self, error: str = ""):
         """
-        Set job status to "completed" or "failed" if there was an error.
+        Set External Job status to "completed" or "failed" if there was an error.
+        Jobs may no longer accept outputs after stopping.
 
         Args:
             error (str, optional): Error message, will add to event log and set
@@ -2007,16 +2103,17 @@ class ExternalJobController(JobController):
     @contextmanager
     def run(self):
         """
-        Start a job within a context manager and stop the job when the context
-        ends.
+        Set the job to ``running`` status within a context block (``with job.run(): ...``)
+        and stop the job with ``completed`` status when the context ends.
+        The job may accept outputs while within this block.
+
+        Errors raised within the block are added to the job's Event log.
+        The job is marked as ``failed`` if an error occurs.
 
         Yields:
             ExternalJob: self.
 
         Examples:
-
-            Job will be marked as "failed" if the contents of the block throw an
-            exception
 
             >>> with job.run():
             ...     job.save_output(...)
