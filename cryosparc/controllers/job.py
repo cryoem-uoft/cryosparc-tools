@@ -489,7 +489,7 @@ class JobController(Controller[Job]):
     def export(self) -> None: ...
     @overload
     def export(self, *, wait: Literal[True], timeout: float = ...) -> PurePosixPath: ...
-    def export(self, *, wait: bool = False, timeout: float = 300) -> PurePosixPath | None:
+    def export(self, *, wait: bool = False, timeout: float = 300) -> Optional[PurePosixPath]:
         """
         Export the job to its project directory's ``exports`` subfolder.
 
