@@ -533,7 +533,7 @@ class CryoSPARC:
         desc: Optional[str] = None,
     ) -> ProjectController:
         """
-        Start a new empty project. Creates new subfolder in the parent direcotry
+        Start a new empty project. Creates new subfolder in the parent directory
         with a generated name based on the provided title.
 
         Args:
@@ -985,7 +985,7 @@ class CryoSPARC:
                 target /= path.name
                 counter = 1
                 while target.exists():  # avoid overwriting existing files
-                    target = target.with_stem(f"{path.stem}_{counter}")
+                    target = target.with_name(f"{path.stem}_{counter}{path.suffix}")
                     counter += 1
         stream = self.api.projects.download_file(project_uid, path=str(path))
         stream.save(target)
@@ -1345,7 +1345,7 @@ def lowpass2(arr: "NDArray", psize_A: float, cutoff_resolution_A: float = 0.0, o
     if cutoff_resolution_A <= 0:
         raise ValueError("Lowpass filter amount must be positive")
 
-    if len(arr.shape) not in (2, 3) and (len(arr.shape) != 3 or arr.shape[0] != 1):
+    if len(arr.shape) != 2 and (len(arr.shape) != 3 or arr.shape[0] != 1):
         raise ValueError(f"Cannot apply low-pass filter on data with shape {arr.shape}; must be two-dimensional")
 
     arr = n.reshape(arr, arr.shape[-2:])

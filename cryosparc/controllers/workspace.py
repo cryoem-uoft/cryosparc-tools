@@ -130,7 +130,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
 
     def find_job(self, job_uid: str) -> JobController:
         """
-        Get job in the workspace with by its unique ID.
+        Get a job in the workspace by its unique ID.
 
         Args:
             job_uid (str): Job UID to find, e.g., "J42"

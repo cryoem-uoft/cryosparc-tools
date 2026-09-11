@@ -167,7 +167,7 @@ class ProjectController(Controller[Project]):
 
     def find_job(self, job_uid: str) -> JobController:
         """
-        Get job in the project with by its unique ID.
+        Get a job in the project by its unique ID.
 
         Args:
             job_uid (str): Job unique ID, e.g., "J42"
@@ -182,7 +182,7 @@ class ProjectController(Controller[Project]):
 
     def find_external_job(self, job_uid: str) -> ExternalJobController:
         """
-        Get external job in this project with by its unique ID.
+        Get external job in this project by its unique ID.
 
         Args:
             job_uid (str): Job unique ID, e.g,. "J42"
