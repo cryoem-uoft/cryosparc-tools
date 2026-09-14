@@ -1,4 +1,5 @@
 import subprocess
+import warnings
 from argparse import Namespace
 from pathlib import Path
 from unittest import mock
@@ -28,6 +29,24 @@ def mock_auth_path(mock_api_client_class, user_config_path: Path):
 def test_cli_login(mock_api_client_class, mock_auth_path):
     assert mock_auth_path.is_file()
     mock_api_client_class.login.assert_called_once()
+
+
+def test_cli_login_warns_on_loose_existing_permissions(mock_api_client_class, user_config_path: Path):
+    auth.get_default_auth_config_path.cache_clear()
+    auth_path = user_config_path / "cryosparc-tools" / "auth.json"
+    auth_path.parent.mkdir(parents=True)
+    auth_path.write_text("{}")
+    auth_path.chmod(0o644)
+
+    with pytest.warns(UserWarning, match="permissions"):
+        cli.login(
+            Namespace(
+                url="https://cryosparc.example.com",
+                email="structura@example.com",
+                password="password123",
+                expires=None,
+            )
+        )
 
 
 def test_cli_login_auth(mock_user, mock_api_client_class, mock_auth_path):
