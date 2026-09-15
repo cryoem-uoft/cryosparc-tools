@@ -116,3 +116,7 @@ class InstanceInformation(BaseModel):
     """
     System architecture (e.g., x86_64)
     """
+    environment: Dict[str, str] = {}
+    """
+    Environment variables
+    """

@@ -99,6 +99,10 @@ class Event(BaseModel):
 
 
 class ImageEvent(BaseModel):
+    """
+    An event with an image and optional text. Used for plots.
+    """
+
     id: str = Field("000000000000000000000000", alias="_id")
     """
     """
@@ -165,6 +169,10 @@ class InteractiveImgfile(BaseModel):
 
 
 class InteractiveEvent(BaseModel):
+    """
+    An event with an interactive plot and optional text. Used for 3D scatter plots.
+    """
+
     id: str = Field("000000000000000000000000", alias="_id")
     """
     """
@@ -216,13 +224,14 @@ class InteractiveEvent(BaseModel):
     """
     Legacy note: in v4 the fileid field was stored as an ObjectID instead of str.
     If a user needs to downgrade an migrate the fileid back to ObjectID, use the following commands:
-    ```python
-    csm icli
-    from bson import ObjectId
-    interactive_events = db.events.find({"type": "interactive"})
-    for event in interactive_events:
-        db.events.update_one({"_id": event["_id"]}, {"$set": {"datafile.fileid": ObjectId(event["datafile"]["fileid"])}})
-    ```
+
+    .. code:: python
+
+        csm icli
+        from bson import ObjectId
+        interactive_events = db.events.find({"type": "interactive"})
+        for event in interactive_events:
+            db.events.update_one({"_id": event["_id"]}, {"$set": {"datafile.fileid": ObjectId(event["datafile"]["fileid"])}})
     """
     preview_imgfiles: List[InteractiveImgfile] = []
     """

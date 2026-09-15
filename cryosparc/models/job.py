@@ -452,7 +452,7 @@ class Job(BaseModel):
     """
     last_exported_location: Optional[str] = None
     """
-    Time of last exported outputs location
+    Absolute path to last export location on disk
     """
     last_exported_version: Optional[str] = None
     """

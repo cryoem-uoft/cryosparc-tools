@@ -315,8 +315,8 @@ class InstanceAPI(APINamespace):
     def browse_files(self, *, abs_path_glob: str) -> BrowseFileResponse:
         """
         Request details for a set of files or directories available to CryoSPARC,
-        given an absolute path or glob expression. If the given path is a directory,
-        returns a list all files in that directory.
+        given an absolute path or glob expression. If the given path is a folder,
+        returns a list of files and subfolders in that folder.
 
         .. note::
             ``abs_path_glob`` may have shell variables in it (e.g., ``$HOME``,
@@ -405,6 +405,32 @@ class InstanceAPI(APINamespace):
 
         Returns:
             str: New instance UID
+
+        """
+        ...
+    def get_error_report(
+        self,
+        *,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
+        max_lines: Optional[int] = None,
+        offline: bool = False,
+        skip_workers: bool = True,
+    ) -> Stream:
+        """
+        Create an error report bundle for the app.
+
+        :meta private:
+
+        Args:
+            start (datetime.datetime, optional): Defaults to None
+            end (datetime.datetime, optional): Defaults to None
+            max_lines (int, optional): Defaults to None
+            offline (bool, optional): Defaults to False
+            skip_workers (bool, optional): Defaults to True
+
+        Returns:
+            Stream: A binary stream representing a Stream class instance
 
         """
         ...
@@ -511,6 +537,18 @@ class UsersAPI(APINamespace):
 
         Returns:
             str: Successful Response
+
+        """
+        ...
+    def find_with_file_browser_access(self, *, path: str) -> List[User]:
+        """
+        List all users that have file browser access to the given path
+
+        Args:
+            path (str):
+
+        Returns:
+            List[User]: Successful Response
 
         """
         ...
@@ -762,7 +800,7 @@ class ResourcesAPI(APINamespace):
     """
     def find_lanes(self) -> List[SchedulerLane]:
         """
-        Find registered lanes that jobs may be scheduled to.
+        Find registered scheduler lanes that jobs may be queued to.
 
         Returns:
             List[SchedulerLane]: List of lanes
@@ -783,7 +821,7 @@ class ResourcesAPI(APINamespace):
         ...
     def find_lane(self, name: str, /, *, type: Literal["node", "cluster", None] = None) -> SchedulerLane:
         """
-        Find a registered lane with the given name and optional type.
+        Find a registered scheduler lane with the given name and optional type.
 
         Args:
             name (str):
@@ -821,10 +859,10 @@ class ResourcesAPI(APINamespace):
     def find_targets(self, *, lane: Optional[str] = None) -> List[SchedulerTarget]:
         """
         Find a list of connected worker node or cluster targets that jobs may be
-        scheduled to.
+        queued to.
 
         Args:
-            lane (str, optional): Defaults to None
+            lane (str, optional): Filter by lane name. Defaults to None
 
         Returns:
             List[SchedulerTarget]: List of targets
@@ -1058,8 +1096,10 @@ class AssetsAPI(APINamespace):
     """
     def find(self, *, project_uid: Optional[str] = None, job_uid: Optional[str] = None) -> List[GridFSFile]:
         """
-        List assets associated with projects or jobs on the given instance.
-        Typically returns files creating during job runs, including plots and metadata.
+        Find files available in the database associated with projects or jobs.
+
+        Each entry in the resulting list is an object with an ``id`` key. Use ``id``
+        to download the file.
 
         Args:
             project_uid (str, optional): Defaults to None
@@ -1158,7 +1198,7 @@ class JobsAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Job]:
         """
-        List jobs that match the given filters (all if not specified).
+        List jobs that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -1228,7 +1268,7 @@ class JobsAPI(APINamespace):
         import_status: Optional[str] = None,
     ) -> int:
         """
-        Count jobs that match the given filters (all if not specified).
+        Count jobs that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -1344,7 +1384,7 @@ class JobsAPI(APINamespace):
         ...
     def find_one(self, project_uid: str, job_uid: str, /) -> Job:
         """
-        Find a job by its project and job UID.
+        Get a job by its unique project and job ID.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1357,12 +1397,14 @@ class JobsAPI(APINamespace):
         ...
     def delete(self, project_uid: str, job_uid: str, /) -> None:
         """
-        Delete a job. Note that a job cannot be deleted it's in any of the following states:
+        Delete a job and all associated events and results.
 
-        - Job is active (running or waiting); please kill the job first
-        - Job is marked as final
-        - Job is an ancestor of a job marked as final
-        - Job has connected child jobs that are running, waiting, completed, killed or failed;
+        A job cannot be deleted if it is in any of the following states:
+
+        - Active (running or waiting); please kill the job first
+        - Marked as final
+        - An ancestor of a job marked as final
+        - Has connected child jobs that are running, waiting, completed, killed or failed;
           please clear or delete all connected jobs first
 
         Args:
@@ -1373,7 +1415,7 @@ class JobsAPI(APINamespace):
         ...
     def get_directory(self, project_uid: str, job_uid: str, /) -> str:
         """
-        Get the job directory for a given job.
+        Get a job's absolute directory path, e.g., ``"/path/to/project/{job_uid}"``.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1386,7 +1428,7 @@ class JobsAPI(APINamespace):
         ...
     def get_log(self, project_uid: str, job_uid: str, /) -> str:
         """
-        Get contents of the job.log file. Empty string if job.log does not exist.
+        Get contents of a job.log file. Empty string if job.log does not exist.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1435,13 +1477,11 @@ class JobsAPI(APINamespace):
         type: str,
         title: str = "",
         description: str = "",
-        created_by_job_uid: Optional[str] = None,
-        enable_bench: bool = False,
     ) -> Job:
         """
-        Create a new job with the given type in the project/workspace.
+        Add a new job with the given type to a project workspace.
 
-        To see all available job types and their parameters, see the
+        All available job types and associated metadata are available from the
         ``api.projects.get_job_register()`` function
         (``GET projects/{project_uid}:register`` endpoint).
 
@@ -1450,10 +1490,8 @@ class JobsAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
             params (Dict[str, Union[bool, int, float, str, str, None]], optional): Defaults to {}
             type (str): Type of job to create
-            title (str, optional): Defaults to ''
-            description (str, optional): Defaults to ''
-            created_by_job_uid (str, optional): Defaults to None
-            enable_bench (bool, optional): Defaults to False
+            title (str, optional): Job title. Defaults to ''
+            description (str, optional): Job Markdown description. Defaults to ''
 
         Returns:
             Job: Successful Response
@@ -1462,8 +1500,8 @@ class JobsAPI(APINamespace):
         ...
     def create_external_result(self, project_uid: str, workspace_uid: str, /, body: ExternalOutputSpec) -> Job:
         """
-        Create an external result with the given specification. Returns an external
-        job with the given output ready to be saved. Used with cryosparc-tools.
+        Create an External result with the given specification. Returns an External
+        Job with the given output ready to be saved. Used with cryosparc-tools.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1505,7 +1543,8 @@ class JobsAPI(APINamespace):
         ...
     def set_params(self, project_uid: str, job_uid: str, /, params: Dict[str, Any]) -> Job:
         """
-        Set the given job parameters to the values
+        Update job parameters with the given values. Only parameters that are valid
+        for the job type are updated.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1519,7 +1558,7 @@ class JobsAPI(APINamespace):
         ...
     def clear_params(self, project_uid: str, job_uid: str, /) -> Job:
         """
-        Reset all job parameters to their default values
+        Reset all job parameters to their default values.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1532,12 +1571,12 @@ class JobsAPI(APINamespace):
         ...
     def set_param(self, project_uid: str, job_uid: str, param: str, /, value: Any) -> Job:
         """
-        Set the given job parameter to the value
+        Set a job parameter to the given value.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            param (str):
+            param (str): Job parameter name
             value (Any):
 
         Returns:
@@ -1547,12 +1586,12 @@ class JobsAPI(APINamespace):
         ...
     def clear_param(self, project_uid: str, job_uid: str, param: str, /) -> Job:
         """
-        Reset the given parameter to its default value.
+        Reset a job parameter to its default value.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            param (str):
+            param (str): Job parameter name
 
         Returns:
             Job: Successful Response
@@ -1570,14 +1609,14 @@ class JobsAPI(APINamespace):
         slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
     ) -> Dataset:
         """
-        Load job input dataset. Raises exception if no inputs are connected.
+        Load the dataset connected to a job input.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            input_name (str):
+            input_name (str): Job input name
             force_join (bool | Literal['auto'], optional): Defaults to 'auto'
-            slots (Literal['default', 'passthrough', 'all'] | List[str], optional): Defaults to 'default'
+            slots (Literal['default', 'passthrough', 'all'] | List[str], optional): Low-level results to load. Defaults to 'default'
 
         Returns:
             Dataset: A binary stream representing a Dataset class instance
@@ -1595,14 +1634,14 @@ class JobsAPI(APINamespace):
         slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
     ) -> Dataset:
         """
-        Load job output dataset. Raises exception if output is empty or does not exists.
+        Load the dataset for a job output.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            output_name (str):
+            output_name (str): Job output name
             version (int | Literal['F'], optional): Set to F (default) to load the final version. Defaults to 'F'
-            slots (Literal['default', 'passthrough', 'all'] | List[str], optional): Defaults to 'default'
+            slots (Literal['default', 'passthrough', 'all'] | List[str], optional): Low-level results to load. Defaults to 'default'
 
         Returns:
             Dataset: A binary stream representing a Dataset class instance
@@ -1621,15 +1660,15 @@ class JobsAPI(APINamespace):
         version: int = 0,
     ) -> Job:
         """
-        Save job output dataset. Job must be running or waiting.
+        Save job output dataset. Job must be running or waiting to accept outputs.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            output_name (str):
+            output_name (str): Job output name
             dataset (Dataset): A binary stream representing a Dataset class instance
-            filename (str, optional): Defaults to None
-            version (int, optional): Defaults to 0
+            filename (str, optional): Filename override. Defaults to None
+            version (int, optional): Intermediate output version. Defaults to 0
 
         Returns:
             Job: Successful Response
@@ -1645,7 +1684,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            input_name (str):
+            input_name (str): Job input name
             source_output_name (str):
             source_job_uid (str):
 
@@ -1661,7 +1700,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            input_name (str):
+            input_name (str): Job input name
 
         Returns:
             Job: Successful Response
@@ -1686,7 +1725,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            input_name (str):
+            input_name (str): Job input name
             connection_index (int):
             source_output_name (str):
             source_job_uid (str):
@@ -1698,12 +1737,15 @@ class JobsAPI(APINamespace):
         ...
     def disconnect(self, project_uid: str, job_uid: str, input_name: str, connection_index: int, /) -> Job:
         """
-        Remove a connected output on the given input. Specify index -1 to remove the last connection.
+        Disconnect a job input.
+
+        Set ``connection_index`` 0 to remove the first connection, 1 for the second, etc.
+        Set ``connection_index`` to -1 to remove the last connection, -2 for the second-last, etc.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            input_name (str):
+            input_name (str): Job input name
             connection_index (int):
 
         Returns:
@@ -1718,7 +1760,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            output_name (str):
+            output_name (str): Job output name
             result_name (str):
 
         Returns:
@@ -1741,7 +1783,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            output_name (str):
+            output_name (str): Job output name
             result_name (str):
 
         """
@@ -1761,12 +1803,13 @@ class JobsAPI(APINamespace):
         source_job_uid: str,
     ) -> Job:
         """
-        Add or replace a result within an input connection with the given output result from a parent job.
+        Connect or replace a low-level input result slot to an output result from
+        another (source) job.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            input_name (str):
+            input_name (str): Job input name
             connection_index (int):
             result_name (str):
             source_output_name (str):
@@ -1783,12 +1826,15 @@ class JobsAPI(APINamespace):
         self, project_uid: str, job_uid: str, input_name: str, connection_index: int, result_name: str, /
     ) -> Job:
         """
-        Remove an output result connected within the given input connection.
+        Clear a job's low-level input result slot.
+
+        Set ``connection_index`` 0 to remove the first connection, 1 for the second, etc.
+        Set ``connection_index`` to -1 to remove the last connection, -2 for the second-last, etc.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            input_name (str):
+            input_name (str): Job input name
             connection_index (int):
             result_name (str):
 
@@ -1799,8 +1845,10 @@ class JobsAPI(APINamespace):
         ...
     def add_external_input(self, project_uid: str, job_uid: str, input_name: str, /, body: InputSpec) -> Job:
         """
-        Add or replace an external job's input. This action is available while the
-        job is building, running or waiting for results.
+        Add or replace an External Job input.
+
+        This action is available while the job is building, running or waiting
+        for results. Completed or failed External jobs cannot accept new inputs.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1836,7 +1884,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            output_name (str):
+            output_name (str): Job output name
             body (GridFSAsset):
 
         Returns:
@@ -1871,16 +1919,23 @@ class JobsAPI(APINamespace):
         oversubscribe_gpus: bool = False,
     ) -> Job:
         """
-        Add the job to the queue for the given worker lane (default lane if not specified)
+        Queue a job for execution. The job will launch when
+
+        - all connected input jobs are completed (unless ``no_check_inputs_ready`` is True)
+        - enough CPU/GPU/RAM is available on the lane or target
+        - enough license tokens are available
+
+        Some job types that don't require GPUs may be launched immediately by specifying
+        neither lane nor target. Interactive jobs must be launched this way.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            lane (str, optional): Defaults to None
-            hostname (str, optional): Defaults to None
-            gpus (List[int], optional): Defaults to []
-            no_check_inputs_ready (bool, optional): Defaults to False
-            oversubscribe_gpus (bool, optional): Defaults to False
+            lane (str, optional): Connected scheduler lane name to queue to. Defaults to None
+            hostname (str, optional): Target name to queue to, cannot be specified with lane. Defaults to None
+            gpus (List[int], optional): GPU number(s) the job should use, target must also be specified. Defaults to []
+            no_check_inputs_ready (bool, optional): If enabled, launch job without waiting for connected input jobs to complete. Defaults to False
+            oversubscribe_gpus (bool, optional): If enabled, launch job even if target GPU(s) are already in use by another job.. Defaults to False
 
         Returns:
             Job: Successful Response
@@ -1908,7 +1963,7 @@ class JobsAPI(APINamespace):
         ...
     def clear_intermediate_results(self, project_uid: str, job_uid: str, /, *, always_keep_final: bool = True) -> None:
         """
-        Remove intermediate results from the job.
+        Remove intermediate results from a job.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1931,14 +1986,14 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            output_name (str):
+            output_name (str): Job output name
             result_names (List[str], optional): Defaults to None
 
         """
         ...
     def export_job(self, project_uid: str, job_uid: str, /) -> None:
         """
-        Start export for the job into the project's exports directory.
+        Start export for a job into the project's exports folder.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -1962,7 +2017,7 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            output_name (str):
+            output_name (str): Job output name
             result_name (str):
             version (int | Literal['F'], optional): Defaults to 'F'
 
@@ -1975,14 +2030,15 @@ class JobsAPI(APINamespace):
         self, project_uid: str, job_uid: str, /, body: Dict[str, Any], *, endpoint: str, timeout: int = 10
     ) -> Any:
         """
-        Send a message to an interactive job.
+        Send a message to or perform an interactive action on a waiting interactive job.
+        Possible actions and expected body depend on the job type.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
             body (Dict[str, Any]):
-            endpoint (str):
-            timeout (int, optional): Defaults to 10
+            endpoint (str): Interactive endpoint to call, e.g., get_micrograph_data
+            timeout (int, optional): Maximum time to wait for action to complete, in seconds. Defaults to 10
 
         Returns:
             Any: Successful Response
@@ -2141,15 +2197,15 @@ class JobsAPI(APINamespace):
         ...
     def clear(self, project_uid: str, job_uid: str, /, *, descendants: bool = False) -> Job:
         """
-        Clear a job to get it back to building state. Retains custom params and
-        input connections.
+        Clear a job's outputs and events to get it back to building state.
+        Active jobs must be killed before clearing.
 
-        Specify descendants=true to also clear all descendant jobs.
+        Retains input connections and parameter overrides.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            descendants (bool, optional): Defaults to False
+            descendants (bool, optional): Enable to also clear all descendant jobs. Defaults to False
 
         Returns:
             Job: Successful Response
@@ -2214,23 +2270,18 @@ class JobsAPI(APINamespace):
 
         """
         ...
-    def clone(
-        self,
-        project_uid: str,
-        job_uid: str,
-        /,
-        *,
-        workspace_uid: Optional[str] = None,
-        created_by_job_uid: Optional[str] = None,
-    ) -> Job:
+    def clone(self, project_uid: str, job_uid: str, /, *, workspace_uid: Optional[str] = None) -> Job:
         """
-        Create a new job as a clone of the provided job.
+        Clone a job, creating a new building job with the same inputs and
+        parameters but no outputs.
+
+        If ``workspace_uid`` is not specified, clones into the oldest workspace the
+        original job is linked to.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            workspace_uid (str, optional): Defaults to None
-            created_by_job_uid (str, optional): Defaults to None
+            workspace_uid (str, optional): Target workspace to create the cloned job in. Defaults to None
 
         Returns:
             Job: Cloned job
@@ -2252,7 +2303,10 @@ class JobsAPI(APINamespace):
         ...
     def restart(self, project_uid: str, job_uid: str, /) -> None:
         """
-        Restarts a job
+        Kill and clear a completed or partially-completed job, queue it with the
+        same scheduler settings as its previous run.
+
+        Retains input connections and parameter overrides.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2262,8 +2316,8 @@ class JobsAPI(APINamespace):
         ...
     def set_final_result(self, project_uid: str, job_uid: str, /, *, is_final_result: bool) -> Job:
         """
-        Mark a job as a final result. A job marked as final and its ancestor jobs
-        are protected during data cleanup.
+        Mark or unmark a job as a final result. Final jobs and their connected
+        ancestors cannot be cleared or deleted, and are protected during data cleanup.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2282,21 +2336,21 @@ class JobsAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            title (str):
+            title (str): Job title
 
         Returns:
             Job: Successful Response
 
         """
         ...
-    def set_description(self, project_uid: str, job_uid: str, /, description: str) -> Job:
+    def set_description(self, project_uid: str, job_uid: str, /, description: str = "") -> Job:
         """
-        Set job description.
+        Set job description. May include Markdown formatting.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            description (str):
+            description (str, optional): Defaults to ''
 
         Returns:
             Job: Successful Response
@@ -2305,12 +2359,13 @@ class JobsAPI(APINamespace):
         ...
     def set_priority(self, project_uid: str, job_uid: str, /, *, priority: int) -> Job:
         """
-        Set job priority
+        Set job priority. Once queued, higher priority jobs are scheduled before
+        lower priority ones.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
-            priority (int):
+            priority (int): Larger number indicates higher priority
 
         Returns:
             Job: Successful Response
@@ -2378,8 +2433,7 @@ class JobsAPI(APINamespace):
         self, project_uid: str, job_uid: str, /, *, workspace_uid: Optional[str] = None
     ) -> List[str]:
         """
-        Find the list of all job UIDs that this job is an ancestor of based
-        on its outputs.
+        Find the list of all job UIDs that a job is an ancestor of based on its outputs.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2393,7 +2447,7 @@ class JobsAPI(APINamespace):
         ...
     def link_to_workspace(self, project_uid: str, job_uid: str, workspace_uid: str, /) -> Job:
         """
-        Add a job to a workspace.
+        Link a job to an additional workspace.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2407,7 +2461,10 @@ class JobsAPI(APINamespace):
         ...
     def unlink_from_workspace(self, project_uid: str, job_uid: str, workspace_uid: str, /) -> Job:
         """
-        Remove a job from a workspace.
+        Unlink a job from a workspace.
+
+        Fails if the job is not linked to the given workspace, or if this is the
+        only workspace the job is linked to.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2421,7 +2478,8 @@ class JobsAPI(APINamespace):
         ...
     def move(self, project_uid: str, job_uid: str, /, *, from_workspace_uid: str, to_workspace_uid: str) -> Job:
         """
-        Moves a job from one workspace to another.
+        Move a job from one workspace to another. Equivalent to linking to the new
+        workspace and unlinking from the old one.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2436,7 +2494,7 @@ class JobsAPI(APINamespace):
         ...
     def get_symlinks(self, project_uid: str, job_uid: str, /) -> List[SymlinkInfo]:
         """
-        Get all symbolic links in the job directory
+        Get all symbolic links in a job directory.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2449,7 +2507,8 @@ class JobsAPI(APINamespace):
         ...
     def update_directory_symlinks(self, project_uid: str, job_uid: str, /, *, prefix_cut: str, prefix_new: str) -> int:
         """
-        Rewrites all symbolic links in the job directory, modifying links prefixed with `prefix_cut` to instead be prefixed with `prefix_new`.
+        Rewrite symbolic link target paths in a job directory, changing target paths
+        with prefix ``prefix_cut`` to instead have prefix ``prefix_new``.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2597,7 +2656,7 @@ class WorkspacesAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Union[Workspace, Session]]:
         """
-        List workspaces that match the given filters (all if not specified).
+        List workspaces that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -2628,7 +2687,7 @@ class WorkspacesAPI(APINamespace):
         deleting: Optional[bool] = None,
     ) -> int:
         """
-        Count workspaces that match the given filters (all if not specified).
+        Count workspaces that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -2659,7 +2718,7 @@ class WorkspacesAPI(APINamespace):
         ...
     def find_one(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
         """
-        Find a specific workspace in a project
+        Find a workspace in a project by its unique ID.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2672,8 +2731,16 @@ class WorkspacesAPI(APINamespace):
         ...
     def delete(self, project_uid: str, workspace_uid: str, /) -> None:
         """
-        Delete jobs exclusively in this workspace, unlink jobs present in other
-        workspaces, and delete the workspace.
+        Initiate a workspace deletion. This deletes the workspace and any jobs
+        exclusively in the workspace.
+
+        Workspace jobs with the following conditions are never deleted:
+        - Linked to other workspaces (unlinked instead)
+        - Have "final" or "ancestor of final" status
+        - Have descendants in other workspaces.
+
+        If the workspace cannot be emptied due to these conditions, it is not
+        marked as deleted.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -2681,23 +2748,14 @@ class WorkspacesAPI(APINamespace):
 
         """
         ...
-    def create(
-        self,
-        project_uid: str,
-        /,
-        *,
-        title: str,
-        description: Optional[str] = None,
-        created_by_job_uid: Optional[str] = None,
-    ) -> Workspace:
+    def create(self, project_uid: str, /, *, title: str, description: Optional[str] = None) -> Workspace:
         """
-        Create a new workspace
+        Create a new empty workspace.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             title (str):
             description (str, optional): Defaults to None
-            created_by_job_uid (str, optional): Defaults to None
 
         Returns:
             Workspace: Successful Response
@@ -2711,21 +2769,23 @@ class WorkspacesAPI(APINamespace):
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-            title (str):
+            title (str): Workspace title
 
         Returns:
             Workspace | Session: Successful Response
 
         """
         ...
-    def set_description(self, project_uid: str, workspace_uid: str, /, description: str) -> Union[Workspace, Session]:
+    def set_description(
+        self, project_uid: str, workspace_uid: str, /, description: str = ""
+    ) -> Union[Workspace, Session]:
         """
         Set description of a workspace
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-            description (str):
+            description (str, optional): Defaults to ''
 
         Returns:
             Workspace | Session: Successful Response
@@ -2892,7 +2952,7 @@ class SessionsAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Session]:
         """
-        List sessions that match the given filters (all if not specified).
+        List sessions that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -2927,7 +2987,7 @@ class SessionsAPI(APINamespace):
         deleted: Optional[bool] = False,
     ) -> int:
         """
-        Count sessions that match the given filters (all if not specified).
+        Count sessions that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -2969,15 +3029,7 @@ class SessionsAPI(APINamespace):
 
         """
         ...
-    def create(
-        self,
-        project_uid: str,
-        /,
-        *,
-        title: str,
-        description: Optional[str] = None,
-        created_by_job_uid: Optional[str] = None,
-    ) -> Session:
+    def create(self, project_uid: str, /, *, title: str, description: Optional[str] = None) -> Session:
         """
         Create a new session.
 
@@ -2985,7 +3037,6 @@ class SessionsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             title (str):
             description (str, optional): Defaults to None
-            created_by_job_uid (str, optional): Defaults to None
 
         Returns:
             Session: Successful Response
@@ -2993,14 +3044,7 @@ class SessionsAPI(APINamespace):
         """
         ...
     def clone(
-        self,
-        project_uid: str,
-        session_uid: str,
-        /,
-        *,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        created_by_job_uid: Optional[str] = None,
+        self, project_uid: str, session_uid: str, /, *, title: Optional[str] = None, description: Optional[str] = None
     ) -> Session:
         """
         Clone an existing session, copying session configuration, parameters, and exposure groups.
@@ -3010,7 +3054,6 @@ class SessionsAPI(APINamespace):
             session_uid (str): Session UID, e.g., "S3"
             title (str, optional): Defaults to None
             description (str, optional): Defaults to None
-            created_by_job_uid (str, optional): Defaults to None
 
         Returns:
             Session: Successful Response
@@ -3106,7 +3149,7 @@ class SessionsAPI(APINamespace):
         ...
     def get_symlinks(self, project_uid: str, session_uid: str, /) -> List[SymlinkInfo]:
         """
-        Get all symbolic links in the session directory
+        Get all symbolic links in the session directory.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -3629,7 +3672,7 @@ class SessionsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
             job_uid (str):
-            template_creation_project_uid (str, optional): Project from which to pull the template creation job. If not specified, the job is assumed to be in the same project as the session.. Defaults to None
+            template_creation_project_uid (str, optional): Project where the template creation job is located, assumed to be in the same project as the session if not specified. Defaults to None
 
         Returns:
             Session: Successful Response
@@ -4084,24 +4127,34 @@ class SessionsAPI(APINamespace):
         picker_type: Optional[Literal["blob", "template", "manual"]] = None,
     ) -> None:
         """
-        Write session results, including all exposures and particles, to the project
-        exports directory. The resulting directory contains .csg files. Copy the
-        directory to another CryoSPARC project (while resolving symlinks) and import
-        individual .csg files with the Import Result Group job.
+        Write session results, including all motion-corrected exposures and
+        extracted particles, to the project exports directory.
+
+        The resulting folder contains .csg files. Copy the folder to another
+        CryoSPARC project (while resolving symlinks) and import .csg files with the
+        Import Result Group job.
 
         Example copy command::
 
             mkdir -p /path/to/projects/cs-project-b/imports/
             cp -rL /path/to/projects/cs-project-a/exports/S1 /path/to/projects/cs-project-b/imports/
 
-        Note: the original movies are not added to the export directory by default.
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            session_uid (str): Session UID, e.g., "S3"
+            export_movies (bool, optional): Include original movies. Defaults to False
+            export_ignored_exposures (bool, optional): Include ignored exposures. Defaults to False
+            picker_type (Literal['blob', 'template', 'manual'], optional): Include particles from this picker type instead of session selection. Defaults to None
+
+        """
+        ...
+    def refresh_size(self, project_uid: str, session_uid: str, /) -> None:
+        """
+        Update session data size and statistics.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             session_uid (str): Session UID, e.g., "S3"
-            export_movies (bool, optional): Defaults to False
-            export_ignored_exposures (bool, optional): Defaults to False
-            picker_type (Literal['blob', 'template', 'manual'], optional): Defaults to None
 
         """
         ...
@@ -4148,7 +4201,7 @@ class ExposuresAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Exposure]:
         """
-        Find Live session exposures that match the given filters (all if not specified).
+        List Live session exposures that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -4206,7 +4259,7 @@ class ExposuresAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> int:
         """
-        Count Live sessions exposures that match the given filters (all if not specified).
+        Count Live session exposures that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -4489,7 +4542,8 @@ class ProjectsAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Project]:
         """
-        List projects that match the given filters (all if not specified).
+        List projects available to the current user that match the supplied filters
+        (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -4512,8 +4566,8 @@ class ProjectsAPI(APINamespace):
         ...
     def create(self, *, title: str, description: Optional[str] = None, parent_dir: str) -> Project:
         """
-        Start a new project. A new subfolder with a generated name based on the provided title
-        is created for the project inside the given parent directory.
+        Start a new empty project. Creates new subfolder in the parent directory
+        with a generated name based on the provided title.
 
         Args:
             title (str):
@@ -4542,7 +4596,8 @@ class ProjectsAPI(APINamespace):
         users_with_access: Optional[List[str]] = None,
     ) -> int:
         """
-        Count projects that match the given filters (all if not specified).
+        Count projects available to the current user that match the supplied filters
+        (all if no filters specified).
 
         Args:
             project_dir (str, optional): Defaults to None
@@ -4565,24 +4620,24 @@ class ProjectsAPI(APINamespace):
         ...
     def set_title(self, project_uid: str, /, *, title: str) -> Project:
         """
-        Set the title of a project.
+        Set project title.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            title (str):
+            title (str): Project title
 
         Returns:
             Project: Successful Response
 
         """
         ...
-    def set_description(self, project_uid: str, /, description: str) -> Project:
+    def set_description(self, project_uid: str, /, description: str = "") -> Project:
         """
-        Set the description of a project.
+        Set project description. May include Markdown formatting.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            description (str):
+            description (str, optional): Defaults to ''
 
         Returns:
             Project: Successful Response
@@ -4603,12 +4658,12 @@ class ProjectsAPI(APINamespace):
         ...
     def mkdir(self, project_uid: str, /, *, parents: bool = False, exist_ok: bool = False, path: str = "") -> str:
         """
-        Create a directory in the project directory at the given path.
+        Create a subfolder in a project.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            parents (bool, optional): Defaults to False
-            exist_ok (bool, optional): Defaults to False
+            parents (bool, optional): Create missing parent folders. Defaults to False
+            exist_ok (bool, optional): No error if folder already exists. Defaults to False
             path (str, optional): Relative path or absolute path within project directory. Defaults to ''
 
         Returns:
@@ -4618,12 +4673,16 @@ class ProjectsAPI(APINamespace):
         ...
     def cp(self, project_uid: str, /, *, source: str, path: str = "") -> str:
         """
-        Copy the source file or directory to the project directory at the given
-        path. Returns the absolute path of the copied file.
+        Copy a file or folder to a project directory. Returns the absolute path of
+        the copied file or folder. May only copy files within the project directory
+        or from paths the current user is authorized to access by an administrator.
+
+        Raises an error if the source is not readable or the destination is
+        not writable.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            source (str):
+            source (str): Source path, either absolute or relative to project directory
             path (str, optional): Relative path or absolute path within project directory. Defaults to ''
 
         Returns:
@@ -4633,11 +4692,12 @@ class ProjectsAPI(APINamespace):
         ...
     def symlink(self, project_uid: str, /, *, source: str, path: str = "") -> str:
         """
-        Create a symlink from the source path in the project directory at the given path.
+        Create a symbolic link in a project directory. May only create links to
+        files or folders the user is authorized to access by an administrator.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            source (str):
+            source (str): Source path, either absolute or relative to project directory
             path (str, optional): Relative path or absolute path within project directory. Defaults to ''
 
         Returns:
@@ -4647,11 +4707,13 @@ class ProjectsAPI(APINamespace):
         ...
     def upload_file(self, project_uid: str, /, stream: Stream, *, overwrite: bool = False, path: str = "") -> str:
         """
-        Upload a file to the project directory at the given path. Returns absolute
-        path of the uploaded file.
+        Upload a file to the project directory.
 
         Path may be specified as a filename, a relative path inside the project
-        directory, or a full absolute path.
+        directory, or a full absolute path. When calling via HTTP, provide the
+        contents of the file in the request body.
+
+        Returns the uploaded absolute path.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4666,7 +4728,7 @@ class ProjectsAPI(APINamespace):
         ...
     def download_file(self, project_uid: str, /, *, path: str = "") -> Stream:
         """
-        Download a file from the project directory at the given path.
+        Download a file from the project directory.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4679,12 +4741,14 @@ class ProjectsAPI(APINamespace):
         ...
     def ls(self, project_uid: str, /, *, recursive: bool = False, path: str = "") -> List[str]:
         """
-        List files in the project directory. Note that enabling recursive will
-        include parent directories in the result.
+        List files in the project directory.
+
+        Note that enabling ``recursive`` includes *both* subdirectories and their
+        files in the list.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
-            recursive (bool, optional): Defaults to False
+            recursive (bool, optional): Include files in all subfolders. Defaults to False
             path (str, optional): Relative path or absolute path within project directory. Defaults to ''
 
         Returns:
@@ -4718,7 +4782,7 @@ class ProjectsAPI(APINamespace):
         ...
     def find_one(self, project_uid: str, /) -> Project:
         """
-        Find a project by its UID
+        Get a project by its unique ID.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4735,7 +4799,8 @@ class ProjectsAPI(APINamespace):
         jobs or active sessions in the project before deleting.
 
         The directory for an archived or detached project will not be deleted,
-        but the project and all associated jobs will be removed from the interface.
+        but the project and all associated jobs will be fully removed from the
+        web UI.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4744,8 +4809,7 @@ class ProjectsAPI(APINamespace):
         ...
     def get_directory(self, project_uid: str, /) -> str:
         """
-        Get the project's absolute directory with all environment variables in the
-        path resolved
+        Get the project's absolute directory path with all environment variables resolved.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4818,7 +4882,7 @@ class ProjectsAPI(APINamespace):
         ...
     def get_symlinks(self, project_uid: str, /) -> List[SymlinkInfo]:
         """
-        Get all symbolic links in the project directory
+        Get all symbolic links in the project directory.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4830,7 +4894,8 @@ class ProjectsAPI(APINamespace):
         ...
     def update_directory_symlinks(self, project_uid: str, /, *, prefix_cut: str, prefix_new: str) -> int:
         """
-        Rewrites all symbolic links in the project directory, modifying links prefixed with `prefix_cut` to instead be prefixed with `prefix_new`.
+        Rewrite symbolic link target paths in a project directory, changing target
+        paths with prefix ``prefix_cut`` to instead have prefix ``prefix_new``.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4893,9 +4958,9 @@ class ProjectsAPI(APINamespace):
         ...
     def archive(self, project_uid: str, /) -> None:
         """
-        Archive a project. This means that the project can no longer be modified
-        and jobs cannot be created or run. Once archived, the project directory may
-        be safely moved to long-term storage.
+        Archive this project. Archived projects are hidden in the web UI. They
+        cannot be modified and their jobs cannot run. Once archived, an admin may
+        safely move the project directory to a long-term storage location.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4904,7 +4969,7 @@ class ProjectsAPI(APINamespace):
         ...
     def unarchive(self, project_uid: str, /, *, path: str) -> Project:
         """
-        Reverse an archive operation.
+        Revert an archive operation.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4917,8 +4982,8 @@ class ProjectsAPI(APINamespace):
         ...
     def detach(self, project_uid: str, /) -> None:
         """
-        Detach a project, removing its lockfile. This hides the project from the
-        interface and allows other instances to attach and run this project.
+        Detach this project from this CryoSPARC instance, removing its lock file.
+        Detached projects are hidden in the web UI and may be attached to other instances.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4927,8 +4992,17 @@ class ProjectsAPI(APINamespace):
         ...
     def attach(self, *, project_owner_id: Optional[str] = None, path: str) -> Project:
         """
-        Attach a project directory at a specified path and write a new lockfile.
-        Provided path must not have an existing lockfile.
+        Attach an existing project directory to this instance.
+
+        The directory may not already be attached to any other CryoSPARC instance.
+        A lock file will be created in the project directory to prevent it from
+        being attached to multiple instances at the same time.
+
+        Project will not be available to modify until the attach process completes,
+        which may take some time depending on the size of the project.
+
+        Once attach completes, the project will be visible and modifiable in the
+        web UI. The project is assigned a new unique ID upon attach.
 
         Args:
             project_owner_id (str, optional): Assign project to user with this ID or email. Defaults to None
@@ -4941,9 +5015,16 @@ class ProjectsAPI(APINamespace):
         ...
     def accept(self, project_uid: str, /, *, path: Optional[str] = None) -> Project:
         """
-        Accept a project that was failed to attach, allowing it to be modified.
-        Optionally provide the new directory where the project exists.
-        This will not fix any underlying issues with the project directory.
+        Accept a failed attach for this project. Some job or workspace data may
+        be inaccessible or lost after a failed attach, so use with caution.
+
+        Accepting a failed project will not fix any underlying issues with the
+        project directory, such as missing files or corrupted data. Please
+        ensure that the project is valid and complete before accepting. Instead
+        of accepting a failed attach, consider investigating why the attach failed,
+        then detach the project, fix the issue and re-attach.
+
+        Optionally provide a new project directory, if the project was moved there.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -4954,27 +5035,17 @@ class ProjectsAPI(APINamespace):
 
         """
         ...
-    def accept_failed_attach(self, project_uid: str, /) -> Project:
-        """
-        Deprecated, use POST /projects/{project_uid}:accept instead.
-
-        Args:
-            project_uid (str): Project UID, e.g., "P3"
-
-        Returns:
-            Project: Successful Response
-
-        """
-        ...
     def move(self, project_uid: str, /, *, path: str) -> None:
         """
-        Asynchronously rename a project's directory on disk. Provide either the new
-        directory name or the full new directory path.
+        Move the project directory to a new location on the file system.
 
-        If the given path is a directory that already exists, the project directory
+        Provide either the new folder name or the full new directory path.
+        If the given path is a folder that already exists, the project directory
         will be moved inside it with the same name.
 
-        May take a while if project is moved between file systems.
+        Returns immediately, the move operation is performed in the background.
+
+        May take a long time when moving projects between file systems.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -5153,7 +5224,7 @@ class TagsAPI(APINamespace):
         uid: Optional[str] = None,
     ) -> List[Tag]:
         """
-        Find tags that match the given query.
+        List tags that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -5249,7 +5320,7 @@ class NotificationsAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Notification]:
         """
-        Find all notifications that match the supplied query.
+        List notifications that match the supplied query.
 
         Args:
             id (List[str], optional): Defaults to None
@@ -5340,7 +5411,7 @@ class BlueprintsAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Blueprint]:
         """
-        List blueprints that match the given filters (All if not specified)
+        List blueprints that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -5464,7 +5535,7 @@ class WorkflowsAPI(APINamespace):
         limit: Optional[int] = 100,
     ) -> List[Workflow]:
         """
-        List workflows that match the given filters (All if not specified)
+        List workflows that match the supplied filters (all if no filters specified).
 
         Args:
             id (List[str], optional): Defaults to None
@@ -5895,7 +5966,7 @@ class APIClient:
         ...
     def job_register(self) -> JobRegister:
         """
-        Get a specification of available job types and their schemas.
+        Information and metadata about job types available in this instance.
 
         Returns:
             JobRegister: Successful Response

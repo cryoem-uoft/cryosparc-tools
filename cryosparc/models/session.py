@@ -1024,9 +1024,6 @@ class Session(BaseModel):
     last_processed_exposure_priority: Literal["normal", "oldest", "latest", "alternate"] = "oldest"
     """
     """
-    size: int = 0
-    """
-    """
     athena_epu_run_id: Optional[str] = None
     """
     :meta private:
@@ -1049,6 +1046,10 @@ class Session(BaseModel):
     session_uid_num: int
     """
     Numeric part of the session UID
+    """
+    size: int
+    """
+    Total size of all data in the session, in bytes
     """
     errors: List[SessionBuildError]
     """
