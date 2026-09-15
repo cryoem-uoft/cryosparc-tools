@@ -1,13 +1,12 @@
 from enum import Enum
-from pathlib import PurePath
-from typing import IO, TYPE_CHECKING, NamedTuple, Tuple, Union
+from typing import IO, TYPE_CHECKING, NamedTuple, Tuple
 
 import numpy as n
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
 
-from .util import bopen
+from .util import BinaryFile, bopen
 
 
 class DT(int, Enum):
@@ -88,7 +87,7 @@ DT_TO_DATATYPE = {
 DATATYPE_TO_DT = {v: k for k, v in DT_TO_DATATYPE.items()}
 
 
-def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "NDArray"]:
+def read(file: BinaryFile) -> Tuple[Header, "NDArray"]:
     """
     Read a .mrc file at the given file into a numpy array. Returns the MRC
     header and the resulting array.
@@ -113,7 +112,7 @@ def read(file: Union[str, PurePath, IO[bytes]]) -> Tuple[Header, "NDArray"]:
         return header, data
 
 
-def write(file: Union[str, PurePath, IO[bytes]], data: "NDArray", psize: float):
+def write(file: BinaryFile, data: "NDArray", psize: float):
     """
     Write the given ndarray data to a file. Specify a pixel size for the mrc
     file as the last argument.

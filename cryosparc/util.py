@@ -37,6 +37,17 @@ OpenBinaryMode = Literal["rb", "wb", "xb", "ab", "r+b", "w+b", "x+b", "a+b"]
 Binary file read or write open modes.
 """
 
+TextFile = Union[str, PurePath, IO[str]]
+"""
+File handle type for text files. Can be a string path, Path object, or
+file-like object.
+"""
+
+BinaryFile = Union[str, PurePath, IO[bytes]]
+"""
+File handle type for binary files. Can be a string path, Path object, or
+file-like object.
+"""
 
 T = TypeVar("T")
 K = TypeVar("K")
@@ -45,7 +56,6 @@ E = TypeVar("E")  # error
 INT = TypeVar("INT", bound=n.integer)
 
 Result = Union[Tuple[T, None], Tuple[None, E]]
-
 """
 Use as the return type for functions that may return either a value or an
 error.
@@ -194,7 +204,7 @@ def strencodenull(s: Any) -> bytes:
 
 
 @contextmanager
-def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r"):
+def topen(file: TextFile, mode: OpenTextMode = "r"):
     """
     "with open(...)" alias for text files that tranparently yields open file or
     file-like object.
@@ -214,7 +224,7 @@ def topen(file: Union[str, PurePath, IO[str]], mode: OpenTextMode = "r"):
 
 
 @contextmanager
-def bopen(file: Union[str, PurePath, IO[bytes]], mode: OpenBinaryMode = "rb"):
+def bopen(file: BinaryFile, mode: OpenBinaryMode = "rb"):
     """
     "with open(...)" alias for binary files that tranparently yields an open
     file or file-like object.
