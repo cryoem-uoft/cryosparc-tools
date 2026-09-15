@@ -6,17 +6,11 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
-class JobGroup(BaseModel):
+class JobGroupMeta(BaseModel):
     """
-    User-defined group of jobs within a workspace.
+    Meta information a user-defined group of jobs within a workspace.
     """
 
-    id: int
-    """
-    """
-    jobs: List[str]
-    """
-    """
     title: Optional[str] = None
     """
     """
@@ -24,6 +18,62 @@ class JobGroup(BaseModel):
     """
     """
     color: Optional[str] = None
+    """
+    """
+
+
+class JobGroup(BaseModel):
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    color: Optional[str] = None
+    """
+    """
+    jobs: List[str]
+    """
+    """
+    id: int
+    """
+    """
+
+
+class JobGroupCreate(BaseModel):
+    """
+    Create a user-defined group of jobs within a workspace.
+    """
+
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    color: Optional[str] = None
+    """
+    """
+    jobs: List[str]
+    """
+    """
+
+
+class JobGroupUpdate(BaseModel):
+    """
+    Update a user-defined group of jobs within a workspace.
+    """
+
+    title: Optional[str] = None
+    """
+    """
+    description: Optional[str] = None
+    """
+    """
+    color: Optional[str] = None
+    """
+    """
+    jobs: Optional[List[str]] = None
     """
     """
 
@@ -112,6 +162,12 @@ class Workspace(BaseModel):
     workspace_type: Literal["base"]
     """
     Workspace type, always 'base'.
+    """
+    schema_version: int = 1
+    """
+    Workspace schema version for determining exported workspace and session
+    compatibility between CryoSPARC versions, similar to the ``schema_version``
+    present in projects.
     """
     created_by_user_id: Optional[str] = None
     """

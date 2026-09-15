@@ -156,6 +156,11 @@ class Job(BaseModel):
     """
     List of workspace UIDs this job belongs to. Must have at least one item
     """
+    schema_version: int = 1
+    """
+    Job schema version for determining exported job compatibility between
+    CryoSPARC versions, similar to the ``schema_version`` present in projects.
+    """
     spec: JobSpec
     """
     Job type-specific settings, including params, inputs, outputs, resources, etc.
@@ -298,15 +303,15 @@ class Job(BaseModel):
     """
     queued_to_lane: Optional[str] = None
     """
-    set at queue time based on params
+    Scheduler lane this job is queued to.
     """
     queued_to_hostname: Optional[str] = None
     """
-    NOTE: database field is sometimes ``False`` in older CryoSPARC jobs, cast validator prevents this
+    Scheduler target name that this job is queued to.
     """
     queued_to_gpu: Optional[List[int]] = None
     """
-    NOTE: database field is sometimes ``False`` in older CryoSPARC jobs, cast validator prevents this
+    GPU IDs on the target node for this job to use when running, if applicable.
     """
     queue_status: Optional[
         Literal[
@@ -447,7 +452,7 @@ class Job(BaseModel):
     """
     last_exported_location: Optional[str] = None
     """
-    Time of last exported outputs location
+    Absolute path to last export location on disk
     """
     last_exported_version: Optional[str] = None
     """
@@ -480,6 +485,9 @@ class Job(BaseModel):
     requeue_windows_ends_at: Optional[datetime.datetime] = None
     """
     If set, job can be cleared and requeued until this time without losing its place in the queue
+    """
+    oversubscribe_gpus: bool = False
+    """
     """
     uid_num: int
     """

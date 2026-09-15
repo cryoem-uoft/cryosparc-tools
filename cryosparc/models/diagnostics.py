@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from .instance import InstanceInformation
 from .scheduler_target import Cluster, Node
+from .version import Arch
 
 
 class SchedulerTargetInformation(BaseModel):
@@ -54,6 +55,10 @@ class SchedulerTargetInformation(BaseModel):
     config: Union[Node, Cluster]
     """
     Target configuration details.
+    """
+    arch: Arch = "x86_64"
+    """
+    Architecture of cryoSPARC installed on this target
     """
     instance_information: Optional[InstanceInformation] = None
     """

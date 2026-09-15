@@ -271,6 +271,64 @@ def test_load_fields(io_data):
     assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
 
 
+def test_load_path_fields(tmp_path):
+    path = tmp_path / "paths.cs"
+    dset = Dataset(
+        {
+            "particles/blob/path": ["particles/1.mrc", "particles/2.mrc"],
+            "particles/location/center_x": [10.0, 20.0],
+            "micrographs/processed_mics": ["micrographs", "micrographs"],
+            "volumes/map_path": ["volumes/map.mrc", "volumes/map.mrc"],
+        }
+    )
+    dset.save(path)
+
+    result = Dataset.load_path_fields(path, prefixes=["particles", "micrographs"])
+
+    assert result.fields() == ["uid", "particles/blob/path", "micrographs/processed_mics"]
+    assert result["particles/blob/path"].tolist() == ["particles/1.mrc", "particles/2.mrc"]
+    assert result["micrographs/processed_mics"].tolist() == ["micrographs", "micrographs"]
+
+
+def test_load_path_fields_without_prefixes_loads_all(tmp_path):
+    path = tmp_path / "paths.cs"
+    Dataset(
+        {
+            "particles/blob/path": ["particles/1.mrc", "particles/2.mrc"],
+            "particles/location/center_x": [10.0, 20.0],
+            "volumes/map_path": ["volumes/map.mrc", "volumes/map.mrc"],
+        }
+    ).save(path)
+
+    result = Dataset.load_path_fields(path)
+
+    assert result.fields() == ["uid", "particles/blob/path", "volumes/map_path"]
+
+
+def test_load_path_fields_returns_empty_dataset_without_matches(tmp_path):
+    path = tmp_path / "paths.cs"
+    Dataset({"particles/blob/path": ["particles/1.mrc"]}).save(path)
+
+    assert Dataset.load_path_fields(path, prefixes=["particle"]).fields() == ["uid"]
+
+
+def test_load_path_fields_from_stream():
+    stream = BytesIO()
+    Dataset(
+        {
+            "particles/blob/path": ["particles/1.mrc"],
+            "particles/location/center_x": [10.0],
+            "volumes/map_path": ["volumes/map.mrc"],
+        }
+    ).save(stream, format=CSDAT_FORMAT)
+    stream.seek(0)
+
+    result = Dataset.load_path_fields(stream, prefixes=["particles"])
+
+    assert result.fields() == ["uid", "particles/blob/path"]
+    assert result["particles/blob/path"].tolist() == ["particles/1.mrc"]
+
+
 def test_subset_range_out_of_bounds():
     data = Dataset.allocate(size=3, fields=[("field1", "u8"), ("field2", "f4"), ("field3", "O")])
     subset = data.slice(2, 100)
@@ -292,9 +350,37 @@ def test_load_stream_prefixes(small_dset, small_dset_path):
     assert result == small_dset.filter_prefixes(["field"], copy=True)
 
 
+def test_load_stream_prefixes_callable(small_dset, small_dset_path):
+    seen_names = []
+
+    def keep_prefix(name: str) -> bool:
+        seen_names.append(name)
+        return name.startswith("field/")
+
+    result = Dataset.load(small_dset_path, prefixes=keep_prefix)
+    assert result == small_dset.filter_prefixes(["field"], copy=True)
+    # Locks in the full-field-name contract: a prefixes= callable must never
+    # be called with just the segment before the first "/". Also locks in
+    # that "uid" (always kept regardless) is never passed to the callable at
+    # all -- it's not a candidate field the caller's predicate should have
+    # an opinion about.
+    assert "uid" not in seen_names
+    assert all("/" in name for name in seen_names)
+
+
 def test_load_stream_fields(small_dset, small_dset_stream):
     result = Dataset.load(small_dset_stream, fields=["field/2"])
     assert result == small_dset.filter_fields(["field/2"], copy=True)
+
+
+def test_load_stream_fields_callable(small_dset, small_dset_stream):
+    result = Dataset.load(small_dset_stream, fields=lambda name: name == "field/2")
+    assert result == small_dset.filter_fields(["field/2"], copy=True)
+
+
+def test_load_stream_fields_callable_no_matches_keeps_only_uid(small_dset, small_dset_stream):
+    result = Dataset.load(small_dset_stream, fields=lambda name: False)
+    assert result.fields() == ["uid"]
 
 
 def test_load_empty_stream(empty_dset, empty_dset_stream):

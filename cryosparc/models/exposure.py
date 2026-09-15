@@ -80,6 +80,12 @@ class CtfStats(BaseModel):
     ice_thickness_rel: float
     """
     """
+    relative_ice_power_total: List[Any] = [0, 0, 0]
+    """
+    """
+    relative_ice_power_max: List[Any] = [0, 0, 0]
+    """
+    """
     spectrum_dim: int
     """
     """
@@ -417,51 +423,14 @@ class ExposureGroups(BaseModel):
     """
 
 
-class ExposureAttributes(BaseModel):
-    """
-    Exposure processing metadata.
-    """
-
-    found_at: float = 0
-    """
-    """
-    check_at: float = 0
-    """
-    """
-    motion_at: float = 0
-    """
-    """
-    thumbs_at: float = 0
-    """
-    """
-    ctf_at: float = 0
-    """
-    """
-    pick_at: float = 0
-    """
-    """
-    extract_at: float = 0
-    """
-    """
-    manual_extract_at: float = 0
-    """
-    """
-    ready_at: float = 0
-    """
-    """
+class LiveExposureAttributes(BaseModel):
     total_motion_dist: float = 0
-    """
-    """
-    max_intra_frame_motion: float = 0
     """
     """
     average_defocus: float = 0
     """
     """
     defocus_range: float = 0
-    """
-    """
-    astigmatism_angle: float = 0
     """
     """
     astigmatism: float = 0
@@ -476,7 +445,31 @@ class ExposureAttributes(BaseModel):
     ice_thickness_rel: float = 0
     """
     """
+    relative_ice_power_total_3_66A: float = 0
+    """
+    """
+    relative_ice_power_max_3_66A: float = 0
+    """
+    """
+    relative_ice_power_total_2_24A: float = 0
+    """
+    """
+    relative_ice_power_max_2_24A: float = 0
+    """
+    """
+    relative_ice_power_total_1_91A: float = 0
+    """
+    """
+    relative_ice_power_max_1_91A: float = 0
+    """
+    """
     df_tilt_angle: float = 0
+    """
+    """
+    astigmatism_angle: float = 0
+    """
+    """
+    max_intra_frame_motion: float = 0
     """
     """
     total_manual_picks: int = 0
@@ -504,6 +497,33 @@ class ExposureAttributes(BaseModel):
     """
     """
     total_extracted_particles_template: int = 0
+    """
+    """
+    found_at: float = 0
+    """
+    """
+    check_at: float = 0
+    """
+    """
+    motion_at: float = 0
+    """
+    """
+    thumbs_at: float = 0
+    """
+    """
+    ctf_at: float = 0
+    """
+    """
+    pick_at: float = 0
+    """
+    """
+    extract_at: float = 0
+    """
+    """
+    manual_extract_at: float = 0
+    """
+    """
+    ready_at: float = 0
     """
     """
 
@@ -611,7 +631,7 @@ class Exposure(BaseModel):
     groups: ExposureGroups = ExposureGroups()
     """
     """
-    attributes: ExposureAttributes = ExposureAttributes()
+    attributes: LiveExposureAttributes = LiveExposureAttributes()
     """
     """
     test_parameters: Optional[LivePreprocessingParams] = None

@@ -75,11 +75,13 @@ class GpuInfo(BaseModel):
     """
     gpu_utilization: int = 0
     """
-    Current GPU utilization, in percent.
+    Current GPU utilization, in percent, or -1 if the device cannot report it
+    (always the case for MIG-enabled devices).
     """
     memory_utilization: int = 0
     """
-    Current memory utilization, in percent.
+    Current memory utilization, in percent, or -1 if the device cannot report
+    it (always the case for MIG-enabled devices).
     """
     driver_version: str = ""
     """

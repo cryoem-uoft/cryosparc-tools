@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from typing_extensions import Buffer, Self
 
 from .constants import EIGHT_MIB
-from .util import bopen
+from .util import BinaryFile, bopen
 
 
 class AsyncReadable(Protocol):
@@ -207,7 +207,7 @@ class Streamable(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]], *, media_type: Optional[str] = None) -> "Self":
+    def load(cls, file: BinaryFile, *, media_type: Optional[str] = None) -> "Self":
         """
         Load stream from a file path or readable byte stream. The stream must
         at least implement the `read(size)` function.
@@ -238,7 +238,7 @@ class Streamable(ABC):
         for chunk in self.stream():
             yield chunk
 
-    def save(self, file: Union[str, PurePath, IO[bytes]]):
+    def save(self, file: BinaryFile):
         with bopen(file, "wb") as f:
             self.dump(f)
 
@@ -300,7 +300,7 @@ class Stream(Streamable):
         return (self._astream is not None) or (self._aiterator is not None)
 
     @classmethod
-    def load(cls, file: Union[str, PurePath, IO[bytes]], *, media_type: Optional[str] = None):
+    def load(cls, file: BinaryFile, *, media_type: Optional[str] = None):
         stream = open(file, "rb") if isinstance(file, (str, PurePath)) else file
         return cls(stream=stream, media_type=media_type)
 
