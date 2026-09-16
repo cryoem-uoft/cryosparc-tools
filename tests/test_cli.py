@@ -1,5 +1,5 @@
 import subprocess
-import warnings
+import sys
 from argparse import Namespace
 from pathlib import Path
 from unittest import mock
@@ -31,6 +31,7 @@ def test_cli_login(mock_api_client_class, mock_auth_path):
     mock_api_client_class.login.assert_called_once()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions do not apply on Windows")
 def test_cli_login_warns_on_loose_existing_permissions(mock_api_client_class, user_config_path: Path):
     auth.get_default_auth_config_path.cache_clear()
     auth_path = user_config_path / "cryosparc-tools" / "auth.json"
