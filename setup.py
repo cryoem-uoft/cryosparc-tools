@@ -51,5 +51,6 @@ setup(
         ),
         language_level=3,
         gdb_debug=DEBUG,
+        compiler_directives={"freethreading_compatible": True},
     ),
 )

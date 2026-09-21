@@ -1,3 +1,5 @@
+# cython: freethreading_compatible=True
+
 from . cimport dataset
 from . cimport lz4
 from libc.stdint cimport uint8_t, uint16_t, uint64_t
@@ -34,13 +36,15 @@ cdef class Data:
         if isinstance(other, Data):
             # copy constructor
             othr = <Data> other
-            self._handle = dataset.dset_copy(othr._handle)
+            with nogil:
+                self._handle = dataset.dset_copy(othr._handle)
             othr._increfs()
         elif other:
             # Initialize with a numeric handle
             self._handle = <dataset.Dset> other
         else:
-            self._handle = dataset.dset_new()
+            with nogil:
+                self._handle = dataset.dset_new()
 
         if self._handle == 0:
             raise MemoryError("Could not allocate dataset")
@@ -48,7 +52,8 @@ cdef class Data:
     def __dealloc__(self):
         if self._handle:
             self._decrefs()
-            dataset.dset_del(self._handle)
+            with nogil:
+                dataset.dset_del(self._handle)
 
     def _increfs(self):
         # Increment reference counts for all Python object fields.
@@ -81,7 +86,13 @@ cdef class Data:
                 Py_XDECREF(mem[j])
 
     def innerjoin(self, str key, Data other):
-        cdef Data data = Data(dataset.dset_innerjoin(key.encode(), self._handle, other._handle))
+        cdef Data data
+        cdef dataset.Dset handle
+        cdef bytes colkey_b = key.encode()
+        cdef const char *colkey_c = colkey_b
+        with nogil:
+            handle = dataset.dset_innerjoin(colkey_c, self._handle, other._handle)
+        data = Data(handle)
         data._increfs()
         return data
 
@@ -104,11 +115,19 @@ cdef class Data:
         return self.type(field) > 0
 
     def addrows(self, int num):
-        if not dataset.dset_addrows(self._handle, num):
+        cdef bint result
+        with nogil:
+            result = dataset.dset_addrows(self._handle, num)
+        if not result:
             raise MemoryError("Could not add rows to dataset")
 
     def addcol_scalar(self, str field, int dtype):
-        if not dataset.dset_addcol_scalar(self._handle, field.encode(), dtype):
+        cdef bint result
+        cdef bytes colkey_b = field.encode()
+        cdef const char *colkey_c = colkey_b
+        with nogil:
+            result = dataset.dset_addcol_scalar(self._handle, colkey_c, dtype)
+        if not result:
             raise MemoryError("Could not add column to dataset")
 
     def addcol_array(self, str field, int dtype, tuple shape):
@@ -116,11 +135,16 @@ cdef class Data:
             raise ValueError("Shape size must be between 0 and 3")
 
         cdef uint16_t c_shape[3]
+        cdef bint result
+        cdef bytes colkey_b = field.encode()
+        cdef const char *colkey_c = colkey_b
+
         c_shape[0] = 0; c_shape[1] = 0; c_shape[2] = 0
         for i in xrange(len(shape)):
             c_shape[i] = <uint16_t> shape[i]
-
-        if not dataset.dset_addcol_array(self._handle, field.encode(), dtype, c_shape):
+        with nogil:
+            result = dataset.dset_addcol_array(self._handle, colkey_c, dtype, c_shape)
+        if not result:
             raise MemoryError("Could not add column to dataset")
 
     def getshp(self, str colkey):
@@ -222,15 +246,24 @@ cdef class Data:
         return <unsigned char [:size]> mem
 
     def setstrheap(self, bytes heap):
-        if not dataset.dset_setstrheap(self._handle, <const char *> heap, len(heap)):
+        cdef bint result
+        cdef const char *heapptr = heap
+        cdef size_t heapsz = len(heap)
+        with nogil:
+            result = dataset.dset_setstrheap(self._handle, heapptr, heapsz)
+        if not result:
             raise MemoryError("Could not set string heap in dataset")
 
     def defrag(self, bint realloc_smaller):
-        if not dataset.dset_defrag(self._handle, realloc_smaller):
+        cdef bint result
+        with nogil:
+            result = dataset.dset_defrag(self._handle, realloc_smaller)
+        if not result:
             raise MemoryError("Could not defrag dataset")
 
     def dumptxt(self, bint dump_data = 0):
-        dataset.dset_dumptxt(self._handle, dump_data)
+        with nogil:
+            dataset.dset_dumptxt(self._handle, dump_data)
 
     def handle(self):
         return self._handle
