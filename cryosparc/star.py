@@ -2,7 +2,6 @@
 Helper module for reading and writing relion star files.
 """
 
-from pathlib import PurePath
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -15,7 +14,6 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    Union,
     overload,
 )
 
@@ -24,7 +22,7 @@ import numpy as n
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
 
-from .util import topen
+from .util import TextFile, topen
 
 # Available star file fields and their types. Fields marked as type ``object``
 # should always be interepreted as strings.
@@ -486,7 +484,7 @@ RLN_DTYPES: Dict[str, Type[object]] = dict(
 )
 
 
-def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
+def read(file: TextFile) -> Dict[str, "NDArray"]:
     """
     Read the given STAR file into memory.
 
@@ -497,7 +495,8 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
         dict[str, NDArray]: a dictionary of numpy record arrays
 
         Each key is a block name found in the star file (e.g., ``"particles"``
-        for block ``data_particles`` and ``""`` for block ``data_``)
+        for block ``data_particles`` and ``""`` for block ``data_``). A block
+        of ``_label value`` pairs without ``loop_`` is read as a single row.
 
     Examples:
 
@@ -542,12 +541,42 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
             dblk_name = val.strip().replace("data_", "", 1)
             dblk_start = line - 1  # which line is 'data_'
 
-            num, val = _read_until(f, lambda x: x.strip().startswith("loop_"))
-            assert num is not None, (
-                f"Cannot find any 'loop_' in the data block starting at line {dblk_start} in the STAR file."
-            )
-            line += num
-            skiprows += num
+            # Skip blank and comment lines to find whether this is a loop block
+            # or a simple block of "_label value" pairs
+            pos = f.tell()
+            val = f.readline()
+            while val and (val.strip() == "" or val.strip().startswith("#")):
+                line += 1
+                skiprows += 1
+                pos = f.tell()
+                val = f.readline()
+            assert val, f"Cannot find any 'loop_' in the data block starting at line {dblk_start} in the STAR file."
+
+            if not val.strip().startswith("loop_"):
+                # Simple block: read the pairs as a single row. Stop at the
+                # first blank line, or put back a line that starts the next
+                # block.
+                labels: List[str] = []
+                values: List[str] = []
+                while val.strip().startswith("_") or val.strip().startswith("#"):
+                    if val.strip().startswith("_"):
+                        label, *value = val.strip()[1:].split(None, 1)
+                        labels.append(label)
+                        values.append(value[0].strip() if value else "")
+                    line += 1
+                    pos = f.tell()
+                    val = f.readline()
+                if val.strip():
+                    f.seek(pos)
+                block = None
+                if labels:
+                    simple_dtype = [(label, RLN_DTYPES.get(label, object)) for label in labels]
+                    block = n.loadtxt(["\t".join(values)], dtype=simple_dtype, delimiter="\t", ndmin=1)
+                data_blocks.append((dblk_name, block, f.tell()))
+                continue
+
+            line += 1
+            skiprows += 1
 
             num, val = _read_until(f, lambda x: x.strip().startswith("_"))
             assert num is not None, (
@@ -579,7 +608,16 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
         # STAGE 2: Seek back to the beginning of the file and read in rows
         f.seek(0)
         data = {}
-        for dblk_name, dtype, skiprows, maxrows in data_blocks:
+        for dblk_name, *entry in data_blocks:
+            if len(entry) == 2:
+                # Simple block, already read in stage 1
+                block, end = entry
+                if block is not None:
+                    data[dblk_name] = block
+                f.seek(end)
+                continue
+
+            dtype, skiprows, maxrows = entry
             if use_max_rows:
                 # Can read directly
                 data[dblk_name] = n.loadtxt(f, dtype=dtype, skiprows=skiprows, max_rows=maxrows, ndmin=1)
@@ -602,7 +640,7 @@ def read(file: Union[str, PurePath, IO[str]]) -> Dict[str, "NDArray"]:
 
 
 def write(
-    file: Union[str, PurePath, IO[str]],
+    file: TextFile,
     data: Any,
     name: str = "",
     labels: Optional[List[str]] = None,
@@ -646,7 +684,7 @@ def write(
     return write_blocks(file, {name: data})
 
 
-def write_blocks(file: Union[str, PurePath, IO[str]], blocks: Mapping[str, "NDArray"]):
+def write_blocks(file: TextFile, blocks: Mapping[str, "NDArray"]):
     """
     Write a single star file composed of multiple data blocks:
 

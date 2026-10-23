@@ -136,15 +136,19 @@ class ExposureGroup(BaseModel):
     Ignore new exposure files that have been modified within this many seconds.
     Set to prevent processing from starting on incomplete files.
     """
-    exp_group_id: int = 1
+    exp_group_id: int
     """
-    Assigned unique ID for this exposure group within the session
+    Exposure group id used to save in datasets
+    """
+    display_num: int
+    """
+    Display number of this exposure group within the session
     """
     num_exposures_found: int = 0
     """
     Number of exposures found in this group so far
     """
-    file_engine_strategy: Literal["entity", "timestamp", "eclathena"] = "entity"
+    file_engine_strategy: Literal["entity", "eclathena"] = "entity"
     """
     Strategy for detecting new exposures within this group
     """
@@ -257,6 +261,7 @@ class LiveVolumeInfo(BaseModel):
     """
     fileid: Optional[str] = None
     """
+    map's central projections
     """
     selected: bool = False
     """
@@ -613,6 +618,12 @@ class Session(BaseModel):
     """
     Always 'live' for Live sessions
     """
+    schema_version: int = 1
+    """
+    Workspace schema version for determining exported workspace and session
+    compatibility between CryoSPARC versions, similar to the ``schema_version``
+    present in projects.
+    """
     created_by_user_id: Optional[str] = None
     """
     User ID that created the workspace.
@@ -698,27 +709,48 @@ class Session(BaseModel):
     Session parameters for preprocessing. Reconstruction parameters are stored separately.
     """
     attributes: List[SessionAttribute] = [
-        SessionAttribute(name="found_at", title="Timestamp", min=None, max=None, round=0),
-        SessionAttribute(name="check_at", title="Check Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="motion_at", title="Motion Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="thumbs_at", title="Thumbs Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="ctf_at", title="CTF Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="pick_at", title="Pick Stage Completed At", min=None, max=None, round=0),
-        SessionAttribute(name="extract_at", title="Extract Stage Completed At", min=None, max=None, round=0),
         SessionAttribute(
-            name="manual_extract_at", title="Manual Extract Stage Completed At", min=None, max=None, round=0
+            name="total_motion_dist", title="Total full-frame motion distance (pixels)", min=None, max=None, round=2
         ),
-        SessionAttribute(name="ready_at", title="Exposure Ready At", min=None, max=None, round=0),
-        SessionAttribute(name="total_motion_dist", title="Total Motion (pix)", min=None, max=None, round=2),
-        SessionAttribute(name="max_intra_frame_motion", title="Max In-Frame Motion", min=None, max=None, round=3),
-        SessionAttribute(name="average_defocus", title="Defocus Avg. (Å)", min=None, max=None, round=0),
+        SessionAttribute(name="average_defocus", title="Defocus Avg. (Å)", min=None, max=None, round=3),
         SessionAttribute(name="defocus_range", title="Defocus Range (Å)", min=None, max=None, round=0),
-        SessionAttribute(name="astigmatism_angle", title="Astigmatism Angle (deg)", min=None, max=None, round=1),
-        SessionAttribute(name="astigmatism", title="Astigmatism", min=None, max=None, round=2),
+        SessionAttribute(name="astigmatism", title="Astigmatism (A)", min=None, max=None, round=2),
         SessionAttribute(name="phase_shift", title="Phase Shift (deg)", min=None, max=None, round=1),
-        SessionAttribute(name="ctf_fit_to_A", title="CTF Fit (Å)", min=None, max=None, round=3),
+        SessionAttribute(name="ctf_fit_to_A", title="CTF fit resolution (A)", min=None, max=None, round=3),
         SessionAttribute(name="ice_thickness_rel", title="Relative Ice Thickness", min=None, max=None, round=3),
-        SessionAttribute(name="df_tilt_angle", title="Sample Tilt (deg)", min=None, max=None, round=1),
+        SessionAttribute(
+            name="relative_ice_power_total_3_66A",
+            title="Relative Ice Power Total (3.66 Å)",
+            min=None,
+            max=None,
+            round=3,
+        ),
+        SessionAttribute(
+            name="relative_ice_power_max_3_66A", title="Relative Ice Power Max (3.66 Å)", min=None, max=None, round=3
+        ),
+        SessionAttribute(
+            name="relative_ice_power_total_2_24A",
+            title="Relative Ice Power Total (2.24 Å)",
+            min=None,
+            max=None,
+            round=3,
+        ),
+        SessionAttribute(
+            name="relative_ice_power_max_2_24A", title="Relative Ice Power Max (2.24 Å)", min=None, max=None, round=3
+        ),
+        SessionAttribute(
+            name="relative_ice_power_total_1_91A",
+            title="Relative Ice Power Total (1.91 Å)",
+            min=None,
+            max=None,
+            round=3,
+        ),
+        SessionAttribute(
+            name="relative_ice_power_max_1_91A", title="Relative Ice Power Max (1.91 Å)", min=None, max=None, round=3
+        ),
+        SessionAttribute(name="df_tilt_angle", title="Defocus Tilt Angle (degrees)", min=None, max=None, round=1),
+        SessionAttribute(name="astigmatism_angle", title="Astigmatism Angle (deg)", min=None, max=None, round=1),
+        SessionAttribute(name="max_intra_frame_motion", title="Max In-Frame Motion", min=None, max=None, round=3),
         SessionAttribute(name="total_manual_picks", title="Total Manual Picks", min=None, max=None, round=0),
         SessionAttribute(name="total_blob_picks", title="Total Blob Picks", min=None, max=None, round=0),
         SessionAttribute(name="blob_pick_score_median", title="Median Blob Pick Score", min=None, max=None, round=3),
@@ -750,6 +782,17 @@ class Session(BaseModel):
             max=None,
             round=0,
         ),
+        SessionAttribute(name="found_at", title="Timestamp", min=None, max=None, round=0),
+        SessionAttribute(name="check_at", title="Check Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="motion_at", title="Motion Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="thumbs_at", title="Thumbs Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="ctf_at", title="CTF Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="pick_at", title="Pick Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(name="extract_at", title="Extract Stage Completed At", min=None, max=None, round=0),
+        SessionAttribute(
+            name="manual_extract_at", title="Manual Extract Stage Completed At", min=None, max=None, round=0
+        ),
+        SessionAttribute(name="ready_at", title="Exposure Ready At", min=None, max=None, round=0),
     ]
     """
     List of available session attributes for filtering and display
@@ -768,6 +811,10 @@ class Session(BaseModel):
     notes_lock: Optional[str] = None
     """
     Username of user who has locked the notes for editing
+    """
+    started_by_user_id: Optional[str] = None
+    """
+    User ID of the user who started the session
     """
     phase_one_wait_for_exposures: bool = False
     """
@@ -798,14 +845,6 @@ class Session(BaseModel):
     file_engine_last_run: Optional[float] = None
     """
     Timestamp of the last time the file engine ran
-    """
-    max_timestamps: List[Any] = []
-    """
-    Set by the file engine to track the most recent modification timestamps seen in each exposure group
-    """
-    known_files: List[Any] = []
-    """
-    :meta private:
     """
     rtp_childs: List[RtpChild] = []
     """
@@ -886,12 +925,12 @@ class Session(BaseModel):
     phase2_class2D_params_spec: LiveClass2DParams = LiveClass2DParams()
     """
     """
-    phase2_class2D_params_spec_used: Optional[LiveClass2DParams] = None
-    """
-    Streaming 2D classification parameters used at last launch, must be same as ``phase2_class2D_params_spec`` to resume
-    """
     phase2_class2D_job: Optional[str] = None
     """
+    """
+    phase2_class2D_job_used: Optional[str] = None
+    """
+    Previously ran 2D classification job
     """
     phase2_class2D_ready: bool = False
     """
@@ -951,10 +990,6 @@ class Session(BaseModel):
     """
     Refinement parameters specified for next launch
     """
-    phase2_refine_params_spec_used: Optional[LiveRefineParams] = None
-    """
-    Refinement parameters used at last launch, must be same as ``phase2_refine_params_spec_used`` to resume
-    """
     phase2_refine_job: Optional[str] = None
     """
     """
@@ -1011,6 +1046,10 @@ class Session(BaseModel):
     session_uid_num: int
     """
     Numeric part of the session UID
+    """
+    size: int
+    """
+    Total size of all data in the session, in bytes
     """
     errors: List[SessionBuildError]
     """

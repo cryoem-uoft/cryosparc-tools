@@ -3,7 +3,7 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Sequence, Type, TypedDict, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Literal, Optional, Sequence, Type, TypedDict, Union
 
 import numpy as n
 
@@ -116,23 +116,32 @@ def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
     return (dt.str, shape) if shape else dt.str
 
 
+FieldFilter = Union[Sequence[str], Callable[[str], bool]]
+
+
 def filter_descr(
     descr: List[Field],
     *,
-    keep_prefixes: Optional[Sequence[str]] = None,
-    keep_fields: Optional[Sequence[str]] = None,
+    keep_prefixes: Optional[FieldFilter] = None,
+    keep_fields: Optional[FieldFilter] = None,
 ) -> List[Field]:
     # Get a filtered list of fields based on the user-specified prefixies
     # and/or fields. Returns all fields if no filter params are specified.
     # Always returns at least uid field, if it exists.
     filtered: List[Field] = []
     for field in descr:
-        if (
-            field[0] == "uid"
-            or (keep_prefixes is None and keep_fields is None)
-            or (keep_prefixes is not None and any(field[0].startswith(f"{p}/") for p in keep_prefixes))
-            or (keep_fields is not None and field[0] in keep_fields)
-        ):
+        name = field[0]
+        is_uid = name == "uid"
+        no_filters = keep_prefixes is None and keep_fields is None
+        prefix_match = field_match = False
+        if not is_uid and keep_prefixes is not None:
+            prefix_match = (
+                keep_prefixes(name) if callable(keep_prefixes) else any(name.startswith(f"{p}/") for p in keep_prefixes)
+            )
+        if not is_uid and keep_fields is not None:
+            field_match = keep_fields(name) if callable(keep_fields) else name in keep_fields
+
+        if is_uid or no_filters or prefix_match or field_match:
             filtered.append(field)
     return filtered
 

@@ -1,6 +1,6 @@
 [project]
 name = "cryosparc-tools"
-version = "5.0.3"
+version = "5.1.0"
 description = "Toolkit for interfacing with CryoSPARC"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -24,7 +24,7 @@ dependencies = [
     "numpy >= 1.17, < 3.0",
     "httpx ~= 0.25",
     "pydantic ~= 2.8",
-    "typing-extensions >= 4.0",
+    "typing-extensions >= 4.6",
 ]
 
 [project.optional-dependencies]

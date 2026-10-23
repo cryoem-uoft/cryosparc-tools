@@ -50,11 +50,12 @@ from typing import (
 )
 
 import numpy as n
+from typing_extensions import Self
 
 from ..constants import ONE_MIB
 from ..errors import DatasetLoadError
 from ..stream import AsyncReadable, Streamable
-from ..util import bopen, default_rng, random_integers, u32bytesle, u32intle
+from ..util import BinaryFile, bopen, default_rng, random_integers, u32bytesle, u32intle
 from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
@@ -62,6 +63,7 @@ from .dtype import (
     TYPE_TO_DSET_MAP,
     DatasetHeader,
     Field,
+    FieldFilter,
     arraydtype,
     decode_dataset_header,
     encode_dataset_header,
@@ -159,7 +161,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     _data: Data
 
     @classmethod
-    def allocate(cls, size: int = 0, fields: Sequence[Field] = []):
+    def allocate(cls, size: int = 0, fields: Sequence[Field] = []) -> Self:
         """
         Allocate a dataset with the given number of rows and specified fields.
 
@@ -175,7 +177,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dset.add_fields(fields)
         return dset
 
-    def extend(self, *others: "Dataset", repeat_allowed=False):
+    def extend(self, *others: "Dataset", repeat_allowed=False) -> Self:
         """
         Add the given dataset(s) to the end of the current dataset. Other
         datasets must have at least the same fields of the current dataset.
@@ -223,7 +225,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return self
 
-    def append(self, *others: "Dataset", assert_same_fields=False, repeat_allowed=False):
+    def append(self, *others: "Dataset", assert_same_fields=False, repeat_allowed=False) -> Self:
         """
         Concatenate many datasets together into one new one.
 
@@ -265,7 +267,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         *datasets: "Dataset",
         assert_same_fields=False,
         repeat_allowed=False,
-    ):
+    ) -> Self:
         """
         Similar to ``Dataset.append``. If no datasets are provided, returns an
         empty Dataset with just the ``uid`` field.
@@ -306,7 +308,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return result
 
-    def union(self, *others: "Dataset", assert_same_fields=False, assume_unique=False):
+    def union(self, *others: "Dataset", assert_same_fields=False, assume_unique=False) -> Self:
         """
         Take the row union of all the given datasets, based on their uid fields.
 
@@ -347,7 +349,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         *datasets: "Dataset",
         assert_same_fields=False,
         assume_unique=False,
-    ):
+    ) -> Self:
         """
         Similar to ``Dataset.union``. If no datasets are provided, returns an
         empty Dataset with just the ``uid`` field.
@@ -396,7 +398,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             startidx += num
         return result
 
-    def interlace(self, *datasets: "Dataset", assert_same_fields=False):
+    def interlace(self, *datasets: "Dataset", assert_same_fields=False) -> Self:
         """
         Combine the current dataset with one or more datasets of the same length
         by alternating rows from each dataset.
@@ -429,7 +431,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return result
 
-    def innerjoin(self, *others: "Dataset", assert_no_drop=False):
+    def innerjoin(self, *others: "Dataset", assert_no_drop=False) -> Self:
         """
         Create a new dataset with fields from all provided datasets and only
         including rows common to all provided datasets (based on UID)
@@ -467,7 +469,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return result
 
     @classmethod
-    def innerjoin_many(cls, *datasets: "Dataset"):
+    def innerjoin_many(cls, *datasets: "Dataset") -> Self:
         """
         Similar to ``Dataset.innerjoin``. If no datasets are provided, returns an
         empty Dataset with just the ``uid`` field.
@@ -572,13 +574,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     @classmethod
     def load(
         cls,
-        file: Union[str, PurePath, IO[bytes]],
+        file: BinaryFile,
         *,
-        prefixes: Optional[Sequence[str]] = None,
-        fields: Optional[Sequence[str]] = None,
+        prefixes: Optional[FieldFilter] = None,
+        fields: Optional[FieldFilter] = None,
         cstrs: bool = False,
         media_type: Optional[str] = None,  # for interface, otherwise unused
-    ):
+    ) -> Self:
         """
         Read a dataset from path or file handle.
 
@@ -590,10 +592,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             file (str | Path | IO): Readable file path or handle. Must be
                 seekable if loading a dataset saved in the default
                 ``NUMPY_FORMAT``
-            prefixes (list[str], optional): Which field prefixes to load. If
-                not specified, loads either all or specified `fields`.
-            fields (list[str], optional): Which fields to load. If not
-                specified, loads either all or specified `prefixes`.
+            prefixes (list[str] | (str) -> bool, optional): Which field
+                prefixes to load, or a function that takes a field name and
+                returns True if it should be loaded. If not specified, loads
+                either all or specified `fields`.
+            fields (list[str] | (str) -> bool, optional): Which fields to
+                load, or a function that takes a field name and returns True
+                if it should be loaded. If not specified, loads either all or
+                specified `prefixes`.
             cstrs (bool): If True, load internal string columns as C strings
                 instead of Python strings. Defaults to False.
 
@@ -633,11 +639,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     @classmethod
     def _load_numpy(
         cls,
-        file: Union[str, PurePath, IO[bytes]],
-        prefixes: Optional[Sequence[str]] = None,
-        fields: Optional[Sequence[str]] = None,
+        file: BinaryFile,
+        prefixes: Optional[FieldFilter] = None,
+        fields: Optional[FieldFilter] = None,
         cstrs: bool = False,
-    ):
+    ) -> Self:
         import os
 
         # disable mmap by setting CRYOSPARC_DATASET_MMAP=false or dataset is small
@@ -684,11 +690,11 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
     def _load_stream(
         cls,
         f: IO[bytes],
-        prefixes: Optional[Sequence[str]] = None,
-        fields: Optional[Sequence[str]] = None,
+        prefixes: Optional[FieldFilter] = None,
+        fields: Optional[FieldFilter] = None,
         cstrs: bool = False,
         seekable: bool = False,
-    ):
+    ) -> Self:
         # NOTE: assumes prefix header bytes have already been read
         header = cls._load_stream_header(f)
         descr = filter_descr(header["dtype"], keep_prefixes=prefixes, keep_fields=fields)
@@ -732,7 +738,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return dset
 
     @classmethod
-    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None):
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None) -> Self:
         prefix = await stream.read(6)
         if prefix != FORMAT_MAGIC_PREFIXES[CSDAT_FORMAT]:
             raise DatasetLoadError(
@@ -769,7 +775,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dset.to_pystrs()
         return dset
 
-    def save(self, file: Union[str, PurePath, IO[bytes]], *, format: int = DEFAULT_FORMAT):
+    def save(self, file: BinaryFile, *, format: int = DEFAULT_FORMAT) -> None:
         """
         Save a dataset to the given path or I/O buffer.
 
@@ -908,14 +914,14 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             for field, data in populate:
                 self[field[0]] = data
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Returns:
             int: number of rows in this dataset
         """
         return self._data.nrow()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """
         Iterate over the fields in this dataset
         """
@@ -946,7 +952,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         else:
             return self.rows()[key]
 
-    def __setitem__(self, key: str, val: "ArrayLike"):
+    def __setitem__(self, key: str, val: "ArrayLike") -> None:
         """
         Set the value of a field in this dataset.
 
@@ -965,7 +971,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         assert self._data.has(key), f"Cannot set non-existing dataset key {key}; use add_fields() first"
         self[key][:] = val
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str) -> None:
         """
         Args:
             key (str): Field to remove from dataset
@@ -984,7 +990,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self._data.has(key) if isinstance(key, str) else False
 
-    def __eq__(self, other: object):
+    def __eq__(self, other: object) -> bool:
         """
         Check whether two datasets contain the same data in the same order.
 
@@ -1019,7 +1025,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if hasattr(self, "__dict__"):
             self.__dict__.update(state)  # type: ignore
 
-    def __array__(self):
+    def __array__(self) -> n.ndarray:
         return self.to_records()
 
     def cols(self) -> Dict[str, Column]:
@@ -1063,7 +1069,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         descr = [get_data_field(self._data, self._data.key(i)) for i in range(self._data.ncol())]
         return [f for f in descr if f[0] != "uid"] if exclude_uid else descr
 
-    def copy(self):
+    def copy(self) -> Self:
         """
         Create a deep copy of the current dataset.
 
@@ -1107,6 +1113,50 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             ["field", "foo", "bar"]
         """
         return list({f.split("/")[0] for f in self.fields(exclude_uid=True)})
+
+    @staticmethod
+    def is_path_field(field: str) -> bool:
+        """
+        Whether the given field name looks like it holds a relative file path.
+
+        Args:
+            field (str): Field name, e.g. ``"blob/path"``.
+
+        Returns:
+            bool: True if the field name suggests it holds path values.
+        """
+        return "path" in field or "processed_mics" in field  # Topaz model field that is a directory to export
+
+    @classmethod
+    def load_path_fields(cls, file: BinaryFile, prefixes: Optional[Sequence[str]] = None) -> Self:
+        """
+        Load only the path field columns belonging to the given prefixes from a
+        dataset file.
+
+        Args:
+            file (str | Path | IO): Readable file path or handle. Must be
+                seekable if loading a dataset saved in the default
+                ``NUMPY_FORMAT``
+            prefixes (Sequence[str], optional): Result name prefixes to
+                include path fields for. If not specified, loads path fields
+                for all prefixes.
+
+        Raises:
+            DatasetLoadError: If cannot load dataset file.
+
+        Returns:
+            Dataset: Dataset containing matching path fields. Empty if the
+            file has no matching path fields.
+        """
+        if prefixes is None:
+            return cls.load(file, fields=cls.is_path_field)
+
+        prefix_set = set(prefixes)
+
+        def is_matching_path_field(name: str) -> bool:
+            return cls.is_path_field(name) and name.split("/", 1)[0] in prefix_set
+
+        return cls.load(file, fields=is_matching_path_field)
 
     @overload
     def add_fields(self, fields: Sequence[Field]) -> "Dataset[R]": ...
@@ -1182,7 +1232,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return self._reset()
 
-    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
+    def filter_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False) -> Self:
         """
         Keep only the given fields from the dataset. Provide a list of fields or
         function that returns ``True`` if a given field name should be kept.
@@ -1205,7 +1255,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         result = type(self)([(key, self[key]) for key in new_fields])
         return result if copy else self._reset(result._data)
 
-    def filter_prefixes(self, prefixes: Collection[str], *, copy: bool = False):
+    def filter_prefixes(self, prefixes: Collection[str], *, copy: bool = False) -> Self:
         """
         Similar to ``filter_fields``, except takes list of prefixes.
 
@@ -1235,7 +1285,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.filter_fields(lambda n: any(n.startswith(p + "/") for p in prefixes), copy=copy)
 
-    def filter_prefix(self, keep_prefix: str, *, rename: Optional[str] = None, copy: bool = False):
+    def filter_prefix(self, keep_prefix: str, *, rename: Optional[str] = None, copy: bool = False) -> Self:
         """
         Similar to ``filter_prefixes`` but for a single prefix.
 
@@ -1258,7 +1308,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         result = type(self)([("uid", self["uid"])] + [(nf, self[f]) for f, nf in zip(keep_fields, new_fields)])  # type: ignore
         return result if copy else self._reset(result._data)
 
-    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False):
+    def drop_fields(self, names: Union[Collection[str], Callable[[str], bool]], *, copy: bool = False) -> Self:
         """
         Remove the given field names from the dataset. Provide a list of fields
         or a function that takes a field name and returns True if that field
@@ -1277,7 +1327,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         test = (lambda n: n not in names) if isinstance(names, Collection) else (lambda n: not names(n))
         return self.filter_fields(test, copy=copy)
 
-    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], *, copy: bool = False):
+    def rename_fields(self, field_map: Union[Dict[str, str], Callable[[str], str]], *, copy: bool = False) -> Self:
         """
         Change the name of dataset fields based on the given mapping.
 
@@ -1299,7 +1349,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         result = type(self)([(f if f == "uid" else fm(f), self[f]) for f in self])
         return result if copy else self._reset(result._data)
 
-    def rename_field(self, current_name: str, new_name: str, *, copy: bool = False):
+    def rename_field(self, current_name: str, new_name: str, *, copy: bool = False) -> Self:
         """
         Change name of a dataset field based on the given mapping.
 
@@ -1314,7 +1364,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.rename_fields({current_name: new_name}, copy=copy)
 
-    def rename_prefix(self, old_prefix: str, new_prefix: str, *, copy: bool = False):
+    def rename_prefix(self, old_prefix: str, new_prefix: str, *, copy: bool = False) -> Self:
         """
         Similar to rename_fields, except changes the prefix of all fields with
         the given ``old_prefix`` to ``new_prefix``.
@@ -1336,7 +1386,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return self.rename_fields(field_map, copy=copy)
 
-    def copy_fields(self, old_fields: List[str], new_fields: List[str]):
+    def copy_fields(self, old_fields: List[str], new_fields: List[str]) -> None:
         """
         Copy the values at the given old fields into the new fields, allocating
         them if necessary.
@@ -1360,7 +1410,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         for old, new in zip(old_fields, new_fields):
             self[new] = self[old]
 
-    def reassign_uids(self):
+    def reassign_uids(self) -> Self:
         """
         Reset all values of the uid column to new unique random values.
 
@@ -1395,7 +1445,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return [row.to_list(exclude_uid) for row in self.rows()]
 
-    def to_records(self, fixed=False):
+    def to_records(self, fixed=False) -> n.recarray:
         """
         Convert to a numpy record array.
 
@@ -1412,7 +1462,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
         return n.rec.array(arrays, dtype=dtype)
 
-    def query(self, query: Union[Dict[str, "ArrayLike"], Callable[[R], bool]]):
+    def query(self, query: Union[Dict[str, "ArrayLike"], Callable[[R], bool]]) -> Self:
         """
         Get a subset of data based on whether the fields match the values in the
         given query. The query is either a test function that is called on each
@@ -1482,7 +1532,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return n.invert(mask, out=mask) if invert else mask
 
-    def subset(self, rows: Collection[Row]):
+    def subset(self, rows: Collection[Row]) -> Self:
         """
         Get a subset of dataset that only includes the given list of rows (from
         this dataset).
@@ -1495,7 +1545,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return self.take([row.idx for row in rows])
 
-    def take(self, indices: Union[List[int], "NDArray"]):
+    def take(self, indices: Union[List[int], "NDArray"]) -> Self:
         """
         Get a subset of data with only the matching list of row indices.
 
@@ -1507,7 +1557,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return type(self)([(f, self[f][indices]) for f in self])
 
-    def mask(self, mask: Union[List[bool], "NDArray"]):
+    def mask(self, mask: Union[List[bool], "NDArray"]) -> Self:
         """
         Get a subset of the dataset that matches the given boolean mask of rows.
 
@@ -1521,7 +1571,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         assert len(mask) == len(self), f"Mask with size {len(mask)} does not match expected dataset size {len(self)}"
         return type(self)([(f, self[f][mask]) for f in self])
 
-    def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1):
+    def slice(self, start: int = 0, stop: Optional[int] = None, step: int = 1) -> Self:
         """
         Get subset of the dataset with rows in the given range.
 
@@ -1538,7 +1588,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         """
         return type(self)([(f, self[f][slice(start, stop, step)]) for f in self])
 
-    def split_by(self, field: str):
+    def split_by(self, field: str) -> Dict[Any, Self]:
         """
         Create a mapping from possible values of the given field and to a
         datasets filtered by rows of that value.
@@ -1566,7 +1616,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return {val: self.take(idx) for val, idx in idxs.items()}
 
-    def replace(self, query: Dict[str, "ArrayLike"], *others: "Dataset", assume_disjoint=False, assume_unique=False):
+    def replace(
+        self,
+        query: Dict[str, "ArrayLike"],
+        *others: "Dataset",
+        assume_disjoint: bool = False,
+        assume_unique: bool = False,
+    ) -> Self:
         """
         Replaces values matching the given query with others. The query is a
         key/value map of allowed field values. The values may be either a single
@@ -1610,7 +1666,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         return result
 
-    def is_equivalent(self, other: object):
+    def is_equivalent(self, other: object) -> bool:
         """
         Check whether two datasets contain the same data, regardless of field
         order.
@@ -1628,7 +1684,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
             and all(n.array_equal(self[f], other[f]) for f in self)
         )
 
-    def to_cstrs(self, *, copy: bool = False):
+    def to_cstrs(self, *, copy: bool = False) -> Self:
         """
         Convert all Python string columns to C strings. Resulting dataset fields
         that previously had dtype ``np.object_`` (or ``T_OBJ`` internally) will get
@@ -1650,7 +1706,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         self._reset()  # in case data got reallocated
         return dset
 
-    def to_pystrs(self, *, copy: bool = False):
+    def to_pystrs(self, *, copy: bool = False) -> Self:
         """
         Convert all C string columns to Python strings. Resulting dataset fields
         that previously had dtype ``np.uint64`` (and ``T_STR`` internally) will
@@ -1741,7 +1797,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         return "\n".join(html)
 
 
-def generate_uids(num: int = 0):
+def generate_uids(num: int = 0) -> "NDArray[n.uint64]":
     """
     Generate the given number of random 64-bit unsigned integer uids.
 

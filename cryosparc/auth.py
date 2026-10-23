@@ -5,10 +5,11 @@ Functions and classes for performing and storing user authentication operations.
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from warnings import warn
 
 from pydantic import AwareDatetime, BaseModel, RootModel, ValidationError, field_validator
+from typing_extensions import Self
 
 from .models.auth import Token
 from .platform import user_config_path
@@ -68,7 +69,7 @@ class InstanceAuthSessions(RootModel):
     root: Dict[str, UserAuthSessions]
 
     @classmethod
-    def load(cls, path: Optional[Path] = None):
+    def load(cls, path: Optional[Path] = None) -> Self:
         """
         Read all auth tokens from the given path. Loads from the
         user config directory if path is unspecified.
@@ -96,14 +97,23 @@ class InstanceAuthSessions(RootModel):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.model_dump_json(indent=4))
 
-    def find(self, url: str, email: Optional[str] = None) -> Optional[AuthSession]:
+    def find(self, url: Optional[str] = None, email: Optional[str] = None) -> Optional[Tuple[str, AuthSession]]:
         """
         Find the first available token for the given instance URL and email.
-        If an email is not specified, returns the first existing session
+        If a URL is not specified, assumes the first existing session.
+        If an email is not specified, returns the first existing session.
+        Also returns full instance URL.
         """
+        url = (
+            url
+            or first(key for key, sess in self.root.items() if sess.root and (not email or email in sess.root))
+            or "http://localhost:61000"
+        )
         if url in self.root:
-            user_sessions = self.root[url]
-            return first(sess for e, sess in user_sessions.root.items() if not email or e == email)
+            sessions = self.root[url]
+            session = first(sess for e, sess in sessions.root.items() if not email or e == email)
+            if session:
+                return (url, session)
 
     def insert(self, url: str, email: str, token: Token, expires: AwareDatetime):
         """

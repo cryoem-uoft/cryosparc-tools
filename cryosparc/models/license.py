@@ -61,7 +61,7 @@ class LicenseInstance(TypedDict, total=False):
     """
 
 
-class UpdateTag(TypedDict):
+class UpdateLicenseTag(TypedDict):
     """
     Information about available CryoSPARC updates.
     """

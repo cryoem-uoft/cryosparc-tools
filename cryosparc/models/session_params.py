@@ -43,7 +43,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Are the samples negative stain (True) or cryo (False)?
     """
-    eer_upsampfactor: int = 1
+    eer_upsampfactor: int = 2
     """
     EER upsampling factor (applies to .eer/.ecc format data only.
     """
@@ -99,7 +99,7 @@ class LivePreprocessingParams(BaseModel):
     """
     If running out of GPU memory, this option can be used to prioritize memory use at the expense of speed (BETA). The results are unchanged.
     """
-    output_f16: bool = False
+    output_f16: bool = True
     """
     Reduces the output precision from 32 bits to 16 bits, saving hard drive space.
     """
@@ -266,7 +266,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Size of particle boxes after they have been extracted. None means use the same as the extraction box size
     """
-    extract_f16: bool = False
+    extract_f16: bool = True
     """
     Reduces the output precision from 32 bits to 16 bits, saving hard drive space.
     """

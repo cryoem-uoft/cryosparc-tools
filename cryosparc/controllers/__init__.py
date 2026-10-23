@@ -22,8 +22,7 @@ class Controller(ABC, Generic[M]):
     Abstract base class for Project, Workspace, Job classes and any other types
     that have underlying Mongo database documents.
 
-    Generic type argument D is a typed dictionary definition for a Mongo
-    document.
+    Generic type argument D is a typed dictionary definition for a Mongo model.
 
     :meta private:
     """
@@ -38,7 +37,7 @@ class Controller(ABC, Generic[M]):
         """
         if not self._model:
             self.refresh()
-        assert self._model, "Could not refresh database document"
+        assert self._model, "Could not refresh database model"
         return self._model
 
     @model.setter
