@@ -87,6 +87,51 @@ def test_read_big(big_star_file):
     assert data["particles"]["rlnRandomSubset"][-1] == 2
 
 
+def test_read_simple_blocks():
+    # Simple (non-loop) blocks as written by RELION postprocess and RELION 5
+    # tomography, followed by loop blocks with and without a blank line
+    data = star.read(
+        StringIO(
+            """
+# version 50001
+
+data_general
+
+_rlnFinalResolution                        16.363636
+_rlnMaskName                            mask.mrc
+_rlnTomoSubTomosAre2DStacks                       1
+
+
+data_fsc
+
+loop_
+_rlnSpectralIndex #1
+_rlnAngstromResolution #2
+           0   999.000000
+           1   720.000000
+
+data_optics
+_rlnImageSize 400
+data_particles
+loop_
+_rlnCoordinateX #1
+3410.0
+680.0
+"""
+        )
+    )
+    assert list(data) == ["general", "fsc", "optics", "particles"]
+    assert len(data["general"]) == 1
+    assert data["general"]["rlnFinalResolution"][0] == 16.363636
+    assert data["general"]["rlnMaskName"][0] == "mask.mrc"
+    assert data["general"]["rlnTomoSubTomosAre2DStacks"][0] == "1"
+    assert len(data["fsc"]) == 2
+    assert data["fsc"]["rlnAngstromResolution"][1] == 720.0
+    assert data["optics"]["rlnImageSize"][0] == 400
+    assert len(data["particles"]) == 2
+    assert data["particles"]["rlnCoordinateX"][-1] == 680.0
+
+
 def test_write():
     result = StringIO()
     star.write(
