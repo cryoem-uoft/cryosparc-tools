@@ -246,7 +246,11 @@ class LiveComputeResources(BaseModel):
     """
     phase_one_workers_per_gpu: int = 1
     """
-    Number of preprocessing workers that can share the same GPU
+    Number of preprocessing workers that can share the same GPU.
+
+    Note this only applies when ``phase_one_lane`` is not a cluster lane.
+    If the lane is a cluster lane, this field is assumed to be 1; it's up to
+    the cluster scheduler to determine how many workers can share a GPU.
     """
 
 

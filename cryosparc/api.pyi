@@ -3951,7 +3951,7 @@ class SessionsAPI(APINamespace):
         test_only: bool = False,
     ) -> Job:
         """
-        Create and enqueue a Live Particle Export job for a session
+        Create and queue a session Live Particle Export job. Job will run on master.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
@@ -3970,7 +3970,7 @@ class SessionsAPI(APINamespace):
         self, project_uid: str, session_uid: str, /, *, export_ignored: bool = False
     ) -> Job:
         """
-        Create and enqueue a Live Exposure Export job for a session
+        Create and queue a session Live Exposure Export job. Job will run on master.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"

@@ -1,5 +1,17 @@
 # Changelog
 
+## v5.1.0
+
+- BREAKING: Dropped official Python 3.8 support, minimum supported version is now Python 3.9
+- Added: Additional Project, Workspace and Job functions
+- Added: Path field readers for datasets
+- Updated: `CryoSPARC` initialization uses the first available signed-in URL if none is specified, and `http://` if no protocol is specified
+- Updated: `job.load_output()` includes `slots` specified by field, e.g., `slots=["ctf/type"]` will include all `ctf` fields
+- Fixed: Reading STAR files with simple data blocks no longer attaches the following loop to them
+- Fixed: Restore computed job spec fields
+- Docs: New CryoSPARC Live example notebook and tutorial video
+- Docs: Corrected job queue and kill docstrings, audited controller docstrings and added a note on phase one workers per GPU
+
 ## v5.0.3
 
 - Fixed: correct session/workspace API type signatures
