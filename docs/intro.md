@@ -42,7 +42,7 @@ Most scripts written for v4 will work with v5 without changes. Scripts that use 
 
 ## Pre-requisites
 
-- [Python ≥ 3.8](https://www.python.org/downloads/)
+- [Python ≥ 3.10](https://www.python.org/downloads/)
 - [CryoSPARC ≥ v5.0](https://cryosparc.com/download)
 - A terminal program to run commands
 
@@ -215,17 +215,24 @@ jupyter notebook --no-browser --ip=0.0.0.0 --port=8888
 The example Jupyter notebooks require additional dependencies to run. Use [conda](https://docs.conda.io/en/latest/) or [mamba](https://mamba.readthedocs.io/en/latest/) to create a new Python environment with the required dependencies. Here, the environment is named `cryosparc-tools-example` but any name may be used:
 
 ```sh
-conda create -n cryosparc-tools-example -c conda-forge python=3 numpy==1.18.5
+conda create -n cryosparc-tools-example -c conda-forge python=3
 conda activate cryosparc-tools-example
-pip install matplotlib~=3.4.0 pandas==1.1.4 cryosparc-tools
+pip install numpy pandas matplotlib cryosparc-tools
 ```
 
 For speed, these do not include the dependencies for the crYOLO example
-notebook. Optionally install crYOLO with these commands:
+notebook. Install crYOLO to the `cryolo` environment with these commands:
 
 ```sh
-conda install -c conda-forge pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme 'setuptools<66'
+conda create -n cryolo -c conda-forge python=3 numpy==1.18.5 \
+  pyqt=5 libtiff wxPython=4.1.1 adwaita-icon-theme 'setuptools<66'
+conda activate cryolo
+pip install matplotlib~=3.4.0 pandas==1.1.4 cryosparc-tools
 pip install 'cryolo[c11]' --extra-index-url https://pypi.ngc.nvidia.com
+```
+
+```{warning}
+crYOLO requires Python 3.8 and is not compatible with CryoSPARC Tools v5.1+ (Python 3.10+)
 ```
 
 Then proceed with the Jupyter notebook installation above.
