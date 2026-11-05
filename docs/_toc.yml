@@ -12,7 +12,6 @@ parts:
     numbered: True
     chapters:
       - file: examples/recenter-particles
-      - file: examples/cryolo
       - file: examples/3dflex-custom-latent-trajectory
       - file: examples/3dflex-custom-mesh-rigidity-weights
       - file: examples/hi-res-2d-classes
@@ -22,6 +21,7 @@ parts:
       - file: examples/upscale-expanded-particles
       - file: examples/connect_series_to_class3D
       - file: examples/live-session
+      - file: examples/cryolo
   - caption: API Reference
     chapters:
       - file: api
