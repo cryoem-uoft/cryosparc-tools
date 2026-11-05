@@ -2,6 +2,9 @@
 Functions and classes for performing and storing user authentication operations.
 """
 
+import os
+import stat
+import sys
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -19,6 +22,21 @@ from .util import first
 @lru_cache(maxsize=1)
 def get_default_auth_config_path():
     return user_config_path() / "cryosparc-tools" / "auth.json"
+
+
+def warn_if_auth_config_permissions_too_open(path: Optional[Path] = None):
+    if sys.platform == "win32":
+        return
+    if not path:
+        path = get_default_auth_config_path()
+    try:
+        mode = stat.S_IMODE(path.stat().st_mode)
+    except FileNotFoundError:
+        return
+    if mode & 0o077:
+        warn(
+            f"Auth sessions file at {path} has permissions {oct(mode)}; should only be accessible by its owner (0o600)"
+        )
 
 
 class AuthSession(BaseModel):
@@ -95,7 +113,13 @@ class InstanceAuthSessions(RootModel):
         if not path:
             path = get_default_auth_config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.model_dump_json(indent=4))
+        data = self.model_dump_json(indent=4)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, data.encode())
+        finally:
+            os.close(fd)
+        os.chmod(path, 0o600)
 
     def find(self, url: Optional[str] = None, email: Optional[str] = None) -> Optional[Tuple[str, AuthSession]]:
         """

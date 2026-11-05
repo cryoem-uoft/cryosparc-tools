@@ -8,7 +8,7 @@ from getpass import getpass
 
 from . import __version__
 from .api import APIClient
-from .auth import InstanceAuthSessions, get_default_auth_config_path
+from .auth import InstanceAuthSessions, get_default_auth_config_path, warn_if_auth_config_permissions_too_open
 from .constants import API_SUFFIX
 from .errors import APIError
 
@@ -68,6 +68,7 @@ def login(args: Namespace):
     if not re.match(r"^https?://", args.url):
         args.url = "http://" + args.url
 
+    warn_if_auth_config_permissions_too_open()
     sessions = InstanceAuthSessions.load()
 
     expiration_date = (datetime.now() + timedelta(seconds=expires_in)).replace(microsecond=0)
