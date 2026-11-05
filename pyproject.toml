@@ -21,7 +21,7 @@ classifiers = [
 license = { file = "LICENSE" }
 # license = "BSD-3-Clause"  # Note: replace line above with this when supported
 dependencies = [
-    "numpy >= 1.17, < 3.0",
+    "numpy >= 1.22, < 3.0",
     "httpx ~= 0.25",
     "pydantic ~= 2.8",
     "typing-extensions >= 4.6",
@@ -39,7 +39,7 @@ dev = [
     "pytest-benchmark",
     "pytest-xdist[psutil]",
     "ruff",
-    "setuptools"
+    "setuptools",
 ]
 
 build = ["build", "autodocsumm", "cython", "jupyter-book < 2.0"]
@@ -51,7 +51,12 @@ Repository = "https://github.com/cryoem-uoft/cryosparc-tools"
 Changelog = "https://github.com/cryoem-uoft/cryosparc-tools/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
-packages = ["cryosparc", "cryosparc.dataset", "cryosparc.models", "cryosparc.controllers"]
+packages = [
+    "cryosparc",
+    "cryosparc.dataset",
+    "cryosparc.models",
+    "cryosparc.controllers",
+]
 
 [build-system]
 requires = ["setuptools", "cython"]
@@ -67,7 +72,7 @@ exclude = [
     "**/__pycache__",
     "**/.*",
     "cryosparc/include/**/*.py",
-    "docs/_build/**/*.py"
+    "docs/_build/**/*.py",
 ]
 
 [tool.ruff]
