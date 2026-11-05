@@ -3,7 +3,7 @@ name = "cryosparc-tools"
 version = "5.1.0"
 description = "Toolkit for interfacing with CryoSPARC"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
     { name = "Structura Biotechnology Inc.", email = "info@structura.bio" },
 ]

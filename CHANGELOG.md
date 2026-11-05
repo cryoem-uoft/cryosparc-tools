@@ -2,7 +2,7 @@
 
 ## v5.1.0
 
-- BREAKING: Dropped official Python 3.8 and 3.9 support, minimum supported version is now Python 3.10
+- BREAKING: Dropped Python 3.8 and 3.9 support, minimum supported version is now Python 3.10
 - Added: Additional Project, Workspace and Job functions
 - Added: Path field readers for datasets
 - Updated: `CryoSPARC` initialization uses the first available signed-in URL if none is specified, and `http://` if no protocol is specified
