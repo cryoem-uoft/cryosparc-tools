@@ -1,10 +1,11 @@
+import stat
 from base64 import b64decode
 from io import BytesIO
 
 import numpy as n
 import pytest
 
-from cryosparc.dataset import CSDAT_FORMAT, Column
+from cryosparc.dataset import CSDAT_FORMAT, NUMPY_FORMAT, Column
 from cryosparc.dataset.row import Row
 
 from .conftest import Dataset
@@ -243,6 +244,77 @@ def test_save():
     assert expected.dtype.descr == actual.dtype.descr
     assert all(all(n.equal(expected[d[0]], actual[d[0]])) for d in dtype if d[0] != "field3")
     assert all(e.decode() == a.decode() for e, a in zip(expected["field3"], actual["field3"]))
+
+
+@pytest.mark.parametrize("format", [NUMPY_FORMAT, CSDAT_FORMAT])
+def test_save_replaces_existing_file(tmp_path, format):
+    dataset_path = tmp_path / "dataset.cs"
+    original = Dataset({"test/value": ["old"]})
+    original.save(dataset_path, format=format)
+    original_mode = 0o664
+    dataset_path.chmod(original_mode)
+
+    replacement = Dataset({"test/value": ["new"]})
+    replacement.save(dataset_path, format=format)
+
+    assert Dataset.load(dataset_path) == replacement
+    assert stat.S_IMODE(dataset_path.stat().st_mode) == original_mode
+
+
+@pytest.mark.parametrize("format", [NUMPY_FORMAT, CSDAT_FORMAT])
+def test_save_failure_preserves_existing_file(tmp_path, monkeypatch, format):
+    dataset_path = tmp_path / "dataset.cs"
+    original = Dataset({"test/value": ["old"]})
+    original.save(dataset_path, format=format)
+    replacement = Dataset({"test/value": ["new"]})
+
+    if format == NUMPY_FORMAT:
+
+        def fail_to_records(self, fixed=False):
+            raise RuntimeError("serialization failed")
+
+        monkeypatch.setattr(Dataset, "to_records", fail_to_records)
+    else:
+
+        def fail_stream(self, compression=None):
+            yield b"partial"
+            raise RuntimeError("serialization failed")
+
+        monkeypatch.setattr(Dataset, "stream", fail_stream)
+
+    with pytest.raises(RuntimeError, match="serialization failed"):
+        replacement.save(dataset_path, format=format)
+
+    assert Dataset.load(dataset_path) == original
+    assert list(tmp_path.iterdir()) == [dataset_path]
+
+
+@pytest.mark.parametrize("format", [NUMPY_FORMAT, CSDAT_FORMAT])
+def test_save_to_file_handle(format):
+    dataset = Dataset({"test/value": ["value"]})
+    buffer = BytesIO()
+
+    dataset.save(buffer, format=format)
+    buffer.seek(0)
+
+    assert Dataset.load(buffer) == dataset
+
+
+def test_save_to_symlink_destination(tmp_path):
+    target_path = tmp_path / "target.cs"
+    symlink_path = tmp_path / "symlink.cs"
+    original = Dataset({"test/value": ["old"]})
+    original.save(target_path)
+    try:
+        symlink_path.symlink_to(target_path)
+    except (NotImplementedError, OSError) as error:
+        pytest.skip(f"Symlink creation unavailable: {error}")
+
+    replacement = Dataset({"test/value": ["new"]})
+    replacement.save(symlink_path)
+
+    assert symlink_path.is_symlink()
+    assert Dataset.load(target_path) == replacement
 
 
 def test_load(io_data):

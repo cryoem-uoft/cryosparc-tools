@@ -24,8 +24,10 @@ Dataset supports:
 
 """
 
+import stat
 from functools import reduce
-from pathlib import PurePath
+from pathlib import Path, PurePath
+from tempfile import NamedTemporaryFile
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -650,7 +652,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if (
             os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true"
             and isinstance(file, (str, PurePath))
-            and os.stat(file).st_size > ONE_MIB
+            and Path(file).stat().st_size > ONE_MIB
         ):
             # Use mmap to avoid loading full record array into memory
             # cast path to a string for older numpy/python
@@ -792,16 +794,48 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Raises:
             TypeError: If invalid format specified
         """
-        if format == NUMPY_FORMAT:
-            outdata = self.to_records(fixed=True)
-            with bopen(file, "wb") as f:
-                n.save(f, outdata, allow_pickle=False)
-        elif format == CSDAT_FORMAT:
-            with bopen(file, "wb") as f:
-                for chunk in self.stream(compression="lz4"):
-                    f.write(chunk)
-        else:
+        if format not in (NUMPY_FORMAT, CSDAT_FORMAT):
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
+
+        if not isinstance(file, (str, PurePath)):
+            with bopen(file, "wb") as f:
+                if format == NUMPY_FORMAT:
+                    outdata = self.to_records(fixed=True)
+                    n.save(f, outdata, allow_pickle=False)
+                else:
+                    for chunk in self.stream(compression="lz4"):
+                        f.write(chunk)
+            return
+
+        if isinstance(file, str) and file.endswith("/") or (destination := Path(file).resolve(strict=False)).is_dir():
+            raise IsADirectoryError(f"Dataset save path is a directory: {file}")
+        temp_path = None
+        try:
+            with NamedTemporaryFile(
+                mode="wb",
+                prefix=".dataset-",
+                suffix=".tmp",
+                dir=destination.parent,
+                delete=False,
+            ) as temp_file:
+                temp_path = Path(temp_file.name)
+                with bopen(temp_file, "wb") as f:
+                    if format == NUMPY_FORMAT:
+                        outdata = self.to_records(fixed=True)
+                        n.save(f, outdata, allow_pickle=False)
+                    else:
+                        for chunk in self.stream(compression="lz4"):
+                            f.write(chunk)
+            if destination.exists():
+                destination_mode = stat.S_IMODE(destination.stat().st_mode)
+                temp_path.chmod(destination_mode)
+            temp_path.replace(destination)
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink()
+                except FileNotFoundError:
+                    pass
 
     def stream(self, compression: Literal["lz4", None] = None) -> Iterator[bytes]:
         """
