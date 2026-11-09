@@ -251,8 +251,8 @@ def test_save_replaces_existing_file(tmp_path, format):
     dataset_path = tmp_path / "dataset.cs"
     original = Dataset({"test/value": ["old"]})
     original.save(dataset_path, format=format)
-    original_mode = 0o664
-    dataset_path.chmod(original_mode)
+    dataset_path.chmod(0o664)
+    original_mode = stat.S_IMODE(dataset_path.stat().st_mode)
 
     replacement = Dataset({"test/value": ["new"]})
     replacement.save(dataset_path, format=format)
