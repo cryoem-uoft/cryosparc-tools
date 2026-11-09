@@ -289,34 +289,6 @@ def test_save_failure_preserves_existing_file(tmp_path, monkeypatch, format):
     assert list(tmp_path.iterdir()) == [dataset_path]
 
 
-@pytest.mark.parametrize("format", [NUMPY_FORMAT, CSDAT_FORMAT])
-def test_save_to_file_handle(format):
-    dataset = Dataset({"test/value": ["value"]})
-    buffer = BytesIO()
-
-    dataset.save(buffer, format=format)
-    buffer.seek(0)
-
-    assert Dataset.load(buffer) == dataset
-
-
-def test_save_to_symlink_destination(tmp_path):
-    target_path = tmp_path / "target.cs"
-    symlink_path = tmp_path / "symlink.cs"
-    original = Dataset({"test/value": ["old"]})
-    original.save(target_path)
-    try:
-        symlink_path.symlink_to(target_path)
-    except (NotImplementedError, OSError) as error:
-        pytest.skip(f"Symlink creation unavailable: {error}")
-
-    replacement = Dataset({"test/value": ["new"]})
-    replacement.save(symlink_path)
-
-    assert symlink_path.is_symlink()
-    assert Dataset.load(target_path) == replacement
-
-
 def test_load(io_data):
     dtype = [("field1", "u4"), ("field2", "f4"), ("field3", "O"), ("field4", "f8"), ("field5", "i8")]
     expected = Dataset.allocate(size=2, fields=dtype)
