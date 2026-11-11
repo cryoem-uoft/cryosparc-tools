@@ -383,14 +383,17 @@ def safe_write_bopen(file: BinaryFile, *, tmpprefix=".cstools-", tmpsuffix=".tmp
     if target.is_dir():
         raise IsADirectoryError(f"Cannot write to directory {target}")
 
-    with NamedTemporaryFile(mode="wb", prefix=tmpprefix, suffix=tmpsuffix, dir=str(target.parent), delete=False) as tmp:
-        tmp_path = Path(tmp.name)
-        try:
+    tmp_path = None
+    try:
+        with NamedTemporaryFile(
+            mode="wb", prefix=tmpprefix, suffix=tmpsuffix, dir=str(target.parent), delete=False
+        ) as tmp:
+            tmp_path = Path(tmp.name)
             yield tmp
             if target.exists():
                 target_mode = stat.S_IMODE(target.stat().st_mode)
                 tmp_path.chmod(target_mode)
             tmp_path.replace(target)
-        finally:
-            if tmp_path.exists():
-                tmp_path.unlink()
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink()
