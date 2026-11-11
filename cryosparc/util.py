@@ -390,10 +390,10 @@ def safe_write_bopen(file: BinaryFile, *, tmpprefix=".cstools-", tmpsuffix=".tmp
         ) as tmp:
             tmp_path = Path(tmp.name)
             yield tmp
-            if target.exists():
-                target_mode = stat.S_IMODE(target.stat().st_mode)
-                tmp_path.chmod(target_mode)
-            tmp_path.replace(target)
+        if target.exists():
+            target_mode = stat.S_IMODE(target.stat().st_mode)
+            tmp_path.chmod(target_mode)
+        tmp_path.replace(target)
     finally:
         if tmp_path is not None and tmp_path.exists():
             tmp_path.unlink()
