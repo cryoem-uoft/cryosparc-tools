@@ -25,7 +25,7 @@ Dataset supports:
 """
 
 from functools import reduce
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -55,7 +55,7 @@ from typing_extensions import Self
 from ..constants import ONE_MIB
 from ..errors import DatasetLoadError
 from ..stream import AsyncReadable, Streamable
-from ..util import BinaryFile, bopen, default_rng, random_integers, u32bytesle, u32intle
+from ..util import BinaryFile, bopen, default_rng, random_integers, safe_write_bopen, u32bytesle, u32intle
 from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
@@ -650,7 +650,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if (
             os.getenv("CRYOSPARC_DATASET_MMAP", "true").lower() == "true"
             and isinstance(file, (str, PurePath))
-            and os.stat(file).st_size > ONE_MIB
+            and Path(file).stat().st_size > ONE_MIB
         ):
             # Use mmap to avoid loading full record array into memory
             # cast path to a string for older numpy/python
@@ -792,16 +792,16 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Raises:
             TypeError: If invalid format specified
         """
-        if format == NUMPY_FORMAT:
-            outdata = self.to_records(fixed=True)
-            with bopen(file, "wb") as f:
+        if format not in (NUMPY_FORMAT, CSDAT_FORMAT):
+            raise TypeError(f"Invalid dataset save format for {file}: {format}")
+
+        with safe_write_bopen(file, tmpprefix=".dataset-") as f:
+            if format == NUMPY_FORMAT:
+                outdata = self.to_records(fixed=True)
                 n.save(f, outdata, allow_pickle=False)
-        elif format == CSDAT_FORMAT:
-            with bopen(file, "wb") as f:
+            else:
                 for chunk in self.stream(compression="lz4"):
                     f.write(chunk)
-        else:
-            raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
     def stream(self, compression: Literal["lz4", None] = None) -> Iterator[bytes]:
         """

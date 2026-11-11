@@ -1,12 +1,15 @@
+import stat
 import warnings
 from contextlib import contextmanager
-from pathlib import PurePath, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
+from tempfile import NamedTemporaryFile
 from typing import (
     IO,
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
+    Generator,
     Generic,
     Iterator,
     List,
@@ -355,3 +358,42 @@ def clear_cached_property(obj: object, name: str):
     """
     if name in obj.__dict__:
         delattr(obj, name)
+
+
+@contextmanager
+def safe_write_bopen(file: BinaryFile, *, tmpprefix=".cstools-", tmpsuffix=".tmp") -> Generator[IO[bytes], None, None]:
+    """
+    "with open(...)" alias. If a path is given, creates a named temporary file
+    and yields it for writing. If the context exits without exception, the
+    temporary file is renamed to the given path. If an exception occurs, the
+    temporary file is deleted.
+
+    Args:
+        file (str | Path | IO): binary file path or handle
+        mode (OpenBinaryMode, optional): File open mode. Defaults to "wb".
+
+    Yields:
+        IO: Binary file handle
+    """
+    if not isinstance(file, (str, PurePath)):
+        yield file
+        return
+
+    target = Path(file)
+    if target.is_dir():
+        raise IsADirectoryError(f"Cannot write to directory {target}")
+
+    tmp_path = None
+    try:
+        with NamedTemporaryFile(
+            mode="wb", prefix=tmpprefix, suffix=tmpsuffix, dir=str(target.parent), delete=False
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+            yield tmp
+        if target.exists():
+            target_mode = stat.S_IMODE(target.stat().st_mode)
+            tmp_path.chmod(target_mode)
+        tmp_path.replace(target)
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink()
