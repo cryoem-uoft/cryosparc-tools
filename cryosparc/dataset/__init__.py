@@ -24,10 +24,8 @@ Dataset supports:
 
 """
 
-import stat
 from functools import reduce
 from pathlib import Path, PurePath
-from tempfile import NamedTemporaryFile
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -57,7 +55,7 @@ from typing_extensions import Self
 from ..constants import ONE_MIB
 from ..errors import DatasetLoadError
 from ..stream import AsyncReadable, Streamable
-from ..util import BinaryFile, bopen, default_rng, random_integers, u32bytesle, u32intle
+from ..util import BinaryFile, bopen, default_rng, random_integers, safe_write_bopen, u32bytesle, u32intle
 from .column import Column
 from .core import Data, DsetType, Stream
 from .dtype import (
@@ -797,45 +795,13 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         if format not in (NUMPY_FORMAT, CSDAT_FORMAT):
             raise TypeError(f"Invalid dataset save format for {file}: {format}")
 
-        if not isinstance(file, (str, PurePath)):
-            with bopen(file, "wb") as f:
-                if format == NUMPY_FORMAT:
-                    outdata = self.to_records(fixed=True)
-                    n.save(f, outdata, allow_pickle=False)
-                else:
-                    for chunk in self.stream(compression="lz4"):
-                        f.write(chunk)
-            return
-
-        if isinstance(file, str) and file.endswith("/") or (destination := Path(file).resolve(strict=False)).is_dir():
-            raise IsADirectoryError(f"Dataset save path is a directory: {file}")
-        temp_path = None
-        try:
-            with NamedTemporaryFile(
-                mode="wb",
-                prefix=".dataset-",
-                suffix=".tmp",
-                dir=destination.parent,
-                delete=False,
-            ) as temp_file:
-                temp_path = Path(temp_file.name)
-                with bopen(temp_file, "wb") as f:
-                    if format == NUMPY_FORMAT:
-                        outdata = self.to_records(fixed=True)
-                        n.save(f, outdata, allow_pickle=False)
-                    else:
-                        for chunk in self.stream(compression="lz4"):
-                            f.write(chunk)
-            if destination.exists():
-                destination_mode = stat.S_IMODE(destination.stat().st_mode)
-                temp_path.chmod(destination_mode)
-            temp_path.replace(destination)
-        finally:
-            if temp_path is not None:
-                try:
-                    temp_path.unlink()
-                except FileNotFoundError:
-                    pass
+        with safe_write_bopen(file, tmpprefix=".dataset-") as f:
+            if format == NUMPY_FORMAT:
+                outdata = self.to_records(fixed=True)
+                n.save(f, outdata, allow_pickle=False)
+            else:
+                for chunk in self.stream(compression="lz4"):
+                    f.write(chunk)
 
     def stream(self, compression: Literal["lz4", None] = None) -> Iterator[bytes]:
         """
