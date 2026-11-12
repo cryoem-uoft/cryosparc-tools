@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,28 +11,28 @@ class JobGroupMeta(BaseModel):
     Meta information a user-defined group of jobs within a workspace.
     """
 
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    color: Optional[str] = None
+    color: str | None = None
     """
     """
 
 
 class JobGroup(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    color: Optional[str] = None
+    color: str | None = None
     """
     """
-    jobs: List[str]
+    jobs: list[str]
     """
     """
     id: int
@@ -45,16 +45,16 @@ class JobGroupCreate(BaseModel):
     Create a user-defined group of jobs within a workspace.
     """
 
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    color: Optional[str] = None
+    color: str | None = None
     """
     """
-    jobs: List[str]
+    jobs: list[str]
     """
     """
 
@@ -64,16 +64,16 @@ class JobGroupUpdate(BaseModel):
     Update a user-defined group of jobs within a workspace.
     """
 
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    color: Optional[str] = None
+    color: str | None = None
     """
     """
-    jobs: Optional[List[str]] = None
+    jobs: list[str] | None = None
     """
     """
 
@@ -83,21 +83,21 @@ class WorkspaceStats(BaseModel):
     Statistics about the contents of a workspace.
     """
 
-    updated_at: Optional[datetime.datetime] = None
+    updated_at: datetime.datetime | None = None
     """
     """
     job_count: int = 0
     """
     """
-    job_sections: Dict[str, int] = {}
+    job_sections: dict[str, int] = {}
     """
     Number of jobs per section.
     """
-    job_status: Dict[str, int] = {}
+    job_status: dict[str, int] = {}
     """
     Number of jobs per status.
     """
-    job_types: Dict[str, int] = {}
+    job_types: dict[str, int] = {}
     """
     Number of jobs per type.
     """
@@ -137,11 +137,11 @@ class Workspace(BaseModel):
     When this object was first created. Imported objects such as projects
     and jobs will retain the created time from their original CryoSPARC instance.
     """
-    dumped_at: Optional[datetime.datetime] = None
+    dumped_at: datetime.datetime | None = None
     """
     When the model was last dumped to disk
     """
-    last_dumped_version: Optional[str] = None
+    last_dumped_version: str | None = None
     """
     The version of CryoSPARC last dumped at
     """
@@ -169,23 +169,23 @@ class Workspace(BaseModel):
     compatibility between CryoSPARC versions, similar to the ``schema_version``
     present in projects.
     """
-    created_by_user_id: Optional[str] = None
+    created_by_user_id: str | None = None
     """
     User ID that created the workspace.
     """
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    created_by_job_uid: Optional[str] = None
+    created_by_job_uid: str | None = None
     """
     """
-    tags: List[str] = []
+    tags: list[str] = []
     """
     """
-    starred_by: List[str] = []
+    starred_by: list[str] = []
     """
     List of user IDs who have starred the workspace.
     """
@@ -195,16 +195,16 @@ class Workspace(BaseModel):
     deleting: bool = False
     """
     """
-    last_accessed: Optional[WorkspaceLastAccessed] = None
+    last_accessed: WorkspaceLastAccessed | None = None
     """
     """
     workspace_stats: WorkspaceStats = WorkspaceStats()
     """
     """
-    imported_at: Optional[datetime.datetime] = None
+    imported_at: datetime.datetime | None = None
     """
     """
-    groups: List[JobGroup] = []
+    groups: list[JobGroup] = []
     """
     """
     uid_num: int

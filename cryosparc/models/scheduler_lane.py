@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ class SchedulerLane(BaseModel):
     """
     Identifier for this lane.
     """
-    type: Literal["node", "cluster"]
+    type: Literal["node", "cluster", "awsbatch"]
     """
     What kind of lane this is based on how on what kind of target(s) it contains.
     """
@@ -23,7 +23,7 @@ class SchedulerLane(BaseModel):
     """
     Human-readable lane title.
     """
-    desc: Optional[str] = None
+    desc: str | None = None
     """
     Optional lane description
     """

@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -16,7 +16,7 @@ class DeleteJobPreview(BaseModel):
     uid: str
     """
     """
-    workspace_uids: List[str]
+    workspace_uids: list[str]
     """
     """
     status: str
@@ -41,7 +41,7 @@ class DeleteProjectWorkspacePreview(BaseModel):
     uid: str
     """
     """
-    title: Optional[str]
+    title: str | None
     """
     """
 
@@ -51,10 +51,10 @@ class DeleteProjectPreview(BaseModel):
     Preview of a project delete operation, including jobs and workspaces that will be deleted.
     """
 
-    jobs: List[DeleteJobPreview]
+    jobs: list[DeleteJobPreview]
     """
     """
-    workspaces: List[DeleteProjectWorkspacePreview]
+    workspaces: list[DeleteProjectWorkspacePreview]
     """
     """
 
@@ -70,7 +70,7 @@ class KeepJobPreview(BaseModel):
     uid: str
     """
     """
-    workspace_uids: List[str]
+    workspace_uids: list[str]
     """
     """
     status: str
@@ -88,11 +88,11 @@ class KeepJobPreview(BaseModel):
     descendants is marked a final, or "descendants" because it has children that
     are not or cannot be deleted.
     """
-    descendant_job_uids: List[str] = []
+    descendant_job_uids: list[str] = []
     """
     This job's descendant UIDs that cannot be deleted.
     """
-    descendant_workspace_uids: List[str] = []
+    descendant_workspace_uids: list[str] = []
     """
     Workspaces that contain this job's descendants that cannot be deleted.
     """
@@ -105,20 +105,39 @@ class DeleteWorkspacePreview(BaseModel):
     workspace will not be marked as deleted.
     """
 
-    delete: List[DeleteJobPreview]
+    delete: list[DeleteJobPreview]
     """
     Jobs to be deleted.
     """
-    unlink: List[DeleteJobPreview]
+    unlink: list[DeleteJobPreview]
     """
     Jobs to be unlinked.
     """
-    keep: List[KeepJobPreview]
+    keep: list[KeepJobPreview]
     """
     Jobs that cannot be deleted, either because they are final or have descendants.
     """
-    jobs: List[DeleteJobPreview]
+    jobs: list[DeleteJobPreview]
     """
+    """
+
+
+class ExportBundlePreview(BaseModel):
+    """
+    Preview of an exported job/result-group bundle
+    """
+
+    num_files: int
+    """
+    Number of files that would be copied.
+    """
+    preserve_symlinks_size_bytes: int
+    """
+    Total data transferred if copied with symlinks preserved
+    """
+    dereference_symlinks_size_bytes: int
+    """
+    Total data transferred if copied with symlinks dereferenced
     """
 
 
@@ -133,7 +152,7 @@ class JobPreview(BaseModel):
     uid: str
     """
     """
-    workspace_uids: List[str]
+    workspace_uids: list[str]
     """
     """
     status: str
@@ -158,7 +177,7 @@ class SplitWorkspacePreview(BaseModel):
     uid: str
     """
     """
-    title: Optional[str]
+    title: str | None
     """
     """
 
@@ -177,7 +196,7 @@ class SplitSessionPreview(BaseModel):
     session_uid: str
     """
     """
-    title: Optional[str]
+    title: str | None
     """
     """
 
@@ -187,15 +206,15 @@ class SplitProjectPreview(BaseModel):
     Preview of a project split operation.
     """
 
-    jobs: List[JobPreview]
+    jobs: list[JobPreview]
     """
     """
-    external_parent_jobs: List[JobPreview]
+    external_parent_jobs: list[JobPreview]
     """
     """
-    workspaces: List[SplitWorkspacePreview]
+    workspaces: list[SplitWorkspacePreview]
     """
     """
-    sessions: List[SplitSessionPreview]
+    sessions: list[SplitSessionPreview]
     """
     """

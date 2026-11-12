@@ -1,12 +1,69 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal
 
 from pydantic import BaseModel
 
 from .gpu import Gpu
 from .resource import FixedResourceSlots, ResourceSlots
 from .version import Arch
+
+
+class AWSBatchNodeType(BaseModel):
+    name: str
+    """
+    """
+    cpus: int
+    """
+    """
+    gpus: int
+    """
+    """
+    ram_gb: int
+    """
+    """
+    ssd_gb: int
+    """
+    """
+
+
+class AWSBatchJobQueue(BaseModel):
+    arn: str
+    """
+    """
+    node_types: list[AWSBatchNodeType]
+    """
+    """
+    worker_bin_path: str
+    """
+    Path to cryosparc_worker/bin/cryosparcw executable for this job queue.
+    """
+
+
+class AWSBatch(BaseModel):
+    """
+    AWS Batch-type scheduler target details
+    """
+
+    type: Literal["awsbatch"] = "awsbatch"
+    """
+    """
+    job_definition_arn: str
+    """
+    ARN of the AWS Batch job definition to use when submitting jobs.
+    """
+    job_queues: list[AWSBatchJobQueue]
+    """
+    List of AWS Batch job queues to submit to, with details on the node types available in each queue.
+    """
+    region_name: str = "us-east-1"
+    """
+    AWS region name where the Batch job queues are located.
+    """
+    gpu_concurrency_limit: int | None = None
+    """
+    If set, limit concurrent GPU usage to this amount.
+    """
 
 
 class Node(BaseModel):
@@ -30,11 +87,11 @@ class Node(BaseModel):
     """
     Available fixed resources.
     """
-    monitor_port: Optional[int] = None
+    monitor_port: int | None = None
     """
     Not used.
     """
-    gpus: Optional[List[Gpu]] = None
+    gpus: list[Gpu] | None = None
     """
     Details for all GPUs available on this node, including those excluded from ``resource_slots``.
     """
@@ -73,15 +130,19 @@ class Cluster(BaseModel):
     """
     Full cluster submission script Jinja template.
     """
-    custom_vars: Dict[str, str] = {}
+    custom_vars: dict[str, str] = {}
     """
     Custom variable values
     """
-    tpl_vars: List[str]
+    gpu_concurrency_limit: int | None = None
+    """
+    If set, limit concurrent GPU usage to this amount.
+    """
+    tpl_vars: list[str]
     """
     List of template variable names in a cluster target
     """
-    custom_var_names: List[str]
+    custom_var_names: list[str]
     """
     Computed list if custom variable names defined in the template
     """
@@ -92,16 +153,16 @@ class SchedulerTarget(BaseModel):
     Details and configuration for a node or cluster target.
     """
 
-    cache_path: Optional[str] = None
+    cache_path: str | None = None
     """
     Path the SSD cache scratch directory, if applicable.
     """
-    cache_reserve_mb: Optional[int] = None
+    cache_reserve_mb: int | None = None
     """
     Ensure at least this much space is free on the SSD scratch drive before
     caching.
     """
-    cache_quota_mb: Optional[int] = None
+    cache_quota_mb: int | None = None
     """
     Do not cache more than this amount on the SSD scrath drive..
     """
@@ -117,7 +178,7 @@ class SchedulerTarget(BaseModel):
     """
     Human-readable title for this target.
     """
-    desc: Optional[str] = None
+    desc: str | None = None
     """
     Human-readable description for this target.
     """
@@ -129,7 +190,7 @@ class SchedulerTarget(BaseModel):
     """
     Path to cryosparc_worker/bin/cryosparcw executable.
     """
-    config: Union[Node, Cluster]
+    config: Node | Cluster | AWSBatch
     """
     Target configuration details.
     """
@@ -140,16 +201,16 @@ class SchedulerTarget(BaseModel):
 
 
 class SchedulerTargetCluster(BaseModel):
-    cache_path: Optional[str] = None
+    cache_path: str | None = None
     """
     Path the SSD cache scratch directory, if applicable.
     """
-    cache_reserve_mb: Optional[int] = None
+    cache_reserve_mb: int | None = None
     """
     Ensure at least this much space is free on the SSD scratch drive before
     caching.
     """
-    cache_quota_mb: Optional[int] = None
+    cache_quota_mb: int | None = None
     """
     Do not cache more than this amount on the SSD scrath drive..
     """
@@ -165,7 +226,7 @@ class SchedulerTargetCluster(BaseModel):
     """
     Human-readable title for this target.
     """
-    desc: Optional[str] = None
+    desc: str | None = None
     """
     Human-readable description for this target.
     """
@@ -188,16 +249,16 @@ class SchedulerTargetCluster(BaseModel):
 
 
 class SchedulerTargetNode(BaseModel):
-    cache_path: Optional[str] = None
+    cache_path: str | None = None
     """
     Path the SSD cache scratch directory, if applicable.
     """
-    cache_reserve_mb: Optional[int] = None
+    cache_reserve_mb: int | None = None
     """
     Ensure at least this much space is free on the SSD scratch drive before
     caching.
     """
-    cache_quota_mb: Optional[int] = None
+    cache_quota_mb: int | None = None
     """
     Do not cache more than this amount on the SSD scrath drive..
     """
@@ -213,7 +274,7 @@ class SchedulerTargetNode(BaseModel):
     """
     Human-readable title for this target.
     """
-    desc: Optional[str] = None
+    desc: str | None = None
     """
     Human-readable description for this target.
     """

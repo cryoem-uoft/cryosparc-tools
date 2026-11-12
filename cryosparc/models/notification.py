@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -21,23 +21,23 @@ class Notification(BaseModel):
     When this object was first created. Imported objects such as projects
     and jobs will retain the created time from their original CryoSPARC instance.
     """
-    project_uid: Optional[str] = None
+    project_uid: str | None = None
     """
     """
-    job_uid: Optional[str] = None
+    job_uid: str | None = None
     """
     """
     message: str
     """
     """
-    progress_pct: Optional[float] = None
+    progress_pct: float | None = None
     """
     Progress percentage (0-100).
     """
     active: bool = True
     """
     """
-    status: Optional[Literal["success", "primary", "warning", "danger"]] = "success"
+    status: Literal["success", "primary", "warning", "danger"] | None = "success"
     """
     """
     icon: str = "flag"
@@ -46,10 +46,10 @@ class Notification(BaseModel):
     hide: bool = False
     """
     """
-    job_status: Optional[JobStatus] = None
+    job_status: JobStatus | None = None
     """
     """
-    ttl_seconds: Optional[int] = 7
+    ttl_seconds: int | None = 7
     """
     Time-to-live in seconds for automatic deactivation.
     """

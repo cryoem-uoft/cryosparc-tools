@@ -3,7 +3,8 @@ Utilities and type definitions for working with dataset fields and column types.
 """
 
 import json
-from typing import TYPE_CHECKING, Callable, Dict, List, Literal, Optional, Sequence, Type, TypedDict, Union
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Literal, TypedDict, Union
 
 import numpy as n
 
@@ -23,7 +24,7 @@ class DatasetHeader(TypedDict):
     length: int
     """Number of rows in the dataset"""
 
-    dtype: List[Field]
+    dtype: list[Field]
     """
     Column description
     """
@@ -31,11 +32,11 @@ class DatasetHeader(TypedDict):
     compression: Literal["lz4", None]
     """Compression library used for in the dataset"""
 
-    compressed_fields: List[str]
+    compressed_fields: list[str]
     """Field names that require decompression."""
 
 
-DSET_TO_TYPE_MAP: Dict[DsetType, Type[Union[n.number, n.object_]]] = {
+DSET_TO_TYPE_MAP: dict[DsetType, type[n.number | n.object_]] = {
     DsetType.T_F32: n.float32,
     DsetType.T_F64: n.float64,
     DsetType.T_C32: n.complex64,
@@ -54,13 +55,11 @@ DSET_TO_TYPE_MAP: Dict[DsetType, Type[Union[n.number, n.object_]]] = {
 
 TYPE_TO_DSET_MAP = {
     **{v: k for k, v in DSET_TO_TYPE_MAP.items()},
-    **{
-        float: DsetType.T_F64,
-        complex: DsetType.T_C64,
-        int: DsetType.T_I64,
-        str: DsetType.T_OBJ,
-        object: DsetType.T_OBJ,
-    },
+    float: DsetType.T_F64,
+    complex: DsetType.T_C64,
+    int: DsetType.T_I64,
+    str: DsetType.T_OBJ,
+    object: DsetType.T_OBJ,
 }
 
 # Set of dataset fields that should not be compressed when saving in
@@ -120,15 +119,15 @@ FieldFilter = Union[Sequence[str], Callable[[str], bool]]
 
 
 def filter_descr(
-    descr: List[Field],
+    descr: list[Field],
     *,
-    keep_prefixes: Optional[FieldFilter] = None,
-    keep_fields: Optional[FieldFilter] = None,
-) -> List[Field]:
+    keep_prefixes: FieldFilter | None = None,
+    keep_fields: FieldFilter | None = None,
+) -> list[Field]:
     # Get a filtered list of fields based on the user-specified prefixies
     # and/or fields. Returns all fields if no filter params are specified.
     # Always returns at least uid field, if it exists.
-    filtered: List[Field] = []
+    filtered: list[Field] = []
     for field in descr:
         name = field[0]
         is_uid = name == "uid"
@@ -150,7 +149,7 @@ def encode_dataset_header(fields: DatasetHeader) -> bytes:
     return json.dumps(fields).encode()
 
 
-def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
+def decode_dataset_header(data: bytes | dict) -> DatasetHeader:
     try:
         header = json.loads(data) if isinstance(data, bytes) else data
         assert isinstance(header, dict), f"Incorrect decoded header type (expected dict, got {type(header)})"
@@ -169,9 +168,9 @@ def decode_dataset_header(data: Union[bytes, dict]) -> DatasetHeader:
         )
 
         length: int = header["length"]
-        dtype: List[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
+        dtype: list[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
         compression: Literal["lz4", None] = header["compression"]
-        compressed_fields: List[str] = header["compressed_fields"]
+        compressed_fields: list[str] = header["compressed_fields"]
 
         return DatasetHeader(
             length=length,

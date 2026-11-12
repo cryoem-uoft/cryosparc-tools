@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +27,7 @@ class InstanceActivity(BaseModel):
     activity: str
     """
     """
-    properties: Dict[str, Any]
+    properties: dict[str, Any]
     """
     """
     timestamp: datetime.datetime
@@ -88,23 +88,23 @@ class InstanceInformation(BaseModel):
     """
     Maximum allowed open file descriptors (hard limit)
     """
-    driver_version: Optional[str] = None
+    driver_version: str | None = None
     """
     Maximum CUDA version supported by Nvidia driver (e.g., "12.9")
     """
-    toolkit_version: Optional[str] = None
+    toolkit_version: str | None = None
     """
     Installed CUDA toolkit version (e.g., "12.8")
     """
-    CUDA_version: Optional[str] = None
+    CUDA_version: str | None = None
     """
     same as toolkit_version, for backwards compatibility :meta private:
     """
-    nvrtc_version: Optional[str] = None
+    nvrtc_version: str | None = None
     """
     Installed NVRTC version (e.g., "12.8")
     """
-    gpu_info: Optional[List[GpuInfo]] = None
+    gpu_info: list[GpuInfo] | None = None
     """
     List of GPU information objects
     """
@@ -116,7 +116,7 @@ class InstanceInformation(BaseModel):
     """
     System architecture (e.g., x86_64)
     """
-    environment: Dict[str, str] = {}
+    environment: dict[str, str] = {}
     """
     Environment variables
     """

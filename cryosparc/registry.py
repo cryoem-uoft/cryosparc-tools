@@ -5,22 +5,23 @@ JSON responses. Used for either cryosparc-tools or cryosparc models.
 
 import re
 import warnings
+from collections.abc import Iterable
 from enum import Enum
 from inspect import isclass
 from types import ModuleType
-from typing import Any, Dict, Iterable, Literal, Optional, Type
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
 from .stream import Streamable
 
 FINALIZED: bool = False
-REGISTERED_TYPED_DICTS: Dict[str, Type[dict]] = {}
-REGISTERED_ENUMS: Dict[str, Type[Enum]] = {}
-REGISTERED_LITERALS: Dict[str, Any] = {}
-LITERAL_MODULE_NAMES: Dict[str, str] = {}
-REGISTERED_MODEL_CLASSES: Dict[str, Type[BaseModel]] = {}
-REGISTERED_STREAM_CLASSES: Dict[str, Type[Streamable]] = {}
+REGISTERED_TYPED_DICTS: dict[str, type[dict]] = {}
+REGISTERED_ENUMS: dict[str, type[Enum]] = {}
+REGISTERED_LITERALS: dict[str, Any] = {}
+LITERAL_MODULE_NAMES: dict[str, str] = {}
+REGISTERED_MODEL_CLASSES: dict[str, type[BaseModel]] = {}
+REGISTERED_STREAM_CLASSES: dict[str, type[Streamable]] = {}
 
 
 def finalize():
@@ -46,17 +47,17 @@ def check_finalized(finalized: bool = True):
     )
 
 
-def register_model(name, model_class: Type[BaseModel]):
+def register_model(name, model_class: type[BaseModel]):
     check_finalized(False)
     REGISTERED_MODEL_CLASSES[name] = model_class
 
 
-def register_typed_dict(name, typed_dict_class: Type[dict]):
+def register_typed_dict(name, typed_dict_class: type[dict]):
     check_finalized(False)
     REGISTERED_TYPED_DICTS[name] = typed_dict_class
 
 
-def register_enum(name, enum_class: Type[Enum]):
+def register_enum(name, enum_class: type[Enum]):
     check_finalized(False)
     REGISTERED_ENUMS[name] = enum_class
 
@@ -68,7 +69,7 @@ def register_literal(name, literal: Any, module_name: str):
 
 
 def is_literal(obj: Any):
-    return hasattr(obj, "__origin__") and getattr(obj, "__origin__") is Literal
+    return hasattr(obj, "__origin__") and obj.__origin__ is Literal
 
 
 def register_model_module(mod: ModuleType, include_literals: bool = False):
@@ -87,7 +88,7 @@ def register_model_module(mod: ModuleType, include_literals: bool = False):
             register_enum(key, val)
 
 
-def model_for_ref(schema_ref: str) -> Optional[Type]:
+def model_for_ref(schema_ref: str) -> type | None:
     """
     Given a string with format either `#/components/schemas/X` or
     `#/components/schemas/X_Y_`, looks up key X in `REGISTERED_MODEL_CLASSES``,
@@ -134,7 +135,7 @@ def is_streamable_mime_type(mime: str):
     return mime in REGISTERED_STREAM_CLASSES
 
 
-def register_stream_class(stream_class: Type[Streamable]):
+def register_stream_class(stream_class: type[Streamable]):
     mime = stream_class.media_type
     assert mime not in REGISTERED_STREAM_CLASSES, (
         f"Cannot register {stream_class}; "
@@ -152,6 +153,6 @@ def streamable_mime_types():
     return set(REGISTERED_STREAM_CLASSES.keys())
 
 
-def first_streamable_mime(strs: Iterable[str]) -> Optional[str]:
+def first_streamable_mime(strs: Iterable[str]) -> str | None:
     mimes = streamable_mime_types() & set(strs)
     return mimes.pop() if len(mimes) > 0 else None

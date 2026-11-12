@@ -14,13 +14,11 @@ from .conftest import Dataset
 @pytest.fixture
 def io_data():
     data = b64decode(
-        (
-            b"k05VTVBZAQCmAHsnZGVzY3InOiBbKCd1aWQnLCAnPHU4JyksICgnZmllbGQxJywgJzx1NCcpLC"
-            b"AoJ2ZpZWxkMicsICc8ZjQnKSwgKCdmaWVsZDMnLCAnfFM2JyksICgnZmllbGQ0JywgJzxmOCcp"
-            b"LCAoJ2ZpZWxkNScsICc8aTgnKV0sICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6IC"
-            b"gyLCksIH0gIAp7AAAAAAAAACoAAADD9UhASGVsbG8AAAAAAAAAAAArAAAAAAAAAMgBAAAAAAAA"
-            b"KgAAAFK4LkBXb3JsZAAAAAAAAADwPysAAAAAAAAA"
-        )
+        b"k05VTVBZAQCmAHsnZGVzY3InOiBbKCd1aWQnLCAnPHU4JyksICgnZmllbGQxJywgJzx1NCcpLC"
+        b"AoJ2ZpZWxkMicsICc8ZjQnKSwgKCdmaWVsZDMnLCAnfFM2JyksICgnZmllbGQ0JywgJzxmOCcp"
+        b"LCAoJ2ZpZWxkNScsICc8aTgnKV0sICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6IC"
+        b"gyLCksIH0gIAp7AAAAAAAAACoAAADD9UhASGVsbG8AAAAAAAAAAAArAAAAAAAAAMgBAAAAAAAA"
+        b"KgAAAFK4LkBXb3JsZAAAAAAAAADwPysAAAAAAAAA"
     )
     return BytesIO(data)
 

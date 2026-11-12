@@ -2,18 +2,12 @@
 Helper module for reading and writing relion star files.
 """
 
+from collections.abc import Callable, Mapping
 from typing import (
     IO,
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
-    List,
     Literal,
-    Mapping,
-    Optional,
-    Tuple,
-    Type,
     overload,
 )
 
@@ -26,7 +20,7 @@ from .util import TextFile, topen
 
 # Available star file fields and their types. Fields marked as type ``object``
 # should always be interepreted as strings.
-RLN_DTYPES: Dict[str, Type[object]] = dict(
+RLN_DTYPES: dict[str, type[object]] = dict(
     rlnComment=object,
     # Area
     rlnAreaId=int,
@@ -484,7 +478,7 @@ RLN_DTYPES: Dict[str, Type[object]] = dict(
 )
 
 
-def read(file: TextFile) -> Dict[str, "NDArray"]:
+def read(file: TextFile) -> dict[str, "NDArray"]:
     """
     Read the given STAR file into memory.
 
@@ -523,7 +517,7 @@ def read(file: TextFile) -> Dict[str, "NDArray"]:
     use_max_rows = "max_rows" in signature(n.loadtxt).parameters
 
     with topen(file, "r") as f:
-        data_blocks: List[tuple] = []
+        data_blocks: list[tuple] = []
         line = 0
         skiprows = 0
 
@@ -556,8 +550,8 @@ def read(file: TextFile) -> Dict[str, "NDArray"]:
                 # Simple block: read the pairs as a single row. Stop at the
                 # first blank line, or put back a line that starts the next
                 # block.
-                labels: List[str] = []
-                values: List[str] = []
+                labels: list[str] = []
+                values: list[str] = []
                 while val.strip().startswith("_") or val.strip().startswith("#"):
                     if val.strip().startswith("_"):
                         label, *value = val.strip()[1:].split(None, 1)
@@ -584,7 +578,7 @@ def read(file: TextFile) -> Dict[str, "NDArray"]:
             )
             line += num
             skiprows += num
-            dtype: List[Tuple[str, Type[object]]] = []
+            dtype: list[tuple[str, type[object]]] = []
             while val:
                 val = val.strip()
                 if val.startswith("_"):
@@ -643,7 +637,7 @@ def write(
     file: TextFile,
     data: Any,
     name: str = "",
-    labels: Optional[List[str]] = None,
+    labels: list[str] | None = None,
 ):
     """
     Write a star file with a single "data\\_" block. Data may be provided as
@@ -727,10 +721,10 @@ def write_blocks(file: TextFile, blocks: Mapping[str, "NDArray"]):
 
 
 @overload
-def _read_until(f: IO[str], line_test: Callable[[str], bool]) -> Tuple[Optional[int], str]: ...
+def _read_until(f: IO[str], line_test: Callable[[str], bool]) -> tuple[int | None, str]: ...
 @overload
-def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof: Literal[True]) -> Tuple[int, str]: ...
-def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof=False) -> Tuple[Optional[int], str]:
+def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof: Literal[True]) -> tuple[int, str]: ...
+def _read_until(f: IO[str], line_test: Callable[[str], bool], allow_eof=False) -> tuple[int | None, str]:
     # Read from the given file handle line-by-line until the line m
     num_lines = 0
     inp = ""

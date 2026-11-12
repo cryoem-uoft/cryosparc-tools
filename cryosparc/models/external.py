@@ -1,6 +1,5 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -20,7 +19,7 @@ class ExternalOutputSpec(BaseModel):
     """
     Specification of output.
     """
-    connection: Optional[OutputRef] = None
+    connection: OutputRef | None = None
     """
     Optional source job UID and output to connect and passthrough unmodified
     results to the output. Must have the same type as in the output spec.

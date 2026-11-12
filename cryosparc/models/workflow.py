@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -10,10 +10,10 @@ from .workspace import JobGroupMeta
 
 
 class AppliedWorkflowTag(BaseModel):
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    colour: Optional[
+    colour: (
         Literal[
             "black",
             "gray",
@@ -29,13 +29,14 @@ class AppliedWorkflowTag(BaseModel):
             "purple",
             "pink",
         ]
-    ] = None
+        | None
+    ) = None
     """
     """
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    uid: Optional[str] = None
+    uid: str | None = None
     """
     """
 
@@ -44,16 +45,16 @@ class WorkflowParentGroup(BaseModel):
     name: str
     """
     """
-    connections: List[str] = []
+    connections: list[str] = []
     """
     """
-    required: List[str] = []
+    required: list[str] = []
     """
     """
 
 
 class WorkflowParent(BaseModel):
-    groups: Dict[str, WorkflowParentGroup] = {}
+    groups: dict[str, WorkflowParentGroup] = {}
     """
     """
     jobType: str
@@ -62,7 +63,7 @@ class WorkflowParent(BaseModel):
 
 
 class WorkflowParameter(BaseModel):
-    value: Union[str, int, float, bool, None] = None
+    value: str | int | float | bool | None = None
     """
     """
     locked: bool = False
@@ -89,19 +90,19 @@ class WorkflowJob(BaseModel):
     description: str = ""
     """
     """
-    parameters: Dict[str, WorkflowParameter] = {}
+    parameters: dict[str, WorkflowParameter] = {}
     """
     """
     spec: JobSpec
     """
     """
-    individualResults: List[List[str]] = []
+    individualResults: list[list[str]] = []
     """
     Array representing result overrides for the app, computed from the spec. This consists of a list of string pairs, with the first string pair representing
     the source result and the second the destination result, in the format of
     ["{result.job_uid}.{result.output}.{result.result}", "{uid}.{input_name}.{conn_idx}.{result.name}",]
     """
-    groups: List[List[str]]
+    groups: list[list[str]]
     """
     """
 
@@ -131,10 +132,10 @@ class Workflow(BaseModel):
     csVersion: str
     """
     """
-    createdBy: Optional[str] = None
+    createdBy: str | None = None
     """
     """
-    updatedBy: Optional[str] = None
+    updatedBy: str | None = None
     """
     """
     pinned: bool = False
@@ -143,11 +144,11 @@ class Workflow(BaseModel):
     imported: bool = False
     """
     """
-    parents: Dict[str, WorkflowParent] = {}
+    parents: dict[str, WorkflowParent] = {}
     """
     Dictionary of parent jobs for the workflow, where the key is PXX
     """
-    jobs: Dict[str, WorkflowJob] = {}
+    jobs: dict[str, WorkflowJob] = {}
     """
     Dictionary of jobs for the workflow, where the key is JXX
     """
@@ -164,36 +165,39 @@ class ApplyWorkflowRequest(BaseModel):
     workflow: Workflow
     """
     """
-    parent_juids: List[str] = []
+    parent_juids: list[str] = []
     """
     """
-    lane: Optional[str] = None
+    lane: str | None = None
     """
     """
-    tag: Optional[AppliedWorkflowTag] = None
+    tag: AppliedWorkflowTag | None = None
     """
     """
-    group: Optional[JobGroupMeta] = None
+    group: JobGroupMeta | None = None
+    """
+    """
+    strict: bool = False
     """
     """
 
 
 class UpdateWorkflow(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    category: Optional[str] = None
+    category: str | None = None
     """
     """
-    pinned: Optional[bool] = None
+    pinned: bool | None = None
     """
     """
-    parents: Optional[Dict[str, WorkflowParent]] = None
+    parents: dict[str, WorkflowParent] | None = None
     """
     """
-    jobs: Optional[Dict[str, WorkflowJob]] = None
+    jobs: dict[str, WorkflowJob] | None = None
     """
     """

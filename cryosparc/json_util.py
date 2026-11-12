@@ -1,8 +1,9 @@
 import base64
+from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
 from pathlib import PurePath
-from typing import Any, Mapping
+from typing import Any
 
 import numpy as n
 from pydantic import BaseModel

@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -65,10 +65,10 @@ class CtfStats(BaseModel):
     ctf_fit_to_A: float
     """
     """
-    df_range: List[Any]
+    df_range: list[Any]
     """
     """
-    df_tilt_normal: List[Any]
+    df_tilt_normal: list[Any]
     """
     """
     diag_image_path: str
@@ -80,10 +80,10 @@ class CtfStats(BaseModel):
     ice_thickness_rel: float
     """
     """
-    relative_ice_power_total: List[Any] = [0, 0, 0]
+    relative_ice_power_total: list[Any] = [0, 0, 0]
     """
     """
-    relative_ice_power_max: List[Any] = [0, 0, 0]
+    relative_ice_power_max: list[Any] = [0, 0, 0]
     """
     """
     spectrum_dim: int
@@ -121,7 +121,7 @@ class StatBlob(BaseModel):
     psize_A: float
     """
     """
-    shape: List[int]
+    shape: list[int]
     """
     """
 
@@ -146,7 +146,7 @@ class GainRefBlob(BaseModel):
     rotate_num: int
     """
     """
-    shape: List[int]
+    shape: list[int]
     """
     """
 
@@ -171,7 +171,7 @@ class MicrographBlob(BaseModel):
     psize_A: float
     """
     """
-    shape: List[int]
+    shape: list[int]
     """
     """
 
@@ -205,7 +205,7 @@ class MovieBlob(BaseModel):
     psize_A: float
     """
     """
-    shape: List[int]
+    shape: list[int]
     """
     """
 
@@ -218,7 +218,7 @@ class MScopeParams(BaseModel):
     accel_kv: float
     """
     """
-    beam_shift: List[int] = [0, 0]
+    beam_shift: list[int] = [0, 0]
     """
     """
     beam_shift_known: int = 0
@@ -227,7 +227,7 @@ class MScopeParams(BaseModel):
     cs_mm: float
     """
     """
-    defect_path: Optional[str] = None
+    defect_path: str | None = None
     """
     """
     exp_group_id: int
@@ -277,37 +277,37 @@ class ExposureElement(BaseModel):
     Outputs produced for a specific exposure.
     """
 
-    background_blob: Optional[StatBlob] = None
+    background_blob: StatBlob | None = None
     """
     """
-    ctf: Optional[CTF] = None
+    ctf: CTF | None = None
     """
     """
-    ctf_stats: Optional[CtfStats] = None
+    ctf_stats: CtfStats | None = None
     """
     """
-    gain_ref_blob: Optional[GainRefBlob] = None
+    gain_ref_blob: GainRefBlob | None = None
     """
     """
-    micrograph_blob: Optional[MicrographBlob] = None
+    micrograph_blob: MicrographBlob | None = None
     """
     """
-    micrograph_blob_non_dw: Optional[MicrographBlob] = None
+    micrograph_blob_non_dw: MicrographBlob | None = None
     """
     """
-    micrograph_blob_thumb: Optional[MicrographBlob] = None
+    micrograph_blob_thumb: MicrographBlob | None = None
     """
     """
-    movie_blob: Optional[MovieBlob] = None
+    movie_blob: MovieBlob | None = None
     """
     """
-    mscope_params: Optional[MScopeParams] = None
+    mscope_params: MScopeParams | None = None
     """
     """
-    rigid_motion: Optional[MotionData] = None
+    rigid_motion: MotionData | None = None
     """
     """
-    spline_motion: Optional[MotionData] = None
+    spline_motion: MotionData | None = None
     """
     """
     uid: str = "0"
@@ -321,10 +321,10 @@ class PickerLocations(BaseModel):
     ``center_x_frac`` and ``center_y_frac`` always have the same length.
     """
 
-    center_x_frac: List[float] = []
+    center_x_frac: list[float] = []
     """
     """
-    center_y_frac: List[float] = []
+    center_y_frac: list[float] = []
     """
     """
 
@@ -337,7 +337,7 @@ class ParticleManual(BaseModel):
     count: int = 0
     """
     """
-    fields: List[str] = []
+    fields: list[str] = []
     """
     """
     path: str = "."
@@ -356,7 +356,7 @@ class ParticleInfo(BaseModel):
     count: int = 0
     """
     """
-    fields: List[str] = []
+    fields: list[str] = []
     """
     """
     path: str = "."
@@ -372,16 +372,16 @@ class PickerInfoElement(BaseModel):
     count: int = 0
     """
     """
-    fields: List[str] = []
+    fields: list[str] = []
     """
     """
     path: str = "."
     """
     """
-    output_shape: Optional[int] = None
+    output_shape: int | None = None
     """
     """
-    picker_type: Optional[Literal["blob", "template", "manual"]] = None
+    picker_type: Literal["blob", "template", "manual"] | None = None
     """
     """
 
@@ -408,12 +408,12 @@ class ExposureGroups(BaseModel):
     """
     Template picks have a list of fields, a count, and a path to a cs file
     """
-    particle_deep: Dict[str, Any] = {}
+    particle_deep: dict[str, Any] = {}
     """
     Unused for now
     :meta private:
     """
-    particle_extracted: Union[List[PickerInfoElement], ParticleInfo] = ParticleInfo()
+    particle_extracted: list[PickerInfoElement] | ParticleInfo = ParticleInfo()
     """
     Starts as empty dict, but gets populated as a list of dictionaries. Used for 2-slot extraction.
     """
@@ -571,13 +571,13 @@ class Exposure(BaseModel):
     discovered_at: datetime.datetime
     """
     """
-    picker_type: Optional[Literal["blob", "template", "manual"]] = None
+    picker_type: Literal["blob", "template", "manual"] | None = None
     """
     """
     deleted: bool = False
     """
     """
-    parameter_version: Optional[int] = None
+    parameter_version: int | None = None
     """
     """
     stage: Literal[
@@ -622,7 +622,7 @@ class Exposure(BaseModel):
     test: bool = False
     """
     """
-    worker_juid: Optional[str] = None
+    worker_juid: str | None = None
     """
     """
     priority: int = 0
@@ -634,22 +634,22 @@ class Exposure(BaseModel):
     attributes: LiveExposureAttributes = LiveExposureAttributes()
     """
     """
-    test_parameters: Optional[LivePreprocessingParams] = None
+    test_parameters: LivePreprocessingParams | None = None
     """
     """
-    preview_img_1x: List[str] = []
+    preview_img_1x: list[str] = []
     """
     """
-    preview_img_2x: List[str] = []
+    preview_img_2x: list[str] = []
     """
     """
-    thumb_shape: List[int] = []
+    thumb_shape: list[int] = []
     """
     """
-    micrograph_shape: List[int] = []
+    micrograph_shape: list[int] = []
     """
     """
-    micrograph_psize: Optional[float] = None
+    micrograph_psize: float | None = None
     """
     """
     ecl: ECLExposureProperties = ECLExposureProperties()

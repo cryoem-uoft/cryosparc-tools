@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Literal, Union
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -36,10 +36,19 @@ class GridFSFile(BaseModel):
     """
     File name
     """
-    contentType: Union[
-        Literal["text/plain", "text/csv", "text/html", "application/json", "application/xml", "application/x-troff"],
-        Literal["application/pdf", "image/gif", "image/jpeg", "image/png", "image/svg+xml"],
-        Literal["application/octet-stream"],
+    contentType: Literal[
+        "text/plain",
+        "text/csv",
+        "text/html",
+        "application/json",
+        "application/xml",
+        "application/x-troff",
+        "application/pdf",
+        "image/gif",
+        "image/jpeg",
+        "image/png",
+        "image/svg+xml",
+        "application/octet-stream",
     ]
     """
     Asset content type, e.g., "image/png"

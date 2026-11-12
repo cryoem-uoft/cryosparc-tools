@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import IO, TYPE_CHECKING, NamedTuple, Tuple
+from typing import IO, TYPE_CHECKING, NamedTuple
 
 import numpy as n
 
@@ -66,7 +66,7 @@ class Header(NamedTuple):
     """
     Total size of Z axis (e.g., in Angstroms)
     """
-    origin: Tuple[float, float, float]
+    origin: tuple[float, float, float]
     """
     Location of image origin
     """
@@ -87,7 +87,7 @@ DT_TO_DATATYPE = {
 DATATYPE_TO_DT = {v: k for k, v in DT_TO_DATATYPE.items()}
 
 
-def read(file: BinaryFile) -> Tuple[Header, "NDArray"]:
+def read(file: BinaryFile) -> tuple[Header, "NDArray"]:
     """
     Read a .mrc file at the given file into a numpy array. Returns the MRC
     header and the resulting array.
@@ -161,7 +161,7 @@ def _read_header(file: IO) -> Header:
 
 
 def _write_header(file: IO, data: "NDArray", psize: float):
-    assert data.dtype.type in DATATYPE_TO_DT, "Unsupported MRC dtype: {0}".format(data.dtype)
+    assert data.dtype.type in DATATYPE_TO_DT, f"Unsupported MRC dtype: {data.dtype}"
 
     header_int32 = n.zeros(256, dtype=n.int32)  # 1024 byte header
     header_float32 = header_int32.view(n.float32)

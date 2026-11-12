@@ -1,5 +1,6 @@
 import stat
 import warnings
+from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path, PurePath, PurePosixPath
 from tempfile import NamedTemporaryFile
@@ -7,23 +8,14 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
-    Generator,
     Generic,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
+    Literal,
     TypeVar,
     Union,
     overload,
 )
 
 import numpy as n
-from typing_extensions import Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray  # type: ignore
@@ -58,7 +50,7 @@ V = TypeVar("V")
 E = TypeVar("E")  # error
 INT = TypeVar("INT", bound=n.integer)
 
-Result = Union[Tuple[T, None], Tuple[None, E]]
+Result = Union[tuple[T, None], tuple[None, E]]
 """
 Use as the return type for functions that may return either a value or an
 error.
@@ -73,7 +65,7 @@ Example:
 """
 
 
-class hashcache(Dict[K, V], Generic[K, V]):
+class hashcache(dict[K, V], Generic[K, V]):
     """
     Simple utility class to cache the result of a mapping and avoid excessive
     heap allocation. Initialize with ``cache = hashcache(f)`` and use ``cache``
@@ -133,10 +125,10 @@ class PurePosixPathProperty(PurePosixPath):
 
 
 @overload
-def first(it: Union[Iterator[V], Sequence[V]]) -> Optional[V]: ...
+def first(it: Iterator[V] | Sequence[V]) -> V | None: ...
 @overload
-def first(it: Union[Iterator[V], Sequence[V]], default: V) -> V: ...
-def first(it: Union[Iterator[V], Sequence[V]], default: Optional[V] = None) -> Optional[V]:
+def first(it: Iterator[V] | Sequence[V], default: V) -> V: ...
+def first(it: Iterator[V] | Sequence[V], default: V | None = None) -> V | None:
     """
     Get the first item from the given iterator. Returns None if the iterator is
     empty.
@@ -246,7 +238,7 @@ def bopen(file: BinaryFile, mode: OpenBinaryMode = "rb"):
         yield file
 
 
-def padarray(arr: "NDArray", dim: Optional[int] = None, val: n.number = n.float32(0)):
+def padarray(arr: "NDArray", dim: int | None = None, val: n.number = n.float32(0)):
     """
     Pad the given 2D or 3D array so that the x and y dimensions are equal to the
     given dimension. If not dimension is given, will use the maximum of the
@@ -317,9 +309,9 @@ def default_rng(seed=None) -> "n.random.Generator":
 def random_integers(
     rng: "n.random.Generator",
     low: int,
-    high: Optional[int] = None,
-    size: Union[int, Shape, None] = None,
-    dtype: Type[INT] = n.uint64,
+    high: int | None = None,
+    size: int | Shape | None = None,
+    dtype: type[INT] = n.uint64,
 ) -> "NDArray[INT]":
     """
     Generic way to get random integers from a numpy random generator (or
@@ -338,7 +330,7 @@ def random_integers(
     return rng.integers(low=low, high=high, size=size, dtype=dtype)  # type: ignore
 
 
-def print_table(headings: List[str], rows: List[List[str]]):
+def print_table(headings: list[str], rows: list[list[str]]):
     """
     Utility to print a formatted table given a list of headings (strings) and
     list of rows (list of strings same length as headings).

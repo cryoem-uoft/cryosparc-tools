@@ -8,6 +8,7 @@ from .models import (
     benchmarks,
     blueprint,
     config,
+    datasource,
     diagnostics,
     event,
     exposure,
@@ -16,6 +17,7 @@ from .models import (
     gpu,
     instance,
     job,
+    job_export,
     job_register,
     job_spec,
     license,
@@ -42,8 +44,8 @@ from .models import (
 )
 from .registry import register_model_module
 
-register_model_module(job, include_literals=True)
 register_model_module(scheduler_target, include_literals=True)
+register_model_module(job, include_literals=True)
 register_model_module(resource, include_literals=True)
 register_model_module(gpu, include_literals=True)
 register_model_module(version, include_literals=True)
@@ -58,7 +60,9 @@ register_model_module(file_browser, include_literals=True)
 register_model_module(exposure, include_literals=True)
 register_model_module(event, include_literals=True)
 register_model_module(tag, include_literals=True)
+register_model_module(datasource, include_literals=True)
 register_model_module(preview, include_literals=True)
+register_model_module(job_export, include_literals=True)
 register_model_module(session_params, include_literals=True)
 register_model_module(external, include_literals=True)
 register_model_module(project, include_literals=True)
