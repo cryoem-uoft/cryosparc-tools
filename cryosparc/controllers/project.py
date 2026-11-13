@@ -361,8 +361,8 @@ class ProjectController(Controller[Project]):
         self,
         workspace_uid: str,
         type: str,
-        connections: dict[str, JobOutput | list[JobOutput]] = {},
-        params: dict[str, Any] = {},
+        connections: dict[str, JobOutput | list[JobOutput]] | None = None,
+        params: dict[str, Any] | None = None,
         title: str = "",
         desc: str = "",
     ) -> JobController:
@@ -409,6 +409,10 @@ class ProjectController(Controller[Project]):
             ...     params={"abinit_K": 3}
             ... )
         """
+        if params is None:
+            params = {}
+        if connections is None:
+            connections = {}
         return self.cs.create_job(
             self.uid, workspace_uid, type, connections=connections, params=params, title=title, desc=desc
         )
@@ -474,7 +478,7 @@ class ProjectController(Controller[Project]):
         title: str = "",
         desc: str = "",
         image: FileOrFigure | None = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: dict | None = None,
     ) -> str:
         """
         Save a result dataset to the project, via External Job. Specify at least
@@ -551,6 +555,8 @@ class ProjectController(Controller[Project]):
         Returns:
             str: UID of created job where this output was saved
         """
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
             slots = [as_output_slot(slot) for slot in slots]  # type: ignore

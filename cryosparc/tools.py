@@ -614,8 +614,8 @@ class CryoSPARC:
         project_uid: str,
         workspace_uid: str,
         type: str,
-        connections: dict[str, JobOutput | list[JobOutput]] = {},
-        params: dict[str, Any] = {},
+        connections: dict[str, JobOutput | list[JobOutput]] | None = None,
+        params: dict[str, Any] | None = None,
         title: str = "",
         desc: str = "",
     ) -> JobController:
@@ -661,6 +661,10 @@ class CryoSPARC:
             ...     params={"abinit_K": 3}
             ... )
         """
+        if params is None:
+            params = {}
+        if connections is None:
+            connections = {}
         job = self.api.jobs.create(project_uid, workspace_uid, params=params, type=type, title=title, description=desc)
         for input_name, connection in connections.items():
             connection = [connection] if isinstance(connection, tuple) else connection
@@ -758,7 +762,7 @@ class CryoSPARC:
         title: str = "",
         desc: str = "",
         image: FileOrFigure | None = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: dict | None = None,
     ) -> str:
         """
         Save a result dataset to a project, via External Job. Specify at least
@@ -843,6 +847,8 @@ class CryoSPARC:
         """
         # Check slot names if present. If not provided, use all slots specified
         # in the dataset prefixes.
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         prefixes = dataset.prefixes()
         if slots is None:
             slots = list(prefixes)

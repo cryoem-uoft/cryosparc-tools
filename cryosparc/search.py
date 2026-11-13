@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TypeVar, Union
+from typing import TypeVar
 
 from typing_extensions import TypedDict
 
@@ -8,7 +8,7 @@ from .models.job_spec import Category
 
 T = TypeVar("T")
 Eq = T
-In = Union[T, list[T]]
+In = T | list[T]
 Range = tuple[T, T]
 
 

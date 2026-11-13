@@ -11,7 +11,6 @@ from typing import (
     Generic,
     Literal,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -32,13 +31,13 @@ OpenBinaryMode = Literal["rb", "wb", "xb", "ab", "r+b", "w+b", "x+b", "a+b"]
 Binary file read or write open modes.
 """
 
-TextFile = Union[str, PurePath, IO[str]]
+TextFile = str | PurePath | IO[str]
 """
 File handle type for text files. Can be a string path, Path object, or
 file-like object.
 """
 
-BinaryFile = Union[str, PurePath, IO[bytes]]
+BinaryFile = str | PurePath | IO[bytes]
 """
 File handle type for binary files. Can be a string path, Path object, or
 file-like object.
@@ -50,7 +49,7 @@ V = TypeVar("V")
 E = TypeVar("E")  # error
 INT = TypeVar("INT", bound=n.integer)
 
-Result = Union[tuple[T, None], tuple[None, E]]
+Result = tuple[T, None] | tuple[None, E]
 """
 Use as the return type for functions that may return either a value or an
 error.
@@ -238,7 +237,7 @@ def bopen(file: BinaryFile, mode: OpenBinaryMode = "rb"):
         yield file
 
 
-def padarray(arr: "NDArray", dim: int | None = None, val: n.number = n.float32(0)):
+def padarray(arr: "NDArray", dim: int | None = None, val: n.number | None = None):
     """
     Pad the given 2D or 3D array so that the x and y dimensions are equal to the
     given dimension. If not dimension is given, will use the maximum of the
@@ -250,11 +249,13 @@ def padarray(arr: "NDArray", dim: int | None = None, val: n.number = n.float32(0
             to None.
         val (float, optional): Value to pad with, should be a numpy number
             instance with the same dtype as the given array. Defaults to
-            n.float32(0).
+            ``n.float32(0)`` if not specified.
 
     Returns:
         NDArray: Padded copy of given array.
     """
+    if val is None:
+        val = n.float32(0)
     arr = n.reshape(arr, (-1,) + arr.shape[-2:])
     nz, ny, nx = arr.shape
     idim = max(ny, nx) if dim is None else dim

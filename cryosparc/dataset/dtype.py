@@ -4,7 +4,7 @@ Utilities and type definitions for working with dataset fields and column types.
 
 import json
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 import numpy as n
 
@@ -29,7 +29,7 @@ class DatasetHeader(TypedDict):
     Column description
     """
 
-    compression: Literal["lz4", None]
+    compression: Literal["lz4"] | None
     """Compression library used for in the dataset"""
 
     compressed_fields: list[str]
@@ -115,7 +115,7 @@ def get_data_field_dtype(data: Data, field: str) -> "DTypeLike":
     return (dt.str, shape) if shape else dt.str
 
 
-FieldFilter = Union[Sequence[str], Callable[[str], bool]]
+FieldFilter = Sequence[str] | Callable[[str], bool]
 
 
 def filter_descr(
@@ -169,7 +169,7 @@ def decode_dataset_header(data: bytes | dict) -> DatasetHeader:
 
         length: int = header["length"]
         dtype: list[Field] = [(f, d, tuple(rest[0])) if rest else (f, d) for f, d, *rest in header["dtype"]]
-        compression: Literal["lz4", None] = header["compression"]
+        compression: Literal["lz4"] | None = header["compression"]
         compressed_fields: list[str] = header["compressed_fields"]
 
         return DatasetHeader(

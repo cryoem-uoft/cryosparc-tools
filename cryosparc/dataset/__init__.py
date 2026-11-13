@@ -407,7 +407,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         for dset in datasets:
             for key, *_ in keep_fields:
                 result[key][startidx : startidx + (stride * step) : step] = dset[key]
-            startidx += 1
+            startidx += 1  # noqa: SIM113
 
         return result
 
@@ -783,7 +783,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
                 for chunk in self.stream(compression="lz4"):
                     f.write(chunk)
 
-    def stream(self, compression: Literal["lz4", None] = None) -> Iterator[bytes]:
+    def stream(self, compression: Literal["lz4"] | None = None) -> Iterator[bytes]:
         """
         Generate a binary representation for this dataset. Results may be
         written to a file or buffer to be sent over the network.
@@ -1015,7 +1015,7 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         Returns:
             dict[str, Column]: Columns
         """
-        return dict((k, self[k]) for k in self)
+        return {k: self[k] for k in self}
 
     def rows(self) -> Spool[R]:
         """

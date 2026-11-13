@@ -6,7 +6,7 @@ Core base classes and utilities for other cryosparc-tools modules.
 # CryoSPARC should not depend on anything in this file.
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 

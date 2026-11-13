@@ -20,7 +20,7 @@ from .util import TextFile, topen
 
 # Available star file fields and their types. Fields marked as type ``object``
 # should always be interepreted as strings.
-RLN_DTYPES: dict[str, type[object]] = dict(
+RLN_DTYPES: dict[str, type[object]] = dict(  # noqa: C408
     rlnComment=object,
     # Area
     rlnAreaId=int,
@@ -584,7 +584,7 @@ def read(file: TextFile) -> dict[str, "NDArray"]:
                 if val.startswith("_"):
                     label = val.lstrip("_").split(" ")[0]
                     dtype.append((label, RLN_DTYPES.get(label, object)))
-                elif val.startswith("#") or val.startswith(";"):
+                elif val.startswith(("#", ";")):
                     pass  # comment
                 else:
                     break  # done reading fields

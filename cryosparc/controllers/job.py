@@ -66,10 +66,10 @@ LogLevel = Literal["text", "warning", "error"]
 Severity level for job event logs.
 """
 
-FileOrFigure = Union[BinaryFile, Any]
+FileOrFigure = BinaryFile | Any
 """A file path, a file-like object, or a matplotlib figure."""
 
-OptPattern = Union[str, Pattern[str], None]
+OptPattern = str | Pattern[str] | None
 """Optional pattern type alias for matching strings."""
 
 JobOutput = tuple[Union[str, "JobController"], str]
@@ -221,9 +221,9 @@ class JobController(Controller[Job]):
         self,
         lane: str | None = None,
         target: str | None = None,
-        gpus: list[int] = [],
+        gpus: list[int] | None = None,
         *,
-        cluster_vars: dict[str, Any] = {},
+        cluster_vars: dict[str, Any] | None = None,
         check_inputs_ready: bool = True,
         oversubscribe_gpus: bool = False,
         hostname: str | None = None,
@@ -277,6 +277,10 @@ class JobController(Controller[Job]):
             >>> job.status
             "queued"
         """
+        if cluster_vars is None:
+            cluster_vars = {}
+        if gpus is None:
+            gpus = []
         if cluster_vars:
             self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, cluster_vars)
         if hostname is not None:
@@ -362,7 +366,7 @@ class JobController(Controller[Job]):
         """
         self.cs.api.jobs.restart(self.project_uid, self.uid)
 
-    def interact(self, action: str, body: Any = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
+    def interact(self, action: str, body: Any = None, *, timeout: int = 10, refresh: bool = False) -> Any:
         """
         Send a message to or perform an interactive action on a waiting interactive job.
         Possible actions and expected body depend on the job type.
@@ -380,6 +384,8 @@ class JobController(Controller[Job]):
         Returns:
             any: Response from the interactive endpoint.
         """
+        if body is None:
+            body = {}
         result: Any = self.cs.api.jobs.interactive_post(
             self.project_uid, self.uid, body=body, endpoint=action, timeout=timeout
         )
@@ -558,7 +564,7 @@ class JobController(Controller[Job]):
     def set_params(self, params: dict[str, Any], /) -> None: ...
     @overload
     def set_params(self, /, **params: Any) -> None: ...
-    def set_params(self, params: dict[str, Any] = {}, **kwparams: Any) -> None:
+    def set_params(self, params: dict[str, Any] | None = None, **kwparams: Any) -> None:
         """
         Update job parameters with the given values. Only parameters that are
         valid for the job type are updated.
@@ -580,6 +586,8 @@ class JobController(Controller[Job]):
             >>> # or
             >>> job.set_params({"compute_num_gpus": 4, "abinit_K": 3})
         """
+        if params is None:
+            params = {}
         self.model = self.cs.api.jobs.set_params(self.project_uid, self.uid, {**params, **kwparams})
 
     def clear_param(self, param: str):
@@ -811,10 +819,10 @@ class JobController(Controller[Job]):
             Dataset: Loaded dataset
         """
         if isinstance(slots, list):
-            slot_set = set(x.split("/")[0] for x in slots)
+            slot_set = {x.split("/")[0] for x in slots}
             if slot_set != set(slots):
                 warnings.warn(f"only whole slots can be loaded, not fields. Loading {slot_set}", stacklevel=2)
-                slots = sorted(list(slot_set))
+                slots = sorted(slot_set)
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
     # fmt: off
@@ -830,7 +838,7 @@ class JobController(Controller[Job]):
     def find_events(
         self,
         *,
-        type: Literal["text", "warning", "error", "image", "interactive", None] = None,
+        type: Literal["text", "warning", "error", "image", "interactive"] | None = None,
         pattern: OptPattern = None,
         checkpoint: int | None = None,
     ) -> Iterator[TextEvent | ImageEvent | InteractiveEvent]:
@@ -925,7 +933,7 @@ class JobController(Controller[Job]):
             self._events[name] = event.id
         return event.id
 
-    def log_checkpoint(self, meta: dict = {}):
+    def log_checkpoint(self, meta: dict | None = None):
         """
         Add a checkpoint to the job's event log. Also resets named events.
 
@@ -935,6 +943,8 @@ class JobController(Controller[Job]):
         Returns:
             str: Created checkpoint event ID
         """
+        if meta is None:
+            meta = {}
         event = self.cs.api.jobs.add_checkpoint(self.project_uid, self.uid, meta)
         self._events = {}
         return event.id
@@ -947,8 +957,8 @@ class JobController(Controller[Job]):
         raw_data: str | bytes | None = None,
         raw_data_file: BinaryFile | None = None,
         raw_data_format: TextFormat | None = None,
-        flags: list[str] = ["plots"],
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        flags: list[str] | None = None,
+        savefig_kw: dict | None = None,
     ):
         """
         Add an event log with a figure.
@@ -995,6 +1005,10 @@ class JobController(Controller[Job]):
         Returns:
             str: Created log event ID
         """
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
+        if flags is None:
+            flags = ["plots"]
         imgfiles = self._upload_plot(
             figure,
             name=text,
@@ -1197,13 +1211,15 @@ class JobController(Controller[Job]):
         raw_data: str | bytes | None = None,
         raw_data_file: BinaryFile | None = None,
         raw_data_format: TextFormat | None = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: dict | None = None,
     ) -> list[GridFSAsset]:
         """
         Upload the given figure. Returns a list of the created asset objects.
         Avoid using directly; use ``log_plot`` instead. See ``log_plot``
         additional details.
         """
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         figdata = []
         basename = name or "figure"
         if hasattr(figure, "savefig"):  # matplotlib plot
@@ -1901,7 +1917,7 @@ class ExternalJobController(JobController):
         return super().connect(target_input, source_job, source_output)
 
     def alloc_output(
-        self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: dict[str, Any] = {}
+        self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: dict[str, Any] | None = None
     ) -> Dataset:
         """
         Allocate an empty dataset for a job output. Initialize with empty rows
@@ -1946,6 +1962,8 @@ class ExternalJobController(JobController):
             ])
 
         """
+        if dtype_params is None:
+            dtype_params = {}
         expected_fields = self.cs.api.jobs.get_output_fields(self.project_uid, self.uid, name, dtype_params)
         if isinstance(alloc, int):
             return Dataset.allocate(alloc, expected_fields)
@@ -1961,7 +1979,7 @@ class ExternalJobController(JobController):
         *,
         version: int = 0,
         image: FileOrFigure | None = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: dict | None = None,
         **kwargs,
     ):
         """
@@ -1991,6 +2009,8 @@ class ExternalJobController(JobController):
             >>> job.save_output("picked_particles", particles)
 
         """
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         if "refresh" in kwargs:
             warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
         self.model = self.cs.api.jobs.save_output(self.project_uid, self.uid, name, dataset, version=version)
@@ -2006,7 +2026,7 @@ class ExternalJobController(JobController):
         name: str,
         image: FileOrFigure | GridFSAsset,
         *,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: dict | None = None,
     ):
         """
         Set the output image for an output, visible from the job's Outputs tab.
@@ -2017,6 +2037,8 @@ class ExternalJobController(JobController):
             image (str | Path | IO | Figure): Image file or matplotlib Figure.
 
         """
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         assets = (
             [image]
             if isinstance(image, GridFSAsset)
@@ -2029,7 +2051,7 @@ class ExternalJobController(JobController):
         image: FileOrFigure | GridFSAsset,
         *,
         name: str = "tile0",
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: dict | None = None,
     ):
         """
         Set the job tile image, visible when viewing the job from a workspace.
@@ -2038,6 +2060,8 @@ class ExternalJobController(JobController):
         Args:
             image (str | Path | IO | Figure): Image file or matplotlib Figure.
         """
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         assets = (
             [image]
             if isinstance(image, GridFSAsset)

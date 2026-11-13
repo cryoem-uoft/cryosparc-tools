@@ -296,7 +296,7 @@ class Stream(Streamable):
 
     @classmethod
     def load(cls, file: BinaryFile, *, media_type: str | None = None):
-        stream = open(file, "rb") if isinstance(file, (str, PurePath)) else file
+        stream = open(file, "rb") if isinstance(file, (str, PurePath)) else file  # noqa: SIM115
         return cls(stream=stream, media_type=media_type)
 
     @classmethod

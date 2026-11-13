@@ -5,7 +5,7 @@ import warnings
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, ClassVar, TypedDict, Union
+from typing import Any, ClassVar, TypedDict
 
 import httpx
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ from .stream import Streamable
 
 _BASE_RESPONSE_TYPES = {"string", "integer", "number", "boolean"}
 
-Auth = Union[str, tuple[str, str]]
+Auth = str | tuple[str, str]
 """
 Auth token or email/password.
 """
@@ -58,7 +58,7 @@ class APINamespace:
         query_params = {}
         func_name = _schema["summary"]
         headers = {}
-        client_headers = {h for h in self._client.headers.keys()}
+        client_headers = {h for h in self._client.headers}
         request_body = None
         data = None
         files = None
@@ -76,7 +76,7 @@ class APINamespace:
             if param_in == "path" and args:
                 # path param must be specified positionally
                 param, args = args[0], args[1:]
-                _path = _path.replace("{%s}" % param_name, _uriencode(param))
+                _path = _path.replace(f"{{{param_name}}}", _uriencode(param))
             elif param_in == "query" and param_name in kwargs and (value := kwargs.pop(param_name)) is not None:
                 # query param must be in kwargs
                 query_params[param_name] = APINamespace._json_encoder(value)

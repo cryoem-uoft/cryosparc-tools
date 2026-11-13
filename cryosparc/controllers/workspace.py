@@ -13,7 +13,7 @@ import time
 import warnings
 from collections.abc import Iterable
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 from typing_extensions import Unpack
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from ..tools import CryoSPARC
 
 
-class WorkspaceController(Controller[Union[Workspace, Session]]):
+class WorkspaceController(Controller[Workspace | Session]):
     """
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
     results. Should be initialized with
@@ -147,8 +147,8 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
     def create_job(
         self,
         type: str,
-        connections: dict[str, JobOutput | list[JobOutput]] = {},
-        params: dict[str, Any] = {},
+        connections: dict[str, JobOutput | list[JobOutput]] | None = None,
+        params: dict[str, Any] | None = None,
         title: str = "",
         desc: str = "",
     ) -> JobController:
@@ -195,6 +195,10 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
             ...     params={"abinit_K": 3}
             ... )
         """
+        if params is None:
+            params = {}
+        if connections is None:
+            connections = {}
         return self.cs.create_job(
             self.project_uid, self.uid, type, connections=connections, params=params, title=title, desc=desc
         )
@@ -288,7 +292,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         title: str = "",
         desc: str = "",
         image: FileOrFigure | None = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: dict | None = None,
     ) -> str:
         """
         Save the a result dataset to a workspace, via External Job. Specify at
@@ -356,6 +360,8 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
             ... )
             "J45"
         """
+        if savefig_kw is None:
+            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
             # convert to prevent from warning again

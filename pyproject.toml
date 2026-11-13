@@ -79,3 +79,8 @@ exclude = [
 line-length = 120
 extend-include = ["*.ipynb"]
 extend-exclude = [".venv*", "cryosparc/include"]
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001", # Blind except is intentional for best-effort uploads and lookups
+]
