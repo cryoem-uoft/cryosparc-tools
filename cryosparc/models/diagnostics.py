@@ -1,12 +1,12 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel
 
 from .instance import InstanceInformation
-from .scheduler_target import Cluster, Node
+from .scheduler_target import AWSBatch, Cluster, Node
 from .version import Arch
 
 
@@ -15,16 +15,16 @@ class SchedulerTargetInformation(BaseModel):
     Information for a configured job scheduler target node, used in diagnostics.
     """
 
-    cache_path: Optional[str] = None
+    cache_path: str | None = None
     """
     Path the SSD cache scratch directory, if applicable.
     """
-    cache_reserve_mb: Optional[int] = None
+    cache_reserve_mb: int | None = None
     """
     Ensure at least this much space is free on the SSD scratch drive before
     caching.
     """
-    cache_quota_mb: Optional[int] = None
+    cache_quota_mb: int | None = None
     """
     Do not cache more than this amount on the SSD scrath drive..
     """
@@ -40,7 +40,7 @@ class SchedulerTargetInformation(BaseModel):
     """
     Human-readable title for this target.
     """
-    desc: Optional[str] = None
+    desc: str | None = None
     """
     Human-readable description for this target.
     """
@@ -52,7 +52,7 @@ class SchedulerTargetInformation(BaseModel):
     """
     Path to cryosparc_worker/bin/cryosparcw executable.
     """
-    config: Union[Node, Cluster]
+    config: Node | Cluster | AWSBatch
     """
     Target configuration details.
     """
@@ -60,7 +60,7 @@ class SchedulerTargetInformation(BaseModel):
     """
     Architecture of cryoSPARC installed on this target
     """
-    instance_information: Optional[InstanceInformation] = None
+    instance_information: InstanceInformation | None = None
     """
     System information for the target node, if available.
     """
@@ -83,11 +83,11 @@ class RuntimeDiagnostics(BaseModel):
     """
     Information about the CryoSPARC instance.
     """
-    scheduler_targets: List[SchedulerTargetInformation]
+    scheduler_targets: list[SchedulerTargetInformation]
     """
     List of configured job scheduler target nodes.
     """
-    db_stats: Dict[str, Any]
+    db_stats: dict[str, Any]
     """
     Database statistics snapshot.
     """

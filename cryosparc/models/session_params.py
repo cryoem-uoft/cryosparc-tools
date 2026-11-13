@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -45,11 +45,11 @@ class LivePreprocessingParams(BaseModel):
     """
     eer_upsampfactor: int = 2
     """
-    EER upsampling factor (applies to .eer/.ecc format data only.
+    EER upsampling factor (applies to .eer format data only.
     """
     eer_numfractions: int = 40
     """
-    EER number of fractions (applies to .eer/.ecc format data only.
+    EER number of fractions (applies to .eer format data only.
     """
     motion_res_max_align: float = 5
     """
@@ -63,7 +63,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Which frame number, starting at zero, to begin motion correction from. This value controls how many early frames are dropped from the motion corrected result. This value will also be used in local motion correction.
     """
-    frame_end: Optional[int] = None
+    frame_end: int | None = None
     """
     Which frame number, starting at zero, to not include in motion correction, also excluding all frames after this one. Generally this does not improve results, as later frames are downweighted during dose weighting in local motion correction.
     """
@@ -71,7 +71,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Output Fourier cropping factor. 1.0 means no cropping, 0.5 means crop to 1/2 the resolution, etc. Only 1, 0.75, 0.5, 0.25 are allowed values
     """
-    override_total_exp: Optional[float] = None
+    override_total_exp: float | None = None
     """
     Override the dose (in total e/Å^2 over the exposure) that was given at import time but can be overridden here.
     """
@@ -83,15 +83,15 @@ class LivePreprocessingParams(BaseModel):
     """
     Calibrated smoothing constant applied to trajectories (None to autotune)
     """
-    motion_override_K_Z: Optional[int] = None
+    motion_override_K_Z: int | None = None
     """
     Override automatically selected spline order for Z dimension (time)
     """
-    motion_override_K_Y: Optional[int] = None
+    motion_override_K_Y: int | None = None
     """
     Override automatically selected spline order for Y dimension (vertical)
     """
-    motion_override_K_X: Optional[int] = None
+    motion_override_K_X: int | None = None
     """
     Override automatically selected spline order for X dimension (horizontal)
     """
@@ -139,11 +139,11 @@ class LivePreprocessingParams(BaseModel):
     """
     Whether to carry out refinement over phase shift only
     """
-    ctf_override_K_Y: Optional[int] = None
+    ctf_override_K_Y: int | None = None
     """
     Override automatically selected spline order for Y dimension (vertical)
     """
-    ctf_override_K_X: Optional[int] = None
+    ctf_override_K_X: int | None = None
     """
     Override automatically selected spline order for X dimension (horizontal)
     """
@@ -192,7 +192,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Minimum distance between particles in units of particle diameter (min diameter for blob picker). The lower this value, the more and closer particles it picks.
     """
-    blob_num_process: Optional[int] = None
+    blob_num_process: int | None = None
     """
     Number of micrographs to process. None means all.
     """
@@ -204,7 +204,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Maximum number of local maxima (peaks) considered.
     """
-    template_diameter: Optional[float] = None
+    template_diameter: float | None = None
     """
     Particle diameter (Å)
     """
@@ -228,7 +228,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Minimum distance between particles in units of particle diameter. The lower this value, the more and closer particles it picks.
     """
-    template_num_process: Optional[int] = None
+    template_num_process: int | None = None
     """
     Number of micrographs to process. None means all.
     """
@@ -240,21 +240,21 @@ class LivePreprocessingParams(BaseModel):
     """
     Maximum number of local maxima (peaks) considered.
     """
-    templates_from_job: Optional[str] = None
+    templates_from_job: str | None = None
     """
     """
-    templates_selected: Optional[str] = None
+    templates_selected: str | None = None
     """
     """
     thresh_score_min: float = 0.3
     """
     Minimum picking score threshold
     """
-    thresh_power_min: Optional[float] = None
+    thresh_power_min: float | None = None
     """
     Minimum picking power threshold
     """
-    thresh_power_max: Optional[float] = None
+    thresh_power_max: float | None = None
     """
     Maximum picking power threshold
     """
@@ -262,7 +262,7 @@ class LivePreprocessingParams(BaseModel):
     """
     Size of box to be extracted from micrograph.
     """
-    bin_size_pix: Optional[int] = None
+    bin_size_pix: int | None = None
     """
     Size of particle boxes after they have been extracted. None means use the same as the extraction box size
     """
@@ -273,6 +273,10 @@ class LivePreprocessingParams(BaseModel):
     do_plotting: bool = False
     """
     Enable plotting in the RTP Worker for every 20 movies processed.
+    """
+    datasource_use_common_directory: bool = True
+    """
+    Store movie paths relative to their exposure group's watch directory. When disabled, paths are relative to each movie's immediate parent directory.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -295,7 +299,7 @@ class LiveAbinitParams(BaseModel):
     """
     Number of Ab-Initio classes
     """
-    abinit_num_particles: Optional[int] = 100000
+    abinit_num_particles: int | None = 100000
     """
     Number of particles to use
     """
@@ -320,7 +324,7 @@ class LiveClass2DParams(BaseModel):
     """
     Maximum resolution (Å)
     """
-    class2D_window_inner_A: Optional[float] = None
+    class2D_window_inner_A: float | None = None
     """
     Circular mask diameter (Å)
     """
@@ -328,7 +332,7 @@ class LiveClass2DParams(BaseModel):
     """
     Whether to cache particle images on SSD
     """
-    psize_mic: Optional[float] = None
+    psize_mic: float | None = None
     """
     Pixel size (Å) of the input micrographs :meta private:
     """
@@ -349,7 +353,7 @@ class LiveRefineParams(BaseModel):
     """
     Symmetry
     """
-    psize_mic: Optional[float] = None
+    psize_mic: float | None = None
     """
     Pixel size (Å) of the input micrographs :meta private:
     """

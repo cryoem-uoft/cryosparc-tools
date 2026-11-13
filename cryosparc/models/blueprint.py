@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -49,10 +49,10 @@ class Blueprint(BaseModel):
     blueprintVersion: str = "1.0.0"
     """
     """
-    createdBy: Optional[str] = None
+    createdBy: str | None = None
     """
     """
-    updatedBy: Optional[str] = None
+    updatedBy: str | None = None
     """
     """
     pinned: bool = False
@@ -61,7 +61,7 @@ class Blueprint(BaseModel):
     imported: bool = False
     """
     """
-    parameters: Dict[str, BlueprintParameter] = {}
+    parameters: dict[str, BlueprintParameter] = {}
     """
     """
     reference: bool = False

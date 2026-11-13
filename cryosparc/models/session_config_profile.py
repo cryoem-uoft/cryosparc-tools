@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -55,19 +55,19 @@ class SessionConfigProfile(BaseModel):
     created_by_user_id: str
     """
     """
-    last_applied_at: Optional[datetime.datetime] = None
+    last_applied_at: datetime.datetime | None = None
     """
     """
-    compute_resources: Optional[LiveComputeResources] = None
+    compute_resources: LiveComputeResources | None = None
     """
     """
-    exp_groups: List[ExposureGroup] = []
+    exp_groups: list[ExposureGroup] = []
     """
     """
-    session_params: Dict[str, Any] = {}
+    session_params: dict[str, Any] = {}
     """
     """
-    run_configuration: Optional[RunConfiguration] = None
+    run_configuration: RunConfiguration | None = None
     """
     """
 
@@ -80,15 +80,15 @@ class SessionConfigProfileBody(BaseModel):
     title: str
     """
     """
-    compute_resources: Optional[LiveComputeResources] = None
+    compute_resources: LiveComputeResources | None = None
     """
     """
-    exp_groups: List[ExposureGroup] = []
+    exp_groups: list[ExposureGroup] = []
     """
     """
-    session_params: Optional[LivePreprocessingParams] = None
+    session_params: LivePreprocessingParams | None = None
     """
     """
-    run_configuration: Optional[RunConfiguration] = None
+    run_configuration: RunConfiguration | None = None
     """
     """

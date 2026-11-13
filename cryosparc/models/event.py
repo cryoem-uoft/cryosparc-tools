@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -33,19 +33,19 @@ class CheckpointEvent(BaseModel):
     """
     Job UID that this event belongs to.
     """
-    cpumem_mb: Optional[float] = None
+    cpumem_mb: float | None = None
     """
     CPU memory used by the job process at the time of the event, in MB.
     """
-    avail_mb: Optional[float] = None
+    avail_mb: float | None = None
     """
     Available worker system memory at the time of the event, in MB.
     """
-    flags: List[str] = []
+    flags: list[str] = []
     """
     List of flags associated with this event.
     """
-    meta: Dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     """
     Metadata associated with this event.
     """
@@ -80,19 +80,19 @@ class Event(BaseModel):
     """
     Job UID that this event belongs to.
     """
-    cpumem_mb: Optional[float] = None
+    cpumem_mb: float | None = None
     """
     CPU memory used by the job process at the time of the event, in MB.
     """
-    avail_mb: Optional[float] = None
+    avail_mb: float | None = None
     """
     Available worker system memory at the time of the event, in MB.
     """
-    flags: List[str] = []
+    flags: list[str] = []
     """
     List of flags associated with this event.
     """
-    meta: Dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     """
     Metadata associated with this event.
     """
@@ -123,19 +123,19 @@ class ImageEvent(BaseModel):
     """
     Job UID that this event belongs to.
     """
-    cpumem_mb: Optional[float] = None
+    cpumem_mb: float | None = None
     """
     CPU memory used by the job process at the time of the event, in MB.
     """
-    avail_mb: Optional[float] = None
+    avail_mb: float | None = None
     """
     Available worker system memory at the time of the event, in MB.
     """
-    flags: List[str] = []
+    flags: list[str] = []
     """
     List of flags associated with this event.
     """
-    meta: Dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     """
     Metadata associated with this event.
     """
@@ -147,7 +147,7 @@ class ImageEvent(BaseModel):
     """
     Text description of the image event.
     """
-    imgfiles: List[GridFSAsset] = []
+    imgfiles: list[GridFSAsset] = []
     """
     List of image assets associated with the event.
     """
@@ -158,11 +158,11 @@ class InteractiveImgfile(BaseModel):
     An image file associated with an interactive event, along with its components.
     """
 
-    imgfiles: List[GridFSAsset]
+    imgfiles: list[GridFSAsset]
     """
     List of image assets.
     """
-    components: List[int] = []
+    components: list[int] = []
     """
     List of data component indices which this image file represents.
     """
@@ -193,19 +193,19 @@ class InteractiveEvent(BaseModel):
     """
     Job UID that this event belongs to.
     """
-    cpumem_mb: Optional[float] = None
+    cpumem_mb: float | None = None
     """
     CPU memory used by the job process at the time of the event, in MB.
     """
-    avail_mb: Optional[float] = None
+    avail_mb: float | None = None
     """
     Available worker system memory at the time of the event, in MB.
     """
-    flags: List[str] = []
+    flags: list[str] = []
     """
     List of flags associated with this event.
     """
-    meta: Dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     """
     Metadata associated with this event.
     """
@@ -233,11 +233,11 @@ class InteractiveEvent(BaseModel):
         for event in interactive_events:
             db.events.update_one({"_id": event["_id"]}, {"$set": {"datafile.fileid": ObjectId(event["datafile"]["fileid"])}})
     """
-    preview_imgfiles: List[InteractiveImgfile] = []
+    preview_imgfiles: list[InteractiveImgfile] = []
     """
     List of preview image files associated with the interactive event.
     """
-    components: List[int] = []
+    components: list[int] = []
     """
     List of data component indices included in this interactive event.
     """
@@ -269,19 +269,19 @@ class TextEvent(BaseModel):
     """
     Job UID that this event belongs to.
     """
-    cpumem_mb: Optional[float] = None
+    cpumem_mb: float | None = None
     """
     CPU memory used by the job process at the time of the event, in MB.
     """
-    avail_mb: Optional[float] = None
+    avail_mb: float | None = None
     """
     Available worker system memory at the time of the event, in MB.
     """
-    flags: List[str] = []
+    flags: list[str] = []
     """
     List of flags associated with this event.
     """
-    meta: Dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     """
     Metadata associated with this event.
     """

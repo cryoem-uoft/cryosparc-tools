@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -40,28 +40,28 @@ class PerformanceBenchmark(BaseModel):
     instance_information: InstanceInformation
     """
     """
-    job_params: Dict[str, Any] = {}
+    job_params: dict[str, Any] = {}
     """
     """
-    timings: Dict[str, Any] = {}
+    timings: dict[str, Any] = {}
     """
     """
-    gpu_name: Optional[str] = None
+    gpu_name: str | None = None
     """
     """
-    gpu_bus_id: Optional[str] = None
+    gpu_bus_id: str | None = None
     """
     """
-    sequential_read_benchmark_dir: Optional[str] = None
+    sequential_read_benchmark_dir: str | None = None
     """
     """
-    sequential_disk_models: List[Dict[str, Any]] = []
+    sequential_disk_models: list[dict[str, Any]] = []
     """
     """
-    particle_read_benchmark_dir: Optional[str] = None
+    particle_read_benchmark_dir: str | None = None
     """
     """
-    random_disk_models: List[Dict[str, Any]] = []
+    random_disk_models: list[dict[str, Any]] = []
     """
     """
 
@@ -95,18 +95,18 @@ class ReferencePerformanceBenchmark(BaseModel):
     instance_information: InstanceInformation = InstanceInformation()
     """
     """
-    job_params: Dict[str, Any] = {}
+    job_params: dict[str, Any] = {}
     """
     """
-    timings: Dict[str, Any] = {}
+    timings: dict[str, Any] = {}
     """
     """
-    gpu_name: Optional[str] = None
+    gpu_name: str | None = None
     """
     """
-    gpu_bus_id: Optional[str] = None
+    gpu_bus_id: str | None = None
     """
     """
-    reference_platform_node: Optional[str] = None
+    reference_platform_node: str | None = None
     """
     """

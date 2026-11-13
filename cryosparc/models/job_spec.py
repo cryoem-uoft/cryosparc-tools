@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, RootModel
 
@@ -47,7 +47,7 @@ class InputResult(BaseModel):
     Concrete job input result connection to an output result.
     """
 
-    name: Optional[str] = None
+    name: str | None = None
     """
     Input slot name. Passthrough slots have ``name`` set to ``None``.
     """
@@ -69,7 +69,7 @@ class InputResult(BaseModel):
     Name of output result slot in parent job, e.g., "blob". Usually the same
     as "name" but may differ if there are multiple outputs of the same type
     """
-    version: Union[int, Literal["F"]] = "F"
+    version: int | Literal["F"] = "F"
     """
     Version number or specifier to use. Usually "F"
     """
@@ -88,7 +88,7 @@ class Connection(BaseModel):
     """
     Name of output on connected parent output job.
     """
-    results: List[InputResult] = []
+    results: list[InputResult] = []
     """
     Specific results from parent job. Some slots may have a different job UID.
     """
@@ -126,7 +126,7 @@ class Input(BaseModel):
     """
     Detailed description.
     """
-    slots: List[InputSlot] = []
+    slots: list[InputSlot] = []
     """
     Expected low-level input definitions
     """
@@ -134,7 +134,7 @@ class Input(BaseModel):
     """
     Minimum number of connections to this input.
     """
-    count_max: Union[int, Literal["inf"]] = "inf"
+    count_max: int | Literal["inf"] = "inf"
     """
     Maximum number of connections supported for this input. Should be any
     integer >= 0 and <= 500. Inputs with a ``count_max`` set to ``"inf"`` also
@@ -144,7 +144,7 @@ class Input(BaseModel):
     """
     Whether repeated connections to the same output allowed for this input.
     """
-    connections: List[Connection] = []
+    connections: list[Connection] = []
     """
     Connected output details
     """
@@ -155,7 +155,7 @@ class Inputs(RootModel):
     Dictionary of job input connection details, where each key is the input name.
     """
 
-    root: Dict[str, Input] = {}
+    root: dict[str, Input] = {}
     """
     Dictionary of job input connection details, where each key is the input name.
     """
@@ -193,15 +193,15 @@ class OutputResult(BaseModel):
     Datatype-specific string from data_registry.py. e.g., stat_blob, ctf,
     alignments2D.
     """
-    versions: List[int] = []
+    versions: list[int] = []
     """
     List of available intermediate result version numbers.
     """
-    metafiles: List[str] = []
+    metafiles: list[str] = []
     """
     List of available intermediate result files (same size as ``versions``).
     """
-    num_items: List[int] = []
+    num_items: list[int] = []
     """
     Number of rows in each metafile
     """
@@ -243,15 +243,15 @@ class Output(BaseModel):
     """
     Detailed description.
     """
-    slots: List[OutputSlot] = []
+    slots: list[OutputSlot] = []
     """
     Low-level output result definitions.
     """
-    passthrough: Optional[str] = None
+    passthrough: str | None = None
     """
     Associated passthrough input name
     """
-    results: List[OutputResult] = []
+    results: list[OutputResult] = []
     """
     All individial outputs based on available output slots
     """
@@ -259,15 +259,15 @@ class Output(BaseModel):
     """
     Number of items in final version file
     """
-    image: Optional[str] = None
+    image: str | None = None
     """
     Asset ID of thumbnail for this output
     """
-    summary: Dict[str, Any] = {}
+    summary: dict[str, Any] = {}
     """
     Result dataset summary data
     """
-    latest_summary_stats: Dict[str, Any] = {}
+    latest_summary_stats: dict[str, Any] = {}
     """
     Additional context-specific summary statistics
     """
@@ -278,7 +278,7 @@ class Outputs(RootModel):
     Dictionary of job output details, where each key is the output name.
     """
 
-    root: Dict[str, Output] = {}
+    root: dict[str, Output] = {}
     """
     Dictionary of job output details, where each key is the output name.
     """
@@ -393,7 +393,7 @@ class OutputSpec(BaseModel):
     """
     Detailed description.
     """
-    slots: List[Union[OutputSlot, str]] = []
+    slots: list[OutputSlot | str] = []
     """
     Expected input/output result slots.
 
@@ -403,7 +403,7 @@ class OutputSpec(BaseModel):
     "str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=True)``
     "?str" is a shortcut for ``InputSlot(dtype="str", "prefix="str", required=False)``
     """
-    passthrough: Optional[str] = None
+    passthrough: str | None = None
     """
     Associated passthrough input name
     """
@@ -456,7 +456,7 @@ class InputSpec(BaseModel):
     """
     Detailed description.
     """
-    slots: List[Union[InputSlot, str]] = []
+    slots: list[InputSlot | str] = []
     """
     Expected input/output result slots.
 
@@ -470,7 +470,7 @@ class InputSpec(BaseModel):
     """
     Minimum number of connections to this input.
     """
-    count_max: Union[int, Literal["inf"]] = "inf"
+    count_max: int | Literal["inf"] = "inf"
     """
     Maximum number of connections supported for this input. Should be any
     integer >= 0 and <= 500. Inputs with a ``count_max`` set to ``"inf"`` also
@@ -491,7 +491,7 @@ class InputSpecs(RootModel):
     Dictionary of input specifications, where each key is the input name.
     """
 
-    root: Dict[str, InputSpec] = {}
+    root: dict[str, InputSpec] = {}
     """
     Dictionary of input specifications, where each key is the input name.
     """
@@ -607,7 +607,7 @@ class JobBuildError(BaseModel):
     """
     values based on https://docs.pydantic.dev/latest/errors/validation_errors
     """
-    loc: List[Union[str, int]]
+    loc: list[str | int]
     """
     path to the invalid property
     """
@@ -615,7 +615,7 @@ class JobBuildError(BaseModel):
     """
     value of the invalid property - must be serializable
     """
-    ctx: Dict[str, Any] = {}
+    ctx: dict[str, Any] = {}
     """
     error context for pydantic
     """
@@ -636,7 +636,7 @@ class OutputSpecs(RootModel):
     Dictionary of output specifications, where each key is the output name.
     """
 
-    root: Dict[str, OutputSpec] = {}
+    root: dict[str, OutputSpec] = {}
     """
     Dictionary of output specifications, where each key is the output name.
     """

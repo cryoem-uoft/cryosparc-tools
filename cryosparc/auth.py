@@ -5,7 +5,6 @@ Functions and classes for performing and storing user authentication operations.
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 from warnings import warn
 
 from pydantic import AwareDatetime, BaseModel, RootModel, ValidationError, field_validator
@@ -37,11 +36,11 @@ class UserAuthSessions(RootModel):
     Only one session is allowed per-user.
     """
 
-    root: Dict[str, AuthSession]
+    root: dict[str, AuthSession]
 
     @field_validator("root", mode="after")
     @classmethod
-    def remove_expired_tokens(cls, value: Dict[str, AuthSession]):
+    def remove_expired_tokens(cls, value: dict[str, AuthSession]):
         now = datetime.now(timezone.utc)
         return {k: v for k, v in value.items() if v.expires > now}
 
@@ -66,10 +65,10 @@ class InstanceAuthSessions(RootModel):
         ... }
     """
 
-    root: Dict[str, UserAuthSessions]
+    root: dict[str, UserAuthSessions]
 
     @classmethod
-    def load(cls, path: Optional[Path] = None) -> Self:
+    def load(cls, path: Path | None = None) -> Self:
         """
         Read all auth tokens from the given path. Loads from the
         user config directory if path is unspecified.
@@ -87,7 +86,7 @@ class InstanceAuthSessions(RootModel):
             warn(f"Sessions stored at {path} are invalid; load result is empty")
             return cls({})
 
-    def save(self, path: Optional[Path] = None):
+    def save(self, path: Path | None = None):
         """
         Write all auth tokens to the given path. Writes to the user config
         directory if path is unspecified.
@@ -97,7 +96,7 @@ class InstanceAuthSessions(RootModel):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.model_dump_json(indent=4))
 
-    def find(self, url: Optional[str] = None, email: Optional[str] = None) -> Optional[Tuple[str, AuthSession]]:
+    def find(self, url: str | None = None, email: str | None = None) -> tuple[str, AuthSession] | None:
         """
         Find the first available token for the given instance URL and email.
         If a URL is not specified, assumes the first existing session.

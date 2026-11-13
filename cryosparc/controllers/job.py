@@ -13,27 +13,14 @@ to create a new job and get a :py:class:`JobController` instance for it.
 import re
 import traceback
 import warnings
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path, PurePath, PurePosixPath
+from re import Pattern
 from time import sleep, time
-from typing import (
-    IO,
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Pattern,
-    Sequence,
-    Tuple,
-    Union,
-    overload,
-)
+from typing import IO, TYPE_CHECKING, Any, Literal, Union, overload
 
 from typing_extensions import Buffer, Self
 
@@ -74,18 +61,23 @@ for job input and output names. May only contain Latin letters, numbers and
 underscores, and must start with a letter.
 """
 
+DEFAULT_SAVEFIG_KW = {"bbox_inches": "tight", "pad_inches": 0}
+"""
+Default keyword arguments to pass to ``figure.savefig()`` when saving matplotlib Figures.
+"""
+
 LogLevel = Literal["text", "warning", "error"]
 """
 Severity level for job event logs.
 """
 
-FileOrFigure = Union[BinaryFile, Any]
+FileOrFigure = BinaryFile | Any
 """A file path, a file-like object, or a matplotlib figure."""
 
-OptPattern = Union[str, Pattern[str], None]
+OptPattern = str | Pattern[str] | None
 """Optional pattern type alias for matching strings."""
 
-JobOutput = Tuple[Union[str, "JobController"], str]
+JobOutput = tuple[Union[str, "JobController"], str]
 """Job output type alias for connecting jobs. Tuple of (job, output_name)."""
 
 
@@ -139,7 +131,7 @@ class JobController(Controller[Job]):
     Project unique ID, e.g., "P3"
     """
 
-    _events: Dict[str, str]
+    _events: dict[str, str]
     """
     Named event logs. Key can be user-provided name in log() method, or ID if
     name not provided. If both name and ID are used, can have two keys with
@@ -148,7 +140,7 @@ class JobController(Controller[Job]):
     :meta private:
     """
 
-    def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
+    def __init__(self, cs: "CryoSPARC", job: tuple[str, str] | Job) -> None:
         self.cs = cs
         if isinstance(job, tuple):
             self.project_uid, self.uid = job
@@ -200,12 +192,12 @@ class JobController(Controller[Job]):
         return self.model.spec.params
 
     @property
-    def inputs(self) -> Dict[str, Input]:
+    def inputs(self) -> dict[str, Input]:
         """Input connection details."""
         return self.model.spec.inputs.root
 
     @property
-    def outputs(self) -> Dict[str, Output]:
+    def outputs(self) -> dict[str, Output]:
         """Input result details."""
         return self.model.spec.outputs.root
 
@@ -232,14 +224,14 @@ class JobController(Controller[Job]):
 
     def queue(
         self,
-        lane: Optional[str] = None,
-        target: Optional[str] = None,
-        gpus: List[int] = [],
+        lane: str | None = None,
+        target: str | None = None,
+        gpus: Sequence[int] = [],
         *,
-        cluster_vars: Dict[str, Any] = {},
+        cluster_vars: Mapping[str, Any] = {},
         check_inputs_ready: bool = True,
         oversubscribe_gpus: bool = False,
-        hostname: Optional[str] = None,
+        hostname: str | None = None,
     ):
         """
         Queue the job for execution. Specify either ``lane`` or ``target``, but
@@ -291,7 +283,7 @@ class JobController(Controller[Job]):
             "queued"
         """
         if cluster_vars:
-            self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, cluster_vars)
+            self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, dict(cluster_vars))
         if hostname is not None:
             warnings.warn("hostname argument is deprecated, use target instead", DeprecationWarning, stacklevel=2)
             target = hostname
@@ -300,7 +292,7 @@ class JobController(Controller[Job]):
             self.uid,
             lane=lane,
             hostname=target,
-            gpus=gpus,
+            gpus=list(gpus),
             no_check_inputs_ready=not check_inputs_ready,
             oversubscribe_gpus=oversubscribe_gpus,
         )
@@ -314,7 +306,7 @@ class JobController(Controller[Job]):
         """
         self.model = self.cs.api.jobs.kill(self.project_uid, self.uid)
 
-    def wait_for_status(self, status: Union[JobStatus, Iterable[JobStatus]], *, timeout: Optional[int] = None) -> str:
+    def wait_for_status(self, status: JobStatus | Iterable[JobStatus], *, timeout: int | None = None) -> str:
         """
         Wait for the job's status to reach the specified value. Must be one of
         the following:
@@ -348,7 +340,7 @@ class JobController(Controller[Job]):
             sleep(5)
         return self.status
 
-    def wait_for_done(self, *, error_on_incomplete: bool = False, timeout: Optional[int] = None) -> str:
+    def wait_for_done(self, *, error_on_incomplete: bool = False, timeout: int | None = None) -> str:
         """
         Wait until the job reaches status "completed", "killed" or "failed".
 
@@ -375,7 +367,7 @@ class JobController(Controller[Job]):
         """
         self.cs.api.jobs.restart(self.project_uid, self.uid)
 
-    def interact(self, action: str, body: Any = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
+    def interact(self, action: str, body: Mapping[str, Any] = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
         """
         Send a message to or perform an interactive action on a waiting interactive job.
         Possible actions and expected body depend on the job type.
@@ -383,8 +375,8 @@ class JobController(Controller[Job]):
 
         Args:
             action (str): Interactive endpoint to call.
-            body (any): Data to send to the interactive job endpoint. Must be
-                JSON-encodable.
+            body (dict[str, Any]): Data to send to the interactive job endpoint.
+                Must be JSON-encodable.
             timeout (int, optional): Maximum time to wait for action to
                 complete, in seconds. Defaults to 10.
             refresh (bool, optional): If True, refresh the job model after
@@ -394,7 +386,7 @@ class JobController(Controller[Job]):
             any: Response from the interactive endpoint.
         """
         result: Any = self.cs.api.jobs.interactive_post(
-            self.project_uid, self.uid, body=body, endpoint=action, timeout=timeout
+            self.project_uid, self.uid, body=dict(body), endpoint=action, timeout=timeout
         )
         if refresh:
             self.refresh()
@@ -489,7 +481,7 @@ class JobController(Controller[Job]):
     def export(self) -> None: ...
     @overload
     def export(self, *, wait: Literal[True], timeout: float = ...) -> PurePosixPath: ...
-    def export(self, *, wait: bool = False, timeout: float = 300) -> Optional[PurePosixPath]:
+    def export(self, *, wait: bool = False, timeout: float = 300) -> PurePosixPath | None:
         """
         Export the job to its project directory's ``exports`` subfolder.
 
@@ -568,10 +560,10 @@ class JobController(Controller[Job]):
         return True
 
     @overload
-    def set_params(self, params: Dict[str, Any], /) -> None: ...
+    def set_params(self, params: dict[str, Any], /) -> None: ...
     @overload
     def set_params(self, /, **params: Any) -> None: ...
-    def set_params(self, params: Dict[str, Any] = {}, **kwparams: Any) -> None:
+    def set_params(self, params: Mapping[str, Any] = {}, **kwparams: Any) -> None:
         """
         Update job parameters with the given values. Only parameters that are
         valid for the job type are updated.
@@ -632,7 +624,7 @@ class JobController(Controller[Job]):
         source_job_uid: Union[str, "JobController"],
         source_output: str,
         *,
-        connection_idx: Optional[int] = None,
+        connection_idx: int | None = None,
         **kwargs,
     ) -> bool:
         """
@@ -702,7 +694,7 @@ class JobController(Controller[Job]):
         source_job_uid: Union[str, "JobController"],
         source_output: str,
         source_result: str,
-        source_version: Union[int, Literal["F"]] = "F",
+        source_version: int | Literal["F"] = "F",
     ):
         """
         Connect a low-level input result slot to an output result from another
@@ -744,7 +736,7 @@ class JobController(Controller[Job]):
         )
         return True
 
-    def disconnect(self, target_input: str, connection_idx: Optional[int] = None, **kwargs):
+    def disconnect(self, target_input: str, connection_idx: int | None = None, **kwargs):
         """
         Disconnect a job input.
 
@@ -801,7 +793,7 @@ class JobController(Controller[Job]):
         """
         return self.cs.api.jobs.load_input(self.project_uid, self.uid, name, slots=slots)
 
-    def load_output(self, name: str, slots: LoadableSlots = "all", version: Union[int, Literal["F"]] = "F"):
+    def load_output(self, name: str, slots: LoadableSlots = "all", version: int | Literal["F"] = "F"):
         """
         Load the :py:class:`dataset <cryosparc.dataset.Dataset>` for a job output.
 
@@ -824,29 +816,29 @@ class JobController(Controller[Job]):
             Dataset: Loaded dataset
         """
         if isinstance(slots, list):
-            slot_set = set(x.split("/")[0] for x in slots)
+            slot_set = {x.split("/")[0] for x in slots}
             if slot_set != set(slots):
                 warnings.warn(f"only whole slots can be loaded, not fields. Loading {slot_set}", stacklevel=2)
-                slots = sorted(list(slot_set))
+                slots = sorted(slot_set)
         return self.cs.api.jobs.load_output(self.project_uid, self.uid, name, slots=slots, version=version)
 
     # fmt: off
     @overload
-    def find_events(self, *,                                            pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]: ...
+    def find_events(self, *,                                            pattern: OptPattern = ..., checkpoint: int | None = ...) -> Iterator[TextEvent | ImageEvent | InteractiveEvent]: ...
     @overload
-    def find_events(self, *, type: Literal["text", "warning", "error"], pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[TextEvent]: ...
+    def find_events(self, *, type: Literal["text", "warning", "error"], pattern: OptPattern = ..., checkpoint: int | None = ...) -> Iterator[TextEvent]: ...
     @overload
-    def find_events(self, *, type: Literal["image"],                    pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[ImageEvent]: ...
+    def find_events(self, *, type: Literal["image"],                    pattern: OptPattern = ..., checkpoint: int | None = ...) -> Iterator[ImageEvent]: ...
     @overload
-    def find_events(self, *, type: Literal["interactive"],              pattern: OptPattern = ..., checkpoint: Optional[int] = ...) -> Iterator[InteractiveEvent]: ...
+    def find_events(self, *, type: Literal["interactive"],              pattern: OptPattern = ..., checkpoint: int | None = ...) -> Iterator[InteractiveEvent]: ...
     # fmt: on
     def find_events(
         self,
         *,
-        type: Literal["text", "warning", "error", "image", "interactive", None] = None,
+        type: Literal["text", "warning", "error", "image", "interactive"] | None = None,
         pattern: OptPattern = None,
-        checkpoint: Optional[int] = None,
-    ) -> Iterator[Union[TextEvent, ImageEvent, InteractiveEvent]]:
+        checkpoint: int | None = None,
+    ) -> Iterator[TextEvent | ImageEvent | InteractiveEvent]:
         """
         Find all events in the job log, optionally matching a type, pattern or checkpoint.
 
@@ -888,7 +880,7 @@ class JobController(Controller[Job]):
     def log(self, text: str, *, level: LogLevel = ..., name: str) -> str: ...
     @overload
     def log(self, text: str, *, level: LogLevel = ..., id: str) -> str: ...
-    def log(self, text: str, *, level: LogLevel = "text", name: Optional[str] = None, id: Optional[str] = None) -> str:
+    def log(self, text: str, *, level: LogLevel = "text", name: str | None = None, id: str | None = None) -> str:
         """
         Append to the job's event log. Update an existing log by providing a name
         or ID.
@@ -938,7 +930,7 @@ class JobController(Controller[Job]):
             self._events[name] = event.id
         return event.id
 
-    def log_checkpoint(self, meta: dict = {}):
+    def log_checkpoint(self, meta: Mapping[str, Any] = {}):
         """
         Add a checkpoint to the job's event log. Also resets named events.
 
@@ -948,7 +940,7 @@ class JobController(Controller[Job]):
         Returns:
             str: Created checkpoint event ID
         """
-        event = self.cs.api.jobs.add_checkpoint(self.project_uid, self.uid, meta)
+        event = self.cs.api.jobs.add_checkpoint(self.project_uid, self.uid, dict(meta))
         self._events = {}
         return event.id
 
@@ -957,11 +949,11 @@ class JobController(Controller[Job]):
         figure: FileOrFigure,
         text: str,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
-        raw_data: Union[str, bytes, None] = None,
-        raw_data_file: Optional[BinaryFile] = None,
-        raw_data_format: Optional[TextFormat] = None,
-        flags: List[str] = ["plots"],
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        raw_data: str | bytes | None = None,
+        raw_data_file: BinaryFile | None = None,
+        raw_data_format: TextFormat | None = None,
+        flags: Iterable[str] = ["plots"],
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ):
         """
         Add an event log with a figure.
@@ -1017,10 +1009,10 @@ class JobController(Controller[Job]):
             raw_data_format=raw_data_format,
             savefig_kw=savefig_kw,
         )
-        event = self.cs.api.jobs.add_image_log(self.project_uid, self.uid, imgfiles, text=text, flags=flags)
+        event = self.cs.api.jobs.add_image_log(self.project_uid, self.uid, imgfiles, text=text, flags=list(flags))
         return event.id
 
-    def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:
+    def list_files(self, prefix: str | PurePosixPath = "", recursive: bool = False) -> list[str]:
         """
         List files in the job directory.
 
@@ -1040,7 +1032,7 @@ class JobController(Controller[Job]):
         files = self.cs.list_files(self.project_uid, prefix=root / prefix, recursive=recursive)
         return [str(PurePosixPath(f).relative_to(root)) for f in files]  # Strip leading "J#/"
 
-    def download(self, path: Union[str, PurePosixPath]):
+    def download(self, path: str | PurePosixPath):
         """
         Initiate a download request for a file in the job directory. Use to get
         files from a remote CryoSPARC instance whose job directories are not
@@ -1067,12 +1059,12 @@ class JobController(Controller[Job]):
         return self.cs.download(self.project_uid, path)
 
     @overload
-    def download_file(self, path: Union[str, PurePosixPath]) -> Path: ...
+    def download_file(self, path: str | PurePosixPath) -> Path: ...
     @overload
-    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath]) -> Path: ...
+    def download_file(self, path: str | PurePosixPath, target: str | PurePath) -> Path: ...
     @overload
-    def download_file(self, path: Union[str, PurePosixPath], target: IO[bytes]) -> IO[bytes]: ...
-    def download_file(self, path: Union[str, PurePosixPath], target: BinaryFile = "") -> Union[Path, IO[bytes]]:
+    def download_file(self, path: str | PurePosixPath, target: IO[bytes]) -> IO[bytes]: ...
+    def download_file(self, path: str | PurePosixPath, target: BinaryFile = "") -> Path | IO[bytes]:
         """
         Download file from the job directory to a target path or writeable file handle.
 
@@ -1092,7 +1084,7 @@ class JobController(Controller[Job]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download_file(self.project_uid, path, target)
 
-    def download_dataset(self, path: Union[str, PurePosixPath]) -> Dataset:
+    def download_dataset(self, path: str | PurePosixPath) -> Dataset:
         """
         Download a .cs dataset file from the job directory.
 
@@ -1105,7 +1097,7 @@ class JobController(Controller[Job]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download_dataset(self.project_uid, path)
 
-    def download_mrc(self, path: Union[str, PurePosixPath]) -> Tuple["mrc.Header", "NDArray"]:
+    def download_mrc(self, path: str | PurePosixPath) -> tuple["mrc.Header", "NDArray"]:
         """
         Download a .mrc file from the job directory.
 
@@ -1118,7 +1110,7 @@ class JobController(Controller[Job]):
         path = PurePosixPath(self.uid) / path
         return self.cs.download_mrc(self.project_uid, path)
 
-    def list_assets(self) -> List[GridFSFile]:
+    def list_assets(self) -> list[GridFSFile]:
         """
         Find files available in the database for this job. Returns a list with
         details about the assets.
@@ -1132,10 +1124,10 @@ class JobController(Controller[Job]):
         return self.cs.list_assets(self.project_uid, self.uid)
 
     @overload
-    def download_asset(self, fileid: str, target: Union[str, PurePath]) -> Path: ...
+    def download_asset(self, fileid: str, target: str | PurePath) -> Path: ...
     @overload
     def download_asset(self, fileid: str, target: IO[bytes]) -> IO[bytes]: ...
-    def download_asset(self, fileid: str, target: BinaryFile) -> Union[Path, IO[bytes]]:
+    def download_asset(self, fileid: str, target: BinaryFile) -> Path | IO[bytes]:
         """
         Download the job asset with the given ID from the database.
 
@@ -1152,8 +1144,8 @@ class JobController(Controller[Job]):
 
     def upload(
         self,
-        target_path: Union[str, PurePosixPath],
-        source: Union[str, PurePath, IO, Buffer, Stream],
+        target_path: str | PurePosixPath,
+        source: str | PurePath | IO | Buffer | Stream,
         *,
         overwrite: bool = False,
     ) -> None:
@@ -1174,8 +1166,8 @@ class JobController(Controller[Job]):
     def _upload_asset(
         self,
         file: BinaryFile,
-        filename: Optional[str] = None,
-        format: Optional[AssetFormat] = None,
+        filename: str | None = None,
+        format: AssetFormat | None = None,
     ) -> GridFSAsset:
         """
         Upload an image or text file to the current job. Specify either an image
@@ -1205,13 +1197,13 @@ class JobController(Controller[Job]):
     def _upload_plot(
         self,
         figure: FileOrFigure,
-        name: Optional[str] = None,
+        name: str | None = None,
         formats: Iterable[ImageFormat] = ["png", "pdf"],
-        raw_data: Union[str, bytes, None] = None,
-        raw_data_file: Optional[BinaryFile] = None,
-        raw_data_format: Optional[TextFormat] = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
-    ) -> List[GridFSAsset]:
+        raw_data: str | bytes | None = None,
+        raw_data_file: BinaryFile | None = None,
+        raw_data_format: TextFormat | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
+    ) -> list[GridFSAsset]:
         """
         Upload the given figure. Returns a list of the created asset objects.
         Avoid using directly; use ``log_plot`` instead. See ``log_plot``
@@ -1267,7 +1259,7 @@ class JobController(Controller[Job]):
 
     def upload_dataset(
         self,
-        target_path: Union[str, PurePosixPath],
+        target_path: str | PurePosixPath,
         dset: Dataset,
         *,
         format: int = DEFAULT_FORMAT,
@@ -1290,7 +1282,7 @@ class JobController(Controller[Job]):
 
     def upload_mrc(
         self,
-        target_path: Union[str, PurePosixPath],
+        target_path: str | PurePosixPath,
         data: "NDArray",
         psize: float,
         *,
@@ -1312,7 +1304,7 @@ class JobController(Controller[Job]):
 
     def mkdir(
         self,
-        target_path: Union[str, PurePosixPath],
+        target_path: str | PurePosixPath,
         parents: bool = False,
         exist_ok: bool = False,
     ) -> None:
@@ -1335,7 +1327,7 @@ class JobController(Controller[Job]):
             exist_ok=exist_ok,
         )
 
-    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
+    def cp(self, source_path: str | PurePosixPath, target_path: str | PurePosixPath = "") -> None:
         """
         Copy a file or folder to the job directory. May only copy files
         within the project directory or from paths the user is authorized to
@@ -1359,7 +1351,7 @@ class JobController(Controller[Job]):
             target_path=PurePosixPath(self.uid) / target_path,
         )
 
-    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
+    def symlink(self, source_path: str | PurePosixPath, target_path: str | PurePosixPath = "") -> None:
         """
         Create a symbolic link in a project directory. May only create links to
         files or folders the user is authorized to access by an administrator.
@@ -1380,7 +1372,7 @@ class JobController(Controller[Job]):
 
     def subprocess(
         self,
-        args: Union[str, list],
+        args: str | list,
         *,
         mute: bool = False,
         checkpoint: bool = False,
@@ -1635,7 +1627,7 @@ class ExternalJobController(JobController):
         >>> job.stop()
     """
 
-    def __init__(self, cs: "CryoSPARC", job: Union[Tuple[str, str], Job]) -> None:
+    def __init__(self, cs: "CryoSPARC", job: tuple[str, str] | Job) -> None:
         super().__init__(cs, job)
         if self.model.spec.type != "snowflake":
             raise TypeError(f"Job {self.model.project_uid}-{self.model.uid} is not an external job")
@@ -1643,12 +1635,12 @@ class ExternalJobController(JobController):
     def add_input(
         self,
         type: Datatype,
-        name: Optional[str] = None,
+        name: str | None = None,
         min: int = 0,
-        max: Union[int, Literal["inf"]] = "inf",
+        max: int | Literal["inf"] = "inf",
         slots: Sequence[SlotSpec] = [],
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str | None = None,
+        desc: str | None = None,
     ):
         """
         Add or replace an External Job input. Connect the resulting input to
@@ -1745,20 +1737,20 @@ class ExternalJobController(JobController):
 
     # fmt: off
     @overload
-    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[SlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ...) -> str: ...
+    def add_output(self, type: Datatype, name: str | None = ..., slots: Sequence[SlotSpec] = ..., passthrough: str | None = ..., title: str | None = ...) -> str: ...
     @overload
-    def add_output(self, type: Datatype, name: Optional[str] = ..., slots: Sequence[SlotSpec] = ..., passthrough: Optional[str] = ..., title: Optional[str] = ..., *, alloc: Union[int, Dataset]) -> Dataset: ...
+    def add_output(self, type: Datatype, name: str | None = ..., slots: Sequence[SlotSpec] = ..., passthrough: str | None = ..., title: str | None = ..., *, alloc: int | Dataset) -> Dataset: ...
     # fmt: on
     def add_output(
         self,
         type: Datatype,
-        name: Optional[str] = None,
+        name: str | None = None,
         slots: Sequence[SlotSpec] = [],
-        passthrough: Optional[str] = None,
-        title: Optional[str] = None,
+        passthrough: str | None = None,
+        title: str | None = None,
         *,
-        alloc: Union[int, Dataset, None] = None,
-    ) -> Union[str, Dataset]:
+        alloc: int | Dataset | None = None,
+    ) -> str | Dataset:
         """
         Add an output to the current job. Optionally returns a corresponding
         empty dataset if ``alloc`` is specified.
@@ -1857,8 +1849,8 @@ class ExternalJobController(JobController):
         source_output: str,
         *,
         slots: Sequence[SlotSpec] = [],
-        title: Optional[str] = None,
-        desc: Optional[str] = None,
+        title: str | None = None,
+        desc: str | None = None,
         **kwargs,
     ) -> bool:
         """
@@ -1914,7 +1906,7 @@ class ExternalJobController(JobController):
         return super().connect(target_input, source_job, source_output)
 
     def alloc_output(
-        self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: Dict[str, Any] = {}
+        self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: Mapping[str, Any] = {}
     ) -> Dataset:
         """
         Allocate an empty dataset for a job output. Initialize with empty rows
@@ -1959,7 +1951,7 @@ class ExternalJobController(JobController):
             ])
 
         """
-        expected_fields = self.cs.api.jobs.get_output_fields(self.project_uid, self.uid, name, dtype_params)
+        expected_fields = self.cs.api.jobs.get_output_fields(self.project_uid, self.uid, name, dict(dtype_params))
         if isinstance(alloc, int):
             return Dataset.allocate(alloc, expected_fields)
         elif isinstance(alloc, Dataset):
@@ -1973,8 +1965,8 @@ class ExternalJobController(JobController):
         dataset: Dataset,
         *,
         version: int = 0,
-        image: Optional[FileOrFigure] = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        image: FileOrFigure | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
         **kwargs,
     ):
         """
@@ -2017,9 +2009,9 @@ class ExternalJobController(JobController):
     def set_output_image(
         self,
         name: str,
-        image: Union[FileOrFigure, GridFSAsset],
+        image: FileOrFigure | GridFSAsset,
         *,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ):
         """
         Set the output image for an output, visible from the job's Outputs tab.
@@ -2039,10 +2031,10 @@ class ExternalJobController(JobController):
 
     def set_tile_image(
         self,
-        image: Union[FileOrFigure, GridFSAsset],
+        image: FileOrFigure | GridFSAsset,
         *,
         name: str = "tile0",
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ):
         """
         Set the job tile image, visible when viewing the job from a workspace.

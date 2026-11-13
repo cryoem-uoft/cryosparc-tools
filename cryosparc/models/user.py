@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -67,10 +67,10 @@ class FileBrowserState(BaseModel):
     State of the user's file browser
     """
 
-    recentPaths: List[RecentPath] = []
+    recentPaths: list[RecentPath] = []
     """
     """
-    bookmarks: List[Bookmark] = []
+    bookmarks: list[Bookmark] = []
     """
     """
 
@@ -93,7 +93,7 @@ class LoginService(BaseModel):
     Service information for login/resume functionality
     """
 
-    loginTokens: List[LoginToken] = []
+    loginTokens: list[LoginToken] = []
     """
     """
 
@@ -114,7 +114,7 @@ class Profile(BaseModel):
     Profile information for a user account
     """
 
-    name: Union[str, Dict[str, Any]] = ""
+    name: str | dict[str, Any] = ""
     """
     """
 
@@ -166,7 +166,7 @@ class Services(BaseModel):
     Authentication services associated with a user account
     """
 
-    password: Optional[PasswordService] = None
+    password: PasswordService | None = None
     """
     Service information for password-based authentication
     """
@@ -187,22 +187,22 @@ class UserState(BaseModel):
     userCanSetJobPriority: bool = False
     """
     """
-    recentProjects: List[str] = []
+    recentProjects: list[str] = []
     """
     """
-    recentWorkspaces: List[RecentWorkspace] = []
+    recentWorkspaces: list[RecentWorkspace] = []
     """
     """
-    recentSessions: List[RecentSession] = []
+    recentSessions: list[RecentSession] = []
     """
     """
-    recentJobs: List[RecentJob] = []
+    recentJobs: list[RecentJob] = []
     """
     """
-    browserPath: Optional[str] = None
+    browserPath: str | None = None
     """
     """
-    defaultJobPriority: Optional[int] = None
+    defaultJobPriority: int | None = None
     """
     """
     userFileBrowserState: FileBrowserState = FileBrowserState()
@@ -227,10 +227,10 @@ class User(BaseModel):
     When this object was first created. Imported objects such as projects
     and jobs will retain the created time from their original CryoSPARC instance.
     """
-    emails: List[Email] = []
+    emails: list[Email] = []
     """
     """
-    created_by_user_id: Optional[str] = None
+    created_by_user_id: str | None = None
     """
     ID of the admin user who created this account, if applicable
     """
@@ -253,16 +253,16 @@ class User(BaseModel):
     profile: Profile = Profile()
     """
     """
-    roles: Dict[str, List[Literal["user", "admin"]]] = {}
+    roles: dict[str, list[Literal["user", "admin"]]] = {}
     """
     """
-    register_token: Optional[str] = None
+    register_token: str | None = None
     """
     """
-    reset_token: Optional[str] = None
+    reset_token: str | None = None
     """
     """
-    last_password_changed_at: Optional[datetime.datetime] = None
+    last_password_changed_at: datetime.datetime | None = None
     """
     """
     services: Services = Services()
@@ -271,13 +271,13 @@ class User(BaseModel):
     state: UserState = UserState()
     """
     """
-    preferences: Dict[str, Any] = {}
+    preferences: dict[str, Any] = {}
     """
     """
     file_browser_settings: FileBrowserSettings = FileBrowserSettings()
     """
     """
-    lanes: List[str] = []
+    lanes: list[str] = []
     """
     List of scheduler lane names that a user is allowed to queue to. Admins
     may queue to all lanes, regardless of this value.

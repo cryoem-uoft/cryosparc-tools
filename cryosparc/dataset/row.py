@@ -1,4 +1,5 @@
-from typing import Any, Dict, Generic, Iterable, List, Mapping, Optional, Tuple, TypeVar
+from collections.abc import Iterable, Mapping
+from typing import Any, Generic, TypeVar
 
 import numpy as n
 
@@ -12,11 +13,11 @@ class Row(Mapping):
     dataset module.
     """
 
-    __slots__ = ("idx", "cols", "__dict__")  # Specifying this speeds up allocation of many rows
+    __slots__ = ("__dict__", "cols", "idx")  # Specifying this speeds up allocation of many rows
     idx: int
-    cols: Dict[str, Column]
+    cols: dict[str, Column]
 
-    def __init__(self, cols: Dict[str, Column], idx: int):
+    def __init__(self, cols: dict[str, Column], idx: int):
         self.idx = idx
         self.cols = cols
         # note - don't keep around a ref to cols because then when col._data
@@ -78,7 +79,7 @@ Type variable for a ``Row`` subclass.
 """
 
 
-class Spool(List[R], Generic[R]):
+class Spool(list[R], Generic[R]):
     """
     List-like dataset row accessor class with support for splitting and
     randomizing based on row fields
@@ -101,7 +102,7 @@ class Spool(List[R], Generic[R]):
         """
         cls.DEFAULT_RNG = rng
 
-    def __init__(self, items: Iterable[R], rng: "Optional[n.random.Generator]" = None):
+    def __init__(self, items: Iterable[R], rng: "n.random.Generator | None" = None):
         super().__init__(items)
         self.indices = None
         self.random = rng or self.DEFAULT_RNG
@@ -116,7 +117,7 @@ class Spool(List[R], Generic[R]):
         self.random = rng
 
     # -------------------------------------------------- Spooling and Splitting
-    def split(self, num: int, random: bool = True, prefix: Optional[str] = None):
+    def split(self, num: int, random: bool = True, prefix: str | None = None):
         """
         Return two Spools with the elements of this spool. The first Spool
         contains ``num`` elements. The second contains ``len(self) - num``
@@ -204,7 +205,7 @@ class Spool(List[R], Generic[R]):
         d2 = Spool(items=(self[i] for i in idxs if self[i][field] == 1), rng=self.random)
         return d1, d2
 
-    def split_from_field(self, field: str, vals: Tuple[Any, Any] = (0, 1)):
+    def split_from_field(self, field: str, vals: tuple[Any, Any] = (0, 1)):
         """
         Split into two lists based on the given possible vals of the given
         field.
@@ -221,7 +222,7 @@ class Spool(List[R], Generic[R]):
         d2 = Spool((img for img in self if img[field] == vals[1]), rng=self.random)
         return d1, d2
 
-    def split_by(self, field: str) -> Dict[Any, List[R]]:
+    def split_by(self, field: str) -> dict[Any, list[R]]:
         """
         Split into a dictionary of lists, where each key is a possible value
         for the given field and each value is a list if elements that have
@@ -233,7 +234,7 @@ class Spool(List[R], Generic[R]):
         Returns:
             dict[any, list[R]]: dict of split element lists
         """
-        items: Dict[Any, List[R]] = {}
+        items: dict[Any, list[R]] = {}
         for item in self:
             val = item[field]
             curr = items.get(val, [])

@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 class DatasetLoadError(Exception):
     """Exception type raised when a dataset cannot be loaded"""
 
-    pass
-
 
 class APIError(ValueError):
     """

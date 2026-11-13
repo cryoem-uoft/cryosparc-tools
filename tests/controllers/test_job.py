@@ -25,7 +25,8 @@ from ..conftest import T20S_PARTICLES
 
 @pytest.fixture
 def mock_enqueue_endpoint(mock_job: Job):
-    assert isinstance(endpoint := APIClient.jobs.enqueue, mock.Mock)
+    endpoint = APIClient.jobs.enqueue
+    assert isinstance(endpoint, mock.Mock)
     endpoint.return_value = mock_job.model_copy(update={"status": "queued"})
     return endpoint
 
@@ -59,7 +60,8 @@ def test_queue_worker(job: JobController, mock_enqueue_endpoint: mock.Mock):
 
 
 def test_queue_cluster(job: JobController, mock_enqueue_endpoint: mock.Mock):
-    assert isinstance(mock_vars_endpoint := APIClient.jobs.set_cluster_custom_vars, mock.Mock)
+    mock_vars_endpoint = APIClient.jobs.set_cluster_custom_vars
+    assert isinstance(mock_vars_endpoint, mock.Mock)
     vars = {"var1": 42, "var2": "test"}
     job.queue(lane="cluster", cluster_vars=vars, check_inputs_ready=False)
     assert job.model.status == "queued"
@@ -76,7 +78,8 @@ def test_queue_cluster(job: JobController, mock_enqueue_endpoint: mock.Mock):
 
 
 def test_load_output_all_slots(job: JobController, t20s_particles, t20s_particles_passthrough):
-    assert isinstance(mock_load_output_endpoint := APIClient.jobs.load_output, mock.Mock)
+    mock_load_output_endpoint = APIClient.jobs.load_output
+    assert isinstance(mock_load_output_endpoint, mock.Mock)
     mock_load_output_endpoint.return_value = t20s_particles.innerjoin(t20s_particles_passthrough)
     particles = job.load_output("particles_class_0")
     assert set(particles.prefixes()) == {"location", "blob", "ctf"}
@@ -86,7 +89,8 @@ def test_load_output_all_slots(job: JobController, t20s_particles, t20s_particle
 
 
 def test_load_output_some_slots(job: JobController, t20s_particles, t20s_particles_passthrough):
-    assert isinstance(mock_load_output_endpoint := APIClient.jobs.load_output, mock.Mock)
+    mock_load_output_endpoint = APIClient.jobs.load_output
+    assert isinstance(mock_load_output_endpoint, mock.Mock)
     mock_load_output_endpoint.return_value = t20s_particles.innerjoin(t20s_particles_passthrough)
     slots = ["location", "blob", "ctf"]
     particles = job.load_output("particles_class_0", slots=slots)
@@ -97,7 +101,8 @@ def test_load_output_some_slots(job: JobController, t20s_particles, t20s_particl
 
 
 def test_load_output_fields(job: JobController, t20s_particles, t20s_particles_passthrough):
-    assert isinstance(mock_load_output_endpoint := APIClient.jobs.load_output, mock.Mock)
+    mock_load_output_endpoint = APIClient.jobs.load_output
+    assert isinstance(mock_load_output_endpoint, mock.Mock)
     mock_load_output_endpoint.return_value = t20s_particles.innerjoin(t20s_particles_passthrough)
     fields_and_slots = ["location", "blob", "ctf/scale", "ctf/df_angle_rad"]
     slots = ["blob", "ctf", "location"]
@@ -110,7 +115,8 @@ def test_load_output_fields(job: JobController, t20s_particles, t20s_particles_p
 
 
 def test_job_subprocess_io(job: JobController):
-    assert isinstance(mock_log_endpoint := APIClient.jobs.add_event_log, mock.Mock)
+    mock_log_endpoint = APIClient.jobs.add_event_log
+    assert isinstance(mock_log_endpoint, mock.Mock)
 
     job.subprocess(
         [sys.executable, "-c", 'import sys; print("hello"); print("error", file=sys.stderr); print("world")']
@@ -128,7 +134,8 @@ def test_job_subprocess_io(job: JobController):
 
 def test_create_external_job(cs: CryoSPARC, project: ProjectController, external_job: ExternalJobController):
     assert project.uid == external_job.project_uid
-    assert isinstance(mock_create_endpoint := APIClient.jobs.create, mock.Mock)
+    mock_create_endpoint = APIClient.jobs.create
+    assert isinstance(mock_create_endpoint, mock.Mock)
     mock_create_endpoint.assert_called_once_with(
         project.uid, "W1", type="snowflake", title="Recenter Particles", description=""
     )
@@ -200,8 +207,10 @@ def mock_external_job_with_saved_output(external_job_with_added_output: External
 
 
 def test_external_job_output(mock_external_job_with_saved_output: ExternalJobController):
-    assert isinstance(mock_add_output_endpoint := APIClient.jobs.add_external_output, mock.Mock)
-    assert isinstance(mock_save_output_endpoint := APIClient.jobs.save_output, mock.Mock)
+    mock_add_output_endpoint = APIClient.jobs.add_external_output
+    mock_save_output_endpoint = APIClient.jobs.save_output
+    assert isinstance(mock_add_output_endpoint, mock.Mock)
+    assert isinstance(mock_save_output_endpoint, mock.Mock)
     j = mock_external_job_with_saved_output
 
     mock_add_output_endpoint.assert_called_once_with(
@@ -233,7 +242,8 @@ def mock_checkpoint_event():
 
 
 def test_log(job: JobController, mock_log_event):
-    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
+    mock_add_endpoint = APIClient.jobs.add_event_log
+    assert isinstance(mock_add_endpoint, mock.Mock)
     mock_add_endpoint.return_value = mock_log_event
 
     result = job.log("Test message without name")
@@ -243,8 +253,10 @@ def test_log(job: JobController, mock_log_event):
 
 
 def test_log_with_name_create_and_update(job: JobController, mock_log_event):
-    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
-    assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
+    mock_add_endpoint = APIClient.jobs.add_event_log
+    mock_update_endpoint = APIClient.jobs.update_event_log
+    assert isinstance(mock_add_endpoint, mock.Mock)
+    assert isinstance(mock_update_endpoint, mock.Mock)
     mock_add_endpoint.return_value = mock_log_event
     mock_update_endpoint.return_value = mock_log_event
 
@@ -264,8 +276,10 @@ def test_log_with_name_create_and_update(job: JobController, mock_log_event):
 
 
 def test_log_with_returned_event_id(job: JobController, mock_log_event):
-    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
-    assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
+    mock_add_endpoint = APIClient.jobs.add_event_log
+    mock_update_endpoint = APIClient.jobs.update_event_log
+    assert isinstance(mock_add_endpoint, mock.Mock)
+    assert isinstance(mock_update_endpoint, mock.Mock)
     mock_add_endpoint.return_value = mock_log_event
     mock_update_endpoint.return_value = mock_log_event
 
@@ -283,10 +297,12 @@ def test_log_with_returned_event_id(job: JobController, mock_log_event):
 
 
 def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mock_checkpoint_event):
-    assert isinstance(mock_add_endpoint := APIClient.jobs.add_event_log, mock.Mock)
-    assert isinstance(mock_update_endpoint := APIClient.jobs.update_event_log, mock.Mock)
-    assert isinstance(mock_checkpoint_endpoint := APIClient.jobs.add_checkpoint, mock.Mock)
-
+    mock_add_endpoint = APIClient.jobs.add_event_log
+    mock_update_endpoint = APIClient.jobs.update_event_log
+    mock_checkpoint_endpoint = APIClient.jobs.add_checkpoint
+    assert isinstance(mock_add_endpoint, mock.Mock)
+    assert isinstance(mock_update_endpoint, mock.Mock)
+    assert isinstance(mock_checkpoint_endpoint, mock.Mock)
     mock_add_endpoint.return_value = mock_log_event
     mock_update_endpoint.return_value = mock_log_event
     mock_checkpoint_endpoint.return_value = mock_checkpoint_event
@@ -305,9 +321,12 @@ def test_log_after_checkpoint_creates_new(job: JobController, mock_log_event, mo
 
 
 def test_save_output_with_image(external_job_with_added_output: ExternalJobController, mock_external_job: Job):
-    assert isinstance(mock_save_endpoint := APIClient.jobs.save_output, mock.Mock)
-    assert isinstance(mock_upload_endpoint := APIClient.assets.upload, mock.Mock)
-    assert isinstance(mock_set_image_endpoint := APIClient.jobs.set_output_image, mock.Mock)
+    mock_save_endpoint = APIClient.jobs.save_output
+    mock_upload_endpoint = APIClient.assets.upload
+    mock_set_image_endpoint = APIClient.jobs.set_output_image
+    assert isinstance(mock_save_endpoint, mock.Mock)
+    assert isinstance(mock_upload_endpoint, mock.Mock)
+    assert isinstance(mock_set_image_endpoint, mock.Mock)
 
     mock_asset = mock.MagicMock(id="asset_123")
     mock_upload_endpoint.return_value = mock_asset
@@ -330,8 +349,10 @@ def test_save_output_with_image(external_job_with_added_output: ExternalJobContr
 
 
 def test_set_output_image(external_job_with_added_output: ExternalJobController, mock_external_job: Job):
-    assert isinstance(mock_upload_endpoint := APIClient.assets.upload, mock.Mock)
-    assert isinstance(mock_set_image_endpoint := APIClient.jobs.set_output_image, mock.Mock)
+    mock_upload_endpoint = APIClient.assets.upload
+    mock_set_image_endpoint = APIClient.jobs.set_output_image
+    assert isinstance(mock_upload_endpoint, mock.Mock)
+    assert isinstance(mock_set_image_endpoint, mock.Mock)
 
     mock_asset = mock.MagicMock(id="asset_456")
     mock_upload_endpoint.return_value = mock_asset
@@ -348,8 +369,10 @@ def test_set_output_image(external_job_with_added_output: ExternalJobController,
 
 
 def test_set_tile_image(external_job: ExternalJobController, mock_external_job: Job):
-    assert isinstance(mock_upload_endpoint := APIClient.assets.upload, mock.Mock)
-    assert isinstance(mock_set_tile_endpoint := APIClient.jobs.set_tile_image, mock.Mock)
+    mock_upload_endpoint = APIClient.assets.upload
+    mock_set_tile_endpoint = APIClient.jobs.set_tile_image
+    assert isinstance(mock_upload_endpoint, mock.Mock)
+    assert isinstance(mock_set_tile_endpoint, mock.Mock)
 
     mock_asset = mock.MagicMock(id="asset_789")
     mock_upload_endpoint.return_value = mock_asset

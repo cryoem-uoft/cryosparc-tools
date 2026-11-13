@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -29,10 +29,10 @@ class AthenaVolumeUploadParams(BaseModel):
     symmetry: str = "C1"
     """
     """
-    psize_A: Union[float, Literal["inf", "-inf", "nan"]] = 1.0
+    psize_A: float | Literal["inf", "-inf", "nan"] = 1.0
     """
     """
-    res_A: Union[float, Literal["inf", "-inf", "nan"], None] = None
+    res_A: float | Literal["inf", "-inf", "nan"] | None = None
     """
     """
 
@@ -45,9 +45,9 @@ class DataManagementStat(BaseModel):
     status: Literal["active", "archiving", "archived", "deleted", "deleting", "missing", "calculating"] = "active"
     """
     """
-    prev_status: Optional[
-        Literal["active", "archiving", "archived", "deleted", "deleting", "missing", "calculating"]
-    ] = None
+    prev_status: Literal["active", "archiving", "archived", "deleted", "deleting", "missing", "calculating"] | None = (
+        None
+    )
     """
     """
     size: int = 0
@@ -85,7 +85,7 @@ class ECLSessionProperties(BaseModel):
     do_athena_volume_upload: bool = False
     """
     """
-    athena_volume_upload_params: Optional[AthenaVolumeUploadParams] = None
+    athena_volume_upload_params: AthenaVolumeUploadParams | None = None
     """
     """
 
@@ -99,11 +99,11 @@ class ExposureGroup(BaseModel):
     """
     Set to disable new incoming exposures in this group from being processed
     """
-    gainref_path: Optional[str] = None
+    gainref_path: str | None = None
     """
     Path to gain reference file for exposures in this group
     """
-    defect_path: Optional[str] = None
+    defect_path: str | None = None
     """
     Path to defect file for exposures in this group
     """
@@ -171,11 +171,11 @@ class ExposureGroupUpdate(BaseModel):
     """
     Set to disable new incoming exposures in this group from being processed
     """
-    gainref_path: Optional[str] = None
+    gainref_path: str | None = None
     """
     Path to gain reference file for exposures in this group
     """
-    defect_path: Optional[str] = None
+    defect_path: str | None = None
     """
     Path to defect file for exposures in this group
     """
@@ -215,13 +215,13 @@ class LiveComputeResources(BaseModel):
     Details about a Live session's scheduler compute resource allocation
     """
 
-    phase_one_lane: Optional[str] = None
+    phase_one_lane: str | None = None
     """
     """
     phase_one_gpus: int = 1
     """
     """
-    phase_two_lane: Optional[str] = None
+    phase_two_lane: str | None = None
     """
     """
     phase_two_gpus: int = 1
@@ -230,7 +230,7 @@ class LiveComputeResources(BaseModel):
     phase_two_ssd: bool = True
     """
     """
-    auxiliary_lane: Optional[str] = None
+    auxiliary_lane: str | None = None
     """
     """
     auxiliary_gpus: int = 1
@@ -263,14 +263,14 @@ class LiveVolumeInfo(BaseModel):
     vol_gname: str
     """
     """
-    fileid: Optional[str] = None
+    fileid: str | None = None
     """
     map's central projections
     """
     selected: bool = False
     """
     """
-    num_particles: Optional[int] = None
+    num_particles: int | None = None
     """
     """
 
@@ -280,13 +280,13 @@ class Phase2ParticleOutputInfo(BaseModel):
     Information about particle output from 2D classification
     """
 
-    path: Optional[str] = None
+    path: str | None = None
     """
     """
     count: int = 0
     """
     """
-    fields: List[str] = []
+    fields: list[str] = []
     """
     """
 
@@ -296,13 +296,13 @@ class Threshold(BaseModel):
     Statistics-based threshold details
     """
 
-    min: Optional[float] = None
+    min: float | None = None
     """
     """
-    max: Optional[float] = None
+    max: float | None = None
     """
     """
-    value: Optional[float] = None
+    value: float | None = None
     """
     """
 
@@ -312,19 +312,19 @@ class RangeThreshold(BaseModel):
     Picking range threshold parameters
     """
 
-    min: Optional[float] = None
+    min: float | None = None
     """
     """
-    max: Optional[float] = None
+    max: float | None = None
     """
     """
-    value: Optional[float] = None
+    value: float | None = None
     """
     """
-    min_value: Optional[float] = None
+    min_value: float | None = None
     """
     """
-    max_value: Optional[float] = None
+    max_value: float | None = None
     """
     """
 
@@ -384,7 +384,7 @@ class RtpWorkerState(BaseModel):
     status: JobStatus
     """
     """
-    errors: List[RunError] = []
+    errors: list[RunError] = []
     """
     """
 
@@ -415,10 +415,10 @@ class SessionAttribute(BaseModel):
     title: str
     """
     """
-    min: Optional[float] = None
+    min: float | None = None
     """
     """
-    max: Optional[float] = None
+    max: float | None = None
     """
     """
     round: int = 0
@@ -437,7 +437,7 @@ class TemplateClassInfo(BaseModel):
     fileid: str
     """
     """
-    res_A: Union[float, Literal["inf", "-inf", "nan"]]
+    res_A: float | Literal["inf", "-inf", "nan"]
     """
     """
     selected: bool = False
@@ -449,10 +449,10 @@ class TemplateClassInfo(BaseModel):
     num_particles_total: int = 0
     """
     """
-    mean_prob: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
+    mean_prob: float | Literal["inf", "-inf", "nan"] = 0.0
     """
     """
-    class_ess: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
+    class_ess: float | Literal["inf", "-inf", "nan"] = 0.0
     """
     """
 
@@ -525,7 +525,7 @@ class SessionStats(BaseModel):
     total_manual_picked_exposures: int = 0
     """
     """
-    gsfsc: Union[float, Literal["inf", "-inf", "nan"]] = 0.0
+    gsfsc: float | Literal["inf", "-inf", "nan"] = 0.0
     """
     """
     frames: int = 0
@@ -562,7 +562,7 @@ class SessionBuildError(BaseModel):
     """
     type of error, e.g. 'missing', 'invalid', etc.
     """
-    loc: List[Union[str, int]]
+    loc: list[str | int]
     """
     path to the invalid property
     """
@@ -596,11 +596,11 @@ class Session(BaseModel):
     When this object was first created. Imported objects such as projects
     and jobs will retain the created time from their original CryoSPARC instance.
     """
-    dumped_at: Optional[datetime.datetime] = None
+    dumped_at: datetime.datetime | None = None
     """
     When the model was last dumped to disk
     """
-    last_dumped_version: Optional[str] = None
+    last_dumped_version: str | None = None
     """
     The version of CryoSPARC last dumped at
     """
@@ -628,23 +628,23 @@ class Session(BaseModel):
     compatibility between CryoSPARC versions, similar to the ``schema_version``
     present in projects.
     """
-    created_by_user_id: Optional[str] = None
+    created_by_user_id: str | None = None
     """
     User ID that created the workspace.
     """
-    title: Optional[str] = None
+    title: str | None = None
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    created_by_job_uid: Optional[str] = None
+    created_by_job_uid: str | None = None
     """
     """
-    tags: List[str] = []
+    tags: list[str] = []
     """
     """
-    starred_by: List[str] = []
+    starred_by: list[str] = []
     """
     List of user IDs who have starred the workspace.
     """
@@ -654,16 +654,16 @@ class Session(BaseModel):
     deleting: bool = False
     """
     """
-    last_accessed: Optional[SessionLastAccessed] = None
+    last_accessed: SessionLastAccessed | None = None
     """
     """
     workspace_stats: WorkspaceStats = WorkspaceStats()
     """
     """
-    imported_at: Optional[datetime.datetime] = None
+    imported_at: datetime.datetime | None = None
     """
     """
-    groups: List[JobGroup] = []
+    groups: list[JobGroup] = []
     """
     """
     session_uid: str
@@ -679,23 +679,23 @@ class Session(BaseModel):
     """
     Current activity status of the session
     """
-    failed_at: List[datetime.datetime] = []
+    failed_at: list[datetime.datetime] = []
     """
     when session entered failed state
     """
-    running_at: List[datetime.datetime] = []
+    running_at: list[datetime.datetime] = []
     """
     when start_session() is called (when built jobs are placed into the scheduler queue)
     """
-    paused_at: List[datetime.datetime] = []
+    paused_at: list[datetime.datetime] = []
     """
     times when session was paused
     """
-    completed_at: Optional[datetime.datetime] = None
+    completed_at: datetime.datetime | None = None
     """
     when all jobs inside session are either completed, failed, or killed (i.e. no running/building/waiting). At least one job must've completed successfully for this field to be populated.
     """
-    cleared_at: Optional[datetime.datetime] = None
+    cleared_at: datetime.datetime | None = None
     """
     when experiment was last cleared
     """
@@ -712,7 +712,7 @@ class Session(BaseModel):
     """
     Session parameters for preprocessing. Reconstruction parameters are stored separately.
     """
-    attributes: List[SessionAttribute] = [
+    attributes: list[SessionAttribute] = [
         SessionAttribute(
             name="total_motion_dist", title="Total full-frame motion distance (pixels)", min=None, max=None, round=2
         ),
@@ -812,11 +812,11 @@ class Session(BaseModel):
     """
     User-provided notes about the session
     """
-    notes_lock: Optional[str] = None
+    notes_lock: str | None = None
     """
     Username of user who has locked the notes for editing
     """
-    started_by_user_id: Optional[str] = None
+    started_by_user_id: str | None = None
     """
     User ID of the user who started the session
     """
@@ -827,17 +827,17 @@ class Session(BaseModel):
     resources and GPU tokens to workers when the microscope has not yet acquired
     any data.
     """
-    phase_one_workers: Dict[str, RtpWorkerState] = {}
+    phase_one_workers: dict[str, RtpWorkerState] = {}
     """
     Example: {'J1': RtpWorkerState(status=<JobStatus.BUILDING: 'building'>, errors=[]),
     'J2': RtpWorkerState(status=<JobStatus.RUNNING: 'running'>, errors=[]),
     'J3': RtpWorkerState(status=<JobStatus.KILLED: 'killed'>, errors=[RunError(message='Example', warning=False)])}
     """
-    phase_one_workers_soft_kill: List[str] = []
+    phase_one_workers_soft_kill: list[str] = []
     """
     list of workers that are being signalled a "stop" request
     """
-    live_session_job_uid: Optional[str] = None
+    live_session_job_uid: str | None = None
     """
     UID of the Live session job associated with this session
     """
@@ -846,19 +846,19 @@ class Session(BaseModel):
     Current status of the file engine, which searches for new exposures.
     Inactive while session is paused.
     """
-    file_engine_last_run: Optional[float] = None
+    file_engine_last_run: float | None = None
     """
     Timestamp of the last time the file engine ran
     """
-    rtp_childs: List[RtpChild] = []
+    rtp_childs: list[RtpChild] = []
     """
     List of Live worker jobs associated with this session
     """
-    template_creation_job: Optional[str] = None
+    template_creation_job: str | None = None
     """
     which job is providing the templates
     """
-    template_creation_project: Optional[str] = None
+    template_creation_project: str | None = None
     """
     which project is the above job in
     """
@@ -870,11 +870,11 @@ class Session(BaseModel):
     """
     whether the templates are ready to be shown for selection
     """
-    template_creation_info: List[TemplateClassInfo] = []
+    template_creation_info: list[TemplateClassInfo] = []
     """
     template info for select 2D (includes gridFS image ids etc)
     """
-    exposure_groups: List[ExposureGroup] = []
+    exposure_groups: list[ExposureGroup] = []
     """
     Exposure groups configured in this session
     """
@@ -887,7 +887,7 @@ class Session(BaseModel):
     import_signatures: ImportSignature = ImportSignature()
     """
     """
-    exposure_summary: Dict[str, Any] = {}
+    exposure_summary: dict[str, Any] = {}
     """
     Summary statistics of exposures processed in this session
     """
@@ -898,25 +898,25 @@ class Session(BaseModel):
     last_compacted_amount: int = 0
     """
     """
-    last_compacted_at: Optional[datetime.datetime] = None
+    last_compacted_at: datetime.datetime | None = None
     """
     """
-    last_compacted_version: Optional[str] = None
+    last_compacted_version: str | None = None
     """
     """
     last_restored_amount: int = 0
     """
     """
-    last_restored_at: Optional[datetime.datetime] = None
+    last_restored_at: datetime.datetime | None = None
     """
     """
     compacted_exposures_count: int = 0
     """
     """
-    restoration_notification_id: Optional[str] = None
+    restoration_notification_id: str | None = None
     """
     """
-    restoration_user_id: Optional[str] = None
+    restoration_user_id: str | None = None
     """
     """
     pre_restoration_size: int = 0
@@ -929,10 +929,10 @@ class Session(BaseModel):
     phase2_class2D_params_spec: LiveClass2DParams = LiveClass2DParams()
     """
     """
-    phase2_class2D_job: Optional[str] = None
+    phase2_class2D_job: str | None = None
     """
     """
-    phase2_class2D_job_used: Optional[str] = None
+    phase2_class2D_job_used: str | None = None
     """
     Previously ran 2D classification job
     """
@@ -942,13 +942,13 @@ class Session(BaseModel):
     phase2_class2D_ready_partial: bool = False
     """
     """
-    phase2_class2D_info: List[TemplateClassInfo] = []
+    phase2_class2D_info: list[TemplateClassInfo] = []
     """
     """
     phase2_class2D_num_particles_in: int = 0
     """
     """
-    phase2_class2D_particles_out: Optional[Phase2ParticleOutputInfo] = None
+    phase2_class2D_particles_out: Phase2ParticleOutputInfo | None = None
     """
     """
     phase2_class2D_num_particles_seen: int = 0
@@ -961,10 +961,10 @@ class Session(BaseModel):
     phase2_class2D_num_particles_rejected: int = 0
     """
     """
-    phase2_class2D_last_updated: Optional[datetime.datetime] = None
+    phase2_class2D_last_updated: datetime.datetime | None = None
     """
     """
-    phase2_select2D_job: Optional[str] = None
+    phase2_select2D_job: str | None = None
     """
     """
     phase2_abinit_restart: bool = False
@@ -973,13 +973,13 @@ class Session(BaseModel):
     phase2_abinit_params_spec: LiveAbinitParams = LiveAbinitParams()
     """
     """
-    phase2_abinit_job: Optional[str] = None
+    phase2_abinit_job: str | None = None
     """
     """
     phase2_abinit_ready: bool = False
     """
     """
-    phase2_abinit_info: List[LiveVolumeInfo] = []
+    phase2_abinit_info: list[LiveVolumeInfo] = []
     """
     """
     phase2_abinit_num_particles_in: int = 0
@@ -994,7 +994,7 @@ class Session(BaseModel):
     """
     Refinement parameters specified for next launch
     """
-    phase2_refine_job: Optional[str] = None
+    phase2_refine_job: str | None = None
     """
     """
     phase2_refine_ready: bool = False
@@ -1006,7 +1006,7 @@ class Session(BaseModel):
     phase2_refine_num_particles_in: int = 0
     """
     """
-    phase2_refine_last_updated: Optional[datetime.datetime] = None
+    phase2_refine_last_updated: datetime.datetime | None = None
     """
     """
     auto_pause: Literal["disabled", "graceful", "immediate"] = "disabled"
@@ -1022,13 +1022,13 @@ class Session(BaseModel):
     If True, there are no more exposures to process and the session will
     pause once current processing is complete.
     """
-    computed_stats_last_run_time: Optional[datetime.datetime] = None
+    computed_stats_last_run_time: datetime.datetime | None = None
     """
     """
     last_processed_exposure_priority: Literal["normal", "oldest", "latest", "alternate"] = "oldest"
     """
     """
-    athena_epu_run_id: Optional[str] = None
+    athena_epu_run_id: str | None = None
     """
     :meta private:
     """
@@ -1055,7 +1055,7 @@ class Session(BaseModel):
     """
     Total size of all data in the session, in bytes
     """
-    errors: List[SessionBuildError]
+    errors: list[SessionBuildError]
     """
     Errors found in the session configuration. Session will not be able
     to start if any errors are present.
@@ -1073,6 +1073,6 @@ class TemplateSelectionThreshold(BaseModel):
     direction: Literal["above", "below"]
     """
     """
-    threshold: Union[int, float]
+    threshold: int | float
     """
     """

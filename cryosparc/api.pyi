@@ -75,7 +75,7 @@ Examples of incorrect usage:
 """
 
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Literal, TypeAlias
 
 import httpx
 
@@ -92,6 +92,7 @@ from .models.auth import Token
 from .models.benchmarks import PerformanceBenchmark, ReferencePerformanceBenchmark
 from .models.blueprint import Blueprint, BlueprintParameter
 from .models.config import SystemInfo
+from .models.datasource import Datasource
 from .models.diagnostics import RuntimeDiagnostics
 from .models.event import CheckpointEvent, Event, ImageEvent, InteractiveEvent, TextEvent
 from .models.exposure import Exposure
@@ -99,11 +100,18 @@ from .models.external import ExternalOutputSpec
 from .models.file_browser import BrowseFileResponse, FileBrowserSettings
 from .models.instance import InstanceActivity
 from .models.job import Job, JobStatus
+from .models.job_export import (
+    ExportOutputPreview,
+    ExportOutputsSelection,
+    ExportResultDefaults,
+    ExportResultsSelection,
+    TransferMethod,
+)
 from .models.job_register import JobRegister
 from .models.job_spec import Category, InputSpec, OutputResult, OutputSpec
 from .models.license import LicenseInstance, UpdateLicenseTag
 from .models.notification import Notification
-from .models.preview import DeleteProjectPreview, DeleteWorkspacePreview, SplitProjectPreview
+from .models.preview import DeleteProjectPreview, DeleteWorkspacePreview, ExportBundlePreview, SplitProjectPreview
 from .models.project import GenerateIntermediateResultsSettings, Project
 from .models.scheduler_lane import SchedulerLane
 from .models.scheduler_target import SchedulerTarget, SchedulerTargetCluster, SchedulerTargetNode
@@ -125,7 +133,7 @@ from .models.workflow import ApplyWorkflowRequest, UpdateWorkflow, Workflow, Wor
 from .models.workspace import JobGroup, JobGroupCreate, JobGroupUpdate, Workspace
 from .stream import Stream
 
-Auth = Union[str, Tuple[str, str]]
+Auth: TypeAlias = str | tuple[str, str]
 """
 Type representing an auth token or email/password tuple.
 """
@@ -137,7 +145,6 @@ class APINamespace:
             http_client (httpx.Client): HTTP client object for making requests
 
         """
-        ...
 
 class ConfigAPI(APINamespace):
     """
@@ -151,19 +158,37 @@ class ConfigAPI(APINamespace):
             FileBrowserSettings: Successful Response
 
         """
-        ...
-    def set_file_browser_settings(self, body: FileBrowserSettings) -> None:
+    def set_file_browser_settings(self, body: FileBrowserSettings) -> FileBrowserSettings:
         """
         Update instance file browser settings
 
         Args:
             body (FileBrowserSettings):
 
+        Returns:
+            FileBrowserSettings: Successful Response
+
         """
-        ...
-    def set_instance_banner(
-        self, *, active: bool = False, title: Optional[str] = None, body: Optional[str] = None
-    ) -> Any:
+    def get_export_result_defaults(self) -> ExportResultDefaults:
+        """
+        Get the instance-wide default policy for which export results get omitted
+
+        Returns:
+            ExportResultDefaults: Successful Response
+
+        """
+    def set_export_result_defaults(self, body: ExportResultDefaults) -> ExportResultDefaults:
+        """
+        Update the instance-wide default policy for which export results get omitted
+
+        Args:
+            body (ExportResultDefaults):
+
+        Returns:
+            ExportResultDefaults: Successful Response
+
+        """
+    def set_instance_banner(self, *, active: bool = False, title: str | None = None, body: str | None = None) -> Any:
         """
         Update the banner message shown on the home page
 
@@ -176,10 +201,7 @@ class ConfigAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
-    def set_login_message(
-        self, *, active: bool = False, title: Optional[str] = None, body: Optional[str] = None
-    ) -> Any:
+    def set_login_message(self, *, active: bool = False, title: str | None = None, body: str | None = None) -> Any:
         """
         Update the alert message shown in the app following user login
 
@@ -192,7 +214,6 @@ class ConfigAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def get_instance_uid(self) -> str:
         """
         Get this CryoSPARC instance's unique UID.
@@ -201,7 +222,6 @@ class ConfigAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def set_default_job_priority(self, value: int) -> Any:
         """
         Job priority
@@ -213,7 +233,6 @@ class ConfigAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def get_version(self) -> str:
         """
         Get the current CryoSPARC version (with patch suffix, if available)
@@ -222,7 +241,6 @@ class ConfigAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def get_system_info(self) -> SystemInfo:
         """
         System information related to the CryoSPARC application
@@ -231,7 +249,6 @@ class ConfigAPI(APINamespace):
             SystemInfo: Successful Response
 
         """
-        ...
     def get(self, name: str, /, *, default: Any = "<<UNDEFINED>>") -> Any:
         """
         Get config collection entry value for the given variable name.
@@ -246,7 +263,6 @@ class ConfigAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def write(self, name: str, /, value: Any = None, *, set_on_insert_only: bool = False) -> Any:
         """
         Set config collection entry. Specify `set_on_insert_only` to prevent
@@ -261,13 +277,12 @@ class ConfigAPI(APINamespace):
             Any: Value in the database
 
         """
-        ...
 
 class InstanceAPI(APINamespace):
     """
     Functions available in ``api.instance``, e.g., ``api.instance.get_update_tag(...)``
     """
-    def get_update_tag(self) -> Optional[UpdateLicenseTag]:
+    def get_update_tag(self) -> UpdateLicenseTag | None:
         """
         Get information about the latest CryoSPARC version update, if one is available.
 
@@ -275,7 +290,6 @@ class InstanceAPI(APINamespace):
             UpdateLicenseTag | None: Successful Response
 
         """
-        ...
     def commercial_enabled(self) -> bool:
         """
         Checks if CryoSPARC a commercial license is enabled
@@ -284,7 +298,6 @@ class InstanceAPI(APINamespace):
             bool: Successful Response
 
         """
-        ...
     def live_enabled(self) -> bool:
         """
         Check if CryoSPARC Live is enabled
@@ -293,7 +306,6 @@ class InstanceAPI(APINamespace):
             bool: Successful Response
 
         """
-        ...
     def ecl_enabled(self) -> bool:
         """
         Check if embedded CryoSPARC Live is enabled
@@ -302,8 +314,7 @@ class InstanceAPI(APINamespace):
             bool: Successful Response
 
         """
-        ...
-    def get_license_usage(self) -> List[LicenseInstance]:
+    def get_license_usage(self) -> list[LicenseInstance]:
         """
         Get license usage information
 
@@ -311,7 +322,6 @@ class InstanceAPI(APINamespace):
             List[LicenseInstance]: Successful Response
 
         """
-        ...
     def browse_files(self, *, abs_path_glob: str) -> BrowseFileResponse:
         """
         Request details for a set of files or directories available to CryoSPARC,
@@ -329,15 +339,14 @@ class InstanceAPI(APINamespace):
             BrowseFileResponse: List of available file details.
 
         """
-        ...
     def get_service_log(
         self,
         service: LoggingService,
         /,
         *,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
-        max_lines: Optional[int] = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
+        max_lines: int | None = None,
     ) -> Any:
         """
         Get master service logs. Serves the whole log by default.
@@ -362,7 +371,6 @@ class InstanceAPI(APINamespace):
             Any: A binary stream representing a TextStream class instance
 
         """
-        ...
     def get_runtime_diagnostics(self) -> RuntimeDiagnostics:
         """
         Get runtime diagnostics for the CryoSPARC instance
@@ -371,8 +379,7 @@ class InstanceAPI(APINamespace):
             RuntimeDiagnostics: Successful Response
 
         """
-        ...
-    def audit_dump(self, *, timestamp: Union[float, Literal["auto"], None] = None) -> Optional[str]:
+    def audit_dump(self, *, timestamp: float | Literal["auto"] | None = None) -> str | None:
         """
         Generate an audit dump file containing all audit logs since the given timestamp.
 
@@ -383,8 +390,7 @@ class InstanceAPI(APINamespace):
             str | None: Successful Response
 
         """
-        ...
-    def get_instance_activity(self, *, limit: Optional[int] = 100) -> List[InstanceActivity]:
+    def get_instance_activity(self, *, limit: int | None = 100) -> list[InstanceActivity]:
         """
         Args:
             limit (int, optional): Defaults to 100
@@ -393,7 +399,6 @@ class InstanceAPI(APINamespace):
             List[InstanceActivity]: Successful Response
 
         """
-        ...
     def generate_new_uid(self, *, force_takeover_projects: bool = False) -> str:
         """
         Generate a new uid for the CryoSPARC instance.
@@ -407,13 +412,12 @@ class InstanceAPI(APINamespace):
             str: New instance UID
 
         """
-        ...
     def get_error_report(
         self,
         *,
-        start: Optional[datetime.datetime] = None,
-        end: Optional[datetime.datetime] = None,
-        max_lines: Optional[int] = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
+        max_lines: int | None = None,
         offline: bool = False,
         skip_workers: bool = True,
     ) -> Stream:
@@ -433,13 +437,12 @@ class InstanceAPI(APINamespace):
             Stream: A binary stream representing a Stream class instance
 
         """
-        ...
 
 class CacheAPI(APINamespace):
     """
     Functions available in ``api.cache``, e.g., ``api.cache.get(...)``
     """
-    def get(self, key: str, /, *, namespace: Optional[str] = None) -> Any:
+    def get(self, key: str, /, *, namespace: str | None = None) -> Any:
         """
         Get cached data. Returns None if the value is not set or expired
 
@@ -451,8 +454,7 @@ class CacheAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
-    def set(self, key: str, /, value: Any = None, *, namespace: Optional[str] = None, ttl: int = 60) -> None:
+    def set(self, key: str, /, value: Any = None, *, namespace: str | None = None, ttl: int = 60) -> None:
         """
         Set cache key to the given value, with a ttl (Time-to-Live) in seconds
 
@@ -463,7 +465,6 @@ class CacheAPI(APINamespace):
             ttl (int, optional): Defaults to 60
 
         """
-        ...
 
 class UsersAPI(APINamespace):
     """
@@ -478,8 +479,7 @@ class UsersAPI(APINamespace):
             bool: Successful Response
 
         """
-        ...
-    def find(self, *, role: Optional[Literal["admin", "user"]] = None) -> List[User]:
+    def find(self, *, role: Literal["admin", "user"] | None = None) -> list[User]:
         """
         List all users in the system, optionally filtering by role.
         Only admins may access this function.
@@ -491,10 +491,9 @@ class UsersAPI(APINamespace):
             List[User]: Successful Response
 
         """
-        ...
     def create(
         self,
-        password: Optional[SHA256Password] = None,
+        password: SHA256Password | None = None,
         *,
         email: str,
         username: str,
@@ -518,8 +517,7 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
-    def count(self, *, role: Optional[Literal["admin", "user"]] = None) -> int:
+    def count(self, *, role: Literal["admin", "user"] | None = None) -> int:
         """
         Counts the number of users in the system, optionally filtering by role
 
@@ -530,7 +528,6 @@ class UsersAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def table(self) -> str:
         """
         Show a table of all CryoSPARC user accounts
@@ -539,8 +536,7 @@ class UsersAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
-    def find_with_file_browser_access(self, *, path: str) -> List[User]:
+    def find_with_file_browser_access(self, *, path: str) -> list[User]:
         """
         List all users that have file browser access to the given path
 
@@ -551,7 +547,6 @@ class UsersAPI(APINamespace):
             List[User]: Successful Response
 
         """
-        ...
     def me(self) -> User:
         """
         Get the current authenticated user
@@ -560,7 +555,6 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
     def find_one(self, user_id: str, /) -> User:
         """
         Find a user with a matching user ID or email
@@ -572,16 +566,15 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
     def update(
         self,
         user_id: str,
         /,
         *,
-        email: Optional[str] = None,
-        username: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
+        email: str | None = None,
+        username: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
     ) -> User:
         """
         Update a user's general details. Parameters left empty will be left
@@ -599,7 +592,6 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
     def delete(self, user_id: str, /) -> None:
         """
         Remove a user from the CryoSPARC. Note that projects created by the user are
@@ -609,7 +601,6 @@ class UsersAPI(APINamespace):
             user_id (str): User ID or Email Address
 
         """
-        ...
     def get_role(self, user_id: str, /) -> Literal["user", "admin"]:
         """
         Return "admin" if the user has admin privileges, "user" otherwise.
@@ -621,7 +612,6 @@ class UsersAPI(APINamespace):
             Literal['user', 'admin']: Successful Response
 
         """
-        ...
     def request_reset_password(self, user_id: str, /) -> None:
         """
         Generate a password reset token for a user with the given email. The token
@@ -631,7 +621,6 @@ class UsersAPI(APINamespace):
             user_id (str): User ID or Email Address
 
         """
-        ...
     def register(self, user_id: str, /, body: SHA256Password, *, token: str) -> None:
         """
         Register user with a token (unauthenticated). Password must be hashed with SHA256.
@@ -642,7 +631,6 @@ class UsersAPI(APINamespace):
             token (str):
 
         """
-        ...
     def reset_password(self, user_id: str, /, body: SHA256Password, *, token: str) -> None:
         """
         Reset password function with a previously-issued reset token (unauthenticated).
@@ -654,7 +642,6 @@ class UsersAPI(APINamespace):
             token (str):
 
         """
-        ...
     def set_role(self, user_id: str, /, role: Literal["user", "admin"]) -> User:
         """
         Change a user's role from between "user" and "admin". Only admins may do this.
@@ -668,7 +655,6 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
     def get_my_state_var(self, key: str, /) -> Any:
         """
         Retrieve a state variable value for the current user, such as
@@ -681,7 +667,6 @@ class UsersAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def get_state_var(self, user_id: str, key: str, /) -> Any:
         """
         Retrieve a user state variable value, such as "licenseAccepted" or "recentProjects".
@@ -694,7 +679,6 @@ class UsersAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def set_state_var(self, user_id: str, key: str, /, value: Any) -> User:
         """
         Set a user state variable such as "licenseAccepted" or "recentProjects"
@@ -708,7 +692,6 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
     def unset_state_var(self, user_id: str, key: str, /) -> User:
         """
         Delete a a user's state variable
@@ -721,8 +704,7 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
-    def get_my_lanes(self) -> List[str]:
+    def get_my_lanes(self) -> list[str]:
         """
         Get the lane names the current user has access to
 
@@ -730,8 +712,7 @@ class UsersAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
-    def get_lanes(self, user_id: str, /) -> List[str]:
+    def get_lanes(self, user_id: str, /) -> list[str]:
         """
         Get the lane names a user has access to
 
@@ -742,8 +723,7 @@ class UsersAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
-    def set_lanes(self, user_id: str, /, lanes: List[str]) -> User:
+    def set_lanes(self, user_id: str, /, lanes: list[str]) -> User:
         """
         Restrict lanes the given user ID may to queue to.
         Only admins may access this function.
@@ -756,7 +736,6 @@ class UsersAPI(APINamespace):
             User: Updated user
 
         """
-        ...
     def get_my_file_browser_settings(self) -> FileBrowserSettings:
         """
         Get current user's file browser settings, used to determine what file paths
@@ -766,7 +745,6 @@ class UsersAPI(APINamespace):
             FileBrowserSettings: User file browser settings
 
         """
-        ...
     def get_file_browser_settings(self, user_id: str, /) -> FileBrowserSettings:
         """
         Get a user's file browser settings, used to determine what file paths the
@@ -779,7 +757,6 @@ class UsersAPI(APINamespace):
             FileBrowserSettings: User file browser settings
 
         """
-        ...
     def set_file_browser_settings(self, user_id: str, /, body: FileBrowserSettings) -> User:
         """
         Update a user's file browser settings. Only admins may access this function.
@@ -792,13 +769,12 @@ class UsersAPI(APINamespace):
             User: Successful Response
 
         """
-        ...
 
 class ResourcesAPI(APINamespace):
     """
     Functions available in ``api.resources``, e.g., ``api.resources.find_lanes(...)``
     """
-    def find_lanes(self) -> List[SchedulerLane]:
+    def find_lanes(self) -> list[SchedulerLane]:
         """
         Find registered scheduler lanes that jobs may be queued to.
 
@@ -806,7 +782,6 @@ class ResourcesAPI(APINamespace):
             List[SchedulerLane]: List of lanes
 
         """
-        ...
     def add_lane(self, body: SchedulerLane) -> SchedulerLane:
         """
         Add a new lane that jobs may be scheduled to.
@@ -818,20 +793,18 @@ class ResourcesAPI(APINamespace):
             SchedulerLane: Successful Response
 
         """
-        ...
-    def find_lane(self, name: str, /, *, type: Literal["node", "cluster", None] = None) -> SchedulerLane:
+    def find_lane(self, name: str, /, *, type: Literal["node", "cluster"] | None = None) -> SchedulerLane:
         """
         Find a registered scheduler lane with the given name and optional type.
 
         Args:
             name (str):
-            type (Literal['node', 'cluster', None], optional): Defaults to None
+            type (Literal['node', 'cluster'], optional): Defaults to None
 
         Returns:
             SchedulerLane: Successful Response
 
         """
-        ...
     def remove_lane(self, name: str, /) -> None:
         """
         Remove the specified lane and any targets assigned to that lane. Once
@@ -841,8 +814,7 @@ class ResourcesAPI(APINamespace):
             name (str):
 
         """
-        ...
-    def reorder_lanes(self, order: List[int]) -> List[SchedulerLane]:
+    def reorder_lanes(self, order: list[int]) -> list[SchedulerLane]:
         """
         Reorder the lanes according to the given index list.
         Accepts partial reordering, i.e., the list of indices does not need to include all lanes.
@@ -855,8 +827,7 @@ class ResourcesAPI(APINamespace):
             List[SchedulerLane]: Successful Response
 
         """
-        ...
-    def find_targets(self, *, lane: Optional[str] = None) -> List[SchedulerTarget]:
+    def find_targets(self, *, lane: str | None = None) -> list[SchedulerTarget]:
         """
         Find a list of connected worker node or cluster targets that jobs may be
         queued to.
@@ -868,8 +839,7 @@ class ResourcesAPI(APINamespace):
             List[SchedulerTarget]: List of targets
 
         """
-        ...
-    def find_nodes(self, *, lane: Optional[str] = None) -> List[SchedulerTargetNode]:
+    def find_nodes(self, *, lane: str | None = None) -> list[SchedulerTargetNode]:
         """
         Find a list of targets with type "node" that jobs may be scheduled to.
         These correspond to discrete worker hosts accessible over SSH.
@@ -881,7 +851,6 @@ class ResourcesAPI(APINamespace):
             List[SchedulerTargetNode]: List of targets with type 'node'
 
         """
-        ...
     def add_node(self, body: SchedulerTargetNode, *, gpu: bool = True) -> SchedulerTargetNode:
         """
         Add a node or update an existing node. Updates an existing node if it
@@ -898,8 +867,7 @@ class ResourcesAPI(APINamespace):
             SchedulerTargetNode: Successful Response
 
         """
-        ...
-    def find_clusters(self, *, lane: Optional[str] = None) -> List[SchedulerTargetCluster]:
+    def find_clusters(self, *, lane: str | None = None) -> list[SchedulerTargetCluster]:
         """
         Find a list of targets with type "cluster" that that jobs may be scheduled to.
         These are multi-node clusters managed by workflow managers like SLURM or PBS
@@ -912,7 +880,6 @@ class ResourcesAPI(APINamespace):
             List[SchedulerTargetCluster]: List of targets with type 'cluster'
 
         """
-        ...
     def add_cluster(self, body: SchedulerTargetCluster) -> SchedulerTargetCluster:
         """
         Add a cluster or update an existing cluster. Update an existing cluster if
@@ -925,7 +892,6 @@ class ResourcesAPI(APINamespace):
             SchedulerTargetCluster: Successful Response
 
         """
-        ...
     def find_target_by_hostname(self, hostname: str, /) -> SchedulerTarget:
         """
         Find a node or cluster target with the given hostname.
@@ -937,7 +903,6 @@ class ResourcesAPI(APINamespace):
             SchedulerTarget: Successful Response
 
         """
-        ...
     def find_target_by_name(self, name: str, /) -> SchedulerTarget:
         """
         Find a node or cluster target with the given name.
@@ -949,7 +914,6 @@ class ResourcesAPI(APINamespace):
             SchedulerTarget: Successful Response
 
         """
-        ...
     def find_node(self, name: str, /) -> SchedulerTargetNode:
         """
         Find a node with the given name.
@@ -961,7 +925,6 @@ class ResourcesAPI(APINamespace):
             SchedulerTargetNode: Successful Response
 
         """
-        ...
     def remove_node(self, name: str, /) -> None:
         """
         Remove a target worker node. Once removed, jobs can no longer be scheduled to this node.
@@ -970,7 +933,6 @@ class ResourcesAPI(APINamespace):
             name (str):
 
         """
-        ...
     def find_cluster(self, name: str, /) -> SchedulerTargetCluster:
         """
         Find a cluster with the given name.
@@ -982,7 +944,6 @@ class ResourcesAPI(APINamespace):
             SchedulerTargetCluster: Successful Response
 
         """
-        ...
     def remove_cluster(self, name: str, /) -> None:
         """
         Remove the specified cluster lane and target assigned to it. Once removed,
@@ -992,7 +953,6 @@ class ResourcesAPI(APINamespace):
             name (str):
 
         """
-        ...
     def find_cluster_script(self, name: str, /) -> str:
         """
         Find the cluster submission script template for a cluster with the given name.
@@ -1004,8 +964,7 @@ class ResourcesAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
-    def find_cluster_template_vars(self, name: str, /) -> List[str]:
+    def find_cluster_template_vars(self, name: str, /) -> list[str]:
         """
         Compute and retrieve all variable names defined in cluster templates.
 
@@ -1016,8 +975,7 @@ class ResourcesAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
-    def find_cluster_template_custom_vars(self, name: str, /) -> List[str]:
+    def find_cluster_template_custom_vars(self, name: str, /) -> list[str]:
         """
         Compute and retrieve all custom variables names defined in cluster templates
         (i.e., all variables not in the internal list of known variable names).
@@ -1029,7 +987,6 @@ class ResourcesAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
     def update_node_lane(self, name: str, /, lane: str) -> SchedulerTargetNode:
         """
         Change the lane on the given target. Target type must match lane type. The
@@ -1043,14 +1000,12 @@ class ResourcesAPI(APINamespace):
             SchedulerTargetNode: Successful Response
 
         """
-        ...
     def refresh_nodes(self) -> None:
         """
         Asynchronously access target worker nodes. Load latest CPU, RAM and GPU
         info.
 
         """
-        ...
     def verify_cluster(self, name: str, /) -> str:
         """
         Ensure cluster has been properly configured by executing the info command.
@@ -1062,8 +1017,7 @@ class ResourcesAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
-    def update_cluster_custom_vars(self, name: str, /, value: Dict[str, str]) -> SchedulerTargetCluster:
+    def update_cluster_custom_vars(self, name: str, /, value: dict[str, str]) -> SchedulerTargetCluster:
         """
         Change the custom cluster variables on the given target (assumed to exist).
 
@@ -1075,8 +1029,7 @@ class ResourcesAPI(APINamespace):
             SchedulerTargetCluster: Successful Response
 
         """
-        ...
-    def update_target_cache_path(self, name: str, /, value: Optional[str]) -> SchedulerTarget:
+    def update_target_cache_path(self, name: str, /, value: str | None) -> SchedulerTarget:
         """
         Change the cache path on the given target (assumed to exist).
 
@@ -1088,13 +1041,12 @@ class ResourcesAPI(APINamespace):
             SchedulerTarget: Successful Response
 
         """
-        ...
 
 class AssetsAPI(APINamespace):
     """
     Functions available in ``api.assets``, e.g., ``api.assets.find(...)``
     """
-    def find(self, *, project_uid: Optional[str] = None, job_uid: Optional[str] = None) -> List[GridFSFile]:
+    def find(self, *, project_uid: str | None = None, job_uid: str | None = None) -> list[GridFSFile]:
         """
         Find files available in the database associated with projects or jobs.
 
@@ -1109,7 +1061,6 @@ class AssetsAPI(APINamespace):
             List[GridFSFile]: Successful Response
 
         """
-        ...
     def upload(
         self,
         project_uid: str,
@@ -1117,12 +1068,11 @@ class AssetsAPI(APINamespace):
         /,
         stream: Stream,
         *,
-        filename: Optional[str] = None,
-        format: Union[
-            Literal["txt", "csv", "html", "json", "xml", "bild", "bld", "log"],
-            Literal["pdf", "gif", "jpg", "jpeg", "png", "svg"],
-            None,
-        ] = None,
+        filename: str | None = None,
+        format: Literal[
+            "txt", "csv", "html", "json", "xml", "bild", "bld", "log", "pdf", "gif", "jpg", "jpeg", "png", "svg"
+        ]
+        | None = None,
     ) -> GridFSAsset:
         """
         Upload a new asset associated with the given project/job. When calling
@@ -1140,7 +1090,6 @@ class AssetsAPI(APINamespace):
             GridFSAsset: Successful Response
 
         """
-        ...
     def download(self, id: str = "000000000000000000000000", /) -> Stream:
         """
         Download the asset with the given ID. When calling via HTTP, file contents
@@ -1153,7 +1102,6 @@ class AssetsAPI(APINamespace):
             Stream: A binary stream representing a Stream class instance
 
         """
-        ...
     def find_one(self, id: str = "000000000000000000000000", /) -> GridFSFile:
         """
         Retrive the full details for an asset with the given ID.
@@ -1165,7 +1113,6 @@ class AssetsAPI(APINamespace):
             GridFSFile: Successful Response
 
         """
-        ...
 
 class JobsAPI(APINamespace):
     """
@@ -1174,29 +1121,29 @@ class JobsAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        workspace_uid: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        type: Optional[List[str]] = None,
-        status: Optional[List[JobStatus]] = None,
-        category: Optional[List[Category]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        queued_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        waiting_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        completed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        killed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        deleted: Optional[bool] = False,
-        deleting: Optional[bool] = None,
-        import_status: Optional[str] = None,
+        id: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        workspace_uid: list[str] | None = None,
+        uid: list[str] | None = None,
+        type: list[str] | None = None,
+        status: list[JobStatus] | None = None,
+        category: list[Category] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        queued_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        started_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        waiting_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        completed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        killed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        failed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        exported_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        deleted: bool | None = False,
+        deleting: bool | None = None,
+        import_status: str | None = None,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Job]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Job]:
         """
         List jobs that match the supplied filters (all if no filters specified).
 
@@ -1228,8 +1175,7 @@ class JobsAPI(APINamespace):
             List[Job]: List of jobs matching supplied query
 
         """
-        ...
-    def delete_many(self, project_job_uids: List[Tuple[str, str]]) -> None:
+    def delete_many(self, project_job_uids: list[tuple[str, str]]) -> None:
         """
         Delete the given jobs. Note that jobs in the following states cannot be deleted:
 
@@ -1243,29 +1189,28 @@ class JobsAPI(APINamespace):
             project_job_uids (List[Tuple[str, str]]):
 
         """
-        ...
     def count(
         self,
         *,
-        id: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        workspace_uid: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        type: Optional[List[str]] = None,
-        status: Optional[List[JobStatus]] = None,
-        category: Optional[List[Category]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        queued_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        waiting_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        completed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        killed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        deleted: Optional[bool] = False,
-        deleting: Optional[bool] = None,
-        import_status: Optional[str] = None,
+        id: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        workspace_uid: list[str] | None = None,
+        uid: list[str] | None = None,
+        type: list[str] | None = None,
+        status: list[JobStatus] | None = None,
+        category: list[Category] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        queued_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        started_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        waiting_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        completed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        killed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        failed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        exported_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        deleted: bool | None = False,
+        deleting: bool | None = None,
+        import_status: str | None = None,
     ) -> int:
         """
         Count jobs that match the supplied filters (all if no filters specified).
@@ -1295,7 +1240,6 @@ class JobsAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def count_active(self) -> int:
         """
         Count number of active jobs.
@@ -1304,16 +1248,15 @@ class JobsAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def clone_many(
         self,
         project_uid: str,
         /,
-        job_uids: List[str],
+        job_uids: list[str],
         *,
-        workspace_uid: Optional[str] = None,
-        new_workspace_title: Optional[str] = None,
-    ) -> List[Job]:
+        workspace_uid: str | None = None,
+        new_workspace_title: str | None = None,
+    ) -> list[Job]:
         """
         Clone the given list of jobs. If any target jobs are related, tries to
         re-create the input connections between the cloned jobs, while keeping
@@ -1329,8 +1272,7 @@ class JobsAPI(APINamespace):
             List[Job]: List of cloned jobs
 
         """
-        ...
-    def get_chain(self, project_uid: str, /, *, start_job_uid: str, end_job_uid: str) -> List[str]:
+    def get_chain(self, project_uid: str, /, *, start_job_uid: str, end_job_uid: str) -> list[str]:
         """
         Find the chain of jobs between start job to end job. A job chain is the
         intersection of the start job's descendants and the end job's ancestors.
@@ -1344,7 +1286,6 @@ class JobsAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
     def clone_chain(
         self,
         project_uid: str,
@@ -1352,9 +1293,9 @@ class JobsAPI(APINamespace):
         *,
         start_job_uid: str,
         end_job_uid: str,
-        workspace_uid: Optional[str] = None,
-        new_workspace_title: Optional[str] = None,
-    ) -> List[Job]:
+        workspace_uid: str | None = None,
+        new_workspace_title: str | None = None,
+    ) -> list[Job]:
         """
         Clone jobs that directly descend from the specified start job up to the specified end job.
 
@@ -1369,7 +1310,6 @@ class JobsAPI(APINamespace):
             List[Job]: Newly created cloned jobs
 
         """
-        ...
     def get_final_results(self, project_uid: str, /) -> GetFinalResultsResponse:
         """
         Get all final results within a project, along with the ancestors and non-ancestors of those jobs.
@@ -1381,7 +1321,6 @@ class JobsAPI(APINamespace):
             GetFinalResultsResponse: Successful Response
 
         """
-        ...
     def find_one(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Get a job by its unique project and job ID.
@@ -1394,7 +1333,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def delete(self, project_uid: str, job_uid: str, /) -> None:
         """
         Delete a job and all associated events and results.
@@ -1412,7 +1350,6 @@ class JobsAPI(APINamespace):
             job_uid (str): Job UID, e.g., "J3"
 
         """
-        ...
     def get_directory(self, project_uid: str, job_uid: str, /) -> str:
         """
         Get a job's absolute directory path, e.g., ``"/path/to/project/{job_uid}"``.
@@ -1425,7 +1362,6 @@ class JobsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def get_log(self, project_uid: str, job_uid: str, /) -> str:
         """
         Get contents of a job.log file. Empty string if job.log does not exist.
@@ -1438,7 +1374,6 @@ class JobsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def get_log_path(self, project_uid: str, job_uid: str, /) -> str:
         """
         Args:
@@ -1449,10 +1384,9 @@ class JobsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def get_output_fields(
-        self, project_uid: str, job_uid: str, output_name: str, /, dtype_params: Dict[str, Any] = {}
-    ) -> List[Tuple[str, str]]:
+        self, project_uid: str, job_uid: str, output_name: str, /, dtype_params: dict[str, Any] = {}
+    ) -> list[tuple[str, str]]:
         """
         Expected dataset column definitions for given job output, excluding passthroughs.
 
@@ -1466,13 +1400,12 @@ class JobsAPI(APINamespace):
             List[Tuple[str, str]]: Successful Response
 
         """
-        ...
     def create(
         self,
         project_uid: str,
         workspace_uid: str,
         /,
-        params: Dict[str, Union[bool, int, float, str, str, None]] = {},
+        params: dict[str, bool | int | float | str | None] = {},
         *,
         type: str,
         title: str = "",
@@ -1497,7 +1430,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def create_external_result(self, project_uid: str, workspace_uid: str, /, body: ExternalOutputSpec) -> Job:
         """
         Create an External result with the given specification. Returns an External
@@ -1512,7 +1444,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def get_status(self, project_uid: str, job_uid: str, /) -> JobStatus:
         """
         Get the status of a job.
@@ -1525,7 +1456,6 @@ class JobsAPI(APINamespace):
             JobStatus: Successful Response
 
         """
-        ...
     def view(self, project_uid: str, workspace_uid: str, job_uid: str, /) -> Job:
         """
         Add a job to a user's recently viewed jobs list. Must specify the workspace
@@ -1540,8 +1470,7 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
-    def set_params(self, project_uid: str, job_uid: str, /, params: Dict[str, Any]) -> Job:
+    def set_params(self, project_uid: str, job_uid: str, /, params: dict[str, Any]) -> Job:
         """
         Update job parameters with the given values. Only parameters that are valid
         for the job type are updated.
@@ -1555,7 +1484,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def clear_params(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Reset all job parameters to their default values.
@@ -1568,7 +1496,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_param(self, project_uid: str, job_uid: str, param: str, /, value: Any) -> Job:
         """
         Set a job parameter to the given value.
@@ -1583,7 +1510,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def clear_param(self, project_uid: str, job_uid: str, param: str, /) -> Job:
         """
         Reset a job parameter to its default value.
@@ -1597,7 +1523,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def load_input(
         self,
         project_uid: str,
@@ -1605,8 +1530,8 @@ class JobsAPI(APINamespace):
         input_name: str,
         /,
         *,
-        force_join: Union[bool, Literal["auto"]] = "auto",
-        slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
+        force_join: bool | Literal["auto"] = "auto",
+        slots: Literal["default", "passthrough", "all"] | list[str] = "default",
     ) -> Dataset:
         """
         Load the dataset connected to a job input.
@@ -1622,7 +1547,6 @@ class JobsAPI(APINamespace):
             Dataset: A binary stream representing a Dataset class instance
 
         """
-        ...
     def load_output(
         self,
         project_uid: str,
@@ -1630,8 +1554,8 @@ class JobsAPI(APINamespace):
         output_name: str,
         /,
         *,
-        version: Union[int, Literal["F"]] = "F",
-        slots: Union[Literal["default", "passthrough", "all"], List[str]] = "default",
+        version: int | Literal["F"] = "F",
+        slots: Literal["default", "passthrough", "all"] | list[str] = "default",
     ) -> Dataset:
         """
         Load the dataset for a job output.
@@ -1647,7 +1571,6 @@ class JobsAPI(APINamespace):
             Dataset: A binary stream representing a Dataset class instance
 
         """
-        ...
     def save_output(
         self,
         project_uid: str,
@@ -1656,7 +1579,7 @@ class JobsAPI(APINamespace):
         /,
         dataset: Dataset,
         *,
-        filename: Optional[str] = None,
+        filename: str | None = None,
         version: int = 0,
     ) -> Job:
         """
@@ -1674,7 +1597,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def connect(
         self, project_uid: str, job_uid: str, input_name: str, /, *, source_output_name: str, source_job_uid: str
     ) -> Job:
@@ -1692,7 +1614,6 @@ class JobsAPI(APINamespace):
             Job: Connected child job
 
         """
-        ...
     def disconnect_all(self, project_uid: str, job_uid: str, input_name: str, /) -> Job:
         """
         Remove all connections on the given job input.
@@ -1706,7 +1627,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def reconnect(
         self,
         project_uid: str,
@@ -1734,7 +1654,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def disconnect(self, project_uid: str, job_uid: str, input_name: str, connection_index: int, /) -> Job:
         """
         Disconnect a job input.
@@ -1752,7 +1671,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def find_output_result(self, project_uid: str, job_uid: str, output_name: str, result_name: str, /) -> OutputResult:
         """
         Get a job's low-level output result.
@@ -1767,7 +1685,6 @@ class JobsAPI(APINamespace):
             OutputResult: Successful Response
 
         """
-        ...
     def delete_output_result_files(self, project_uid: str, job_uid: str, output_name: str, result_name: str, /) -> None:
         """
         Remove all data files referenced in a job's output result. For example, for
@@ -1787,7 +1704,6 @@ class JobsAPI(APINamespace):
             result_name (str):
 
         """
-        ...
     def connect_result(
         self,
         project_uid: str,
@@ -1799,7 +1715,7 @@ class JobsAPI(APINamespace):
         *,
         source_output_name: str,
         source_result_name: str,
-        source_result_version: Union[int, Literal["F"]] = "F",
+        source_result_version: int | Literal["F"] = "F",
         source_job_uid: str,
     ) -> Job:
         """
@@ -1821,7 +1737,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def disconnect_result(
         self, project_uid: str, job_uid: str, input_name: str, connection_index: int, result_name: str, /
     ) -> Job:
@@ -1842,7 +1757,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def add_external_input(self, project_uid: str, job_uid: str, input_name: str, /, body: InputSpec) -> Job:
         """
         Add or replace an External Job input.
@@ -1860,7 +1774,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def add_external_output(self, project_uid: str, job_uid: str, output_name: str, /, body: OutputSpec) -> Job:
         """
         Add or replace an external job's output. This action is available while the
@@ -1876,7 +1789,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_output_image(self, project_uid: str, job_uid: str, output_name: str, /, body: GridFSAsset) -> Job:
         """
         Set a custom image for an External job output.
@@ -1891,7 +1803,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_tile_image(self, project_uid: str, job_uid: str, /, body: GridFSAsset) -> Job:
         """
         Set a custom job tile image for an External job.
@@ -1905,18 +1816,17 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def enqueue(
         self,
         project_uid: str,
         job_uid: str,
         /,
         *,
-        lane: Optional[str] = None,
-        hostname: Optional[str] = None,
-        gpus: List[int] = [],
+        lane: str | None = None,
+        hostname: str | None = None,
+        gpus: list[int] = [],
         no_check_inputs_ready: bool = False,
-        oversubscribe_gpus: bool = False,
+        oversubscribe_gpus: bool = True,
     ) -> Job:
         """
         Queue a job for execution. The job will launch when
@@ -1935,13 +1845,12 @@ class JobsAPI(APINamespace):
             hostname (str, optional): Target name to queue to, cannot be specified with lane. Defaults to None
             gpus (List[int], optional): GPU number(s) the job should use, target must also be specified. Defaults to []
             no_check_inputs_ready (bool, optional): If enabled, launch job without waiting for connected input jobs to complete. Defaults to False
-            oversubscribe_gpus (bool, optional): If enabled, launch job even if target GPU(s) are already in use by another job.. Defaults to False
+            oversubscribe_gpus (bool, optional): If enabled, launch job even if target GPU(s) are already in use by another job.. Defaults to True
 
         Returns:
             Job: Successful Response
 
         """
-        ...
     def recalculate_size_async(self, project_uid: str, job_uid: str, /) -> None:
         """
         For a given job, find intermediate results and recalculate their total size.
@@ -1951,7 +1860,6 @@ class JobsAPI(APINamespace):
             job_uid (str): Job UID, e.g., "J3"
 
         """
-        ...
     def recalculate_project_intermediate_results_size(self, project_uid: str, /) -> None:
         """
         Recalculate intermediate result sizes for all jobs in a project.
@@ -1960,7 +1868,6 @@ class JobsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
 
         """
-        ...
     def clear_intermediate_results(self, project_uid: str, job_uid: str, /, *, always_keep_final: bool = True) -> None:
         """
         Remove intermediate results from a job.
@@ -1971,9 +1878,13 @@ class JobsAPI(APINamespace):
             always_keep_final (bool, optional): Defaults to True
 
         """
-        ...
     def export_output_results(
-        self, project_uid: str, job_uid: str, output_name: str, /, result_names: Optional[List[str]] = None
+        self,
+        project_uid: str,
+        job_uid: str,
+        output_name: str,
+        /,
+        results: ExportResultsSelection | list[str] | None = None,
     ) -> None:
         """
         Prepare a job's output for import to another project or instance.
@@ -1987,20 +1898,110 @@ class JobsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
             output_name (str): Job output name
-            result_names (List[str], optional): Defaults to None
+            results (ExportResultsSelection | List[str], optional): Defaults to None
 
         """
-        ...
-    def export_job(self, project_uid: str, job_uid: str, /) -> None:
+    def export_job(
+        self,
+        project_uid: str,
+        job_uid: str,
+        /,
+        outputs_selection: ExportOutputsSelection | TransferMethod | None = None,
+        *,
+        dest_path: str | None = None,
+    ) -> None:
         """
-        Start export for a job into the project's exports folder.
+        Start export for a job into the project's exports folder or a job-named subdirectory of the destination path.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             job_uid (str): Job UID, e.g., "J3"
+            outputs_selection (ExportOutputsSelection | TransferMethod, optional): Defaults to None
+            dest_path (str, optional): Absolute destination directory; the job is exported to a job-named subdirectory. Defaults to None
 
         """
-        ...
+    def copy_to_project(
+        self,
+        project_uid: str,
+        job_uid: str,
+        /,
+        outputs_selection: ExportOutputsSelection | None = None,
+        *,
+        dest_project_uid: str,
+        dest_workspace_uid: str,
+    ) -> None:
+        """
+        Export the job into its own project's exports directory, then import that
+        export directly into another project/workspace, as one operation.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            outputs_selection (ExportOutputsSelection, optional): Defaults to None
+            dest_project_uid (str):
+            dest_workspace_uid (str):
+
+        """
+    def copy_result_group_to_project(
+        self,
+        project_uid: str,
+        job_uid: str,
+        output_name: str,
+        /,
+        results: ExportResultsSelection | None = None,
+        *,
+        dest_project_uid: str,
+        dest_workspace_uid: str,
+        lane: str | None = None,
+    ) -> None:
+        """
+        Export a job output's results into its own project's exports directory,
+        then import that export directly as a result group into another
+        project/workspace, as one operation.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            output_name (str): Job output name
+            results (ExportResultsSelection, optional): Defaults to None
+            dest_project_uid (str):
+            dest_workspace_uid (str):
+            lane (str, optional): Defaults to None
+
+        """
+    def export_output_preview(
+        self,
+        project_uid: str,
+        job_uid: str,
+        output_name: str,
+        /,
+        results: ExportResultsSelection | list[str] | None = None,
+        *,
+        include_size: bool = False,
+        include_paths: bool = False,
+    ) -> ExportOutputPreview:
+        """
+        Read-only preview of exporting a job's output's results. Set include_size to
+        include on-disk sizes, and include_paths to include each result's
+        resolved file paths.
+
+        Reported sizes are an approximation of the referenced blob/movie/image files
+        only; they do not include the size of the dataset file(s) written by the
+        actual export (e.g. per-particle orientation/CTF metadata), so the true
+        export size will typically be a little larger than this preview.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            job_uid (str): Job UID, e.g., "J3"
+            output_name (str): Job output name
+            results (ExportResultsSelection | List[str], optional): Defaults to None
+            include_size (bool, optional): Defaults to False
+            include_paths (bool, optional): Defaults to False
+
+        Returns:
+            ExportOutputPreview: Successful Response
+
+        """
     def get_output_result_path(
         self,
         project_uid: str,
@@ -2009,7 +2010,7 @@ class JobsAPI(APINamespace):
         result_name: str,
         /,
         *,
-        version: Union[int, Literal["F"]] = "F",
+        version: int | Literal["F"] = "F",
     ) -> str:
         """
         Get the absolute path for a job output's dataset or volume density.
@@ -2025,9 +2026,8 @@ class JobsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def interactive_post(
-        self, project_uid: str, job_uid: str, /, body: Dict[str, Any], *, endpoint: str, timeout: int = 10
+        self, project_uid: str, job_uid: str, /, body: dict[str, Any], *, endpoint: str, timeout: int = 10
     ) -> Any:
         """
         Send a message to or perform an interactive action on a waiting interactive job.
@@ -2044,7 +2044,6 @@ class JobsAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def mark_running(
         self, project_uid: str, job_uid: str, /, *, status: Literal["running", "waiting"] = "running"
     ) -> Job:
@@ -2061,7 +2060,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def mark_completed(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Mark a killed or failed job, or an active external job, as completed.
@@ -2074,8 +2072,7 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
-    def mark_failed(self, project_uid: str, job_uid: str, /, *, error: Optional[str] = None) -> Job:
+    def mark_failed(self, project_uid: str, job_uid: str, /, *, error: str | None = None) -> Job:
         """
         Manually mark a job as failed.
 
@@ -2088,7 +2085,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def add_event_log(
         self, project_uid: str, job_uid: str, /, text: str, *, type: Literal["text", "warning", "error"] = "text"
     ) -> TextEvent:
@@ -2105,10 +2101,9 @@ class JobsAPI(APINamespace):
             TextEvent: Successful Response
 
         """
-        ...
     def get_event_logs(
-        self, project_uid: str, job_uid: str, /, *, checkpoint: Optional[int] = None
-    ) -> List[Union[TextEvent, ImageEvent, InteractiveEvent, CheckpointEvent, Event]]:
+        self, project_uid: str, job_uid: str, /, *, checkpoint: int | None = None
+    ) -> list[TextEvent | ImageEvent | InteractiveEvent | CheckpointEvent | Event]:
         """
         Get all event logs for a job.
 
@@ -2124,9 +2119,8 @@ class JobsAPI(APINamespace):
             List[Union[TextEvent, ImageEvent, InteractiveEvent, CheckpointEvent, Event]]: Successful Response
 
         """
-        ...
     def add_image_log(
-        self, project_uid: str, job_uid: str, /, images: List[GridFSAsset], *, text: str, flags: List[str] = ["plots"]
+        self, project_uid: str, job_uid: str, /, images: list[GridFSAsset], *, text: str, flags: list[str] = ["plots"]
     ) -> ImageEvent:
         """
         Add an image or figure to the target job's event log.
@@ -2142,8 +2136,7 @@ class JobsAPI(APINamespace):
             ImageEvent: Successful Response
 
         """
-        ...
-    def add_checkpoint(self, project_uid: str, job_uid: str, /, meta: Dict[str, Any] = {}) -> CheckpointEvent:
+    def add_checkpoint(self, project_uid: str, job_uid: str, /, meta: dict[str, Any] = {}) -> CheckpointEvent:
         """
         Add a checkpoint the target job's event log.
 
@@ -2156,16 +2149,15 @@ class JobsAPI(APINamespace):
             CheckpointEvent: Successful Response
 
         """
-        ...
     def update_event_log(
         self,
         project_uid: str,
         job_uid: str,
         event_id: str = "000000000000000000000000",
         /,
-        text: Optional[str] = None,
+        text: str | None = None,
         *,
-        type: Optional[Literal["text", "warning", "error"]] = None,
+        type: Literal["text", "warning", "error"] | None = None,
     ) -> TextEvent:
         """
         Update a text event log entry for a job.
@@ -2181,7 +2173,6 @@ class JobsAPI(APINamespace):
             TextEvent: Successful Response
 
         """
-        ...
     def recalculate_size(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Recalculate the size of a given job's directory.
@@ -2194,7 +2185,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def clear(self, project_uid: str, job_uid: str, /, *, descendants: bool = False) -> Job:
         """
         Clear a job's outputs and events to get it back to building state.
@@ -2211,33 +2201,32 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def clear_many(
         self,
         *,
-        id: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        workspace_uid: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        type: Optional[List[str]] = None,
-        status: Optional[List[JobStatus]] = None,
-        category: Optional[List[Category]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        queued_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        started_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        waiting_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        completed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        killed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        failed_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        exported_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        deleted: Optional[bool] = False,
-        deleting: Optional[bool] = None,
-        import_status: Optional[str] = None,
+        id: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        workspace_uid: list[str] | None = None,
+        uid: list[str] | None = None,
+        type: list[str] | None = None,
+        status: list[JobStatus] | None = None,
+        category: list[Category] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        queued_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        started_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        waiting_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        completed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        killed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        failed_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        exported_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        deleted: bool | None = False,
+        deleting: bool | None = None,
+        import_status: str | None = None,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Job]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Job]:
         """
         Clear all jobs that match the given query.
 
@@ -2269,8 +2258,7 @@ class JobsAPI(APINamespace):
             List[Job]: Successful Response
 
         """
-        ...
-    def clone(self, project_uid: str, job_uid: str, /, *, workspace_uid: Optional[str] = None) -> Job:
+    def clone(self, project_uid: str, job_uid: str, /, *, workspace_uid: str | None = None) -> Job:
         """
         Clone a job, creating a new building job with the same inputs and
         parameters but no outputs.
@@ -2287,7 +2275,6 @@ class JobsAPI(APINamespace):
             Job: Cloned job
 
         """
-        ...
     def kill(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Kill a running job.
@@ -2300,7 +2287,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def restart(self, project_uid: str, job_uid: str, /) -> None:
         """
         Kill and clear a completed or partially-completed job, queue it with the
@@ -2313,7 +2299,6 @@ class JobsAPI(APINamespace):
             job_uid (str): Job UID, e.g., "J3"
 
         """
-        ...
     def set_final_result(self, project_uid: str, job_uid: str, /, *, is_final_result: bool) -> Job:
         """
         Mark or unmark a job as a final result. Final jobs and their connected
@@ -2328,7 +2313,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_title(self, project_uid: str, job_uid: str, /, *, title: str) -> Job:
         """
         Set job title.
@@ -2342,7 +2326,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_description(self, project_uid: str, job_uid: str, /, description: str = "") -> Job:
         """
         Set job description. May include Markdown formatting.
@@ -2356,7 +2339,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_priority(self, project_uid: str, job_uid: str, /, *, priority: int) -> Job:
         """
         Set job priority. Once queued, higher priority jobs are scheduled before
@@ -2371,8 +2353,7 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
-    def set_cluster_custom_vars(self, project_uid: str, job_uid: str, /, cluster_custom_vars: Dict[str, str]) -> Job:
+    def set_cluster_custom_vars(self, project_uid: str, job_uid: str, /, cluster_custom_vars: dict[str, str]) -> Job:
         """
         Set cluster custom variables for job
 
@@ -2385,7 +2366,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def get_active_licenses_count(self) -> int:
         """
         Get number of acquired licenses for running jobs
@@ -2394,7 +2374,6 @@ class JobsAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def get_types(self) -> Any:
         """
         Get list of available job types
@@ -2403,7 +2382,6 @@ class JobsAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def get_categories(self) -> Any:
         """
         Get job types by category
@@ -2412,10 +2390,7 @@ class JobsAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
-    def find_ancestor_uids(
-        self, project_uid: str, job_uid: str, /, *, workspace_uid: Optional[str] = None
-    ) -> List[str]:
+    def find_ancestor_uids(self, project_uid: str, job_uid: str, /, *, workspace_uid: str | None = None) -> list[str]:
         """
         Finds all ancestors of a single job and return a list of their UIDs
 
@@ -2428,10 +2403,7 @@ class JobsAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
-    def find_descendant_uids(
-        self, project_uid: str, job_uid: str, /, *, workspace_uid: Optional[str] = None
-    ) -> List[str]:
+    def find_descendant_uids(self, project_uid: str, job_uid: str, /, *, workspace_uid: str | None = None) -> list[str]:
         """
         Find the list of all job UIDs that a job is an ancestor of based on its outputs.
 
@@ -2444,7 +2416,6 @@ class JobsAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
     def link_to_workspace(self, project_uid: str, job_uid: str, workspace_uid: str, /) -> Job:
         """
         Link a job to an additional workspace.
@@ -2458,7 +2429,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def unlink_from_workspace(self, project_uid: str, job_uid: str, workspace_uid: str, /) -> Job:
         """
         Unlink a job from a workspace.
@@ -2475,7 +2445,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def move(self, project_uid: str, job_uid: str, /, *, from_workspace_uid: str, to_workspace_uid: str) -> Job:
         """
         Move a job from one workspace to another. Equivalent to linking to the new
@@ -2491,8 +2460,7 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
-    def get_symlinks(self, project_uid: str, job_uid: str, /) -> List[SymlinkInfo]:
+    def get_symlinks(self, project_uid: str, job_uid: str, /) -> list[SymlinkInfo]:
         """
         Get all symbolic links in a job directory.
 
@@ -2504,7 +2472,6 @@ class JobsAPI(APINamespace):
             List[SymlinkInfo]: Successful Response
 
         """
-        ...
     def update_directory_symlinks(self, project_uid: str, job_uid: str, /, *, prefix_cut: str, prefix_new: str) -> int:
         """
         Rewrite symbolic link target paths in a job directory, changing target paths
@@ -2520,7 +2487,6 @@ class JobsAPI(APINamespace):
             int: Number of symlinks updated
 
         """
-        ...
     def add_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> Job:
         """
         Add a tag to a job.
@@ -2534,7 +2500,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def remove_tag(self, project_uid: str, job_uid: str, tag_uid: str, /) -> Job:
         """
         Remove a tag from a job.
@@ -2548,44 +2513,52 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
-    def import_job(self, project_uid: str, workspace_uid: str, /, *, path: str = "") -> Job:
+    def import_job(
+        self, project_uid: str, workspace_uid: str, /, *, dereference_symlinks: bool = False, path: str
+    ) -> Job:
         """
-        Import a job into a project workspace from a location on disk.
-
-        The exported job directory must be copied into the target project directory
-        with all its symbolic links resolved. By convention, the exported job
-        directory should be located in the project directory → ``imports`` subfolder.
+        Imports an exported job directory into the project. The directory may be
+        located inside this project (e.g. its exports/ subfolder), or inside
+        another project's directory that this instance/user is permitted to
+        import from.
 
         Resulting job will not be ready to use until ``import_status`` is "complete".
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
-            path (str, optional): Relative path or absolute path within project directory. Defaults to ''
+            dereference_symlinks (bool, optional): Defaults to False
+            path (str):
 
         Returns:
             Job: Successful Response
 
         """
-        ...
     def import_result_group(
-        self, project_uid: str, workspace_uid: str, /, *, lane: Optional[str] = None, path: str = ""
-    ) -> Job:
+        self,
+        project_uid: str,
+        workspace_uid: str,
+        /,
+        *,
+        dereference_symlinks: bool = False,
+        on_missing: Literal["drop_result", "import_anyway", "fail"] = "drop_result",
+        path: str,
+        lane: str | None = None,
+    ) -> None:
         """
-        Create and enqueue an Import Result Group job with the given path
+        Create and enqueue an Import Result Group job with the given path. The
+        path may be located inside this project, or inside another project's
+        directory that this instance/user is permitted to import from.
 
         Args:
             project_uid (str): Project UID, e.g., "P3"
             workspace_uid (str): Workspace UID, e.g., "W3"
+            dereference_symlinks (bool, optional): Defaults to False
+            on_missing (Literal['drop_result', 'import_anyway', 'fail'], optional): Defaults to 'drop_result'
+            path (str):
             lane (str, optional): Defaults to None
-            path (str, optional): Relative path or absolute path within project directory. Defaults to ''
-
-        Returns:
-            Job: Successful Response
 
         """
-        ...
     def star_job(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Stars a job for a user
@@ -2598,7 +2571,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def unstar_job(self, project_uid: str, job_uid: str, /) -> Job:
         """
         Unstars a job for a user
@@ -2611,7 +2583,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def apply_blueprint(self, project_uid: str, job_uid: str, /, *, blueprint_id: str) -> Job:
         """
         Args:
@@ -2623,7 +2594,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def create_job_from_blueprint(self, project_uid: str, workspace_uid: str, /, *, blueprint_id: str) -> Job:
         """
         Args:
@@ -2635,7 +2605,6 @@ class JobsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
 
 class WorkspacesAPI(APINamespace):
     """
@@ -2644,17 +2613,17 @@ class WorkspacesAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        deleted: Optional[bool] = False,
-        deleting: Optional[bool] = None,
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        deleted: bool | None = False,
+        deleting: bool | None = None,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Union[Workspace, Session]]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Workspace | Session]:
         """
         List workspaces that match the supplied filters (all if no filters specified).
 
@@ -2674,17 +2643,16 @@ class WorkspacesAPI(APINamespace):
             List[Union[Workspace, Session]]: Successful Response
 
         """
-        ...
     def count(
         self,
         *,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        deleted: Optional[bool] = False,
-        deleting: Optional[bool] = None,
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        deleted: bool | None = False,
+        deleting: bool | None = None,
     ) -> int:
         """
         Count workspaces that match the supplied filters (all if no filters specified).
@@ -2702,7 +2670,6 @@ class WorkspacesAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def preview_delete(self, project_uid: str, workspace_uid: str, /) -> DeleteWorkspacePreview:
         """
         Get a list of jobs that would be removed when the given workspace is deleted.
@@ -2715,8 +2682,7 @@ class WorkspacesAPI(APINamespace):
             DeleteWorkspacePreview: Successful Response
 
         """
-        ...
-    def find_one(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
+    def find_one(self, project_uid: str, workspace_uid: str, /) -> Workspace | Session:
         """
         Find a workspace in a project by its unique ID.
 
@@ -2728,7 +2694,6 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
     def delete(self, project_uid: str, workspace_uid: str, /) -> None:
         """
         Initiate a workspace deletion. This deletes the workspace and any jobs
@@ -2747,8 +2712,7 @@ class WorkspacesAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         """
-        ...
-    def create(self, project_uid: str, /, *, title: str, description: Optional[str] = None) -> Workspace:
+    def create(self, project_uid: str, /, *, title: str, description: str | None = None) -> Workspace:
         """
         Create a new empty workspace.
 
@@ -2761,8 +2725,7 @@ class WorkspacesAPI(APINamespace):
             Workspace: Successful Response
 
         """
-        ...
-    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Union[Workspace, Session]:
+    def set_title(self, project_uid: str, workspace_uid: str, /, *, title: str) -> Workspace | Session:
         """
         Set title of a workspace
 
@@ -2775,10 +2738,7 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
-    def set_description(
-        self, project_uid: str, workspace_uid: str, /, description: str = ""
-    ) -> Union[Workspace, Session]:
+    def set_description(self, project_uid: str, workspace_uid: str, /, description: str = "") -> Workspace | Session:
         """
         Set description of a workspace
 
@@ -2791,8 +2751,7 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
-    def view(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
+    def view(self, project_uid: str, workspace_uid: str, /) -> Workspace | Session:
         """
         Add a workspace to a user's recently viewed workspaces list.
 
@@ -2804,8 +2763,7 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
-    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
+    def add_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace | Session:
         """
         Tag the given workspace with the given tag.
 
@@ -2818,8 +2776,7 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
-    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Union[Workspace, Session]:
+    def remove_tag(self, project_uid: str, workspace_uid: str, tag_uid: str, /) -> Workspace | Session:
         """
         Removes a tag from a workspace.
 
@@ -2832,7 +2789,6 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
     def clear_intermediate_results(
         self, project_uid: str, workspace_uid: str, /, *, always_keep_final: bool = False
     ) -> None:
@@ -2845,9 +2801,8 @@ class WorkspacesAPI(APINamespace):
             always_keep_final (bool, optional): Defaults to False
 
         """
-        ...
     def find_workspace_ancestor_uids(
-        self, project_uid: str, workspace_uid: str, /, *, job_uids: List[str]
+        self, project_uid: str, workspace_uid: str, /, *, job_uids: list[str]
     ) -> WorkspaceAncestorUidsResponse:
         """
         Finds ancestors of the given jobs in the workspace.
@@ -2861,9 +2816,8 @@ class WorkspacesAPI(APINamespace):
             WorkspaceAncestorUidsResponse: Successful Response
 
         """
-        ...
     def find_workspace_descendant_uids(
-        self, project_uid: str, workspace_uid: str, /, *, job_uids: List[str]
+        self, project_uid: str, workspace_uid: str, /, *, job_uids: list[str]
     ) -> WorkspaceDescendantUidsResponse:
         """
         Finds descendants of jobs in the workspace
@@ -2877,8 +2831,7 @@ class WorkspacesAPI(APINamespace):
             WorkspaceDescendantUidsResponse: Successful Response
 
         """
-        ...
-    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
+    def star_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace | Session:
         """
         Stars a workspace for a user
 
@@ -2890,8 +2843,7 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
-    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Union[Workspace, Session]:
+    def unstar_workspace(self, project_uid: str, workspace_uid: str, /) -> Workspace | Session:
         """
         Unstars a workspace for a user
 
@@ -2903,8 +2855,7 @@ class WorkspacesAPI(APINamespace):
             Workspace | Session: Successful Response
 
         """
-        ...
-    def split(self, project_uid: str, workspace_uid: str, /, *, title: Optional[str] = None, parent_dir: str) -> None:
+    def split(self, project_uid: str, workspace_uid: str, /, *, title: str | None = None, parent_dir: str) -> None:
         """
         Create a new project at target_dir containing the specified jobs and their
         external parent jobs.
@@ -2916,7 +2867,6 @@ class WorkspacesAPI(APINamespace):
             parent_dir (str):
 
         """
-        ...
     def preview_split(self, project_uid: str, workspace_uid: str, /) -> SplitProjectPreview:
         """
         Preview which jobs, sessions, and workspaces would be included in a split call.
@@ -2929,7 +2879,6 @@ class WorkspacesAPI(APINamespace):
             SplitProjectPreview: Successful Response
 
         """
-        ...
 
 class SessionsAPI(APINamespace):
     """
@@ -2938,19 +2887,19 @@ class SessionsAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        session_uid: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        cleared_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        status: Optional[List[SessionStatus]] = None,
-        deleted: Optional[bool] = False,
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        session_uid: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        cleared_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        status: list[SessionStatus] | None = None,
+        deleted: bool | None = False,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Session]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Session]:
         """
         List sessions that match the supplied filters (all if no filters specified).
 
@@ -2972,19 +2921,18 @@ class SessionsAPI(APINamespace):
             List[Session]: Successful Response
 
         """
-        ...
     def count(
         self,
         *,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        session_uid: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        cleared_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        status: Optional[List[SessionStatus]] = None,
-        deleted: Optional[bool] = False,
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        session_uid: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        cleared_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        status: list[SessionStatus] | None = None,
+        deleted: bool | None = False,
     ) -> int:
         """
         Count sessions that match the supplied filters (all if no filters specified).
@@ -3004,7 +2952,6 @@ class SessionsAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def find_one(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Find a session in a project.
@@ -3017,7 +2964,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def delete(self, project_uid: str, session_uid: str, /) -> None:
         """
         Start a background task to clear a session and mark as "deleted". Raise an
@@ -3028,8 +2974,7 @@ class SessionsAPI(APINamespace):
             session_uid (str): Session UID, e.g., "S3"
 
         """
-        ...
-    def create(self, project_uid: str, /, *, title: str, description: Optional[str] = None) -> Session:
+    def create(self, project_uid: str, /, *, title: str, description: str | None = None) -> Session:
         """
         Create a new session.
 
@@ -3042,9 +2987,8 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def clone(
-        self, project_uid: str, session_uid: str, /, *, title: Optional[str] = None, description: Optional[str] = None
+        self, project_uid: str, session_uid: str, /, *, title: str | None = None, description: str | None = None
     ) -> Session:
         """
         Clone an existing session, copying session configuration, parameters, and exposure groups.
@@ -3059,8 +3003,7 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
-    def find_exposure_groups(self, project_uid: str, session_uid: str, /) -> List[ExposureGroup]:
+    def find_exposure_groups(self, project_uid: str, session_uid: str, /) -> list[ExposureGroup]:
         """
         Find all exposure groups in a session.
 
@@ -3072,7 +3015,6 @@ class SessionsAPI(APINamespace):
             List[ExposureGroup]: Successful Response
 
         """
-        ...
     def create_exposure_group(self, project_uid: str, session_uid: str, /) -> ExposureGroup:
         """
         Create an exposure group in a session.
@@ -3085,7 +3027,6 @@ class SessionsAPI(APINamespace):
             ExposureGroup: Successful Response
 
         """
-        ...
     def find_exposure_group(self, project_uid: str, session_uid: str, exposure_group_id: int, /) -> ExposureGroup:
         """
         Find an exposure group with a specific ID in a session.
@@ -3099,7 +3040,6 @@ class SessionsAPI(APINamespace):
             ExposureGroup: Successful Response
 
         """
-        ...
     def update_exposure_group(
         self, project_uid: str, session_uid: str, exposure_group_id: int, /, body: ExposureGroupUpdate
     ) -> ExposureGroup:
@@ -3116,7 +3056,6 @@ class SessionsAPI(APINamespace):
             ExposureGroup: Successful Response
 
         """
-        ...
     def delete_exposure_group(self, project_uid: str, session_uid: str, exposure_group_id: int, /) -> Session:
         """
         Delete an exposure group from a session.
@@ -3130,7 +3069,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def finalize_exposure_group(self, project_uid: str, session_uid: str, exposure_group_id: int, /) -> ExposureGroup:
         """
         Finalize a session exposure group. If the session is running, CryoSPARC
@@ -3146,8 +3084,7 @@ class SessionsAPI(APINamespace):
             ExposureGroup: Successful Response
 
         """
-        ...
-    def get_symlinks(self, project_uid: str, session_uid: str, /) -> List[SymlinkInfo]:
+    def get_symlinks(self, project_uid: str, session_uid: str, /) -> list[SymlinkInfo]:
         """
         Get all symbolic links in the session directory.
 
@@ -3159,7 +3096,6 @@ class SessionsAPI(APINamespace):
             List[SymlinkInfo]: Successful Response
 
         """
-        ...
     def update_directory_symlinks(
         self, project_uid: str, session_uid: str, /, *, prefix_cut: str, prefix_new: str
     ) -> int:
@@ -3176,7 +3112,6 @@ class SessionsAPI(APINamespace):
             int: Number of symlinks updated
 
         """
-        ...
     def start(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Build and start a CryoSPARC Live Session. Resources, parameters and exposure
@@ -3190,7 +3125,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def pause(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Gracefully stop and kill all preprocessing and streaming jobs associated
@@ -3204,7 +3138,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def configure_auto_pause(
         self,
         project_uid: str,
@@ -3235,7 +3168,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_compute_configuration(
         self, project_uid: str, session_uid: str, /, body: LiveComputeResources
     ) -> LiveComputeResources:
@@ -3251,7 +3183,6 @@ class SessionsAPI(APINamespace):
             LiveComputeResources: Successful Response
 
         """
-        ...
     def add_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> Session:
         """
         Add a tag to a session.
@@ -3265,7 +3196,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def remove_tag(self, project_uid: str, session_uid: str, tag_uid: str, /) -> Session:
         """
         Remove a tag from a session.
@@ -3279,7 +3209,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_session_params(
         self,
         project_uid: str,
@@ -3305,7 +3234,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_attribute_threshold(
         self,
         project_uid: str,
@@ -3313,8 +3241,8 @@ class SessionsAPI(APINamespace):
         attribute: str,
         /,
         *,
-        min_val: Optional[float] = None,
-        max_val: Optional[float] = None,
+        min_val: float | None = None,
+        max_val: float | None = None,
     ) -> Session:
         """
         Update thresholds for a given session attribute.
@@ -3330,7 +3258,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def clear_session(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Delete all computed session data, including found and processed micrographs,
@@ -3345,7 +3272,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def view(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Add the session to a user's recently viewed sessions list
@@ -3358,7 +3284,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def setup_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Setup streaming 2D classification job for a session.
@@ -3371,7 +3296,6 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def reinitialize_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Setup an existing streaming 2D classification job for a session.
@@ -3384,7 +3308,6 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def enqueue_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Enqueue streaming 2D Classification job for a session
@@ -3397,7 +3320,6 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def stop_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Stop streaming 2D Classification job for a session
@@ -3410,7 +3332,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def clear_phase2_class2D(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Clear streaming 2D Classification job for a session
@@ -3423,7 +3344,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_phase2_class2D_params(self, project_uid: str, session_uid: str, /, body: LiveClass2DParams) -> Session:
         """
         Update streaming 2D Classification job params for session
@@ -3437,7 +3357,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def toggle_class2d_template(self, project_uid: str, session_uid: str, template_idx: int, /) -> Session:
         """
         Toggle a specific 2D template for a session's streaming 2D classification job.
@@ -3451,7 +3370,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def toggle_all_class2d_templates(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Toggle the selection state of all templates for a session's streaming 2D classification job.
@@ -3464,7 +3382,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def select_all_class2d_templates(
         self, project_uid: str, session_uid: str, direction: Literal["select", "deselect"], /
     ) -> Session:
@@ -3480,7 +3397,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def select_class2d_templates_with_threshold_index(
         self,
         project_uid: str,
@@ -3508,9 +3424,8 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def select_class2d_templates_with_thresholds(
-        self, project_uid: str, session_uid: str, /, template_selection_thresholds: List[TemplateSelectionThreshold]
+        self, project_uid: str, session_uid: str, /, template_selection_thresholds: list[TemplateSelectionThreshold]
     ) -> Session:
         """
         Select templates for a session's streaming 2D Classification job based on the
@@ -3525,7 +3440,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def start_extract_manual(self, project_uid: str, session_uid: str, /) -> None:
         """
         Extract manually picked particles in a session.
@@ -3535,7 +3449,6 @@ class SessionsAPI(APINamespace):
             session_uid (str): Session UID, e.g., "S3"
 
         """
-        ...
     def set_session_exposure_processing_priority(
         self,
         project_uid: str,
@@ -3556,7 +3469,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def set_session_phase_one_wait_for_exposures(
         self, project_uid: str, session_uid: str, /, *, phase_one_wait_for_exposures: bool
     ) -> Session:
@@ -3572,7 +3484,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_picking_threshold_values(
         self,
         project_uid: str,
@@ -3599,7 +3510,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def reset_attribute_threshold(self, project_uid: str, session_uid: str, attribute: str, /) -> Session:
         """
         Reset attribute threshold for a session
@@ -3613,7 +3523,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def reset_all_attribute_thresholds(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Reset all attribute thresholds for a session
@@ -3626,7 +3535,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def setup_template_creation_class2D(
         self,
         project_uid: str,
@@ -3636,8 +3544,8 @@ class SessionsAPI(APINamespace):
         num_classes: int,
         picker_type: Literal["blob", "template", "manual"],
         num_mics: int,
-        override_particle_diameter_A: Optional[float] = None,
-        uid_lte: Optional[int] = None,
+        override_particle_diameter_A: float | None = None,
+        uid_lte: int | None = None,
     ) -> Job:
         """
         Setup template creation 2D classification job for a session
@@ -3655,15 +3563,8 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_template_creation_job(
-        self,
-        project_uid: str,
-        session_uid: str,
-        /,
-        *,
-        job_uid: str,
-        template_creation_project_uid: Optional[str] = None,
+        self, project_uid: str, session_uid: str, /, *, job_uid: str, template_creation_project_uid: str | None = None
     ) -> Session:
         """
         Set template creation 2D classification job for a session
@@ -3678,7 +3579,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def clear_template_creation_class2D(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Clear template creation 2D classification job for a session
@@ -3691,7 +3591,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def toggle_picking_template(self, project_uid: str, session_uid: str, template_idx: int, /) -> Session:
         """
         Toggle a template for a session's template creation job at a specific index
@@ -3705,7 +3604,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def toggle_all_picking_templates(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Toggle the selection status of all templates for a session's template creation job
@@ -3718,7 +3616,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def select_all_picking_templates(
         self, project_uid: str, session_uid: str, direction: Literal["select", "deselect"], /
     ) -> Session:
@@ -3734,7 +3631,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def select_picking_templates_with_threshold_index(
         self,
         project_uid: str,
@@ -3762,9 +3658,8 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def select_picking_templates_with_thresholds(
-        self, project_uid: str, session_uid: str, /, template_selection_thresholds: List[TemplateSelectionThreshold]
+        self, project_uid: str, session_uid: str, /, template_selection_thresholds: list[TemplateSelectionThreshold]
     ) -> Session:
         """
         Select all templates above or below an index for a session's template creation job
@@ -3778,7 +3673,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def setup_phase2_abinit(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Setup Ab-Initio Reconstruction job for a session
@@ -3791,7 +3685,6 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def set_phase2_abinit_job(self, project_uid: str, session_uid: str, /, *, job_uid: str) -> Session:
         """
         Set a Live Ab-Initio Reconstruction job for a session. May specify any job with volume outputs.
@@ -3805,7 +3698,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def enqueue_phase2_abinit(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Enqueue Ab-Initio Reconstruction job for a session
@@ -3818,7 +3710,6 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def clear_phase2_abinit(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Clear Ab-Initio Reconstruction job for a session
@@ -3831,7 +3722,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_phase2_abinit_params(self, project_uid: str, session_uid: str, /, body: LiveAbinitParams) -> Session:
         """
         Update Ab-Initio Reconstruction parameters for a session
@@ -3845,7 +3735,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def select_phase2_abinit_volume(self, project_uid: str, session_uid: str, /, *, volume_name: str) -> Session:
         """
         Select one of the computed or loaded volumes in a session's Ab-Initio
@@ -3861,7 +3750,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def stop_phase2_abinit(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Stop the running Ab-Initio Reconstruction job for a session.
@@ -3874,7 +3762,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def clear_phase2_refine(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Clear streaming Homogenous Refinement job for a session
@@ -3887,7 +3774,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def setup_phase2_refine(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Args:
@@ -3898,7 +3784,6 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def enqueue_phase2_refine(self, project_uid: str, session_uid: str, /) -> Job:
         """
         Enqueue a streaming Homogenous Refinement job for a session
@@ -3911,7 +3796,6 @@ class SessionsAPI(APINamespace):
             Job: Successful Response
 
         """
-        ...
     def stop_phase2_refine(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Stop a streaming Homogenous Refinement job for a session
@@ -3924,7 +3808,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_phase2_refine_params(self, project_uid: str, session_uid: str, /, body: LiveRefineParams) -> Session:
         """
         Update streaming Homogenous Refinement job parameteres for a session
@@ -3938,16 +3821,15 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def create_and_enqueue_export_particles(
         self,
         project_uid: str,
         session_uid: str,
         /,
         *,
-        picker_type: Optional[Literal["blob", "template", "manual"]] = None,
-        num_mics: Optional[int] = None,
-        uid_lte: Optional[int] = None,
+        picker_type: Literal["blob", "template", "manual"] | None = None,
+        num_mics: int | None = None,
+        uid_lte: int | None = None,
         test_only: bool = False,
     ) -> Job:
         """
@@ -3965,7 +3847,6 @@ class SessionsAPI(APINamespace):
             Job: Enqueued export particles job
 
         """
-        ...
     def create_and_enqueue_export_exposures(
         self, project_uid: str, session_uid: str, /, *, export_ignored: bool = False
     ) -> Job:
@@ -3981,7 +3862,6 @@ class SessionsAPI(APINamespace):
             Job: Enqueued Live Exposure Export job
 
         """
-        ...
     def mark_session_completed(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Mark the session as completed
@@ -3994,8 +3874,7 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
-    def get_configuration_profiles(self) -> List[SessionConfigProfile]:
+    def get_configuration_profiles(self) -> list[SessionConfigProfile]:
         """
         Get all session configuration profiles
 
@@ -4003,7 +3882,6 @@ class SessionsAPI(APINamespace):
             List[SessionConfigProfile]: Successful Response
 
         """
-        ...
     def create_configuration_profile(self, body: SessionConfigProfileBody) -> SessionConfigProfile:
         """
         Create a session configuration profile
@@ -4015,7 +3893,6 @@ class SessionsAPI(APINamespace):
             SessionConfigProfile: Successful Response
 
         """
-        ...
     def apply_configuration_profile(self, project_uid: str, session_uid: str, /, *, configuration_id: str) -> Session:
         """
         Apply a configuration profile to a session, overwriting its resources, parameters, and exposure groups
@@ -4029,7 +3906,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def update_configuration_profile(
         self, configuration_id: str, /, body: SessionConfigProfileBody
     ) -> SessionConfigProfile:
@@ -4044,7 +3920,6 @@ class SessionsAPI(APINamespace):
             SessionConfigProfile: Successful Response
 
         """
-        ...
     def delete_configuration_profile(self, configuration_id: str, /) -> None:
         """
         Delete a session configuration profile
@@ -4053,7 +3928,6 @@ class SessionsAPI(APINamespace):
             configuration_id (str):
 
         """
-        ...
     def compact_session(self, project_uid: str, session_uid: str, /) -> None:
         """
         Compact a session by clearing exposure processing results, including
@@ -4067,7 +3941,6 @@ class SessionsAPI(APINamespace):
             session_uid (str): Session UID, e.g., "S3"
 
         """
-        ...
     def restore_session(self, project_uid: str, session_uid: str, /, body: LiveComputeResources) -> None:
         """
         Restore exposures of a compacted session. Starts Live preprocessing
@@ -4080,7 +3953,6 @@ class SessionsAPI(APINamespace):
             body (LiveComputeResources):
 
         """
-        ...
     def get_session_base_params(self) -> Any:
         """
         Get base session parameter details.
@@ -4089,7 +3961,6 @@ class SessionsAPI(APINamespace):
             Any: Successful Response
 
         """
-        ...
     def star_session(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Star a session for the authenticated user
@@ -4102,7 +3973,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def unstar_session(self, project_uid: str, session_uid: str, /) -> Session:
         """
         Unstar a session for the authenticated user
@@ -4115,7 +3985,6 @@ class SessionsAPI(APINamespace):
             Session: Successful Response
 
         """
-        ...
     def export_session(
         self,
         project_uid: str,
@@ -4124,7 +3993,7 @@ class SessionsAPI(APINamespace):
         *,
         export_movies: bool = False,
         export_ignored_exposures: bool = False,
-        picker_type: Optional[Literal["blob", "template", "manual"]] = None,
+        picker_type: Literal["blob", "template", "manual"] | None = None,
     ) -> None:
         """
         Write session results, including all motion-corrected exposures and
@@ -4147,7 +4016,6 @@ class SessionsAPI(APINamespace):
             picker_type (Literal['blob', 'template', 'manual'], optional): Include particles from this picker type instead of session selection. Defaults to None
 
         """
-        ...
     def refresh_size(self, project_uid: str, session_uid: str, /) -> None:
         """
         Update session data size and statistics.
@@ -4157,7 +4025,6 @@ class SessionsAPI(APINamespace):
             session_uid (str): Session UID, e.g., "S3"
 
         """
-        ...
 
 class ExposuresAPI(APINamespace):
     """
@@ -4166,40 +4033,39 @@ class ExposuresAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        session_uid: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        stage: Optional[
-            List[
-                Literal[
-                    "go_to_found",
-                    "found",
-                    "check",
-                    "motion",
-                    "ctf",
-                    "thumbs",
-                    "pick",
-                    "extract",
-                    "extract_manual",
-                    "ready",
-                    "restoring",
-                    "restoring_motion",
-                    "restoring_thumbs",
-                    "restoring_ctf",
-                    "restoring_extract",
-                    "restoring_extract_manual",
-                    "compacted",
-                ]
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        session_uid: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        stage: list[
+            Literal[
+                "go_to_found",
+                "found",
+                "check",
+                "motion",
+                "ctf",
+                "thumbs",
+                "pick",
+                "extract",
+                "extract_manual",
+                "ready",
+                "restoring",
+                "restoring_motion",
+                "restoring_thumbs",
+                "restoring_ctf",
+                "restoring_extract",
+                "restoring_extract_manual",
+                "compacted",
             ]
-        ] = None,
-        deleted: Optional[bool] = False,
+        ]
+        | None = None,
+        deleted: bool | None = False,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Exposure]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Exposure]:
         """
         List Live session exposures that match the supplied filters (all if no filters specified).
 
@@ -4220,43 +4086,41 @@ class ExposuresAPI(APINamespace):
             List[Exposure]: Successful Response
 
         """
-        ...
     def count(
         self,
         *,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        session_uid: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        stage: Optional[
-            List[
-                Literal[
-                    "go_to_found",
-                    "found",
-                    "check",
-                    "motion",
-                    "ctf",
-                    "thumbs",
-                    "pick",
-                    "extract",
-                    "extract_manual",
-                    "ready",
-                    "restoring",
-                    "restoring_motion",
-                    "restoring_thumbs",
-                    "restoring_ctf",
-                    "restoring_extract",
-                    "restoring_extract_manual",
-                    "compacted",
-                ]
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        session_uid: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        stage: list[
+            Literal[
+                "go_to_found",
+                "found",
+                "check",
+                "motion",
+                "ctf",
+                "thumbs",
+                "pick",
+                "extract",
+                "extract_manual",
+                "ready",
+                "restoring",
+                "restoring_motion",
+                "restoring_thumbs",
+                "restoring_ctf",
+                "restoring_extract",
+                "restoring_extract_manual",
+                "compacted",
             ]
-        ] = None,
-        deleted: Optional[bool] = False,
+        ]
+        | None = None,
+        deleted: bool | None = False,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
+        after: str | None = None,
+        limit: int | None = 100,
     ) -> int:
         """
         Count Live session exposures that match the supplied filters (all if no filters specified).
@@ -4278,7 +4142,6 @@ class ExposuresAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def find_one(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Find an exposure within a session by its numeric ID.
@@ -4292,8 +4155,7 @@ class ExposuresAPI(APINamespace):
             Exposure: Successful Response
 
         """
-        ...
-    def reset_manual_reject_exposures(self, project_uid: str, session_uid: str, /) -> List[Exposure]:
+    def reset_manual_reject_exposures(self, project_uid: str, session_uid: str, /) -> list[Exposure]:
         """
         Reset manual rejection status on all exposures in a session.
 
@@ -4305,7 +4167,6 @@ class ExposuresAPI(APINamespace):
             List[Exposure]: List of exposures reset
 
         """
-        ...
     def reset_all_exposures(self, project_uid: str, session_uid: str, /) -> None:
         """
         Reset all exposures in a session to initial state.
@@ -4315,7 +4176,6 @@ class ExposuresAPI(APINamespace):
             session_uid (str): Session UID, e.g., "S3"
 
         """
-        ...
     def reset_failed_exposures(self, project_uid: str, session_uid: str, /) -> None:
         """
         Reset all failed exposures in a session to initial state.
@@ -4325,7 +4185,6 @@ class ExposuresAPI(APINamespace):
             session_uid (str): Session UID, e.g., "S3"
 
         """
-        ...
     def reset_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Reset exposure to initial state.
@@ -4339,7 +4198,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Exposure that has been reset
 
         """
-        ...
     def manual_reject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Manually reject exposure.
@@ -4353,7 +4211,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Rejected exposure
 
         """
-        ...
     def manual_unreject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Manually unreject exposure.
@@ -4367,7 +4224,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Unrejected exposure
 
         """
-        ...
     def mark_failed(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Mark an exposure as failed.
@@ -4381,7 +4237,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Successful Response
 
         """
-        ...
     def toggle_manual_reject_exposure(self, project_uid: str, session_uid: str, exposure_uid: int, /) -> Exposure:
         """
         Toggle manual rejection state on exposure.
@@ -4395,7 +4250,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Toggled exposure
 
         """
-        ...
     def reprocess_single_exposure(
         self,
         project_uid: str,
@@ -4422,7 +4276,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Reprocessed exposure
 
         """
-        ...
     def add_manual_pick(
         self, project_uid: str, session_uid: str, exposure_uid: int, /, *, x_frac: float, y_frac: float
     ) -> Exposure:
@@ -4440,7 +4293,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Exposure with added manual picks
 
         """
-        ...
     def remove_manual_pick(
         self,
         project_uid: str,
@@ -4467,7 +4319,6 @@ class ExposuresAPI(APINamespace):
             Exposure: Exposure with removed manual picks
 
         """
-        ...
     def get_individual_picks(
         self,
         project_uid: str,
@@ -4475,7 +4326,7 @@ class ExposuresAPI(APINamespace):
         exposure_uid: int,
         picker_type: Literal["blob", "template", "manual"],
         /,
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """
         Get list of particle picks for an exposure. Each item in the list is a list
         of four floating point numbers which represent the following:
@@ -4495,7 +4346,6 @@ class ExposuresAPI(APINamespace):
             List[List[float]]: Successful Response
 
         """
-        ...
 
 class ProjectsAPI(APINamespace):
     """
@@ -4512,7 +4362,6 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def get_title_slug(self, *, title: str) -> str:
         """
         Get a URL-friendly version of a project title.
@@ -4524,23 +4373,22 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        project_dir: Optional[str] = None,
-        owner_user_id: Optional[str] = None,
-        users_with_access: Optional[List[str]] = None,
-        archived: Optional[bool] = False,
-        detached: Optional[bool] = False,
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        project_dir: str | None = None,
+        owner_user_id: str | None = None,
+        users_with_access: list[str] | None = None,
+        archived: bool | None = False,
+        detached: bool | None = False,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Project]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Project]:
         """
         List projects available to the current user that match the supplied filters
         (all if no filters specified).
@@ -4563,8 +4411,7 @@ class ProjectsAPI(APINamespace):
             List[Project]: Successful Response
 
         """
-        ...
-    def create(self, *, title: str, description: Optional[str] = None, parent_dir: str) -> Project:
+    def create(self, *, title: str, description: str | None = None, parent_dir: str) -> Project:
         """
         Start a new empty project. Creates new subfolder in the parent directory
         with a generated name based on the provided title.
@@ -4578,22 +4425,21 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def count(
         self,
         *,
-        project_dir: Optional[str] = None,
-        owner_user_id: Optional[str] = None,
-        archived: Optional[bool] = False,
-        detached: Optional[bool] = False,
+        project_dir: str | None = None,
+        owner_user_id: str | None = None,
+        archived: bool | None = False,
+        detached: bool | None = False,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-        id: Optional[List[str]] = None,
-        uid: Optional[List[str]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        users_with_access: Optional[List[str]] = None,
+        after: str | None = None,
+        limit: int | None = 100,
+        id: list[str] | None = None,
+        uid: list[str] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        users_with_access: list[str] | None = None,
     ) -> int:
         """
         Count projects available to the current user that match the supplied filters
@@ -4617,7 +4463,6 @@ class ProjectsAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def set_title(self, project_uid: str, /, *, title: str) -> Project:
         """
         Set project title.
@@ -4630,7 +4475,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def set_description(self, project_uid: str, /, description: str = "") -> Project:
         """
         Set project description. May include Markdown formatting.
@@ -4643,7 +4487,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def view(self, project_uid: str, /) -> Project:
         """
         Add a project to a user's recently viewed projects list.
@@ -4655,7 +4498,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def mkdir(self, project_uid: str, /, *, parents: bool = False, exist_ok: bool = False, path: str = "") -> str:
         """
         Create a subfolder in a project.
@@ -4670,7 +4512,6 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def cp(self, project_uid: str, /, *, source: str, path: str = "") -> str:
         """
         Copy a file or folder to a project directory. Returns the absolute path of
@@ -4689,7 +4530,6 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def symlink(self, project_uid: str, /, *, source: str, path: str = "") -> str:
         """
         Create a symbolic link in a project directory. May only create links to
@@ -4704,7 +4544,19 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
+    def preview_import_job_directory(self, project_uid: str, /, *, source: str) -> ExportBundlePreview:
+        """
+        Preview how much data would be transferred if the source
+        were copied into this project
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            source (str): Source path, either absolute or relative to project directory
+
+        Returns:
+            ExportBundlePreview: Successful Response
+
+        """
     def upload_file(self, project_uid: str, /, stream: Stream, *, overwrite: bool = False, path: str = "") -> str:
         """
         Upload a file to the project directory.
@@ -4725,7 +4577,6 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def download_file(self, project_uid: str, /, *, path: str = "") -> Stream:
         """
         Download a file from the project directory.
@@ -4738,8 +4589,7 @@ class ProjectsAPI(APINamespace):
             Stream: A binary stream representing a Stream class instance
 
         """
-        ...
-    def ls(self, project_uid: str, /, *, recursive: bool = False, path: str = "") -> List[str]:
+    def ls(self, project_uid: str, /, *, recursive: bool = False, path: str = "") -> list[str]:
         """
         List files in the project directory.
 
@@ -4755,7 +4605,6 @@ class ProjectsAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
     def get_job_register(self, project_uid: str, /) -> JobRegister:
         """
         Get the job register model for the project. The same for every project.
@@ -4767,7 +4616,6 @@ class ProjectsAPI(APINamespace):
             JobRegister: Successful Response
 
         """
-        ...
     def preview_delete(self, project_uid: str, /) -> DeleteProjectPreview:
         """
         Get the workspaces and jobs that would be affected when the project is deleted.
@@ -4779,7 +4627,6 @@ class ProjectsAPI(APINamespace):
             DeleteProjectPreview: Successful Response
 
         """
-        ...
     def find_one(self, project_uid: str, /) -> Project:
         """
         Get a project by its unique ID.
@@ -4791,7 +4638,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def delete(self, project_uid: str, /) -> None:
         """
         Start project deletion task. Will delete the project, its full directory,
@@ -4806,7 +4652,6 @@ class ProjectsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
 
         """
-        ...
     def get_directory(self, project_uid: str, /) -> str:
         """
         Get the project's absolute directory path with all environment variables resolved.
@@ -4818,7 +4663,6 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def get_owner_id(self, project_uid: str, /) -> str:
         """
         Get user account ID for the owner of a project.
@@ -4830,7 +4674,6 @@ class ProjectsAPI(APINamespace):
             str: Successful Response
 
         """
-        ...
     def set_owner(self, project_uid: str, user_id: str, /) -> Project:
         """
         Set owner of the project to the user
@@ -4843,7 +4686,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def add_user_access(self, project_uid: str, user_id: str, /) -> Project:
         """
         Grant access to another user to view and edit the project.
@@ -4857,7 +4699,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def remove_user_access(self, project_uid: str, user_id: str, /) -> Project:
         """
         Remove a user's access from a project.
@@ -4870,7 +4711,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def refresh_size(self, project_uid: str, /) -> None:
         """
         Start project size recalculation asynchronously.
@@ -4879,8 +4719,7 @@ class ProjectsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
 
         """
-        ...
-    def get_symlinks(self, project_uid: str, /) -> List[SymlinkInfo]:
+    def get_symlinks(self, project_uid: str, /) -> list[SymlinkInfo]:
         """
         Get all symbolic links in the project directory.
 
@@ -4891,7 +4730,6 @@ class ProjectsAPI(APINamespace):
             List[SymlinkInfo]: Successful Response
 
         """
-        ...
     def update_directory_symlinks(self, project_uid: str, /, *, prefix_cut: str, prefix_new: str) -> int:
         """
         Rewrite symbolic link target paths in a project directory, changing target
@@ -4906,8 +4744,7 @@ class ProjectsAPI(APINamespace):
             int: Number of symlinks updated
 
         """
-        ...
-    def set_default_param(self, project_uid: str, name: str, /, value: Union[bool, int, float, str]) -> Project:
+    def set_default_param(self, project_uid: str, name: str, /, value: bool | float | str) -> Project:
         """
         Set a default value for a job parameter for use in a project. All new
         jobs created in the project will be initialized with this default value
@@ -4922,7 +4759,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def clear_default_param(self, project_uid: str, name: str, /) -> Project:
         """
         Clear the per-project default value for a job parameter.
@@ -4935,7 +4771,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def claim_instance_ownership(self, project_uid: str, /, *, force: bool = False) -> None:
         """
         Claim ownership of an existing project with a missing lock file.
@@ -4945,7 +4780,6 @@ class ProjectsAPI(APINamespace):
             force (bool, optional): Defaults to False
 
         """
-        ...
     def claim_all_instance_ownership(self, *, force: bool = False) -> None:
         """
         Claim ownership of all projects in the instance. Use when upgrading
@@ -4955,7 +4789,6 @@ class ProjectsAPI(APINamespace):
             force (bool, optional): Defaults to False
 
         """
-        ...
     def archive(self, project_uid: str, /) -> None:
         """
         Archive this project. Archived projects are hidden in the web UI. They
@@ -4966,7 +4799,6 @@ class ProjectsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
 
         """
-        ...
     def unarchive(self, project_uid: str, /, *, path: str) -> Project:
         """
         Revert an archive operation.
@@ -4979,7 +4811,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def detach(self, project_uid: str, /) -> None:
         """
         Detach this project from this CryoSPARC instance, removing its lock file.
@@ -4989,8 +4820,7 @@ class ProjectsAPI(APINamespace):
             project_uid (str): Project UID, e.g., "P3"
 
         """
-        ...
-    def attach(self, *, project_owner_id: Optional[str] = None, path: str) -> Project:
+    def attach(self, *, project_owner_id: str | None = None, path: str) -> Project:
         """
         Attach an existing project directory to this instance.
 
@@ -5012,8 +4842,7 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
-    def accept(self, project_uid: str, /, *, path: Optional[str] = None) -> Project:
+    def accept(self, project_uid: str, /, *, path: str | None = None) -> Project:
         """
         Accept a failed attach for this project. Some job or workspace data may
         be inaccessible or lost after a failed attach, so use with caution.
@@ -5034,7 +4863,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def move(self, project_uid: str, /, *, path: str) -> None:
         """
         Move the project directory to a new location on the file system.
@@ -5052,7 +4880,6 @@ class ProjectsAPI(APINamespace):
             path (str):
 
         """
-        ...
     def get_next_exposure_group_id(self, project_uid: str, /) -> int:
         """
         Get next exposure group ID
@@ -5064,19 +4891,18 @@ class ProjectsAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def cleanup_data(
         self,
         project_uid: str,
         /,
         *,
-        workspace_uid: Optional[str] = None,
+        workspace_uid: str | None = None,
         delete_non_final: bool = False,
-        delete_statuses: List[JobStatus] = [],
+        delete_statuses: list[JobStatus] = [],
         clear_non_final: bool = False,
-        clear_categories: List[Category] = [],
-        clear_types: List[str] = [],
-        clear_statuses: List[JobStatus] = [],
+        clear_categories: list[Category] = [],
+        clear_types: list[str] = [],
+        clear_statuses: list[JobStatus] = [],
         clear_preprocessing: bool = False,
         clear_intermediate_results: bool = False,
     ) -> None:
@@ -5096,7 +4922,6 @@ class ProjectsAPI(APINamespace):
             clear_intermediate_results (bool, optional): Defaults to False
 
         """
-        ...
     def add_tag(self, project_uid: str, tag_uid: str, /) -> Project:
         """
         Add a tag to a project.
@@ -5109,7 +4934,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def remove_tag(self, project_uid: str, tag_uid: str, /) -> Project:
         """
         Remove a tag from a project.
@@ -5122,7 +4946,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def get_generate_intermediate_results_settings(self, project_uid: str, /) -> GenerateIntermediateResultsSettings:
         """
         Get generate intermediate result settings.
@@ -5134,7 +4957,6 @@ class ProjectsAPI(APINamespace):
             GenerateIntermediateResultsSettings: Successful Response
 
         """
-        ...
     def set_generate_intermediate_results_settings(
         self, project_uid: str, /, body: GenerateIntermediateResultsSettings
     ) -> Project:
@@ -5149,7 +4971,29 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
+    def get_export_result_defaults(self, project_uid: str, /) -> ExportResultDefaults:
+        """
+        Get the project-level defaults for which export results get omitted.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+
+        Returns:
+            ExportResultDefaults: Successful Response
+
+        """
+    def set_export_result_defaults(self, project_uid: str, /, body: ExportResultDefaults) -> Project:
+        """
+        Set the project-level defaults for which export results get omitted.
+
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            body (ExportResultDefaults):
+
+        Returns:
+            Project: Successful Response
+
+        """
     def clear_intermediate_results(self, project_uid: str, /, *, always_keep_final: bool = True) -> None:
         """
         Remove intermediate results from the project.
@@ -5159,8 +5003,7 @@ class ProjectsAPI(APINamespace):
             always_keep_final (bool, optional): Defaults to True
 
         """
-        ...
-    def get_generate_intermediate_results_job_types(self) -> List[str]:
+    def get_generate_intermediate_results_job_types(self) -> list[str]:
         """
         Get intermediate result job types
 
@@ -5168,7 +5011,6 @@ class ProjectsAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
     def star_project(self, project_uid: str, /) -> Project:
         """
         Star a project for the authenticated user
@@ -5180,7 +5022,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def unstar_project(self, project_uid: str, /) -> Project:
         """
         Unstar a project for the authenticated user
@@ -5192,7 +5033,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
     def reset_autodump(self, project_uid: str, /) -> Project:
         """
         Clear project directory write failures. After, CryoSPARC's scheduler will
@@ -5206,7 +5046,6 @@ class ProjectsAPI(APINamespace):
             Project: Successful Response
 
         """
-        ...
 
 class TagsAPI(APINamespace):
     """
@@ -5215,14 +5054,14 @@ class TagsAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
+        id: list[str] | None = None,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = None,
-        created_by_user_id: Optional[str] = None,
-        type: Optional[List[Literal["general", "project", "workspace", "session", "job"]]] = None,
-        uid: Optional[str] = None,
-    ) -> List[Tag]:
+        after: str | None = None,
+        limit: int | None = None,
+        created_by_user_id: str | None = None,
+        type: list[Literal["general", "project", "workspace", "session", "job"]] | None = None,
+        uid: str | None = None,
+    ) -> list[Tag]:
         """
         List tags that match the supplied filters (all if no filters specified).
 
@@ -5239,13 +5078,12 @@ class TagsAPI(APINamespace):
             List[Tag]: Successful Response
 
         """
-        ...
     def create(
         self,
         body: CreateTag,
         *,
         type: Literal["general", "project", "workspace", "session", "job"],
-        created_by_workflow: Optional[str] = None,
+        created_by_workflow: str | None = None,
     ) -> Tag:
         """
         Create a new tag
@@ -5259,7 +5097,6 @@ class TagsAPI(APINamespace):
             Tag: Successful Response
 
         """
-        ...
     def update(self, tag_uid: str, /, body: UpdateTag) -> Tag:
         """
         Update tag title, colour and/or description
@@ -5272,7 +5109,6 @@ class TagsAPI(APINamespace):
             Tag: Successful Response
 
         """
-        ...
     def delete(self, tag_uid: str, /) -> None:
         """
         Delete a tag
@@ -5281,8 +5117,7 @@ class TagsAPI(APINamespace):
             tag_uid (str): Tag UID, e.g., "T1"
 
         """
-        ...
-    def get_tags_by_type(self) -> Dict[str, List[Tag]]:
+    def get_tags_by_type(self) -> dict[str, list[Tag]]:
         """
         Get all tags, organized by type
 
@@ -5290,8 +5125,7 @@ class TagsAPI(APINamespace):
             Dict[str, List[Tag]]: Successful Response
 
         """
-        ...
-    def get_tag_count_by_type(self) -> Dict[str, int]:
+    def get_tag_count_by_type(self) -> dict[str, int]:
         """
         Get a count of all tags by type
 
@@ -5299,7 +5133,6 @@ class TagsAPI(APINamespace):
             Dict[str, int]: Successful Response
 
         """
-        ...
 
 class NotificationsAPI(APINamespace):
     """
@@ -5308,17 +5141,17 @@ class NotificationsAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        job_uid: Optional[List[str]] = None,
-        active: Optional[bool] = None,
-        status: Optional[List[Literal["success", "primary", "warning", "danger"]]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        id: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        job_uid: list[str] | None = None,
+        active: bool | None = None,
+        status: list[Literal["success", "primary", "warning", "danger"]] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Notification]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Notification]:
         """
         List notifications that match the supplied query.
 
@@ -5338,17 +5171,16 @@ class NotificationsAPI(APINamespace):
             List[Notification]: Successful Response
 
         """
-        ...
     def count(
         self,
         *,
-        id: Optional[List[str]] = None,
-        project_uid: Optional[List[str]] = None,
-        job_uid: Optional[List[str]] = None,
-        active: Optional[bool] = None,
-        status: Optional[List[Literal["success", "primary", "warning", "danger"]]] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        id: list[str] | None = None,
+        project_uid: list[str] | None = None,
+        job_uid: list[str] | None = None,
+        active: bool | None = None,
+        status: list[Literal["success", "primary", "warning", "danger"]] | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
     ) -> int:
         """
         Count all notifications that match the supplied query.
@@ -5366,7 +5198,6 @@ class NotificationsAPI(APINamespace):
             int: Successful Response
 
         """
-        ...
     def find_by_id(self, notification_id: str, /) -> Notification:
         """
         Finds a notification by its ID
@@ -5378,7 +5209,6 @@ class NotificationsAPI(APINamespace):
             Notification: Successful Response
 
         """
-        ...
     def deactivate_notification(self, notification_id: str, /) -> Notification:
         """
         Deactivates a notification
@@ -5390,7 +5220,6 @@ class NotificationsAPI(APINamespace):
             Notification: Successful Response
 
         """
-        ...
 
 class BlueprintsAPI(APINamespace):
     """
@@ -5399,17 +5228,17 @@ class BlueprintsAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        job_type: Optional[List[str]] = None,
-        created_by: Optional[str] = None,
-        pinned: Optional[bool] = None,
-        imported: Optional[bool] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        id: list[str] | None = None,
+        job_type: list[str] | None = None,
+        created_by: str | None = None,
+        pinned: bool | None = None,
+        imported: bool | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Blueprint]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Blueprint]:
         """
         List blueprints that match the supplied filters (all if no filters specified).
 
@@ -5429,7 +5258,6 @@ class BlueprintsAPI(APINamespace):
             List[Blueprint]: Successful Response
 
         """
-        ...
     def create(self, body: Blueprint) -> Blueprint:
         """
         Create or import a blueprint for a job.
@@ -5441,7 +5269,6 @@ class BlueprintsAPI(APINamespace):
             Blueprint: Successful Response
 
         """
-        ...
     def draft_blueprint_from_job(self, *, project_uid: str, job_uid: str) -> Blueprint:
         """
         Create a blueprint from a job without saving it
@@ -5454,7 +5281,6 @@ class BlueprintsAPI(APINamespace):
             Blueprint: Successful Response
 
         """
-        ...
     def get_draft(self, job_type: str, /) -> Blueprint:
         """
         Args:
@@ -5464,7 +5290,6 @@ class BlueprintsAPI(APINamespace):
             Blueprint: Successful Response
 
         """
-        ...
     def find_one(self, blueprint_id: str, /) -> Blueprint:
         """
         Get a blueprint by its id
@@ -5476,18 +5301,17 @@ class BlueprintsAPI(APINamespace):
             Blueprint: Successful Response
 
         """
-        ...
     def edit(
         self,
         blueprint_id: str,
         /,
-        parameters: Optional[Dict[str, BlueprintParameter]] = None,
+        parameters: dict[str, BlueprintParameter] | None = None,
         *,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        apply_title: Optional[bool] = None,
-        apply_description: Optional[bool] = None,
-        pinned: Optional[bool] = None,
+        title: str | None = None,
+        description: str | None = None,
+        apply_title: bool | None = None,
+        apply_description: bool | None = None,
+        pinned: bool | None = None,
     ) -> Blueprint:
         """
         Edit an existing blueprint
@@ -5505,7 +5329,6 @@ class BlueprintsAPI(APINamespace):
             Blueprint: Successful Response
 
         """
-        ...
     def delete(self, blueprint_id: str, /) -> None:
         """
         Delete a blueprint.
@@ -5514,7 +5337,6 @@ class BlueprintsAPI(APINamespace):
             blueprint_id (str):
 
         """
-        ...
 
 class WorkflowsAPI(APINamespace):
     """
@@ -5523,17 +5345,17 @@ class WorkflowsAPI(APINamespace):
     def find(
         self,
         *,
-        id: Optional[List[str]] = None,
-        title: Optional[str] = None,
-        category: Optional[List[str]] = None,
-        created_by: Optional[List[str]] = None,
-        pinned: Optional[bool] = None,
-        created_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
-        updated_at: Optional[Tuple[datetime.datetime, datetime.datetime]] = None,
+        id: list[str] | None = None,
+        title: str | None = None,
+        category: list[str] | None = None,
+        created_by: list[str] | None = None,
+        pinned: bool | None = None,
+        created_at: tuple[datetime.datetime, datetime.datetime] | None = None,
+        updated_at: tuple[datetime.datetime, datetime.datetime] | None = None,
         order: Literal[-1, 1] = 1,
-        after: Optional[str] = None,
-        limit: Optional[int] = 100,
-    ) -> List[Workflow]:
+        after: str | None = None,
+        limit: int | None = 100,
+    ) -> list[Workflow]:
         """
         List workflows that match the supplied filters (all if no filters specified).
 
@@ -5553,7 +5375,6 @@ class WorkflowsAPI(APINamespace):
             List[Workflow]: Successful Response
 
         """
-        ...
     def create(self, body: Workflow, *, forked: bool = False, rebuilt: bool = False) -> Workflow:
         """
         Create a workflow
@@ -5567,7 +5388,6 @@ class WorkflowsAPI(APINamespace):
             Workflow: Successful Response
 
         """
-        ...
     def find_one(self, workflow_id: str, /) -> Workflow:
         """
         Get a workflow by its id
@@ -5579,7 +5399,6 @@ class WorkflowsAPI(APINamespace):
             Workflow: Successful Response
 
         """
-        ...
     def edit(self, workflow_id: str, /, body: UpdateWorkflow) -> Workflow:
         """
         Update a workflow.
@@ -5592,7 +5411,6 @@ class WorkflowsAPI(APINamespace):
             Workflow: Successful Response
 
         """
-        ...
     def delete(self, workflow_id: str, /) -> None:
         """
         Delete a workflow
@@ -5601,7 +5419,6 @@ class WorkflowsAPI(APINamespace):
             workflow_id (str):
 
         """
-        ...
     def set_job_param(
         self, workflow_id: str, workflow_juid: str, param: str, /, body: WorkflowParameter
     ) -> WorkflowJob:
@@ -5618,7 +5435,6 @@ class WorkflowsAPI(APINamespace):
             WorkflowJob: Successful Response
 
         """
-        ...
     def apply(self, body: ApplyWorkflowRequest, *, project_uid: str, workspace_uid: str) -> None:
         """
         Apply a workflow to a workspace
@@ -5629,13 +5445,12 @@ class WorkflowsAPI(APINamespace):
             workspace_uid (str): Workspace UID, e.g., "W3"
 
         """
-        ...
 
 class ExternalAPI(APINamespace):
     """
     Functions available in ``api.external``, e.g., ``api.external.get_empiar_latest_entries(...)``
     """
-    def get_empiar_latest_entries(self) -> Dict[str, Any]:
+    def get_empiar_latest_entries(self) -> dict[str, Any]:
         """
         Get information for the 6 most-recently submitted EMPIAR datasets.
 
@@ -5643,8 +5458,7 @@ class ExternalAPI(APINamespace):
             Dict[str, Any]: Successful Response
 
         """
-        ...
-    def get_emdb_latest_entries(self) -> List[Dict[str, Any]]:
+    def get_emdb_latest_entries(self) -> list[dict[str, Any]]:
         """
         Get information for the 6 most-recently released EMDB entries.
 
@@ -5652,8 +5466,7 @@ class ExternalAPI(APINamespace):
             List[Dict[str, Any]]: Successful Response
 
         """
-        ...
-    def get_discuss_top(self) -> Dict[str, Any]:
+    def get_discuss_top(self) -> dict[str, Any]:
         """
         Get top weekly topics in the CryoSPARC discussion forum.
 
@@ -5661,8 +5474,7 @@ class ExternalAPI(APINamespace):
             Dict[str, Any]: Successful Response
 
         """
-        ...
-    def get_discuss_categories(self) -> Dict[str, Any]:
+    def get_discuss_categories(self) -> dict[str, Any]:
         """
         Get categories available in the CryoSPARC discussion forum.
 
@@ -5670,8 +5482,7 @@ class ExternalAPI(APINamespace):
             Dict[str, Any]: Successful Response
 
         """
-        ...
-    def get_tutorials(self) -> Dict[str, Any]:
+    def get_tutorials(self) -> dict[str, Any]:
         """
         Get information about available CryoSPARC tutorials.
 
@@ -5679,8 +5490,7 @@ class ExternalAPI(APINamespace):
             Dict[str, Any]: Successful Response
 
         """
-        ...
-    def get_changelog(self) -> Dict[str, Any]:
+    def get_changelog(self) -> dict[str, Any]:
         """
         Get the latest CryoSPARC changelog.
 
@@ -5688,13 +5498,12 @@ class ExternalAPI(APINamespace):
             Dict[str, Any]: Successful Response
 
         """
-        ...
 
 class BenchmarksAPI(APINamespace):
     """
     Functions available in ``api.benchmarks``, e.g., ``api.benchmarks.get_reference_benchmarks(...)``
     """
-    def get_reference_benchmarks(self) -> List[ReferencePerformanceBenchmark]:
+    def get_reference_benchmarks(self) -> list[ReferencePerformanceBenchmark]:
         """
         Get reference benchmarks for comparison against newly-measured benchmarks.
 
@@ -5702,7 +5511,6 @@ class BenchmarksAPI(APINamespace):
             List[ReferencePerformanceBenchmark]: Successful Response
 
         """
-        ...
     def get_benchmark(self, project_uid: str, job_uid: str, benchmark_type: str, /) -> PerformanceBenchmark:
         """
         Get a performance benchmark measured by the given benchmarking job.
@@ -5716,7 +5524,6 @@ class BenchmarksAPI(APINamespace):
             PerformanceBenchmark: Successful Response
 
         """
-        ...
 
 class JobgroupsAPI(APINamespace):
     """
@@ -5735,7 +5542,6 @@ class JobgroupsAPI(APINamespace):
             JobGroup: Successful Response
 
         """
-        ...
     def edit(self, project_uid: str, workspace_uid: str, group_id: int, /, body: JobGroupUpdate) -> Workspace:
         """
         Args:
@@ -5748,7 +5554,6 @@ class JobgroupsAPI(APINamespace):
             Workspace: Successful Response
 
         """
-        ...
     def delete(self, project_uid: str, workspace_uid: str, group_id: int, /) -> Workspace:
         """
         Args:
@@ -5760,7 +5565,6 @@ class JobgroupsAPI(APINamespace):
             Workspace: Successful Response
 
         """
-        ...
     def create(self, project_uid: str, workspace_uid: str, /, body: JobGroupCreate) -> JobGroup:
         """
         Create a job group
@@ -5774,13 +5578,39 @@ class JobgroupsAPI(APINamespace):
             JobGroup: Successful Response
 
         """
-        ...
+
+class DatasourcesAPI(APINamespace):
+    """
+    Functions available in ``api.datasources``, e.g., ``api.datasources.set_name(...)``
+    """
+    def set_name(self, project_uid: str, datasource_id: str, /, name: str) -> Datasource:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            datasource_id (str):
+            name (str):
+
+        Returns:
+            Datasource: Successful Response
+
+        """
+    def set_path(self, project_uid: str, datasource_id: str, /, path: str) -> Datasource:
+        """
+        Args:
+            project_uid (str): Project UID, e.g., "P3"
+            datasource_id (str):
+            path (str):
+
+        Returns:
+            Datasource: Successful Response
+
+        """
 
 class DeveloperAPI(APINamespace):
     """
     Functions available in ``api.developer``, e.g., ``api.developer.get_developers(...)``
     """
-    def get_developers(self) -> List[str]:
+    def get_developers(self) -> list[str]:
         """
         :meta private:
 
@@ -5788,7 +5618,6 @@ class DeveloperAPI(APINamespace):
             List[str]: Successful Response
 
         """
-        ...
     def reload(self) -> bool:
         """
         Restarts API service and scheduler.
@@ -5799,8 +5628,7 @@ class DeveloperAPI(APINamespace):
             bool: Successful Response
 
         """
-        ...
-    def save_job_registers(self, *, developer_name: Optional[str] = None) -> List[JobRegister]:
+    def save_job_registers(self, *, developer_name: str | None = None) -> list[JobRegister]:
         """
         Re-saves the current job registers. Call this when restarting the api
         service without executing the /startup route, as we do during developer
@@ -5815,7 +5643,6 @@ class DeveloperAPI(APINamespace):
             List[JobRegister]: Successful Response
 
         """
-        ...
 
 class APIClient:
     """
@@ -5859,15 +5686,17 @@ class APIClient:
     """``api.benchmarks`` functions"""
     job_groups: JobgroupsAPI
     """``api.job_groups`` functions"""
+    datasources: DatasourcesAPI
+    """``api.datasources`` functions"""
     developer: DeveloperAPI
     """``api.developer`` functions"""
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         *,
-        auth: Optional[Auth] = None,
-        headers: Optional[Dict[str, str]] = None,
+        auth: Auth | None = None,
+        headers: dict[str, str] | None = None,
         timeout: float = 300,
     ) -> None:
         """
@@ -5878,14 +5707,12 @@ class APIClient:
             timeout (float, optional): Request timeout in seconds. Defaults to 300
 
         """
-        ...
-    def __call__(self, *, auth: Optional[Auth] = None) -> None:
+    def __call__(self, *, auth: Auth | None = None) -> None:
         """
         Args:
             auth (Auth, optional): Auth token or email/password. Password must be encoded as SHA256. Defaults to None
 
         """
-        ...
     def read_root(self) -> Hello:
         """
         Get basic information about the API, including running CryoSPARC version.
@@ -5894,7 +5721,6 @@ class APIClient:
             Hello: Successful Response
 
         """
-        ...
     def health(self) -> str:
         """
         Health check endpoint to verify that the API is running and responsive.
@@ -5903,24 +5729,23 @@ class APIClient:
             str: Successful Response
 
         """
-        ...
     def login(
         self,
         *,
         expires_in: float = 1209600,
         username: str,
         password: str,
-        grant_type: Optional[str] = None,
+        grant_type: str | None = None,
         scope: str = "",
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
     ) -> Token:
         """
         Login form. Note that plain-text passwords are not accepted; they must be
         hashed as SHA256.
 
         Args:
-            expires_in (float, optional): Token expire time (in seconds). Can be up to 1 year. Defaults to 1209600
+            expires_in (float, optional): Token expiration time (in seconds). Can be up to 1 year. Defaults to 1209600
             username (str):
             password (str):
             grant_type (str, optional): Defaults to None
@@ -5932,7 +5757,6 @@ class APIClient:
             Token: Successful Response
 
         """
-        ...
     def keycloak_login(self, *, keycloak_access_token: str) -> Token:
         """
         Login from app using a Keycloak access token. Only available if Keycloak
@@ -5949,7 +5773,6 @@ class APIClient:
             Token: Successful Response
 
         """
-        ...
     def verify_app_session(self, body: AppSession) -> str:
         """
         Internal function to verify an app session and return a JWT access token for the user.
@@ -5963,7 +5786,6 @@ class APIClient:
             str: Successful Response
 
         """
-        ...
     def job_register(self) -> JobRegister:
         """
         Information and metadata about job types available in this instance.
@@ -5972,7 +5794,6 @@ class APIClient:
             JobRegister: Successful Response
 
         """
-        ...
     def start_and_migrate(self, *, license_id: str) -> None:
         """
         Start up CryoSPARC for the first time after installation or after an upgrade.
@@ -5983,7 +5804,6 @@ class APIClient:
             license_id (str):
 
         """
-        ...
     def test(self, delay: float, /) -> str:
         """
         Sleep for the specified number of seconds and returns a value to indicate
@@ -5996,4 +5816,3 @@ class APIClient:
             str: Successful Response
 
         """
-        ...

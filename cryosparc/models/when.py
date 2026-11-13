@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import Any, Dict, Union
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -31,7 +31,7 @@ class When(BaseModel):
             ``{"op": "and", "left": {"op": "==", "param": "foo", "value": 42}, "right": {"connection": "particles"}}``
     """
 
-    expr: Union[str, Dict[str, Any]]
+    expr: str | dict[str, Any]
     """
     Logical expression encoded as a dictionary or a string (param name).
     """

@@ -34,11 +34,11 @@ dev = [
     "cython",
     "jupyter-book < 2.0",
     "pre-commit",
-    "pyright==1.1.404",
+    "pyright == 1.1.414",
     "pytest",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
-    "ruff",
+    "ruff >= 0.17.5, < 0.18",
     "setuptools",
 ]
 
@@ -79,3 +79,8 @@ exclude = [
 line-length = 120
 extend-include = ["*.ipynb"]
 extend-exclude = [".venv*", "cryosparc/include"]
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001", # Blind except is intentional for best-effort uploads and lookups
+]

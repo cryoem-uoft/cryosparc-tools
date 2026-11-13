@@ -1,9 +1,12 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+from .datasource import Datasource
+from .job_export import ExportResultDefaults
 
 
 class GenerateIntermediateResultsSettings(BaseModel):
@@ -51,19 +54,19 @@ class ProjectStats(BaseModel):
     job_count: int = 0
     """
     """
-    job_types: Dict[str, int] = {}
+    job_types: dict[str, int] = {}
     """
     Number of jobs per type.
     """
-    job_sections: Dict[str, int] = {}
+    job_sections: dict[str, int] = {}
     """
     Number of jobs per section.
     """
-    job_status: Dict[str, int] = {}
+    job_status: dict[str, int] = {}
     """
     Number of jobs per status.
     """
-    updated_at: Optional[datetime.datetime] = None
+    updated_at: datetime.datetime | None = None
     """
     """
 
@@ -73,7 +76,7 @@ class ProjectWorkflowInfo(BaseModel):
     Information about workflows used in a project.
     """
 
-    runs: Dict[str, int] = {}
+    runs: dict[str, int] = {}
     """
     Map from workflow ID to the number of runs of that workflow.
     """
@@ -97,11 +100,11 @@ class Project(BaseModel):
     When this object was first created. Imported objects such as projects
     and jobs will retain the created time from their original CryoSPARC instance.
     """
-    dumped_at: Optional[datetime.datetime] = None
+    dumped_at: datetime.datetime | None = None
     """
     When the model was last dumped to disk
     """
-    last_dumped_version: Optional[str] = None
+    last_dumped_version: str | None = None
     """
     The version of CryoSPARC last dumped at
     """
@@ -137,7 +140,7 @@ class Project(BaseModel):
     value is not equal to the current schema version, project is dumped to disk
     before detaching to maximize compatibility with future versions of CryoSPARC.
     """
-    project_params_pdef: Dict[str, Any] = {}
+    project_params_pdef: dict[str, Any] = {}
     """
     Default job parameter definitions to be used within the project.
     For example ``{'output_f16': True}`` to enable half-precision output for
@@ -157,7 +160,7 @@ class Project(BaseModel):
     """
     :meta private:
     """
-    users_with_access: List[str] = []
+    users_with_access: list[str] = []
     """
     List of user IDs with access to the project, including the owner.
     """
@@ -168,7 +171,7 @@ class Project(BaseModel):
     size_last_updated: datetime.datetime
     """
     """
-    last_accessed: Optional[ProjectLastAccessed] = None
+    last_accessed: ProjectLastAccessed | None = None
     """
     """
     archived: bool = False
@@ -189,18 +192,22 @@ class Project(BaseModel):
     generate_intermediate_results_settings: GenerateIntermediateResultsSettings = GenerateIntermediateResultsSettings()
     """
     """
-    last_exp_group_id_used: Optional[int] = None
+    export_result_defaults: ExportResultDefaults = ExportResultDefaults()
+    """
+    Project-level defaults for which export results get omitted.
+    """
+    last_exp_group_id_used: int | None = None
     """
     Last exposure group ID used in the project.
     """
-    develop_run_as_user: Optional[str] = None
+    develop_run_as_user: str | None = None
     """
     :meta private:
     """
-    imported_at: Optional[datetime.datetime] = None
+    imported_at: datetime.datetime | None = None
     """
     """
-    import_status: Literal["importing", "complete", "failed", "accepted", None] = None
+    import_status: Literal["importing", "complete", "failed", "accepted"] | None = None
     """
     """
     import_failed_job_count: int = 0
@@ -212,19 +219,19 @@ class Project(BaseModel):
     created_at_version: str = "unknown"
     """
     """
-    last_archived_version: Optional[str] = None
+    last_archived_version: str | None = None
     """
     """
-    last_detached_version: Optional[str] = None
+    last_detached_version: str | None = None
     """
     """
     is_cleanup_in_progress: bool = False
     """
     """
-    tags: List[str] = []
+    tags: list[str] = []
     """
     """
-    starred_by: List[str] = []
+    starred_by: list[str] = []
     """
     List of user IDs who have starred the project.
     """
@@ -232,11 +239,14 @@ class Project(BaseModel):
     """
     Whether the last automatic disk dump operation failed.
     """
-    autodump_errors: List[str] = []
+    autodump_errors: list[str] = []
     """
     List of error messages from the last automatic disk dump operation.
     """
-    workflows: Optional[ProjectWorkflowInfo] = None
+    workflows: ProjectWorkflowInfo | None = None
+    """
+    """
+    datasources: list[Datasource] = []
     """
     """
     uid_num: int

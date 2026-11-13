@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -16,19 +16,19 @@ class AllocatedResources(BaseModel):
     Scheduler target resources allocated for a job the scheduler at launch time.
     """
 
-    lane: Optional[str] = None
+    lane: str | None = None
     """
     Name of lane the job is queued to.
     """
-    lane_type: Optional[str] = None
+    lane_type: Literal["node", "cluster", "awsbatch"] | None = None
     """
-    Type of allocated lane ("node" or "cluster")
+    Type of allocated lane
     """
     hostname: str
     """
     For node targets, hostname of selected worker node.
     """
-    target: Optional[SchedulerTarget] = None
+    target: SchedulerTarget | None = None
     """
     Allocated scheduler target full details.
     """
@@ -88,10 +88,10 @@ class UiTileImage(BaseModel):
     fileid: str
     """
     """
-    num_rows: Optional[int] = None
+    num_rows: int | None = None
     """
     """
-    num_cols: Optional[int] = None
+    num_cols: int | None = None
     """
     """
 
@@ -130,11 +130,11 @@ class Job(BaseModel):
     When this object was first created. Imported objects such as projects
     and jobs will retain the created time from their original CryoSPARC instance.
     """
-    dumped_at: Optional[datetime.datetime] = None
+    dumped_at: datetime.datetime | None = None
     """
     When the model was last dumped to disk
     """
-    last_dumped_version: Optional[str] = None
+    last_dumped_version: str | None = None
     """
     The version of CryoSPARC last dumped at
     """
@@ -152,7 +152,7 @@ class Job(BaseModel):
     """
     Project unique ID, e.g., "P3".
     """
-    workspace_uids: List[str] = ["W1"]
+    workspace_uids: list[str] = ["W1"]
     """
     List of workspace UIDs this job belongs to. Must have at least one item
     """
@@ -177,7 +177,7 @@ class Job(BaseModel):
     """
     Job directory last updated timestamp
     """
-    run_as_user: Optional[str] = None
+    run_as_user: str | None = None
     """
     Developer job register to use (internal use only)
     """
@@ -193,67 +193,67 @@ class Job(BaseModel):
     """
     Job scheduling status, e.g., "building", "queued", "running".
     """
-    created_by_user_id: Optional[str] = None
+    created_by_user_id: str | None = None
     """
     Object ID of user account that created this job.
     """
-    created_by_job_uid: Optional[str] = None
+    created_by_job_uid: str | None = None
     """
     Job ID of job that created this job.
     """
-    cloned_from: Optional[str] = None
+    cloned_from: str | None = None
     """
     Job this job was cloned from
     """
-    queued_at: Optional[datetime.datetime] = None
+    queued_at: datetime.datetime | None = None
     """
     When added to the queue
     """
-    started_at: Optional[datetime.datetime] = None
+    started_at: datetime.datetime | None = None
     """
     When internal scheduler launches/submits
     """
-    launched_at: Optional[datetime.datetime] = None
+    launched_at: datetime.datetime | None = None
     """
     When job initial monitor process starts
     """
-    running_at: Optional[datetime.datetime] = None
+    running_at: datetime.datetime | None = None
     """
     When job monitor process forks into main process
     """
-    waiting_at: Optional[datetime.datetime] = None
+    waiting_at: datetime.datetime | None = None
     """
     When job last went into waiting for interaction status
     """
-    completed_at: Optional[datetime.datetime] = None
+    completed_at: datetime.datetime | None = None
     """
     When job finished
     """
-    killed_at: Optional[datetime.datetime] = None
+    killed_at: datetime.datetime | None = None
     """
     When job was killed
     """
-    failed_at: Optional[datetime.datetime] = None
+    failed_at: datetime.datetime | None = None
     """
     When job failed
     """
-    heartbeat_at: Optional[datetime.datetime] = None
+    heartbeat_at: datetime.datetime | None = None
     """
     Last heartbeat received
     """
-    tokens_acquired_at: Optional[datetime.datetime] = None
+    tokens_acquired_at: datetime.datetime | None = None
     """
     When job got confirmation from the licensing server to run
     """
-    tokens_requested_at: Optional[datetime.datetime] = None
+    tokens_requested_at: datetime.datetime | None = None
     """
     When job started waiting for tokens to become available
     """
-    last_scheduled_at: Optional[datetime.datetime] = None
+    last_scheduled_at: datetime.datetime | None = None
     """
     When scheduler last tried to launch this job
     """
-    last_accessed: Optional[JobLastAccessed] = None
+    last_accessed: JobLastAccessed | None = None
     """
     When a specific user last opened this job in the user interface
     """
@@ -265,11 +265,11 @@ class Job(BaseModel):
     """
     If True, there's a warning in the streamlog
     """
-    version_created: Optional[str] = None
+    version_created: str | None = None
     """
     Version of CryoSPARC used to create this job
     """
-    version: Optional[str] = None
+    version: str | None = None
     """
     Version of CryoSPARC that last ran this job
     """
@@ -285,35 +285,35 @@ class Job(BaseModel):
     """
     True if the job is being deleted
     """
-    parents: List[str] = []
+    parents: list[str] = []
     """
     Set of parent jobs UIDs based on input connections.
     """
-    children: List[str] = []
+    children: list[str] = []
     """
     Set of child job UIDs based on output connections.
     """
-    resources_allocated: Optional[AllocatedResources] = None
+    resources_allocated: AllocatedResources | None = None
     """
     Set by scheduler before launching
     """
-    queued_by_user_id: Optional[str] = None
+    queued_by_user_id: str | None = None
     """
     ID of user account that queued this job.
     """
-    queued_to_lane: Optional[str] = None
+    queued_to_lane: str | None = None
     """
     Scheduler lane this job is queued to.
     """
-    queued_to_hostname: Optional[str] = None
+    queued_to_hostname: str | None = None
     """
     Scheduler target name that this job is queued to.
     """
-    queued_to_gpu: Optional[List[int]] = None
+    queued_to_gpu: list[int] | None = None
     """
     GPU IDs on the target node for this job to use when running, if applicable.
     """
-    queue_status: Optional[
+    queue_status: (
         Literal[
             "waiting_inputs",
             "project_paused",
@@ -323,15 +323,16 @@ class Job(BaseModel):
             "waiting_licenses",
             "waiting_resources",
         ]
-    ] = None
+        | None
+    ) = None
     """
     waiting_inputs, project_paused, actively_queued, launched
     """
-    queue_message: Optional[str] = None
+    queue_message: str | None = None
     """
     e.g., "Waiting for resource in lane xxx: GPU"
     """
-    queued_job_hash: Optional[int] = None
+    queued_job_hash: int | None = None
     """
     hash of puid, juid, # tokens requested, job type and user for scheduler
     """
@@ -339,56 +340,59 @@ class Job(BaseModel):
     """
     number of (GPU) tokens required to run the job
     """
-    job_sig: Optional[str] = None
+    job_sig: str | None = None
     """
     Job signature created by licensing module
     """
-    errors_run: List[RunError] = []
+    errors_run: list[RunError] = []
     """
     Runtime errors, limited to last 10 errors.
     """
-    interactive_port: Optional[int] = None
+    interactive_port: int | None = None
     """
     Port assigned to a job's interactive server by operation system, only
     available after an interactive job enters waiting status.
     """
-    PID_monitor: Optional[int] = None
+    PID_monitor: int | None = None
     """
     Process ID number of job monitor process
     """
-    PID_main: Optional[int] = None
+    PID_main: int | None = None
     """
     Process ID number of main job process
     """
-    PID_workers: List[int] = []
+    PID_workers: list[int] = []
     """
     Process ID numbers of worker processes spawned by main job process
     """
-    cluster_job_id: Optional[str] = None
+    cluster_job_id: str | None = None
     """
     """
-    cluster_job_status: Optional[str] = None
+    cluster_job_status: str | None = None
     """
     """
-    cluster_job_status_code: Optional[str] = None
+    cluster_job_status_code: str | None = None
     """
     """
-    cluster_job_monitor_event_id: Optional[str] = None
+    cluster_job_monitor_event_id: str | None = None
     """
     """
     cluster_job_monitor_retries: int = 0
     """
     """
-    cluster_job_monitor_last_run_at: Optional[datetime.datetime] = None
+    cluster_job_monitor_last_run_at: datetime.datetime | None = None
     """
     """
-    cluster_job_submission_script: Optional[str] = None
+    cluster_job_submission_script: str | None = None
     """
     """
-    cluster_job_custom_vars: Dict[str, str] = {}
+    cluster_job_custom_vars: dict[str, str] = {}
     """
     """
-    ui_tile_images: List[UiTileImage] = []
+    aws_batch_job_id: str | None = None
+    """
+    """
+    ui_tile_images: list[UiTileImage] = []
     """
     Job tile images in app
     """
@@ -400,11 +404,11 @@ class Job(BaseModel):
     """
     Enable benchmarking for this job. Used by extensive workflow
     """
-    bench: Dict[str, Union[float, int, Dict[str, Any]]] = {}
+    bench: dict[str, float | int | dict[str, Any]] = {}
     """
     Benchmarking data
     """
-    bench_timings: Dict[str, List[Tuple[datetime.datetime, Optional[datetime.datetime]]]] = {}
+    bench_timings: dict[str, list[tuple[datetime.datetime, datetime.datetime | None]]] = {}
     """
     Benchmark timing data in the form {key: list_of_timings}
     """
@@ -416,7 +420,7 @@ class Job(BaseModel):
     """
     Details about the active instance
     """
-    last_intermediate_data_cleared_at: Optional[datetime.datetime] = None
+    last_intermediate_data_cleared_at: datetime.datetime | None = None
     """
     """
     last_intermediate_data_cleared_amount: int = 0
@@ -425,7 +429,7 @@ class Job(BaseModel):
     intermediate_results_size_bytes: int = 0
     """
     """
-    intermediate_results_size_last_updated: Optional[datetime.datetime] = None
+    intermediate_results_size_last_updated: datetime.datetime | None = None
     """
     """
     is_final_result: bool = False
@@ -442,51 +446,51 @@ class Job(BaseModel):
     If True, a queued job will be launched even if parent connected jobs have
     not finished running yet.
     """
-    progress: List[Dict[str, Any]] = []
+    progress: list[dict[str, Any]] = []
     """
     Progress log
     """
-    last_exported_at: Optional[datetime.datetime] = None
+    last_exported_at: datetime.datetime | None = None
     """
     Time of last export of outputs
     """
-    last_exported_location: Optional[str] = None
+    last_exported_location: str | None = None
     """
     Absolute path to last export location on disk
     """
-    last_exported_version: Optional[str] = None
+    last_exported_version: str | None = None
     """
     Version of CryoSPARC this job was last exported from
     """
-    tags: List[str] = []
+    tags: list[str] = []
     """
     Tags associated with this job
     """
-    workflow: Optional[JobWorkflowInfo] = None
+    workflow: JobWorkflowInfo | None = None
     """
     Information about workflow that job ran from, if any
     """
-    imported_at: Optional[datetime.datetime] = None
+    imported_at: datetime.datetime | None = None
     """
     """
-    deleted_at: Optional[datetime.datetime] = None
+    deleted_at: datetime.datetime | None = None
     """
     """
-    import_status: Optional[Literal["importing", "complete", "failed"]] = None
+    import_status: Literal["importing", "complete", "failed"] | None = None
     """
     """
-    attach_status: Optional[Literal["attaching", "complete", "failed"]] = None
+    attach_status: Literal["attaching", "complete", "failed"] | None = None
     """
     """
-    starred_by: List[str] = []
+    starred_by: list[str] = []
     """
     List of user IDs who have starred this job.
     """
-    requeue_windows_ends_at: Optional[datetime.datetime] = None
+    requeue_windows_ends_at: datetime.datetime | None = None
     """
     If set, job can be cleared and requeued until this time without losing its place in the queue
     """
-    oversubscribe_gpus: bool = False
+    oversubscribe_gpus: bool = True
     """
     """
     uid_num: int
@@ -501,7 +505,7 @@ class Job(BaseModel):
     """
     Numeric representation of job status.
     """
-    build_errors: List[JobBuildError]
+    build_errors: list[JobBuildError]
     """
     List of build errors for this job. Jobs cannot be queued or launched if there are build errors.
     """

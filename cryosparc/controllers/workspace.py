@@ -11,8 +11,9 @@ to create a new workspace in a project.
 
 import time
 import warnings
+from collections.abc import Iterable, Mapping
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 from typing_extensions import Unpack
 
@@ -24,13 +25,13 @@ from ..models.workspace import Workspace
 from ..search import JobSearch
 from ..spec import Datatype, SlotSpec
 from . import Controller, as_output_slot
-from .job import ExternalJobController, FileOrFigure, JobController, JobOutput
+from .job import DEFAULT_SAVEFIG_KW, ExternalJobController, FileOrFigure, JobController, JobOutput
 
 if TYPE_CHECKING:
     from ..tools import CryoSPARC
 
 
-class WorkspaceController(Controller[Union[Workspace, Session]]):
+class WorkspaceController(Controller[Workspace | Session]):
     """
     Accessor class to a workspace in CryoSPARC with ability create jobs and save
     results. Should be initialized with
@@ -55,7 +56,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
     Project unique ID, e.g., "P3"
     """
 
-    def __init__(self, cs: "CryoSPARC", workspace: Union[Tuple[str, str], Workspace, Session]) -> None:
+    def __init__(self, cs: "CryoSPARC", workspace: tuple[str, str] | Workspace | Session) -> None:
         self.cs = cs
         if isinstance(workspace, tuple):
             self.project_uid, self.uid = workspace
@@ -66,12 +67,12 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
             self.model = workspace
 
     @property
-    def title(self) -> Optional[str]:
+    def title(self) -> str | None:
         """Workspace title"""
         return self.model.title
 
     @property
-    def desc(self) -> Optional[str]:
+    def desc(self) -> str | None:
         """Workspace description"""
         return self.model.description
 
@@ -146,8 +147,8 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
     def create_job(
         self,
         type: str,
-        connections: Dict[str, Union[JobOutput, List[JobOutput]]] = {},
-        params: Dict[str, Any] = {},
+        connections: Mapping[str, JobOutput | list[JobOutput]] = {},
+        params: Mapping[str, Any] = {},
         title: str = "",
         desc: str = "",
     ) -> JobController:
@@ -218,7 +219,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         """
         return self.cs.create_external_job(self.project_uid, self.uid, title, desc)
 
-    def import_job(self, path: Union[str, PurePosixPath], *, wait: bool = False) -> JobController:
+    def import_job(self, path: str | PurePosixPath, *, wait: bool = False) -> JobController:
         """
         Import a job into the workspace from a location on disk.
 
@@ -246,7 +247,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         """
         return self.cs.import_job(self.project_uid, self.uid, path, wait=wait)
 
-    def link_job(self, job: Union[str, JobController]):
+    def link_job(self, job: str | JobController):
         """
         Link a job into this workspace.
 
@@ -261,7 +262,7 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         job_uid = job if isinstance(job, str) else job.uid
         self.cs.api.jobs.link_to_workspace(self.project_uid, job_uid, self.uid)
 
-    def unlink_job(self, job: Union[str, JobController]):
+    def unlink_job(self, job: str | JobController):
         """
         Unlink a job from this workspace.
 
@@ -281,13 +282,13 @@ class WorkspaceController(Controller[Union[Workspace, Session]]):
         self,
         dataset: Dataset[R],
         type: Datatype,
-        name: Optional[str] = None,
-        slots: Optional[List[SlotSpec]] = None,
-        passthrough: Optional[Tuple[str, str]] = None,
+        name: str | None = None,
+        slots: list[SlotSpec] | None = None,
+        passthrough: tuple[str, str] | None = None,
         title: str = "",
         desc: str = "",
-        image: Optional[FileOrFigure] = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        image: FileOrFigure | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ) -> str:
         """
         Save the a result dataset to a workspace, via External Job. Specify at

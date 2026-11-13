@@ -14,13 +14,11 @@ from .conftest import Dataset
 @pytest.fixture
 def io_data():
     data = b64decode(
-        (
-            b"k05VTVBZAQCmAHsnZGVzY3InOiBbKCd1aWQnLCAnPHU4JyksICgnZmllbGQxJywgJzx1NCcpLC"
-            b"AoJ2ZpZWxkMicsICc8ZjQnKSwgKCdmaWVsZDMnLCAnfFM2JyksICgnZmllbGQ0JywgJzxmOCcp"
-            b"LCAoJ2ZpZWxkNScsICc8aTgnKV0sICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6IC"
-            b"gyLCksIH0gIAp7AAAAAAAAACoAAADD9UhASGVsbG8AAAAAAAAAAAArAAAAAAAAAMgBAAAAAAAA"
-            b"KgAAAFK4LkBXb3JsZAAAAAAAAADwPysAAAAAAAAA"
-        )
+        b"k05VTVBZAQCmAHsnZGVzY3InOiBbKCd1aWQnLCAnPHU4JyksICgnZmllbGQxJywgJzx1NCcpLC"
+        b"AoJ2ZpZWxkMicsICc8ZjQnKSwgKCdmaWVsZDMnLCAnfFM2JyksICgnZmllbGQ0JywgJzxmOCcp"
+        b"LCAoJ2ZpZWxkNScsICc8aTgnKV0sICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6IC"
+        b"gyLCksIH0gIAp7AAAAAAAAACoAAADD9UhASGVsbG8AAAAAAAAAAAArAAAAAAAAAMgBAAAAAAAA"
+        b"KgAAAFK4LkBXb3JsZAAAAAAAAADwPysAAAAAAAAA"
     )
     return BytesIO(data)
 
@@ -209,7 +207,7 @@ def test_add_fields():
             ("mscope_params/exp_group_id", "u4"),
         ]
     )
-    assert len(storage.fields()), 10
+    assert len(storage.fields()) == 10
 
 
 def test_add_fields_nonebug(t20s_dset):
@@ -300,7 +298,7 @@ def test_load(io_data):
 
     result = Dataset.load(io_data)
     assert expected.descr() == result.descr()
-    assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
+    assert all(n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid")
 
 
 def test_load_fields(io_data):
@@ -312,7 +310,7 @@ def test_load_fields(io_data):
 
     result = Dataset.load(io_data, fields=["field2", "field3", "field5"])
     assert expected.descr() == result.descr()
-    assert all([n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid"])
+    assert all(n.equal(expected[d[0]], result[d[0]]).all() for d in dtype if d[0] != "uid")
 
 
 def test_load_path_fields(tmp_path):

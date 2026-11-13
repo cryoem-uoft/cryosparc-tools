@@ -6,7 +6,7 @@ Core base classes and utilities for other cryosparc-tools modules.
 # CryoSPARC should not depend on anything in this file.
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -27,7 +27,7 @@ class Controller(ABC, Generic[M]):
     :meta private:
     """
 
-    _model: Optional[M] = None
+    _model: M | None = None
 
     @property
     def model(self) -> M:
@@ -49,7 +49,7 @@ class Controller(ABC, Generic[M]):
         self._model = None
 
     @property
-    def doc(self) -> Dict[str, Any]:
+    def doc(self) -> dict[str, Any]:
         warnings.warn(".doc attribute is deprecated. Use .model attribute instead.", DeprecationWarning, stacklevel=2)
         return self.model.model_dump(by_alias=True)
 
@@ -59,7 +59,7 @@ class Controller(ABC, Generic[M]):
         return self
 
 
-def as_input_slot(spec: Union[SlotSpec, InputSlot]) -> InputSlot:
+def as_input_slot(spec: SlotSpec | InputSlot) -> InputSlot:
     if isinstance(spec, str):
         spec, required = (spec[1:], False) if spec[0] == "?" else (spec, True)
         return InputSlot(name=spec, dtype=spec, required=required)
@@ -71,7 +71,7 @@ def as_input_slot(spec: Union[SlotSpec, InputSlot]) -> InputSlot:
     return spec
 
 
-def as_output_slot(spec: Union[SlotSpec, OutputSlot]) -> OutputSlot:
+def as_output_slot(spec: SlotSpec | OutputSlot) -> OutputSlot:
     if isinstance(spec, str):
         return OutputSlot(name=spec, dtype=spec)
     elif isinstance(spec, dict) and "dtype" in spec:

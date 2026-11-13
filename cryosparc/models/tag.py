@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,10 +11,10 @@ class CreateTag(BaseModel):
     Fields required to create a tag.
     """
 
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    colour: Optional[
+    colour: (
         Literal[
             "black",
             "gray",
@@ -30,7 +30,8 @@ class CreateTag(BaseModel):
             "purple",
             "pink",
         ]
-    ] = None
+        | None
+    ) = None
     """
     """
     title: str
@@ -90,7 +91,7 @@ class Tag(BaseModel):
     created_by_user_id: str
     """
     """
-    colour: Optional[
+    colour: (
         Literal[
             "black",
             "gray",
@@ -106,13 +107,14 @@ class Tag(BaseModel):
             "purple",
             "pink",
         ]
-    ] = "gray"
+        | None
+    ) = "gray"
     """
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    created_by_workflow: Optional[str] = None
+    created_by_workflow: str | None = None
     """
     """
     counts: TagCounts = TagCounts()
@@ -129,10 +131,10 @@ class UpdateTag(BaseModel):
     Editable tag properties
     """
 
-    description: Optional[str] = None
+    description: str | None = None
     """
     """
-    colour: Optional[
+    colour: (
         Literal[
             "black",
             "gray",
@@ -148,9 +150,10 @@ class UpdateTag(BaseModel):
             "purple",
             "pink",
         ]
-    ] = None
+        | None
+    ) = None
     """
     """
-    title: Optional[str] = None
+    title: str | None = None
     """
     """

@@ -2,9 +2,10 @@ import json
 import re
 import urllib.parse
 import warnings
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, ClassVar, Dict, Iterator, List, Optional, Tuple, TypedDict, Union
+from typing import Any, ClassVar, TypedDict
 
 import httpx
 from pydantic import BaseModel
@@ -17,18 +18,18 @@ from .stream import Streamable
 
 _BASE_RESPONSE_TYPES = {"string", "integer", "number", "boolean"}
 
-Auth = Union[str, Tuple[str, str]]
+Auth = str | tuple[str, str]
 """
 Auth token or email/password.
 """
 
 
 class APIRequest(TypedDict):
-    params: Dict[str, Any]
-    headers: Dict[str, str]
+    params: dict[str, Any]
+    headers: dict[str, str]
     content: Any
-    data: Optional[Dict[str, Any]]  # form data
-    files: Optional[Dict[str, Any]]
+    data: dict[str, Any] | None  # form data
+    files: dict[str, Any] | None
 
 
 class APINamespace:
@@ -45,19 +46,19 @@ class APINamespace:
     def __init__(self, http_client: httpx.Client):
         self._client = http_client
 
-    def _set_headers(self, update: Dict[str, str]):
+    def _set_headers(self, update: dict[str, str]):
         """For testing only, reset client headers"""
         self._client.headers.update(update)
 
     def _prepare_request_stream(self, streamable):
         return streamable.stream()
 
-    def _construct_request(self, _path: str, _schema, *args, **kwargs) -> Tuple[str, APIRequest]:
+    def _construct_request(self, _path: str, _schema, *args, **kwargs) -> tuple[str, APIRequest]:
         args = list(args)
         query_params = {}
         func_name = _schema["summary"]
         headers = {}
-        client_headers = {h for h in self._client.headers.keys()}
+        client_headers = {h for h in self._client.headers}
         request_body = None
         data = None
         files = None
@@ -75,7 +76,7 @@ class APINamespace:
             if param_in == "path" and args:
                 # path param must be specified positionally
                 param, args = args[0], args[1:]
-                _path = _path.replace("{%s}" % param_name, _uriencode(param))
+                _path = _path.replace(f"{{{param_name}}}", _uriencode(param))
             elif param_in == "query" and param_name in kwargs and (value := kwargs.pop(param_name)) is not None:
                 # query param must be in kwargs
                 query_params[param_name] = APINamespace._json_encoder(value)
@@ -239,12 +240,12 @@ class APIClient(APINamespace):
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         *,
-        auth: Optional[Auth] = None,  # token or email/password
-        headers: Optional[Dict[str, str]] = None,
+        auth: Auth | None = None,  # token or email/password
+        headers: dict[str, str] | None = None,
         timeout: float = 300,
-        http_client: Optional[httpx.Client] = None,
+        http_client: httpx.Client | None = None,
     ):
         if base_url and http_client:
             raise TypeError(f"Cannot specify both base_url ({base_url}) and http_client ({http_client})")
@@ -261,7 +262,7 @@ class APIClient(APINamespace):
         # Clean up client when it gets garbage collected
         self._client.close()
 
-    def __call__(self, auth: Optional[Auth] = None):
+    def __call__(self, auth: Auth | None = None):
         """
         Re-generate all routes and internal namespaces. Optionally accepts
         either an authentication bearer token or an email/password tuple. Note
@@ -286,7 +287,7 @@ class APIClient(APINamespace):
 
     def _process_schema(self, schema):
         assert isinstance(schema, dict), "[API] Invalid OpenAPI schema response: Not a dictionary"
-        for key in {"info", "paths", "components"}:
+        for key in ("info", "paths", "components"):
             assert key in schema, (
                 f"[API] Invalid OpenAPI schema response: Missing '{key}' key, got keys {list(schema.keys())}"
             )
@@ -337,7 +338,7 @@ class APIClient(APINamespace):
         self._client.headers["Authorization"] = f"{token.token_type.title()} {token.access_token}"
 
 
-def sort_params_schema(path: str, param_schema: List[dict]):
+def sort_params_schema(path: str, param_schema: list[dict]):
     """
     Sort the OpenAPI endpoint parameters schema in order that path params appear
     in the given URI.

@@ -1,18 +1,13 @@
 """Stream processing utilities"""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Awaitable, Iterator
 from pathlib import PurePath
 from typing import (
     IO,
     TYPE_CHECKING,
-    AsyncIterator,
-    Awaitable,
     BinaryIO,
-    Iterator,
-    List,
-    Optional,
     Protocol,
-    Union,
     overload,
 )
 
@@ -71,7 +66,7 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
     def writable(self) -> bool:
         return False
 
-    def _read1(self, n: Optional[int] = None):
+    def _read1(self, n: int | None = None):
         while not self._left:
             try:
                 self._left = next(self._iter)
@@ -81,7 +76,7 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
         self._left = self._left[len(ret) :]
         return ret
 
-    def read(self, n: Optional[int] = None):
+    def read(self, n: int | None = None):
         out = []
         if n is None or n < 0:
             while True:
@@ -113,7 +108,7 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
     def readline(self, limit: int = -1, /) -> bytes:
         raise NotImplementedError
 
-    def readlines(self, hint: int = -1, /) -> List[bytes]:
+    def readlines(self, hint: int = -1, /) -> list[bytes]:
         raise NotImplementedError
 
     def write(self, s, /) -> int:
@@ -128,7 +123,7 @@ class BinaryIteratorIO(BinaryIO, Iterator[bytes]):
     def tell(self) -> int:
         raise NotImplementedError
 
-    def truncate(self, size: Optional[int] = None, /) -> int:
+    def truncate(self, size: int | None = None, /) -> int:
         raise NotImplementedError
 
     def __enter__(self) -> BinaryIO:
@@ -159,7 +154,7 @@ class AsyncBinaryIteratorIO(AsyncReadable, AsyncBinaryIterator, AsyncIterator[by
     def seekable(self) -> bool:
         return False
 
-    async def _read1(self, n: Optional[int] = None):
+    async def _read1(self, n: int | None = None):
         while not self._left:
             try:
                 self._left = await self._iter.__anext__()
@@ -169,7 +164,7 @@ class AsyncBinaryIteratorIO(AsyncReadable, AsyncBinaryIterator, AsyncIterator[by
         self._left = self._left[len(ret) :]
         return ret
 
-    async def read(self, n: Optional[int] = None):
+    async def read(self, n: int | None = None):
         out = []
         if n is None or n < 0:
             while True:
@@ -207,7 +202,7 @@ class Streamable(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, file: BinaryFile, *, media_type: Optional[str] = None) -> "Self":
+    def load(cls, file: BinaryFile, *, media_type: str | None = None) -> "Self":
         """
         Load stream from a file path or readable byte stream. The stream must
         at least implement the `read(size)` function.
@@ -215,12 +210,12 @@ class Streamable(ABC):
         ...
 
     @classmethod
-    def from_iterator(cls, source: Iterator[bytes], *, media_type: Optional[str] = None):
+    def from_iterator(cls, source: Iterator[bytes], *, media_type: str | None = None):
         return cls.load(BinaryIteratorIO(source), media_type=media_type)
 
     @classmethod
     @abstractmethod
-    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None) -> "Self":
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: str | None = None) -> "Self":
         """
         Asynchronously load from the given binary stream. The given stream
         parameter must at least have ``async read(n: int | None) -> bytes`` method.
@@ -228,7 +223,7 @@ class Streamable(ABC):
         ...
 
     @classmethod
-    async def from_async_iterator(cls, iterator: AsyncBinaryIterator, *, media_type: Optional[str] = None):
+    async def from_async_iterator(cls, iterator: AsyncBinaryIterator, *, media_type: str | None = None):
         return await cls.from_async_stream(AsyncBinaryIteratorIO(iterator), media_type=media_type)
 
     @abstractmethod
@@ -249,7 +244,7 @@ class Streamable(ABC):
     def dumps(self) -> bytes:
         return b"".join(self.stream())
 
-    async def adump(self, file: Union[IO[bytes], AsyncWritable]):
+    async def adump(self, file: IO[bytes] | AsyncWritable):
         async for chunk in self.astream():
             result = file.write(chunk)
             if isinstance(result, Awaitable):
@@ -271,21 +266,21 @@ class Stream(Streamable):
     """
 
     @overload
-    def __init__(self, *, stream: IO[bytes] = ..., media_type: Optional[str] = ...): ...
+    def __init__(self, *, stream: IO[bytes] = ..., media_type: str | None = ...): ...
     @overload
-    def __init__(self, *, iterator: Iterator[bytes] = ..., media_type: Optional[str] = ...): ...
+    def __init__(self, *, iterator: Iterator[bytes] = ..., media_type: str | None = ...): ...
     @overload
-    def __init__(self, *, astream: AsyncReadable = ..., media_type: Optional[str] = ...): ...
+    def __init__(self, *, astream: AsyncReadable = ..., media_type: str | None = ...): ...
     @overload
-    def __init__(self, *, aiterator: AsyncBinaryIterator = ..., media_type: Optional[str] = ...): ...
+    def __init__(self, *, aiterator: AsyncBinaryIterator = ..., media_type: str | None = ...): ...
     def __init__(
         self,
         *,
-        stream: Optional[IO[bytes]] = None,
-        iterator: Optional[Iterator[bytes]] = None,
-        astream: Optional[AsyncReadable] = None,
-        aiterator: Optional[AsyncBinaryIterator] = None,
-        media_type: Optional[str] = None,
+        stream: IO[bytes] | None = None,
+        iterator: Iterator[bytes] | None = None,
+        astream: AsyncReadable | None = None,
+        aiterator: AsyncBinaryIterator | None = None,
+        media_type: str | None = None,
     ):
         if (stream is not None) + (iterator is not None) + (astream is not None) + (aiterator is not None) != 1:
             raise TypeError("Exactly one of stream, iterator, astream or aiterator must be provided")
@@ -300,20 +295,20 @@ class Stream(Streamable):
         return (self._astream is not None) or (self._aiterator is not None)
 
     @classmethod
-    def load(cls, file: BinaryFile, *, media_type: Optional[str] = None):
-        stream = open(file, "rb") if isinstance(file, (str, PurePath)) else file
+    def load(cls, file: BinaryFile, *, media_type: str | None = None):
+        stream = open(file, "rb") if isinstance(file, (str, PurePath)) else file  # noqa: SIM115
         return cls(stream=stream, media_type=media_type)
 
     @classmethod
-    def from_iterator(cls, source: Iterator[bytes], *, media_type: Optional[str] = None):
+    def from_iterator(cls, source: Iterator[bytes], *, media_type: str | None = None):
         return cls(iterator=source, media_type=media_type)
 
     @classmethod
-    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: Optional[str] = None):
+    async def from_async_stream(cls, stream: AsyncReadable, *, media_type: str | None = None):
         return cls(astream=stream, media_type=media_type)
 
     @classmethod
-    async def from_async_iterator(cls, iterator: AsyncBinaryIterator, *, media_type: Optional[str] = None):
+    async def from_async_iterator(cls, iterator: AsyncBinaryIterator, *, media_type: str | None = None):
         return cls(aiterator=iterator, media_type=media_type)
 
     def stream(self) -> Iterator[bytes]:

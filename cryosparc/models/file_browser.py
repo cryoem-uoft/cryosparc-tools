@@ -1,6 +1,6 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -27,19 +27,19 @@ class BrowseFile(BaseModel):
     is_link: bool = False
     """
     """
-    mtime: Optional[float] = None
+    mtime: float | None = None
     """
     """
-    size: Optional[int] = None
+    size: int | None = None
     """
     """
-    type: Optional[Literal["dir", "file"]] = None
+    type: Literal["dir", "file"] | None = None
     """
     """
-    link_path: Optional[str] = None
+    link_path: str | None = None
     """
     """
-    errmesg: Optional[str] = None
+    errmesg: str | None = None
     """
     """
 
@@ -52,7 +52,7 @@ class BrowseFileResponse(BaseModel):
     back_path: str
     """
     """
-    files: List[BrowseFile]
+    files: list[BrowseFile]
     """
     """
     type: str
@@ -61,12 +61,12 @@ class BrowseFileResponse(BaseModel):
 
 
 class FileBrowserSettings(BaseModel):
-    allowed_prefixes: Optional[List[str]] = None
+    allowed_prefixes: list[str] | None = None
     """
     """
-    import_dir_default: Optional[str] = None
+    import_dir_default: str | None = None
     """
     """
-    project_dir_default: Optional[str] = None
+    project_dir_default: str | None = None
     """
     """

@@ -7,8 +7,9 @@ a :py:class:`ProjectController` instance.
 
 import time
 import warnings
+from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePath, PurePosixPath
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union, overload
+from typing import IO, TYPE_CHECKING, Any, Literal, overload
 
 from typing_extensions import Buffer, Unpack
 
@@ -21,7 +22,7 @@ from ..spec import Datatype, SlotSpec
 from ..stream import Stream
 from ..util import BinaryFile, PurePosixPathProperty
 from . import Controller, as_output_slot
-from .job import ExternalJobController, FileOrFigure, JobController, JobOutput
+from .job import DEFAULT_SAVEFIG_KW, ExternalJobController, FileOrFigure, JobController, JobOutput
 from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ class ProjectController(Controller[Project]):
     Project unique ID, e.g., "P3"
     """
 
-    def __init__(self, cs: "CryoSPARC", project: Union[str, Project]) -> None:
+    def __init__(self, cs: "CryoSPARC", project: str | Project) -> None:
         self.cs = cs
         if isinstance(project, str):
             self.uid = project
@@ -132,7 +133,7 @@ class ProjectController(Controller[Project]):
 
     def find_jobs(
         self,
-        workspace_uid: Optional[In[str]] = None,
+        workspace_uid: In[str] | None = None,
         *,
         order: Literal[1, -1] = 1,
         **search: Unpack[JobSearch],
@@ -196,7 +197,7 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.find_external_job(self.uid, job_uid)
 
-    def move(self, path: Union[str, PurePath], *, wait: bool = False):
+    def move(self, path: str | PurePath, *, wait: bool = False):
         """
         Move the project directory to a new location on the file system.
 
@@ -234,7 +235,7 @@ class ProjectController(Controller[Project]):
             time.sleep(3)
             self.refresh()
 
-    def unarchive(self, path: Union[str, PurePath]):
+    def unarchive(self, path: str | PurePath):
         """
         Revert an archive operation. See :py:meth:`archive` for details.
 
@@ -322,7 +323,7 @@ class ProjectController(Controller[Project]):
         if not self.model.deleted and not self.model.deleting:
             raise ProjectError("Could not be deleted. See cryosparcm log api for details.", project=self)
 
-    def accept(self, path: Union[str, PurePosixPath, None] = None) -> None:
+    def accept(self, path: str | PurePosixPath | None = None) -> None:
         """
         Accept a failed attach for this project. Some job or workspace data may
         be inaccessible or lost after a failed attach, so use with caution.
@@ -339,7 +340,7 @@ class ProjectController(Controller[Project]):
         """
         self.model = self.cs.api.projects.accept(self.uid, path=str(path) if path else None)
 
-    def create_workspace(self, title: str, desc: Optional[str] = None) -> WorkspaceController:
+    def create_workspace(self, title: str, desc: str | None = None) -> WorkspaceController:
         """
         Create a new empty workspace in this project.
 
@@ -360,8 +361,8 @@ class ProjectController(Controller[Project]):
         self,
         workspace_uid: str,
         type: str,
-        connections: Dict[str, Union[JobOutput, List[JobOutput]]] = {},
-        params: Dict[str, Any] = {},
+        connections: Mapping[str, JobOutput | list[JobOutput]] = {},
+        params: Mapping[str, Any] = {},
         title: str = "",
         desc: str = "",
     ) -> JobController:
@@ -433,7 +434,7 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.create_external_job(self.uid, workspace_uid=workspace_uid, title=title, desc=desc)
 
-    def import_job(self, workspace_uid: str, path: Union[str, PurePosixPath], *, wait: bool = False) -> JobController:
+    def import_job(self, workspace_uid: str, path: str | PurePosixPath, *, wait: bool = False) -> JobController:
         """
         Import a job into a project workspace from a location on disk.
 
@@ -464,16 +465,16 @@ class ProjectController(Controller[Project]):
 
     def save_external_result(
         self,
-        workspace_uid: Optional[str],
+        workspace_uid: str | None,
         dataset: Dataset[R],
         type: Datatype,
-        name: Optional[str] = None,
-        slots: Optional[List[SlotSpec]] = None,
-        passthrough: Optional[Tuple[str, str]] = None,
+        name: str | None = None,
+        slots: list[SlotSpec] | None = None,
+        passthrough: tuple[str, str] | None = None,
         title: str = "",
         desc: str = "",
-        image: Optional[FileOrFigure] = None,
-        savefig_kw: dict = dict(bbox_inches="tight", pad_inches=0),
+        image: FileOrFigure | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ) -> str:
         """
         Save a result dataset to the project, via External Job. Specify at least
@@ -591,7 +592,7 @@ class ProjectController(Controller[Project]):
         """
         self.cs.api.projects.clear_default_param(self.uid, param)
 
-    def list_files(self, prefix: Union[str, PurePosixPath] = "", recursive: bool = False) -> List[str]:
+    def list_files(self, prefix: str | PurePosixPath = "", recursive: bool = False) -> list[str]:
         """
         List files in the project directory.
 
@@ -609,7 +610,7 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.list_files(self.uid, prefix=prefix, recursive=recursive)
 
-    def download(self, path: Union[str, PurePosixPath]):
+    def download(self, path: str | PurePosixPath):
         """
         Open a file in the project for reading. Use to get files from a remote
         CryoSPARC instance whose project directories are not available on the
@@ -635,12 +636,12 @@ class ProjectController(Controller[Project]):
         return self.cs.download(self.uid, path)
 
     @overload
-    def download_file(self, path: Union[str, PurePosixPath]) -> Path: ...
+    def download_file(self, path: str | PurePosixPath) -> Path: ...
     @overload
-    def download_file(self, path: Union[str, PurePosixPath], target: Union[str, PurePath]) -> Path: ...
+    def download_file(self, path: str | PurePosixPath, target: str | PurePath) -> Path: ...
     @overload
-    def download_file(self, path: Union[str, PurePosixPath], target: IO[bytes]) -> IO[bytes]: ...
-    def download_file(self, path: Union[str, PurePosixPath], target: BinaryFile = "") -> Union[Path, IO[bytes]]:
+    def download_file(self, path: str | PurePosixPath, target: IO[bytes]) -> IO[bytes]: ...
+    def download_file(self, path: str | PurePosixPath, target: BinaryFile = "") -> Path | IO[bytes]:
         """
         Download a file from the project directory to a target path or writeable
         file handle.
@@ -660,7 +661,7 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.download_file(self.uid, path, target)
 
-    def download_dataset(self, path: Union[str, PurePosixPath]) -> Dataset:
+    def download_dataset(self, path: str | PurePosixPath) -> Dataset:
         """
         Download a .cs dataset file from the given relative path in the project
         directory.
@@ -673,7 +674,7 @@ class ProjectController(Controller[Project]):
         """
         return self.cs.download_dataset(self.uid, path)
 
-    def download_mrc(self, path: Union[str, PurePosixPath]) -> Tuple["mrc.Header", "NDArray"]:
+    def download_mrc(self, path: str | PurePosixPath) -> tuple["mrc.Header", "NDArray"]:
         """
         Download a .mrc file from the project directory.
 
@@ -687,8 +688,8 @@ class ProjectController(Controller[Project]):
 
     def upload(
         self,
-        target_path: Union[str, PurePosixPath],
-        source: Union[str, PurePath, IO, Buffer, Stream],
+        target_path: str | PurePosixPath,
+        source: str | PurePath | IO | Buffer | Stream,
         *,
         overwrite: bool = False,
     ) -> None:
@@ -707,7 +708,7 @@ class ProjectController(Controller[Project]):
 
     def upload_dataset(
         self,
-        target_path: Union[str, PurePosixPath],
+        target_path: str | PurePosixPath,
         dset: Dataset,
         *,
         format: int = DEFAULT_FORMAT,
@@ -729,7 +730,7 @@ class ProjectController(Controller[Project]):
 
     def upload_mrc(
         self,
-        target_path: Union[str, PurePosixPath],
+        target_path: str | PurePosixPath,
         data: "NDArray",
         psize: float,
         *,
@@ -750,7 +751,7 @@ class ProjectController(Controller[Project]):
 
     def mkdir(
         self,
-        target_path: Union[str, PurePosixPath],
+        target_path: str | PurePosixPath,
         parents: bool = False,
         exist_ok: bool = False,
     ):
@@ -773,7 +774,7 @@ class ProjectController(Controller[Project]):
             exist_ok=exist_ok,
         )
 
-    def cp(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
+    def cp(self, source_path: str | PurePosixPath, target_path: str | PurePosixPath = "") -> None:
         """
         Copy a file or directory to the project directory. May only copy files
         within the project directory or from paths the user is authorized to
@@ -797,7 +798,7 @@ class ProjectController(Controller[Project]):
             target_path=target_path,
         )
 
-    def symlink(self, source_path: Union[str, PurePosixPath], target_path: Union[str, PurePosixPath] = "") -> None:
+    def symlink(self, source_path: str | PurePosixPath, target_path: str | PurePosixPath = "") -> None:
         """
         Create a symbolic link in a project directory. May only create links to
         files or folders the user is authorized to access by an administrator.

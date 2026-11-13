@@ -1,7 +1,7 @@
 # THIS FILE IS AUTO-GENERATED, DO NOT EDIT DIRECTLY
 # SEE dev/api_generate_models.py
 import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -15,7 +15,7 @@ class JobRegisterParamTypeSpec(BaseModel):
     """
     Basic type of the parameter.
     """
-    format: Optional[Literal["path", "resources"]] = None
+    format: Literal["path", "resources"] | None = None
     """
     Expected format or subtype of the parameter, if applicable.
     """
@@ -26,71 +26,71 @@ class JobRegisterParamSpec(BaseModel):
     Full specification for a job parameter.
     """
 
-    type: Optional[Literal["string", "integer", "number", "boolean", "null", "array"]] = None
+    type: Literal["string", "integer", "number", "boolean", "null", "array"] | None = None
     """
     Basic type of the parameter. Will be empty if 'anyOf' is used.
     """
-    anyOf: List[JobRegisterParamTypeSpec] = []
+    anyOf: list[JobRegisterParamTypeSpec] = []
     """
     List of possible types for union or nullable parameters.
     """
-    items: Optional[JobRegisterParamTypeSpec] = None
+    items: JobRegisterParamTypeSpec | None = None
     """
     Specification for items in an 'array' type parameter.
     """
-    format: Optional[Literal["path", "resources"]] = None
+    format: Literal["path", "resources"] | None = None
     """
     Expected format or subtype of the parameter, if applicable.
     """
-    default: Union[str, int, float, str, List[str], None] = None
+    default: Any | None = None
     """
     Default value for the parameter.
     """
-    title: Optional[str]
+    title: str | None
     """
     Human-readable title of the parameter.
     """
-    description: Optional[str] = None
+    description: str | None = None
     """
     Detailed description of the parameter.
     """
-    examples: Optional[List[Any]] = None
+    examples: list[Any] | None = None
     """
     Example values for the parameter.
     """
-    gt: Optional[float] = None
+    gt: float | None = None
     """
     Greater than constraint for numeric parameters.
     """
-    ge: Optional[float] = None
+    ge: float | None = None
     """
     Greater than or equal to constraint for numeric parameters.
     """
-    lt: Optional[float] = None
+    lt: float | None = None
     """
     Less than constraint for numeric parameters.
     """
-    le: Optional[float] = None
+    le: float | None = None
     """
     Less than or equal to constraint for numeric parameters.
     """
-    multiple_of: Optional[float] = None
+    multiple_of: float | None = None
     """
     Multiple of constraint for numeric parameters.
     """
-    enum: Optional[List[Union[str, int, float, str, List[str]]]] = None
+    enum: list[Any] | None = None
     """
     List of allowed values for the parameter, if applicable.
     """
-    labels: Optional[List[str]] = None
+    labels: list[str] | None = None
     """
     Human-readable labels for each value in enum.
     """
-    pattern: Optional[str] = None
+    pattern: str | None = None
     """
     Regex pattern that string parameters must match.
     """
-    hidden: Union[bool, When] = False
+    hidden: bool | When = False
     """
     Whether the parameter is hidden in the UI.
     """
@@ -98,11 +98,11 @@ class JobRegisterParamSpec(BaseModel):
     """
     Whether the parameter is considered advanced.
     """
-    section: Optional[ParamSection] = None
+    section: ParamSection | None = None
     """
     Section the parameter belongs to in the UI.
     """
-    allowed: List[Literal["dir", "file", "glob"]] = []
+    allowed: list[Literal["dir", "file", "glob"]] = []
     """
     Allowed path types for path parameters that have type 'string' and format 'path'.
     """
@@ -110,7 +110,7 @@ class JobRegisterParamSpec(BaseModel):
     """
     Whether to validate that paths parameter values exist and are the right allowed type before launching a job.
     """
-    legacy_name: Optional[str] = None
+    legacy_name: str | None = None
     """
     Legacy name of the parameter in previous versions of CryoSPARC, if applicable.
     """
@@ -153,7 +153,7 @@ class JobRegisterJobSpec(BaseModel):
     """
     Category of the job type for grouping in the UI.
     """
-    tags: List[BuilderTag] = []
+    tags: list[BuilderTag] = []
     """
     Job Builder tags associated with the job type.
     """
@@ -178,7 +178,7 @@ class JobRegisterJobSpec(BaseModel):
     """
     Output specifications for the job type.
     """
-    params: Dict[str, JobRegisterParamSpec]
+    params: dict[str, JobRegisterParamSpec]
     """
     Parameter specifications for the job type.
     """
@@ -201,19 +201,19 @@ class JobRegister(BaseModel):
     When this object was first created. Imported objects such as projects
     and jobs will retain the created time from their original CryoSPARC instance.
     """
-    specs: List[JobRegisterJobSpec] = []
+    specs: list[JobRegisterJobSpec] = []
     """
     List of job type specifications in the registry.
     """
-    error: Optional[JobRegisterError] = None
+    error: JobRegisterError | None = None
     """
     Error information if there was an issue generating the registry.
     """
-    username: Optional[str] = None
+    username: str | None = None
     """
     :meta private:
     """
-    categories: Dict[str, str]
+    categories: dict[str, str]
     """
     Category values to titles map which also indicates order in which jobs
     should be grouped.

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as n
 
 from ..util import hashcache, strencodenull
@@ -46,7 +44,7 @@ class Column(n.ndarray):
     """
 
     __slots__ = ("_dataset",)
-    _dataset: Optional[Data]
+    _dataset: Data | None
 
     def __new__(cls, field: Field, data: Data):
         dtype = n.dtype(fielddtype(field))

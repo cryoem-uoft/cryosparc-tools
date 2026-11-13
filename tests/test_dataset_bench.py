@@ -88,7 +88,7 @@ def test_add_fields(dset: Dataset):
 
 
 def test_rename_fields(dset: Dataset):
-    renamed_fields = [f if f == "uid" else "{}__RENAMED".format(f) for f in dset.fields()]
+    renamed_fields = [f if f == "uid" else f"{f}__RENAMED" for f in dset.fields()]
     dset.rename_fields("{}__RENAMED".format)
     assert dset.fields() == renamed_fields
 
