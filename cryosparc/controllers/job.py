@@ -375,8 +375,8 @@ class JobController(Controller[Job]):
 
         Args:
             action (str): Interactive endpoint to call.
-            body (any): Data to send to the interactive job endpoint. Must be
-                JSON-encodable.
+            body (dict[str, Any]): Data to send to the interactive job endpoint.
+                Must be JSON-encodable.
             timeout (int, optional): Maximum time to wait for action to
                 complete, in seconds. Defaults to 10.
             refresh (bool, optional): If True, refresh the job model after
