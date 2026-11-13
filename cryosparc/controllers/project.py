@@ -361,8 +361,8 @@ class ProjectController(Controller[Project]):
         self,
         workspace_uid: str,
         type: str,
-        connections: dict[str, JobOutput | list[JobOutput]] | None = None,
-        params: dict[str, Any] | None = None,
+        connections: Mapping[str, JobOutput | list[JobOutput]] = {},
+        params: Mapping[str, Any] = {},
         title: str = "",
         desc: str = "",
     ) -> JobController:
@@ -409,10 +409,6 @@ class ProjectController(Controller[Project]):
             ...     params={"abinit_K": 3}
             ... )
         """
-        if params is None:
-            params = {}
-        if connections is None:
-            connections = {}
         return self.cs.create_job(
             self.uid, workspace_uid, type, connections=connections, params=params, title=title, desc=desc
         )

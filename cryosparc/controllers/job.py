@@ -226,9 +226,9 @@ class JobController(Controller[Job]):
         self,
         lane: str | None = None,
         target: str | None = None,
-        gpus: list[int] | None = None,
+        gpus: Sequence[int] = [],
         *,
-        cluster_vars: dict[str, Any] | None = None,
+        cluster_vars: Mapping[str, Any] = {},
         check_inputs_ready: bool = True,
         oversubscribe_gpus: bool = False,
         hostname: str | None = None,
@@ -282,12 +282,8 @@ class JobController(Controller[Job]):
             >>> job.status
             "queued"
         """
-        if cluster_vars is None:
-            cluster_vars = {}
-        if gpus is None:
-            gpus = []
         if cluster_vars:
-            self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, cluster_vars)
+            self.cs.api.jobs.set_cluster_custom_vars(self.project_uid, self.uid, dict(cluster_vars))
         if hostname is not None:
             warnings.warn("hostname argument is deprecated, use target instead", DeprecationWarning, stacklevel=2)
             target = hostname
@@ -296,7 +292,7 @@ class JobController(Controller[Job]):
             self.uid,
             lane=lane,
             hostname=target,
-            gpus=gpus,
+            gpus=list(gpus),
             no_check_inputs_ready=not check_inputs_ready,
             oversubscribe_gpus=oversubscribe_gpus,
         )
@@ -371,7 +367,7 @@ class JobController(Controller[Job]):
         """
         self.cs.api.jobs.restart(self.project_uid, self.uid)
 
-    def interact(self, action: str, body: Any = None, *, timeout: int = 10, refresh: bool = False) -> Any:
+    def interact(self, action: str, body: Mapping[str, Any] = {}, *, timeout: int = 10, refresh: bool = False) -> Any:
         """
         Send a message to or perform an interactive action on a waiting interactive job.
         Possible actions and expected body depend on the job type.
@@ -389,10 +385,8 @@ class JobController(Controller[Job]):
         Returns:
             any: Response from the interactive endpoint.
         """
-        if body is None:
-            body = {}
         result: Any = self.cs.api.jobs.interactive_post(
-            self.project_uid, self.uid, body=body, endpoint=action, timeout=timeout
+            self.project_uid, self.uid, body=dict(body), endpoint=action, timeout=timeout
         )
         if refresh:
             self.refresh()
@@ -569,7 +563,7 @@ class JobController(Controller[Job]):
     def set_params(self, params: dict[str, Any], /) -> None: ...
     @overload
     def set_params(self, /, **params: Any) -> None: ...
-    def set_params(self, params: dict[str, Any] | None = None, **kwparams: Any) -> None:
+    def set_params(self, params: Mapping[str, Any] = {}, **kwparams: Any) -> None:
         """
         Update job parameters with the given values. Only parameters that are
         valid for the job type are updated.
@@ -591,8 +585,6 @@ class JobController(Controller[Job]):
             >>> # or
             >>> job.set_params({"compute_num_gpus": 4, "abinit_K": 3})
         """
-        if params is None:
-            params = {}
         self.model = self.cs.api.jobs.set_params(self.project_uid, self.uid, {**params, **kwparams})
 
     def clear_param(self, param: str):
@@ -938,7 +930,7 @@ class JobController(Controller[Job]):
             self._events[name] = event.id
         return event.id
 
-    def log_checkpoint(self, meta: dict | None = None):
+    def log_checkpoint(self, meta: Mapping[str, Any] = {}):
         """
         Add a checkpoint to the job's event log. Also resets named events.
 
@@ -948,9 +940,7 @@ class JobController(Controller[Job]):
         Returns:
             str: Created checkpoint event ID
         """
-        if meta is None:
-            meta = {}
-        event = self.cs.api.jobs.add_checkpoint(self.project_uid, self.uid, meta)
+        event = self.cs.api.jobs.add_checkpoint(self.project_uid, self.uid, dict(meta))
         self._events = {}
         return event.id
 
@@ -1916,7 +1906,7 @@ class ExternalJobController(JobController):
         return super().connect(target_input, source_job, source_output)
 
     def alloc_output(
-        self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: dict[str, Any] | None = None
+        self, name: str, alloc: Union[int, "ArrayLike", Dataset] = 0, *, dtype_params: Mapping[str, Any] = {}
     ) -> Dataset:
         """
         Allocate an empty dataset for a job output. Initialize with empty rows
@@ -1961,9 +1951,7 @@ class ExternalJobController(JobController):
             ])
 
         """
-        if dtype_params is None:
-            dtype_params = {}
-        expected_fields = self.cs.api.jobs.get_output_fields(self.project_uid, self.uid, name, dtype_params)
+        expected_fields = self.cs.api.jobs.get_output_fields(self.project_uid, self.uid, name, dict(dtype_params))
         if isinstance(alloc, int):
             return Dataset.allocate(alloc, expected_fields)
         elif isinstance(alloc, Dataset):

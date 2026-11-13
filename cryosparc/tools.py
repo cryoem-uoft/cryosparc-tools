@@ -614,8 +614,8 @@ class CryoSPARC:
         project_uid: str,
         workspace_uid: str,
         type: str,
-        connections: dict[str, JobOutput | list[JobOutput]] | None = None,
-        params: dict[str, Any] | None = None,
+        connections: Mapping[str, JobOutput | list[JobOutput]] = {},
+        params: Mapping[str, Any] = {},
         title: str = "",
         desc: str = "",
     ) -> JobController:
@@ -661,11 +661,9 @@ class CryoSPARC:
             ...     params={"abinit_K": 3}
             ... )
         """
-        if params is None:
-            params = {}
-        if connections is None:
-            connections = {}
-        job = self.api.jobs.create(project_uid, workspace_uid, params=params, type=type, title=title, description=desc)
+        job = self.api.jobs.create(
+            project_uid, workspace_uid, params=dict(params), type=type, title=title, description=desc
+        )
         for input_name, connection in connections.items():
             connection = [connection] if isinstance(connection, tuple) else connection
             for source_job, source_output_name in connection:
