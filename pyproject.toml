@@ -34,11 +34,11 @@ dev = [
     "cython",
     "jupyter-book < 2.0",
     "pre-commit",
-    "pyright",
+    "pyright == 1.1.414",
     "pytest",
     "pytest-benchmark",
     "pytest-xdist[psutil]",
-    "ruff",
+    "ruff >= 0.17.5, < 0.18",
     "setuptools",
 ]
 
