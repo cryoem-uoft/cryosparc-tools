@@ -96,7 +96,7 @@ def get_win_appdata_folder_via_ctypes() -> str:
 
     csidl_const = 26  # for APPDATA
     buf = ctypes.create_unicode_buffer(1024)
-    windll = ctypes.windll
+    windll = ctypes.windll  # type: ignore
     windll.shell32.SHGetFolderPathW(None, csidl_const, None, 0, buf)
 
     # Downgrade to short path name if it has high-bit chars.

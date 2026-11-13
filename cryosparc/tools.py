@@ -15,7 +15,7 @@ import re
 import tempfile
 import time
 import warnings
-from collections.abc import Container, Iterable
+from collections.abc import Container, Iterable, Mapping
 from contextlib import contextmanager
 from functools import cached_property
 from hashlib import sha256
@@ -39,7 +39,7 @@ from .api import APIClient
 from .auth import InstanceAuthSessions
 from .constants import API_SUFFIX
 from .controllers import as_output_slot
-from .controllers.job import ExternalJobController, FileOrFigure, JobController, JobOutput
+from .controllers.job import DEFAULT_SAVEFIG_KW, ExternalJobController, FileOrFigure, JobController, JobOutput
 from .controllers.project import ProjectController
 from .controllers.workspace import WorkspaceController
 from .dataset import CSDAT_FORMAT, DEFAULT_FORMAT, Dataset
@@ -762,7 +762,7 @@ class CryoSPARC:
         title: str = "",
         desc: str = "",
         image: FileOrFigure | None = None,
-        savefig_kw: dict | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ) -> str:
         """
         Save a result dataset to a project, via External Job. Specify at least
@@ -847,8 +847,6 @@ class CryoSPARC:
         """
         # Check slot names if present. If not provided, use all slots specified
         # in the dataset prefixes.
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         prefixes = dataset.prefixes()
         if slots is None:
             slots = list(prefixes)

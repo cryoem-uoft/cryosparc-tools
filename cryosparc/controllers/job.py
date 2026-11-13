@@ -13,7 +13,7 @@ to create a new job and get a :py:class:`JobController` instance for it.
 import re
 import traceback
 import warnings
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from io import BytesIO
@@ -59,6 +59,11 @@ GROUP_NAME_PATTERN = r"^[A-Za-z][0-9A-Za-z_]*$"
 `Regular expression <https://docs.python.org/3/howto/regex.html#regex-howto>`_
 for job input and output names. May only contain Latin letters, numbers and
 underscores, and must start with a letter.
+"""
+
+DEFAULT_SAVEFIG_KW = {"bbox_inches": "tight", "pad_inches": 0}
+"""
+Default keyword arguments to pass to ``figure.savefig()`` when saving matplotlib Figures.
 """
 
 LogLevel = Literal["text", "warning", "error"]
@@ -957,8 +962,8 @@ class JobController(Controller[Job]):
         raw_data: str | bytes | None = None,
         raw_data_file: BinaryFile | None = None,
         raw_data_format: TextFormat | None = None,
-        flags: list[str] | None = None,
-        savefig_kw: dict | None = None,
+        flags: Iterable[str] = ["plots"],
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ):
         """
         Add an event log with a figure.
@@ -1005,10 +1010,6 @@ class JobController(Controller[Job]):
         Returns:
             str: Created log event ID
         """
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
-        if flags is None:
-            flags = ["plots"]
         imgfiles = self._upload_plot(
             figure,
             name=text,
@@ -1018,7 +1019,7 @@ class JobController(Controller[Job]):
             raw_data_format=raw_data_format,
             savefig_kw=savefig_kw,
         )
-        event = self.cs.api.jobs.add_image_log(self.project_uid, self.uid, imgfiles, text=text, flags=flags)
+        event = self.cs.api.jobs.add_image_log(self.project_uid, self.uid, imgfiles, text=text, flags=list(flags))
         return event.id
 
     def list_files(self, prefix: str | PurePosixPath = "", recursive: bool = False) -> list[str]:
@@ -1211,15 +1212,13 @@ class JobController(Controller[Job]):
         raw_data: str | bytes | None = None,
         raw_data_file: BinaryFile | None = None,
         raw_data_format: TextFormat | None = None,
-        savefig_kw: dict | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ) -> list[GridFSAsset]:
         """
         Upload the given figure. Returns a list of the created asset objects.
         Avoid using directly; use ``log_plot`` instead. See ``log_plot``
         additional details.
         """
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         figdata = []
         basename = name or "figure"
         if hasattr(figure, "savefig"):  # matplotlib plot
@@ -1979,7 +1978,7 @@ class ExternalJobController(JobController):
         *,
         version: int = 0,
         image: FileOrFigure | None = None,
-        savefig_kw: dict | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
         **kwargs,
     ):
         """
@@ -2009,8 +2008,6 @@ class ExternalJobController(JobController):
             >>> job.save_output("picked_particles", particles)
 
         """
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         if "refresh" in kwargs:
             warnings.warn("refresh argument no longer applies", DeprecationWarning, stacklevel=2)
         self.model = self.cs.api.jobs.save_output(self.project_uid, self.uid, name, dataset, version=version)
@@ -2026,7 +2023,7 @@ class ExternalJobController(JobController):
         name: str,
         image: FileOrFigure | GridFSAsset,
         *,
-        savefig_kw: dict | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ):
         """
         Set the output image for an output, visible from the job's Outputs tab.
@@ -2037,8 +2034,6 @@ class ExternalJobController(JobController):
             image (str | Path | IO | Figure): Image file or matplotlib Figure.
 
         """
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         assets = (
             [image]
             if isinstance(image, GridFSAsset)
@@ -2051,7 +2046,7 @@ class ExternalJobController(JobController):
         image: FileOrFigure | GridFSAsset,
         *,
         name: str = "tile0",
-        savefig_kw: dict | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ):
         """
         Set the job tile image, visible when viewing the job from a workspace.
@@ -2060,8 +2055,6 @@ class ExternalJobController(JobController):
         Args:
             image (str | Path | IO | Figure): Image file or matplotlib Figure.
         """
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         assets = (
             [image]
             if isinstance(image, GridFSAsset)

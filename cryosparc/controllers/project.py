@@ -7,7 +7,7 @@ a :py:class:`ProjectController` instance.
 
 import time
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePath, PurePosixPath
 from typing import IO, TYPE_CHECKING, Any, Literal, overload
 
@@ -22,7 +22,7 @@ from ..spec import Datatype, SlotSpec
 from ..stream import Stream
 from ..util import BinaryFile, PurePosixPathProperty
 from . import Controller, as_output_slot
-from .job import ExternalJobController, FileOrFigure, JobController, JobOutput
+from .job import DEFAULT_SAVEFIG_KW, ExternalJobController, FileOrFigure, JobController, JobOutput
 from .workspace import WorkspaceController
 
 if TYPE_CHECKING:
@@ -478,7 +478,7 @@ class ProjectController(Controller[Project]):
         title: str = "",
         desc: str = "",
         image: FileOrFigure | None = None,
-        savefig_kw: dict | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ) -> str:
         """
         Save a result dataset to the project, via External Job. Specify at least
@@ -555,8 +555,6 @@ class ProjectController(Controller[Project]):
         Returns:
             str: UID of created job where this output was saved
         """
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
             slots = [as_output_slot(slot) for slot in slots]  # type: ignore

@@ -11,7 +11,7 @@ to create a new workspace in a project.
 
 import time
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -25,7 +25,7 @@ from ..models.workspace import Workspace
 from ..search import JobSearch
 from ..spec import Datatype, SlotSpec
 from . import Controller, as_output_slot
-from .job import ExternalJobController, FileOrFigure, JobController, JobOutput
+from .job import DEFAULT_SAVEFIG_KW, ExternalJobController, FileOrFigure, JobController, JobOutput
 
 if TYPE_CHECKING:
     from ..tools import CryoSPARC
@@ -292,7 +292,7 @@ class WorkspaceController(Controller[Workspace | Session]):
         title: str = "",
         desc: str = "",
         image: FileOrFigure | None = None,
-        savefig_kw: dict | None = None,
+        savefig_kw: Mapping[str, Any] = DEFAULT_SAVEFIG_KW,
     ) -> str:
         """
         Save the a result dataset to a workspace, via External Job. Specify at
@@ -360,8 +360,6 @@ class WorkspaceController(Controller[Workspace | Session]):
             ... )
             "J45"
         """
-        if savefig_kw is None:
-            savefig_kw = {"bbox_inches": "tight", "pad_inches": 0}
         if slots and any(isinstance(s, dict) and "prefix" in s for s in slots):
             warnings.warn("'prefix' slot key is deprecated. Use 'name' instead.", DeprecationWarning, stacklevel=2)
             # convert to prevent from warning again
