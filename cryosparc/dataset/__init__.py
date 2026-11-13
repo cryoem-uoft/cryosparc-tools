@@ -402,12 +402,10 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
 
         step = len(datasets)
         stride = len(self)
-        startidx = 0
         result = type(self).allocate(len(all_uids), keep_fields)
-        for dset in datasets:
+        for startidx, dset in enumerate(datasets):
             for key, *_ in keep_fields:
                 result[key][startidx : startidx + (stride * step) : step] = dset[key]
-            startidx += 1  # noqa: SIM113
 
         return result
 
