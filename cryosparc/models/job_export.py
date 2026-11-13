@@ -81,20 +81,18 @@ class ExportResultsSelection(RootModel):
     """
     Which results to export and how:
     - dict: exactly these result names are included, regardless of the default
-      omit policy, each mapped to a transfer method, or ``True`` to use the
-      default method for that result (currently always symlink).
+      omit policy, each mapped to a transfer method.
     - list: shorthand for including these names with their default method, e.g.
-      ``["map", "map_sharp"]`` is equivalent to ``{"map": True, "map_sharp": True}``.
+      ``["map", "map_sharp"]`` is equivalent to ``{"map": TransferMethod.SYMLINK, "map_sharp": TransferMethod.SYMLINK}``.
     """
 
     root: dict[str, TransferMethod] = {}
     """
     Which results to export and how:
     - dict: exactly these result names are included, regardless of the default
-      omit policy, each mapped to a transfer method, or ``True`` to use the
-      default method for that result (currently always symlink).
+      omit policy, each mapped to a transfer method.
     - list: shorthand for including these names with their default method, e.g.
-      ``["map", "map_sharp"]`` is equivalent to ``{"map": True, "map_sharp": True}``.
+      ``["map", "map_sharp"]`` is equivalent to ``{"map": TransferMethod.SYMLINK, "map_sharp": TransferMethod.SYMLINK}``.
     """
 
 
