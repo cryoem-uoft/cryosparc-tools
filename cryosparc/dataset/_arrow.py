@@ -126,6 +126,27 @@ def numpy_to_arrow_array(values: n.ndarray, pa_type: pa.DataType) -> pa.Array:
     return pa.array(n.ascontiguousarray(values), type=pa_type)
 
 
+def dataset_to_table(dset: "Dataset", descr: Optional[List[Field]] = None) -> pa.Table:
+    """
+    Represent the dataset as a single-chunk Arrow table whose numeric columns
+    are zero-copy views into the dataset's own memory.
+
+    The returned table keeps the dataset's underlying memory alive for as long
+    as the table exists. Numeric (and multi-dimensional) columns *share* that
+    memory with the dataset: writing through a mutable numpy view of a column
+    buffer modifies the dataset in place, and vice versa. String/object columns
+    cannot be represented without copying, so they are materialized into Arrow's
+    UTF-8 layout and are independent of the dataset.
+    """
+    descr = dset.descr() if descr is None else descr
+    schema = build_schema(dset, descr, compression=None)  # raises early on complex columns
+    nrow = len(dset)
+    if nrow == 0:
+        return schema.empty_table()
+    arrays = [_column_to_array(dset, field, 0, nrow, schema.field(i).type) for i, field in enumerate(descr)]
+    return pa.Table.from_arrays(arrays, schema=schema)
+
+
 def dataset_to_batches(dset: "Dataset", schema: pa.Schema, descr: List[Field]) -> Iterator[pa.RecordBatch]:
     """
     Yield the dataset as a sequence of Arrow record batches (near ~8MiB each)
@@ -156,6 +177,24 @@ def parse_header(schema: pa.Schema) -> DatasetHeader:
     if raw is None:
         raise DatasetLoadError("Arrow dataset is missing CryoSPARC schema metadata")
     return decode_dataset_header(raw)
+
+
+def _column_to_array(dset: "Dataset", field: Field, offset: int, length: int, pa_type: pa.DataType) -> pa.Array:
+    dt = n.dtype(fielddtype(field))
+    sub = n.asarray(dset[field[0]][offset : offset + length])
+    if dt.base.kind == "O":
+        # Strings: not zero-copy, Arrow needs contiguous offset/data buffers.
+        return pa.array(sub, type=pa.large_string())
+    if dt.shape:
+        # Multi-dimensional: build (possibly nested) fixed-size lists from the
+        # base values outward. The flattened base array is a zero-copy view into
+        # dataset memory.
+        values: pa.Array = pa.array(n.ascontiguousarray(sub).reshape(-1))
+        for dim in reversed(dt.shape):
+            values = pa.FixedSizeListArray.from_arrays(values, dim)
+        return values
+    # Scalar numeric: zero-copy view into dataset memory.
+    return pa.array(sub, type=pa_type)
 
 
 def _array_to_column(array: pa.Array, dtype: n.dtype) -> Union[n.ndarray, pa.Array]:

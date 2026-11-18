@@ -65,6 +65,7 @@ from .dtype import (
     Field,
     arraydtype,
     fielddtype,
+    filter_descr,
     get_data_field,
     get_data_field_dtype,
     normalize_field,
@@ -1338,6 +1339,46 @@ class Dataset(Streamable, MutableMapping[str, Column], Generic[R]):
         arrays = [(cols[c].to_fixed() if fixed else cols[c]) for c in cols]
         dtype = [(f, arraydtype(a)) for f, a in zip(cols, arrays)]
         return n.rec.array(arrays, dtype=dtype)
+
+    def as_arrow(self, *, prefixes: Optional[Sequence[str]] = None, fields: Optional[Sequence[str]] = None):
+        """
+        Represent this dataset's in-memory data as a PyArrow table.
+
+        Unlike :meth:`load_arrow` (which reads from disk into a chunked table),
+        this returns a single-chunk table whose numeric and multi-dimensional
+        columns are **zero-copy views into this dataset's own memory**. The
+        table holds a reference that keeps the dataset memory alive, so it
+        remains valid even after the originating :class:`Dataset` is dropped.
+
+        Because the buffers are shared, the table provides write access to the
+        underlying memory: mutating a numeric column through a writable numpy
+        view of its buffer modifies this dataset in place (and vice versa), for
+        example::
+
+            table = dset.as_arrow()
+            col = table.column("ctf/phase_shift_rad").chunk(0)
+            view = numpy.frombuffer(col.buffers()[-1], dtype=col.type.to_pandas_dtype())
+            view[:] = 0  # also zeroes dset["ctf/phase_shift_rad"]
+
+        String/object columns cannot be shared (Arrow stores them in a
+        contiguous UTF-8 layout), so they are copied and are independent of the
+        dataset.
+
+        Args:
+            prefixes (list[str], optional): Which field prefixes to include. If
+                not specified, includes either all or specified `fields`.
+                Defaults to None.
+            fields (list[str], optional): Which fields to include. If not
+                specified, includes either all or specified `prefixes`. Defaults
+                to None.
+
+        Returns:
+            pyarrow.Table: table backed by this dataset's memory.
+        """
+        from ._arrow import dataset_to_table
+
+        descr = filter_descr(self.descr(), keep_prefixes=prefixes, keep_fields=fields)
+        return dataset_to_table(self, descr)
 
     def query(self, query: Union[Dict[str, "ArrayLike"], Callable[[R], bool]]):
         """
