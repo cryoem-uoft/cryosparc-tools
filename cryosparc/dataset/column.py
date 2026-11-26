@@ -75,6 +75,13 @@ class Column(n.ndarray):
                 value = n.vectorize(hashcache(bytes.decode), otypes="O")(value)
             elif value.dtype.char == "U":
                 value = n.vectorize(hashcache(str), otypes="O")(value)
+            if value.ndim > 0 and value.size == 1:
+                # Numpy >= 2 no longer implicitly converts single-element
+                # arrays to scalars when assigning to a single element, e.g.,
+                # ``col[0] = np.array([1.0])``. Extract the scalar so that it
+                # broadcasts like it did before. Also avoids storing nested
+                # arrays in object columns.
+                value = value.reshape(())[()]
         return super().__setitem__(key, value)
 
     def to_fixed(self) -> "Column":
