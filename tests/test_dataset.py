@@ -454,6 +454,39 @@ def test_column_aggregation(t20s_dset):
     assert not isinstance(n.mean(t20s_dset["uid"]), n.ndarray)
 
 
+def test_column_set_single_element_array():
+    dset = Dataset.allocate(3, [("num", "f4"), ("vec", "f4", (3,)), ("str", "O")])
+
+    # Single-element arrays must be treated as scalars when setting one element
+    dset["num"][0] = n.array([1.5], dtype="f4")
+    dset["num"][1] = n.array([[2.5]], dtype="f4")
+    dset["num"][2] = n.array(3.5, dtype="f4")  # 0-dimensional
+    assert dset["num"].tolist() == [1.5, 2.5, 3.5]
+
+    # Broadcasting to multiple elements
+    dset["num"][:] = n.array([4.5], dtype="f4")
+    assert dset["num"].tolist() == [4.5, 4.5, 4.5]
+    dset["vec"][0] = n.array([[1, 2, 3]], dtype="f4")
+    dset["vec"][1] = n.array([9], dtype="f4")
+    assert dset["vec"].tolist() == [[1, 2, 3], [9, 9, 9], [0, 0, 0]]
+
+    # Fixed-size strings in object columns are stored as plain Python strings
+    dset["str"][0] = n.array(["Hello"])
+    dset["str"][1] = n.array([b"World"])
+    dset["str"][2] = n.array("!")
+    assert dset["str"].tolist() == ["Hello", "World", "!"]
+    assert all(type(s) is str for s in dset["str"])
+
+
+def test_row_set_single_element_array():
+    dset = Dataset.allocate(2, [("num", "f4"), ("str", "O")])
+    row = dset.rows()[1]
+    row["num"] = n.array([1.5], dtype="f4")
+    row["str"] = n.array(["Hello"])
+    assert dset["num"].tolist() == [0.0, 1.5]
+    assert dset["str"].tolist() == ["", "Hello"]
+
+
 @pytest.mark.skipif(n.__version__.startswith("1.17."), reason="works with newer numpy versions, use case is limited")
 def test_row_array_type(t20s_dset):
     rowarr = n.array(t20s_dset.rows())
